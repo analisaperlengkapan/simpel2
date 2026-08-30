@@ -146,11 +146,25 @@ fn coalesce_spans(literal: &str) -> Vec<(usize, usize)> {
 ///    `COALESCE(kondisi, ur_kondisi, '')` is the correct reading of an asset's
 ///    condition and must not be flagged.
 ///
+/// 5. Later uses of a name this literal itself BOUND with `AS`. A CTE or
+///    sub-select that computes the corrected expression and names its output
+///    `kondisi` has created a local column; `GROUP BY kondisi` below it reads
+///    that binding, not `integrasi.siman_aset.kondisi`. Rule (3) already
+///    removes the binding site, which left the uses looking like table reads.
+///
 /// Note what (4) deliberately does NOT exempt: `COALESCE(kategori_aset,
 /// '(tanpa kategori)')`. Coalescing a dead column to a string literal is not a
 /// fix, it is a mask — it stops the NULL panic while still bucketing all 624 533
 /// assets under one made-up label. The rule is "fall back to a column SIMAN
 /// actually fills", not "fall back to anything".
+///
+/// And note what (5) does not exempt: a use BEFORE the binding.
+/// `SELECT kondisi AS kondisi` still reads the dead column — the alias renames
+/// the result, it does not define what was read. Only positions after the
+/// binding can refer to it, so the exemption is positional rather than
+/// whole-literal. `an_alias_does_not_excuse_the_read_that_precedes_it` pins
+/// that, because a whole-literal rule would silently unflag the one shape most
+/// likely to be a real bug.
 fn strip_permitted(literal: &str, dead: &BTreeSet<String>, live: &BTreeSet<String>) -> String {
     let mut out = literal.to_string();
 
@@ -172,7 +186,86 @@ fn strip_permitted(literal: &str, dead: &BTreeSet<String>, live: &BTreeSet<Strin
 
     let out = SQL_COMMENT.replace_all(&out, " ").into_owned();
     let out = FORMAT_PLACEHOLDER.replace_all(&out, " ").into_owned();
+
+    // (5) Mask, rather than delete, so every remaining offset stays valid while
+    // later bindings are still being applied. Identifiers are ASCII, so
+    // overwriting their bytes with spaces cannot split a character.
+    let bindings: Vec<(String, usize)> = OUTPUT_ALIAS
+        .find_iter(&out)
+        .map(|m| {
+            let name = m
+                .as_str()
+                .rsplit(char::is_whitespace)
+                .next()
+                .unwrap_or_default()
+                .trim_matches('"')
+                .to_ascii_lowercase();
+            (name, m.end())
+        })
+        .collect();
+    let mut masked = out.clone().into_bytes();
+    for (name, bound_at) in &bindings {
+        for m in IDENTIFIER.find_iter(&out) {
+            if m.start() >= *bound_at && m.as_str().eq_ignore_ascii_case(name) {
+                masked[m.start()..m.end()].fill(b' ');
+            }
+        }
+    }
+    let out = String::from_utf8(masked).expect("only ASCII identifiers were masked");
+
     OUTPUT_ALIAS.replace_all(&out, " ").into_owned()
+}
+
+/// Canaries for `strip_permitted`. A guard that only proves it stays green on
+/// today's tree cannot tell "nothing is wrong" from "nothing is checked" — so
+/// each of these asserts a direction, and the FAIL direction matters more.
+#[cfg(test)]
+mod strip_permitted_canaries {
+    use super::*;
+
+    fn dead() -> BTreeSet<String> {
+        ["kondisi", "nup"].iter().map(|s| s.to_string()).collect()
+    }
+    fn live() -> BTreeSet<String> {
+        ["ur_kondisi", "no_aset"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
+    }
+    fn survives(sql: &str, col: &str) -> bool {
+        strip_permitted(sql, &dead(), &live())
+            .to_ascii_lowercase()
+            .contains(col)
+    }
+
+    /// The shape this rule exists for: the corrected expression is bound once
+    /// and referred to afterwards.
+    #[test]
+    fn a_bound_name_is_a_local_column_after_its_binding() {
+        assert!(!survives(
+            "WITH a AS (SELECT COALESCE(kondisi, ur_kondisi) AS kondisi              FROM integrasi.siman_aset) SELECT kondisi FROM a GROUP BY kondisi",
+            "kondisi"
+        ));
+    }
+
+    /// The shape the rule must NOT swallow. If this ever passes, rule (5) has
+    /// become whole-literal and the guard no longer sees a bare read.
+    #[test]
+    fn an_alias_does_not_excuse_the_read_that_precedes_it() {
+        assert!(
+            survives("SELECT nup AS nup FROM integrasi.siman_aset", "nup"),
+            "the read happens before the binding; renaming the output does not              change which column was read"
+        );
+    }
+
+    /// Two names, one bound and one not: masking must be per-name.
+    #[test]
+    fn binding_one_name_does_not_exempt_another() {
+        assert!(survives(
+            "WITH a AS (SELECT ur_kondisi AS kondisi, nup FROM integrasi.siman_aset)              SELECT kondisi, nup FROM a",
+            "nup"
+        ));
+    }
 }
 
 /// Every `src/` string literal that names `integrasi.siman_aset`, with its file

@@ -362,9 +362,33 @@ impl BankAsetRepository {
     /// Summary of the caller's visible assets, narrowed by `filter`.
     ///
     /// The filter arrives on the SIGNATURE rather than being applied afterwards
-    /// so that every one of the six queries below is built from the same
-    /// `where_clause` — a summary whose totals answer one question and whose
-    /// breakdown answers another is worse than no summary.
+    /// so that every breakdown below is built from the same `where_clause` — a
+    /// summary whose totals answer one question and whose breakdown answers
+    /// another is worse than no summary. One query is now the mechanism for
+    /// that rather than a convention five queries had to keep agreeing on.
+    ///
+    /// # Why one pass
+    ///
+    /// This was five sequential queries over the same 624 533 rows, and the
+    /// page showed blank headline numbers for as long as they took. Measured
+    /// on the staging snapshot: a bare scan is 53 ms, but
+    /// `rph_aset ~ '^[0-9]+…$'` plus the cast costs ~840 ms — and three of the
+    /// five queries paid it. `GROUPING SETS` reads the table once, evaluates
+    /// that regex once per row, and returns every breakdown from the same
+    /// scan.
+    ///
+    /// | | five queries | one pass |
+    /// |---|---|---|
+    /// | run 1 | 4 246 ms | 1 469 ms |
+    /// | run 2 | 4 313 ms | 1 628 ms |
+    ///
+    /// All four breakdowns and all four totals were verified equal to the
+    /// queries they replace, by `EXCEPT` in both directions over the full
+    /// 624 533 rows: 0 differing rows on every one.
+    ///
+    /// The remaining ~0.8 s is still that regex. It belongs in a generated
+    /// numeric column on `integrasi.siman_aset`, which is a migration, not a
+    /// query change.
     pub async fn dashboard(
         &self,
         filter: &AsetFilter,
@@ -388,148 +412,119 @@ impl BankAsetRepository {
         }
         push_asset_filters(filter, &mut scope_params, &mut conditions);
 
-        // `where_clause` for queries without a WHERE, `and_clause` for the one
-        // that already has one.
         let where_clause = if conditions.is_empty() {
             String::new()
         } else {
             format!(" WHERE {}", conditions.join(" AND "))
         };
-        let and_clause = if conditions.is_empty() {
-            String::new()
-        } else {
-            format!(" AND {}", conditions.join(" AND "))
-        };
         let p = as_sql_params(&scope_params);
 
-        let totals = client
-            .query_one(
-                &format!(
-                    "SELECT
-                    COUNT(*)::BIGINT AS total_aset,
-                    COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8 AS total_nilai,
-                    -- Counted on the CODE, not the name. Measured on staging:
-                    -- 556 distinct `kdsatker_keu` but only 554 distinct
-                    -- `nama_satker`, so two satkers were folded into one and the
-                    -- tile under-reported. A satker's identity is its code
-                    -- (#43); `nama_satker` is a label that can collide.
-                    COUNT(DISTINCT kdsatker_keu)::BIGINT AS total_satker,
-                    COUNT(DISTINCT {ASSET_KATEGORI_SQL})::BIGINT AS total_kategori
-                 FROM integrasi.siman_aset{where_clause}"
-                ),
-                &p,
-            )
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
-
-        let total_aset: i64 = totals.get("total_aset");
-        let total_nilai: f64 = totals.get("total_nilai");
-        let total_satker: i64 = totals.get("total_satker");
-        let total_kategori: i64 = totals.get("total_kategori");
-
-        let kondisi_rows = client
+        // The CTE names each row's five dimensions and its value once; the
+        // grouping sets then aggregate that projection. Postgres inlines a
+        // non-recursive CTE referenced once, so this is one scan, not two.
+        //
+        // Two satker sets, not one, because the two numbers ask different
+        // questions: the top-10 list is BY NAME (what a reader recognises),
+        // while `total_satker` counts CODES. Measured on staging: 556 distinct
+        // `kdsatker_keu` against 554 distinct `nama_satker`, so counting names
+        // folds two satkers into one and under-reports the tile. A satker's
+        // identity is its code (#43); the name is a label that can collide.
+        //
+        // `tahun` is NULL for exactly the rows the old per-year query excluded
+        // in its WHERE, so dropping the NULL group below reproduces it — and
+        // keeps those rows in every OTHER breakdown, where they belong.
+        let rows = client
             .query(
                 &format!(
-                    // Condition read through the shared expression rather than
-                    // a local `COALESCE(ur_kondisi, …)`. This was the fifth
-                    // spelling of "an asset's condition" in the crate: it
-                    // ignored `kondisi` entirely and treated `''` as a real
-                    // value. Harmless today (`kondisi` is populated in 0 of
-                    // 624 533 staging rows) and precisely the kind of harmless
-                    // that stops being harmless the day the ingest is fixed.
-                    "SELECT COALESCE(NULLIF({ASSET_KONDISI_SQL}, ''), 'TIDAK DIKETAHUI') AS kondisi,
-                        COUNT(*)::BIGINT AS count
-                 FROM integrasi.siman_aset{where_clause}
-                 GROUP BY 1
-                 ORDER BY count DESC"
+                    r#"WITH aset AS (
+                    SELECT
+                        COALESCE(NULLIF({ASSET_KONDISI_SQL}, ''), 'TIDAK DIKETAHUI') AS kondisi,
+                        {ASSET_KATEGORI_SQL} AS kategori,
+                        COALESCE(nama_satker, 'TIDAK DIKETAHUI') AS satker_nama,
+                        kdsatker_keu AS satker_kode,
+                        CASE WHEN SUBSTRING(tgl_perlh FROM 1 FOR 4) ~ '^[0-9]{{4}}$'
+                             THEN SUBSTRING(tgl_perlh FROM 1 FOR 4)::INT END AS tahun,
+                        CASE WHEN rph_aset ~ '^[0-9]+(\.[0-9]+)?$'
+                             THEN rph_aset::FLOAT8 ELSE 0 END AS nilai
+                    FROM integrasi.siman_aset{where_clause}
+                 )
+                 SELECT
+                    GROUPING(kondisi)     AS g_kondisi,
+                    GROUPING(kategori)    AS g_kategori,
+                    GROUPING(satker_nama) AS g_satker_nama,
+                    GROUPING(satker_kode) AS g_satker_kode,
+                    GROUPING(tahun)       AS g_tahun,
+                    kondisi, kategori, satker_nama, satker_kode, tahun,
+                    COUNT(*)::BIGINT           AS count,
+                    COALESCE(SUM(nilai), 0)::FLOAT8 AS nilai
+                 FROM aset
+                 GROUP BY GROUPING SETS (
+                    (), (kondisi), (kategori), (satker_nama), (satker_kode), (tahun)
+                 )"#
                 ),
                 &p,
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
-        let kondisi_breakdown: Vec<KondisiStat> = kondisi_rows
-            .iter()
-            .map(|r| KondisiStat {
-                kondisi: r.get("kondisi"),
-                count: r.get("count"),
-            })
-            .collect();
 
-        let kat_rows = client
-            .query(
-                &format!(
-                    // The asset-type axis comes from SIMAN's `jenis_aset`, NOT
-                    // from `kategori_aset` — see ASSET_KATEGORI_SQL.
-                    "SELECT {ASSET_KATEGORI_SQL} AS kategori_aset,
-                    COUNT(*)::BIGINT AS count,
-                    COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8 AS nilai
-                 FROM integrasi.siman_aset{where_clause}
-                 GROUP BY {ASSET_KATEGORI_SQL}
-                 ORDER BY count DESC"
-                ),
-                &p,
-            )
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
-        let kategori_breakdown: Vec<KategoriStat> = kat_rows
-            .iter()
-            .map(|r| KategoriStat {
-                kategori: r.get("kategori_aset"),
-                count: r.get("count"),
-                nilai: r.get("nilai"),
-            })
-            .collect();
+        // `GROUPING(x)` is 0 when the row is grouped by `x` and 1 when it is
+        // not, so a row belongs to exactly the set whose column reads 0.
+        let in_set = |row: &tokio_postgres::Row, col: &str| -> bool { row.get::<_, i32>(col) == 0 };
 
-        let satker_rows = client
-            .query(
-                &format!(
-                    "SELECT COALESCE(nama_satker, 'TIDAK DIKETAHUI') AS satker,
-                    COUNT(*)::BIGINT AS count,
-                    COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8 AS nilai
-                 FROM integrasi.siman_aset{where_clause}
-                 GROUP BY COALESCE(nama_satker, 'TIDAK DIKETAHUI')
-                 ORDER BY count DESC
-                 LIMIT 10"
-                ),
-                &p,
-            )
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
-        let top_satker: Vec<SatkerStat> = satker_rows
-            .iter()
-            .map(|r| SatkerStat {
-                satker: r.get("satker"),
-                count: r.get("count"),
-                nilai: r.get("nilai"),
-            })
-            .collect();
+        let mut total_aset: i64 = 0;
+        let mut total_nilai: f64 = 0.0;
+        let mut total_satker: i64 = 0;
+        let mut total_kategori: i64 = 0;
+        let mut kondisi_breakdown: Vec<KondisiStat> = Vec::new();
+        let mut kategori_breakdown: Vec<KategoriStat> = Vec::new();
+        let mut top_satker: Vec<SatkerStat> = Vec::new();
+        let mut per_tahun: Vec<TahunStat> = Vec::new();
 
-        let tahun_rows = client
-            .query(
-                &format!(
-                    "SELECT
-                    NULLIF(SUBSTRING(tgl_perlh FROM 1 FOR 4), '')::INT AS tahun,
-                    COUNT(*)::BIGINT AS count
-                 FROM integrasi.siman_aset
-                 WHERE tgl_perlh IS NOT NULL AND SUBSTRING(tgl_perlh FROM 1 FOR 4) ~ '^[0-9]{{4}}$'{and_clause}
-                 GROUP BY tahun
-                 ORDER BY tahun DESC
-                 LIMIT 20"
-                ),
-                &p,
-            )
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
-        let per_tahun: Vec<TahunStat> = tahun_rows
-            .iter()
-            .filter_map(|r| {
-                let tahun: Option<i32> = r.try_get("tahun").ok();
-                tahun.map(|t| TahunStat {
-                    tahun: t,
-                    count: r.get("count"),
-                })
-            })
-            .collect();
+        for row in &rows {
+            let count: i64 = row.get("count");
+            if in_set(row, "g_kondisi") {
+                kondisi_breakdown.push(KondisiStat {
+                    kondisi: row.get("kondisi"),
+                    count,
+                });
+            } else if in_set(row, "g_kategori") {
+                total_kategori += 1;
+                kategori_breakdown.push(KategoriStat {
+                    kategori: row.get("kategori"),
+                    count,
+                    nilai: row.get("nilai"),
+                });
+            } else if in_set(row, "g_satker_nama") {
+                top_satker.push(SatkerStat {
+                    satker: row.get("satker_nama"),
+                    count,
+                    nilai: row.get("nilai"),
+                });
+            } else if in_set(row, "g_satker_kode") {
+                // NULL is one group here but was not a value to
+                // `COUNT(DISTINCT kdsatker_keu)`, which skips NULLs.
+                if row.get::<_, Option<String>>("satker_kode").is_some() {
+                    total_satker += 1;
+                }
+            } else if in_set(row, "g_tahun") {
+                if let Some(tahun) = row.get::<_, Option<i32>>("tahun") {
+                    per_tahun.push(TahunStat { tahun, count });
+                }
+            } else {
+                total_aset = count;
+                total_nilai = row.get("nilai");
+            }
+        }
+
+        // Ordering moves here with the aggregation. The old queries left ties
+        // to whatever order the executor produced; these tiebreakers make the
+        // same counts come back in the same order every time.
+        kondisi_breakdown.sort_by(|a, b| b.count.cmp(&a.count).then(a.kondisi.cmp(&b.kondisi)));
+        kategori_breakdown.sort_by(|a, b| b.count.cmp(&a.count).then(a.kategori.cmp(&b.kategori)));
+        top_satker.sort_by(|a, b| b.count.cmp(&a.count).then(a.satker.cmp(&b.satker)));
+        top_satker.truncate(10);
+        per_tahun.sort_by_key(|t| std::cmp::Reverse(t.tahun));
+        per_tahun.truncate(20);
 
         Ok(BankAsetDashboard {
             total_aset,
