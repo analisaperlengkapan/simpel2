@@ -31,8 +31,12 @@
 name: Autofix PR
 
 on:
+  # DELIBERATELY unfiltered by base branch. `branches: [main]` here meant a
+  # stacked PR (base = another PR's branch) ran NO CI at all, while the branch
+  # ruleset — which targets `main` — reported its required checks as satisfied.
+  # The PR then read `mergeStateStatus: CLEAN` with zero jobs having run.
+  # Enforced by infra/scripts/check-pr-workflows-run-on-every-pr.py.
   pull_request:
-    branches: [main]
 
 permissions:
   contents: write
