@@ -43,7 +43,9 @@ use phosphor_leptos::{ARROW_COUNTER_CLOCKWISE, MAGNIFYING_GLASS, WARNING};
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
 
-use crate::api::bank_aset::{BankAsetItem, ListFilter, fetch_list};
+use crate::api::bank_aset::{
+    BankAsetItem, KodefikasiBarang, ListFilter, fetch_kodefikasi, fetch_list,
+};
 use crate::api::pemakaian_bmn::{CekPegawaiResponse, fetch_cek_pegawai};
 
 /// Kelas satu field pencarian, sama dengan konvensi form lain.
@@ -453,6 +455,316 @@ fn ReadOnlyField(#[prop(into)] label: String, #[prop(into)] value: String) -> im
                 {label}
             </dt>
             <dd class="mt-0.5 text-sm text-slate-100">{value}</dd>
+        </div>
+    }
+}
+
+// ============================================================================
+// Kodefikasi barang
+// ============================================================================
+
+/// Pilih **kode barang** dari kodefikasi SIMAN, jangan ketik namanya.
+///
+/// # Kenapa memilih nama tidak cukup, dan kenapa yang dikembalikan kode
+///
+/// Diukur di staging 2026-08-30 atas 624.533 aset: kodefikasi adalah sebuah
+/// **fungsi** — 2.033 kode barang ke 2.033 nama, tak satu pun kode bernama
+/// ganda. Arah sebaliknya **bukan** fungsi: tujuh nama dipakai dua kode
+/// berbeda ("Genset" `3060347002`/`3150405001`, "Helmet", "Voice Recorder",
+/// "Alat Ukur Lainnya", "Blender", "Digital Thermometer", "Hematology
+/// Analyzer"). Jadi sebuah nama tidak menentukan sebuah kode, dan pemilih ini
+/// mengembalikan barisnya utuh — kodenya yang mengikat.
+///
+/// Formulir kebutuhan sebelumnya meminta **keduanya diketik**: "Nama Barang"
+/// wajib dan bebas, "Kode Barang" opsional dan bebas. Itu dua kegagalan
+/// sekaligus — kode yang salah, dan dua ejaan satu barang yang tidak lagi
+/// beragregasi jadi satu.
+///
+/// # Kenapa masih ada jalan isi manual
+///
+/// Kodefikasi ini diturunkan dari aset yang BENAR-BENAR TERCATAT, bukan dari
+/// katalog BMN lengkap. Barang yang belum dimiliki satker mana pun tidak ada
+/// di dalamnya — dan permohonan kebutuhan justru sah menyebut barang seperti
+/// itu. Jalan manualnya karena itu tetap ada, tetapi ditempatkan **setelah**
+/// pencarian gagal dan diberi label apa adanya, bukan disodorkan sebagai
+/// jalan setara.
+#[component]
+pub fn KodefikasiPicker(
+    /// Dipanggil dengan entri terpilih, atau `None` saat pilihan dibatalkan.
+    #[prop(into)]
+    on_pick: Callback<Option<KodefikasiBarang>>,
+    /// Dipanggil saat operator memilih mengisi manual: (nama, kode).
+    #[prop(into)]
+    on_manual: Callback<(String, String)>,
+) -> impl IntoView {
+    let (query, set_query) = signal(String::new());
+    let (results, set_results) = signal(Vec::<KodefikasiBarang>::new());
+    let (chosen, set_chosen) = signal(None::<KodefikasiBarang>);
+    let (busy, set_busy) = signal(false);
+    let (error, set_error) = signal(None::<String>);
+    let (searched, set_searched) = signal(false);
+    let (manual, set_manual) = signal(false);
+    let (manual_nama, set_manual_nama) = signal(String::new());
+    let (manual_kode, set_manual_kode) = signal(String::new());
+
+    Effect::new(move |_| {
+        let pending = query.get();
+        if chosen.get_untracked().is_some() {
+            return;
+        }
+        if pending.trim().len() < 3 {
+            set_results.set(Vec::new());
+            set_searched.set(false);
+            return;
+        }
+        set_busy.set(true);
+        spawn_local(async move {
+            gloo_timers::future::TimeoutFuture::new(300).await;
+            if query.get_untracked() != pending {
+                return;
+            }
+            match fetch_kodefikasi(pending.trim(), 15).await {
+                Ok(items) => {
+                    set_error.set(None);
+                    set_results.set(items);
+                }
+                Err(e) => {
+                    set_results.set(Vec::new());
+                    set_error.set(Some(e.user_message()));
+                }
+            }
+            set_searched.set(true);
+            set_busy.set(false);
+        });
+    });
+
+    // Manual mengirim nilainya ke atas setiap ketikan: formulir induk yang
+    // menyimpan, komponen ini tidak menahan state yang sudah dimilikinya.
+    let push_manual =
+        move || on_manual.run((manual_nama.get_untracked(), manual_kode.get_untracked()));
+
+    let clear = move |_| {
+        set_chosen.set(None);
+        set_query.set(String::new());
+        set_results.set(Vec::new());
+        set_searched.set(false);
+        set_manual.set(false);
+        on_pick.run(None);
+    };
+
+    view! {
+        <div class="space-y-3">
+            <Show
+                when=move || chosen.get().is_none()
+                fallback=move || {
+                    let item = chosen.get().expect("fallback hanya saat ada pilihan");
+                    view! {
+                        <div
+                            data-testid="kodefikasi-terpilih"
+                            class="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <p class="text-base font-semibold text-slate-100">
+                                    {item.nama_barang.clone()}
+                                </p>
+                                <button
+                                    type="button"
+                                    class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-200 transition-colors hover:bg-white/[0.06]"
+                                    on:click=clear
+                                >
+                                    <AppIcon icon=ARROW_COUNTER_CLOCKWISE size=14 />
+                                    "Ganti"
+                                </button>
+                            </div>
+                            <dl class="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+                                <ReadOnlyField label="Kode Barang" value=item.kode_barang.clone() />
+                                <ReadOnlyField
+                                    label="Tercatat di SIMAN"
+                                    value=format!(
+                                        "{} aset di {} satker",
+                                        item.jumlah_aset,
+                                        item.jumlah_satker,
+                                    )
+                                />
+                            </dl>
+                        </div>
+                    }
+                }
+            >
+                <div>
+                    <label
+                        class="mb-1 block text-sm font-medium text-slate-300"
+                        for="kodefikasi-cari"
+                    >
+                        "Cari Barang"
+                    </label>
+                    <div class="relative">
+                        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                            <AppIcon icon=MAGNIFYING_GLASS size=16 />
+                        </span>
+                        <input
+                            id="kodefikasi-cari"
+                            class=format!("{FIELD} pl-9")
+                            placeholder="Ketik nama barang atau awalan kode — misal: station wagon"
+                            prop:value=move || query.get()
+                            on:input=move |ev| set_query.set(input_value(&ev))
+                        />
+                    </div>
+                    <p class="mt-1 text-xs text-slate-500">
+                        {move || {
+                            if busy.get() {
+                                "Mencari…".to_string()
+                            } else if query.get().trim().len() < 3 {
+                                "Minimal 3 huruf. Kodefikasi nasional, bukan hanya milik satker Anda."
+                                    .to_string()
+                            } else {
+                                format!("{} hasil", results.get().len())
+                            }
+                        }}
+                    </p>
+                </div>
+
+                {move || {
+                    error
+                        .get()
+                        .map(|msg| {
+                            view! {
+                                <p class="rounded-lg border border-danger-500/20 bg-danger-500/10 px-3 py-2 text-sm text-danger-300">
+                                    {msg}
+                                </p>
+                            }
+                        })
+                }}
+
+                <Show when=move || !results.get().is_empty()>
+                    <ul
+                        data-testid="kodefikasi-hasil"
+                        class="max-h-72 divide-y divide-white/[0.06] overflow-y-auto rounded-xl border border-white/[0.06] bg-surface-panel"
+                    >
+                        <For
+                            each=move || results.get()
+                            // Kunci = (kode, nama), bukan kode saja. Snapshot-nya
+                            // sengaja mengelompokkan per pasangan supaya sumber
+                            // yang berhenti jadi fungsi TERLIHAT — di staging hari
+                            // ini ada empat kode bernama ganda — jadi kode saja
+                            // bisa bertabrakan sebagai kunci.
+                            key=|item| (item.kode_barang.clone(), item.nama_barang.clone())
+                            children=move |item| {
+                                let picked = item.clone();
+                                view! {
+                                    <li>
+                                        <button
+                                            type="button"
+                                            class="w-full px-4 py-3 text-left transition-colors hover:bg-white/[0.04]"
+                                            on:click=move |_| {
+                                                set_chosen.set(Some(picked.clone()));
+                                                set_manual.set(false);
+                                                on_pick.run(Some(picked.clone()));
+                                            }
+                                        >
+                                            <p class="text-sm font-medium text-slate-100">
+                                                {item.nama_barang.clone()}
+                                            </p>
+                                            // Kode dulu, baru sebarannya: tujuh
+                                            // nama dipakai dua kode, jadi kode
+                                            // adalah pembeda yang sebenarnya.
+                                            <p class="mt-0.5 text-xs text-slate-400">
+                                                {format!(
+                                                    "{} · {} aset di {} satker",
+                                                    item.kode_barang,
+                                                    item.jumlah_aset,
+                                                    item.jumlah_satker,
+                                                )}
+                                            </p>
+                                        </button>
+                                    </li>
+                                }
+                            }
+                        />
+                    </ul>
+                </Show>
+
+                // Jalan manual: muncul hanya setelah pencarian benar-benar
+                // gagal, supaya ia terbaca sebagai perkecualian dan bukan
+                // sebagai pilihan setara.
+                <Show when=move || searched.get() && results.get().is_empty() && !busy.get()>
+                    <div
+                        data-testid="kodefikasi-kosong"
+                        class="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-slate-400"
+                    >
+                        <p>
+                            "Tidak ada barang yang cocok di kodefikasi SIMAN."
+                        </p>
+                        <p class="mt-1 text-xs text-slate-500">
+                            "Kodefikasi ini diturunkan dari aset yang sudah tercatat, jadi barang \
+                             yang belum dimiliki satker mana pun memang belum ada di sini."
+                        </p>
+                        <Show when=move || !manual.get()>
+                            <button
+                                type="button"
+                                class="mt-2 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-200 transition-colors hover:bg-white/[0.06]"
+                                on:click=move |_| {
+                                    set_manual.set(true);
+                                    set_manual_nama.set(query.get_untracked().trim().to_string());
+                                    push_manual();
+                                }
+                            >
+                                "Isi manual"
+                            </button>
+                        </Show>
+                    </div>
+                </Show>
+
+                <Show when=move || manual.get()>
+                    <div
+                        data-testid="kodefikasi-manual"
+                        class="space-y-3 rounded-xl border border-warning-500/20 bg-warning-500/10 p-4"
+                    >
+                        <p class="flex items-start gap-2 text-xs text-warning-300">
+                            <span class="mt-0.5">
+                                <AppIcon icon=WARNING size=14 />
+                            </span>
+                            "Diisi manual — tidak terhubung ke kodefikasi SIMAN, jadi tidak dapat \
+                             diagregasi bersama barang sejenis sampai kodenya terdaftar."
+                        </p>
+                        <div>
+                            <label
+                                class="mb-1 block text-sm font-medium text-slate-300"
+                                for="kodefikasi-manual-nama"
+                            >
+                                "Nama Barang"
+                            </label>
+                            <input
+                                id="kodefikasi-manual-nama"
+                                class=FIELD
+                                prop:value=move || manual_nama.get()
+                                on:input=move |ev| {
+                                    set_manual_nama.set(input_value(&ev));
+                                    push_manual();
+                                }
+                            />
+                        </div>
+                        <div>
+                            <label
+                                class="mb-1 block text-sm font-medium text-slate-300"
+                                for="kodefikasi-manual-kode"
+                            >
+                                "Kode Barang (opsional)"
+                            </label>
+                            <input
+                                id="kodefikasi-manual-kode"
+                                class=FIELD
+                                placeholder="10 digit, mis. 3020101003"
+                                prop:value=move || manual_kode.get()
+                                on:input=move |ev| {
+                                    set_manual_kode.set(input_value(&ev));
+                                    push_manual();
+                                }
+                            />
+                        </div>
+                    </div>
+                </Show>
+            </Show>
         </div>
     }
 }

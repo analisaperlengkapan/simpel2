@@ -184,6 +184,93 @@ impl BankAsetRepository {
         Ok((items, total))
     }
 
+    /// Search the barang codification for a picker.
+    ///
+    /// # Why this is NOT satker-scoped
+    ///
+    /// Every other read in this module is scoped, because an asset belongs to a
+    /// satker. A CODE does not. The caller here is the kebutuhan-BMN form,
+    /// where a satker states what it NEEDS — very often a barang it does not
+    /// own yet, which is the whole point of the request. Scoping the
+    /// codification to what the satker already holds would make the form unable
+    /// to express its most common need, and it would do so silently, as an
+    /// empty search result.
+    ///
+    /// Nothing satker-specific is exposed by the absence of the scope: the rows
+    /// are a national taxonomy plus two counts over the whole register.
+    ///
+    /// # Why it reads a snapshot
+    ///
+    /// The same search against `siman_aset` is a parallel seq scan over
+    /// 624 533 rows measured at 1 285 ms — per keystroke, after a 300 ms
+    /// debounce. `integrasi.mv_kodefikasi_barang` holds one row per
+    /// (code, name) pair, 2 038 of them, and is refreshed on the sync cadence
+    /// (migration 006).
+    ///
+    /// `q` matches the name case-insensitively anywhere, and the code by
+    /// prefix. Infix on the code would let "100" pull in a third of the
+    /// taxonomy through digits in the middle of unrelated codes; an operator
+    /// typing digits is typing the start of a code.
+    pub async fn kodefikasi(
+        &self,
+        q: Option<&str>,
+        limit: i64,
+    ) -> AppResult<Vec<KodefikasiBarang>> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(format!("DB conn: {}", e)))?;
+
+        let needle = q.map(str::trim).filter(|s| !s.is_empty());
+        // The code is stored undotted, so a query typed with dots has to be
+        // reduced the same way before it is compared — normalising one half
+        // only is the bug `kode_barang_norm_sql` exists to prevent.
+        let kode_prefix = needle.map(|n| format!("{}%", normalize_kode_barang(n)));
+        let nama_like = needle.map(|n| format!("%{}%", n));
+
+        let (where_clause, params): (&str, Vec<BoxedParam>) = match (&nama_like, &kode_prefix) {
+            (Some(nama), Some(kode)) => (
+                "WHERE nama_barang ILIKE $1 OR kode_barang LIKE $2",
+                vec![Box::new(nama.clone()), Box::new(kode.clone())],
+            ),
+            _ => ("", Vec::new()),
+        };
+        let mut params = params;
+        params.push(Box::new(limit));
+        let limit_idx = params.len();
+        let refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
+            params.iter().map(|p| p.as_ref() as _).collect();
+
+        // Prevalence first: one name in a thousand is a near-homonym of
+        // another, and the operator wants the mainstream item far more often.
+        // `nama_barang` breaks the tie so the same query cannot answer in two
+        // orders between calls.
+        let rows = client
+            .query(
+                &format!(
+                    "SELECT kode_barang, nama_barang, jumlah_aset, jumlah_satker
+                       FROM integrasi.mv_kodefikasi_barang
+                       {where_clause}
+                      ORDER BY jumlah_aset DESC, nama_barang ASC
+                      LIMIT ${limit_idx}"
+                ),
+                &refs,
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(rows
+            .iter()
+            .map(|r| KodefikasiBarang {
+                kode_barang: r.get("kode_barang"),
+                nama_barang: r.get("nama_barang"),
+                jumlah_aset: r.get("jumlah_aset"),
+                jumlah_satker: r.get("jumlah_satker"),
+            })
+            .collect())
+    }
+
     /// Find the slim lookup record for a NUP alone.
     ///
     /// Kept for the one surface that genuinely has nothing else to go on: the

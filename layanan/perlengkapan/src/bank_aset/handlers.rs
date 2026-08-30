@@ -147,6 +147,48 @@ pub struct LookupQuery {
     pub nup: String,
 }
 
+/// Query for [`get_bank_aset_kodefikasi`].
+///
+/// `limit` is a plain `Option<i64>` on a struct with no `#[serde(flatten)]`
+/// anywhere above it: flatten deserializes through an untyped intermediate,
+/// which turns a query integer into a string and rejects the request with 400
+/// before the handler ever runs (#817).
+#[derive(Debug, Deserialize)]
+pub struct KodefikasiQuery {
+    pub q: Option<String>,
+    pub limit: Option<i64>,
+}
+
+/// GET /bank-aset/kodefikasi?q={text}&limit={n}
+///
+/// The barang codification, for a form that OFFERS it instead of asking an
+/// operator to type it. Returns the code, the standard name belonging to it,
+/// and how much of the register carries it.
+///
+/// Authenticated but deliberately **not satker scoped** — a needs request is
+/// most often for a barang the satker does not own yet. See
+/// [`BankAsetRepository::kodefikasi`].
+pub async fn get_bank_aset_kodefikasi(
+    State(state): State<AppState>,
+    Query(q): Query<KodefikasiQuery>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<KodefikasiBarang>>>, AppError> {
+    // Capped rather than clamped upward silently: a caller asking for 5 000
+    // rows has misunderstood the endpoint, and answering with 200 anyway hides
+    // that. 200 is well above what a picker list can usefully show.
+    let limit = match q.limit {
+        None => 20,
+        Some(n) if (1..=200).contains(&n) => n,
+        Some(_) => return Err(bad_request("limit must be between 1 and 200")),
+    };
+    let repo = BankAsetRepository::new(state.db_pool.clone());
+    let items = repo.kodefikasi(q.q.as_deref(), limit).await?;
+    Ok(Json(ApiResponse::success(
+        items,
+        "Kodefikasi barang retrieved successfully".to_string(),
+    )))
+}
+
 /// GET /bank-aset/lookup?nup={nup}
 ///
 /// Slim lookup used by the pemakaian-bmn form to auto-fill `kode_barang` +

@@ -51,6 +51,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 MULTISATKER = ROOT / "tests/fixtures/e2e/seed-multisatker.sql"
 WORKFLOW = ROOT / "tests/fixtures/e2e/seed-perlengkapan-workflow.sql"
+# The Rust integration harness seeds `integrasi.siman_aset` too, from SQL
+# embedded in a Rust string. It carried the same invented pairs, and it stopped
+# being harmless the moment `integrasi.mv_kodefikasi_barang` began deriving the
+# codification from exactly these rows.
+HARNESS = ROOT / "layanan/perlengkapan/tests/common.rs"
 
 # Every barang code the e2e fixtures use, with the name SIMAN gives it and the
 # number of real assets carrying it. NOT hand-written — read off the source:
@@ -70,6 +75,9 @@ SIMAN_CODIFICATION: dict[str, tuple[str, int]] = {
     "3100102003": ("Note Book", 2141),
     "2010104001": ("Tanah Bangunan Kantor Pemerintah", 906),
     "3100203003": ("Printer (Peralatan Personal Komputer)", 15654),
+    # Used only by the Rust integration harness.
+    "3060201003": ("Pesawat Telephone", 929),
+    "3060201004": ("Telephone Mobile", 4074),
 }
 
 
@@ -190,10 +198,19 @@ def norm_kode(kode: str | None) -> str:
     return re.sub(r"[^0-9]", "", kode or "")
 
 
-def check(multisatker_sql: str, workflow_sql: str) -> list[str]:
+def check(multisatker_sql: str, workflow_sql: str, harness_src: str = "") -> list[str]:
     problems: list[str] = []
 
     aset = parse_insert(strip_comments(multisatker_sql), "integrasi.siman_aset")
+    if harness_src:
+        # `strip_comments` removes SQL `--`; the harness embeds its SQL in a
+        # Rust literal, so strip `//` lines first or the surrounding prose is
+        # parsed as values. (A `//` INSIDE the literal would be sent to
+        # Postgres verbatim — I made exactly that mistake writing this.)
+        sql = "\n".join(
+            line for line in harness_src.splitlines() if not line.lstrip().startswith("//")
+        )
+        aset += parse_insert(strip_comments(sql), "integrasi.siman_aset")
 
     # (1) one code, one name.
     by_code: dict[str, set[str]] = {}
@@ -250,12 +267,18 @@ def check(multisatker_sql: str, workflow_sql: str) -> list[str]:
 
 
 def main() -> int:
-    problems = check(MULTISATKER.read_text(), WORKFLOW.read_text())
+    problems = check(MULTISATKER.read_text(), WORKFLOW.read_text(), HARNESS.read_text())
     if problems:
         for p in problems:
             print(f"::error::{p}")
         return 1
     aset = parse_insert(strip_comments(MULTISATKER.read_text()), "integrasi.siman_aset")
+    harness_sql = "\n".join(
+        line
+        for line in HARNESS.read_text().splitlines()
+        if not line.lstrip().startswith("//")
+    )
+    aset += parse_insert(strip_comments(harness_sql), "integrasi.siman_aset")
     permits = parse_insert(
         strip_comments(WORKFLOW.read_text()), "perlengkapan.izin_pemakaian_bmn"
     )
@@ -272,11 +295,14 @@ def main() -> int:
 def _canaries() -> int:
     ms = MULTISATKER.read_text()
     wf = WORKFLOW.read_text()
+    hn = HARNESS.read_text()
     failures = 0
 
-    def expect(label: str, sql_ms: str, sql_wf: str, should_fail: bool) -> None:
+    def expect(
+        label: str, sql_ms: str, sql_wf: str, should_fail: bool, harness: str | None = None
+    ) -> None:
         nonlocal failures
-        found = bool(check(sql_ms, sql_wf))
+        found = bool(check(sql_ms, sql_wf, hn if harness is None else harness))
         ok = found == should_fail
         print(f"  {'ok  ' if ok else 'FAIL'} {label}")
         if not ok:
@@ -319,6 +345,13 @@ def _canaries() -> int:
     )
     # The dotted/undotted split must NOT be reported: both spellings are the
     # same code, and the system writes both.
+    expect(
+        "detects: the harness naming a code after another item",
+        ms,
+        wf,
+        True,
+        harness=hn.replace("'Pesawat Telephone'", "'Meja Kerja'"),
+    )
     expect(
         "tolerates: the dotted presentation spelling of the same code",
         ms,

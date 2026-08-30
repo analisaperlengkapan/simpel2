@@ -2,6 +2,7 @@
 //!
 //! Displays satker-specific view with goods list, workflow, and analysis.
 
+use crate::api::bank_aset::KodefikasiBarang;
 use crate::api::{
     AnalisisKelayakanResponse, CreateKebutuhanBmnBarangRequest, KebutuhanBmnStatus,
     KebutuhanValidatorWilayahActionRequest, PengajuanKebutuhanBmnAktivitas,
@@ -12,6 +13,7 @@ use crate::api::{
     kebutuhan_validator_wilayah_action, submit_kebutuhan_satker_to_wilayah,
 };
 use crate::components::layout::{FormField, LoadingState, PageLayout, SectionCard};
+use crate::components::reference_picker::KodefikasiPicker;
 use crate::components::workflow_ui::{StepStatus, WorkflowStep, WorkflowTimeline};
 use crate::features::auth::AuthService;
 use leptos::prelude::*;
@@ -141,9 +143,35 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
     let (show_add_barang, set_show_add_barang) = signal(false);
     let (submitting, set_submitting) = signal(false);
 
-    // New barang form state
+    // New barang form state.
+    //
+    // Nama dan kode tidak lagi diketik: keduanya datang dari kodefikasi SIMAN
+    // lewat `KodefikasiPicker`, karena keduanya sudah punya rujukan di
+    // database. Yang diketik hanyalah yang memang belum ada rujukannya —
+    // jumlah, satuan, alasan.
     let (new_nama, set_new_nama) = signal(String::new());
     let (new_kode_barang, set_new_kode_barang) = signal::<Option<String>>(None);
+
+    let on_pick_kodefikasi = Callback::new(move |picked: Option<KodefikasiBarang>| match picked {
+        Some(item) => {
+            set_new_nama.set(item.nama_barang.clone());
+            set_new_kode_barang.set(Some(item.kode_barang.clone()));
+        }
+        None => {
+            set_new_nama.set(String::new());
+            set_new_kode_barang.set(None);
+        }
+    });
+
+    // Jalan manual untuk barang yang belum tercatat di register mana pun.
+    // Kode kosong disimpan sebagai `None`, bukan sebagai string kosong: kolom
+    // itu nullable, dan "" akan terbaca sebagai kode yang tidak cocok dengan
+    // apa pun alih-alih sebagai ketiadaan kode.
+    let on_manual_kodefikasi = Callback::new(move |(nama, kode): (String, String)| {
+        set_new_nama.set(nama);
+        let kode = kode.trim().to_string();
+        set_new_kode_barang.set(if kode.is_empty() { None } else { Some(kode) });
+    });
     let (new_jumlah, set_new_jumlah) = signal(1i32);
     let (new_satuan, set_new_satuan) = signal("Unit".to_string());
     let (new_alasan, set_new_alasan) = signal::<Option<String>>(None);
@@ -1376,26 +1404,10 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                     <div class="mx-4 w-full max-w-lg rounded-2xl border border-white/[0.06] bg-surface-panel p-6 shadow-xl">
                         <h3 class="mb-4 text-lg font-bold text-slate-100">"Tambah Barang"</h3>
                         <form on:submit=handle_add_barang class="flex flex-col gap-4">
-                            <FormField label="Nama Barang" required=true>
-                                <input
-                                    type="text"
-                                    required
-                                    class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
-                                    on:input=move |ev| set_new_nama.set(event_target_value(&ev))
-                                    prop:value=move || new_nama.get()
-                                />
-                            </FormField>
-                            <FormField label="Kode Barang">
-                                <input
-                                    type="text"
-                                    class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
-                                    on:input=move |ev| {
-                                        let v = event_target_value(&ev);
-                                        set_new_kode_barang
-                                            .set(if v.is_empty() { None } else { Some(v) });
-                                    }
-                                />
-                            </FormField>
+                            <KodefikasiPicker
+                                on_pick=on_pick_kodefikasi
+                                on_manual=on_manual_kodefikasi
+                            />
                             <div class="grid grid-cols-2 gap-4">
                                 <FormField label="Jumlah" required=true>
                                     <input
@@ -1441,10 +1453,18 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                 >
                                     "Batal"
                                 </button>
+                                // `required` pindah dari atribut input ke sini.
+                                // Nama barang tidak lagi punya <input> sendiri
+                                // — ia hasil pilihan — jadi validasi HTML tak
+                                // bisa lagi menahannya, dan tanpa penjaga ini
+                                // form akan mengirim nama kosong.
                                 <button
                                     type="submit"
+                                    data-testid="barang-simpan"
                                     class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-5 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-50"
-                                    disabled=move || submitting.get()
+                                    disabled=move || {
+                                        submitting.get() || new_nama.get().trim().is_empty()
+                                    }
                                 >
                                     {move || {
                                         if submitting.get() { "Menyimpan..." } else { "Simpan" }
