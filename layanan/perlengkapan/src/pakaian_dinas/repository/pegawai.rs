@@ -344,14 +344,20 @@ mod scope_sql_tests {
         assert_eq!(profile_binds(&req()).len(), 13);
     }
 
-    /// The failure mode no type can catch: bound at `$1` the predicate would
-    /// compare `p.satker_id` against the NIP, match nothing, and look like a
-    /// working deny to anyone who only tested the negative case.
+    /// Two failure modes no type can catch. Bound at `$1` the predicate would
+    /// compare the satker column against the NIP; keyed on `p.satker_id` it
+    /// would compare a `kode_satker` against a UUID. Both match nothing, and
+    /// both look like a working deny to anyone who only tested the negative
+    /// case — which is how the second one survived until #882.
     #[test]
     fn scope_predicate_binds_after_the_value_binds() {
         let mut params = profile_binds(&req());
         let clause = scope_and(&SatkerScope::Satker("02.28".to_string()), &mut params);
-        assert_eq!(clause, " AND p.satker_id = $14");
+        assert_eq!(clause, format!(" AND {PEGAWAI_KODE_SATKER_SQL} = $14"));
+        assert!(
+            !clause.contains("p.satker_id"),
+            "the scope must key on the resolved code, not the upstream UUID"
+        );
         assert_eq!(params.len(), 14);
     }
 
@@ -385,12 +391,17 @@ mod scope_sql_tests {
     /// and rewrite another satker's employee.
     #[test]
     fn the_satker_written_comes_from_the_sot_not_the_request() {
-        let sql = upsert_profile_sql(" AND p.satker_id = $14");
+        let sql = upsert_profile_sql(&real_scope_sql());
         assert!(
             sql.contains("FROM integrasi.mysimkari_pegawai p"),
             "the employee's satker must be read from the SoT"
         );
-        assert!(sql.contains("$8::boolean,$9::text,p.satker_id,"));
+        // The stored value is the RESOLVED code, reached through the join —
+        // storing `p.satker_id` here is what put UUIDs in a `kode_satker`
+        // column and made every satker-scoped read of the roster empty.
+        assert!(sql.contains(PEGAWAI_SATKER_JOIN_SQL));
+        assert!(sql.contains(&format!("$8::boolean,$9::text,{PEGAWAI_KODE_SATKER_SQL},")));
+        assert!(!sql.contains("$9::text,p.satker_id,"));
         // On conflict it is overwritten, not COALESCEd: a COALESCE would let a
         // stale row keep a satker the SoT no longer agrees with.
         assert!(sql.contains("kode_satker = EXCLUDED.kode_satker"));
@@ -401,10 +412,19 @@ mod scope_sql_tests {
     /// SELECT it would be a check the next refactor can drop.
     #[test]
     fn the_scope_is_part_of_the_write() {
-        let sql = upsert_profile_sql(" AND p.satker_id = $14");
+        let scope_sql = real_scope_sql();
+        let sql = upsert_profile_sql(&scope_sql);
         let where_at = sql.find("WHERE p.nip = $1").expect("row selector");
         let conflict_at = sql.find("ON CONFLICT (nip)").expect("upsert");
         assert!(where_at < conflict_at);
-        assert!(sql[where_at..conflict_at].contains("AND p.satker_id = $14"));
+        assert!(sql[where_at..conflict_at].contains(scope_sql.trim()));
+    }
+
+    /// The scope clause these assertions splice in is the one `scope_and`
+    /// actually produces — a hand-written literal would keep passing after the
+    /// column underneath it changed, which is exactly what happened here.
+    fn real_scope_sql() -> String {
+        let mut params = profile_binds(&req());
+        scope_and(&SatkerScope::Satker("02.28".to_string()), &mut params)
     }
 }
