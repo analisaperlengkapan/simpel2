@@ -26,12 +26,78 @@
 # ESCAPE HATCH: append `-- guard:allow` to a line to waive it (sparingly, with a
 #   reason in an adjacent comment).
 #
-# Deps: bash + grep only. Runtime: <1s. Exit 1 on any finding.
+# Deps: bash only (no forks in the scan loop). Runtime: <1s. Exit 1 on any finding.
 
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
+
+# --self-test: run the guard against a throwaway tree that plants every
+# anti-pattern once, plus the shapes it must NOT flag. A guard that only ever
+# sees a clean tree proves it invents nothing; it does not prove it still
+# catches anything. Both directions are asserted here.
+if [[ "${1:-}" == "--self-test" ]]; then
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
+  mkdir -p "$tmp/layanan/kanari/migrations" "$tmp/infra/lint"
+  cp "${BASH_SOURCE[0]}" "$tmp/infra/lint/$(basename "${BASH_SOURCE[0]}")"
+
+  cat >"$tmp/layanan/kanari/migrations/001_must_flag.sql" <<'CANARY'
+CREATE INDEX CONCURRENTLY idx_t ON t (id);
+DROP INDEX CONCURRENTLY idx_t;
+BEGIN;
+COMMIT;
+  ROLLBACK ;
+START TRANSACTION;
+SELECT pg_catalog.set_config('search_path', '', false);
+ALTER DATABASE CURRENT SET search_path = a, b;
+CANARY
+
+  cat >"$tmp/layanan/kanari/migrations/002_must_not_flag.sql" <<'CANARY'
+-- CREATE INDEX CONCURRENTLY only_in_a_comment ON t (id);
+CREATE INDEX CONCURRENTLY waived ON t (id); -- guard:allow deliberate, see PR
+DO $$ BEGIN RAISE NOTICE 'PL/pgSQL BEGIN is not transaction control'; END $$;
+REFRESH MATERIALIZED VIEW CONCURRENTLY mv_ok;
+CREATE TABLE beginner (commit_id int, rollback_note text);
+CANARY
+
+  out="$("$tmp/infra/lint/$(basename "${BASH_SOURCE[0]}")" 2>&1)"; rc=$?
+  flagged="$(grep -c '::error' <<<"$out" || true)"
+  fail=0
+
+  if [[ "$rc" -ne 1 ]]; then
+    echo "  GAGAL  penjaga harus exit 1 saat ada temuan (exit $rc)"; fail=1
+  else
+    echo "  ok     exit 1 saat ada temuan"
+  fi
+
+  if [[ "$flagged" -ne 8 ]]; then
+    echo "  GAGAL  8 anti-pola ditanam, $flagged ditandai"
+    sed -n '/::error/p' <<<"$out" >&2
+    fail=1
+  else
+    echo "  ok     ke-8 anti-pola tertangkap"
+  fi
+
+  if grep -q '002_must_not_flag' <<<"$out"; then
+    echo "  GAGAL  menandai bentuk yang justru harus lolos:"
+    grep '002_must_not_flag' <<<"$out" >&2
+    fail=1
+  else
+    echo "  ok     komentar, guard:allow, DO \$\$ BEGIN, REFRESH CONCURRENTLY, dan identifier ber-nama-kata-kunci semuanya lolos"
+  fi
+
+  rm -f "$tmp/layanan/kanari/migrations/001_must_flag.sql"
+  if "$tmp/infra/lint/$(basename "${BASH_SOURCE[0]}")" >/dev/null 2>&1; then
+    echo "  ok     exit 0 saat tak ada temuan"
+  else
+    echo "  GAGAL  penjaga harus exit 0 pada pohon bersih"; fail=1
+  fi
+
+  exit "$fail"
+fi
+
 
 shopt -s nullglob
 mapfile -t FILES < <(find layanan/*/migrations -type f -name '*.sql' 2>/dev/null | sort)
@@ -42,6 +108,9 @@ if [[ ${#FILES[@]} -eq 0 ]]; then
 fi
 
 findings=0
+
+# Case-insensitive `=~`, matching the `grep -i` this loop used to fork.
+shopt -s nocasematch
 
 # check <description> <ERE pattern>
 # Matches the pattern (case-insensitive) against each line's CODE portion (text
@@ -58,7 +127,13 @@ check() {
       [[ "$line" == *"-- guard:allow"* ]] && continue
       code="${line%%--*}"
       [[ -z "${code//[[:space:]]/}" ]] && continue
-      if grep -qiE "$pat" <<<"$code"; then
+      # Bash's own ERE, not a `grep` fork. The forked version spawned one
+      # process per line per pattern -- 23 015 migration lines x 4 patterns is
+      # ~92 000 processes, which measured 59.6s wall (42.9s of it in sys) for a
+      # scan whose header promised "<1s". `nocasematch` supplies the -i, and
+      # $pat must stay unquoted so it is read as a pattern rather than a
+      # literal.
+      if [[ $code =~ $pat ]]; then
         printf '::error file=%s,line=%s::[%s] %s\n' "$f" "$lineno" "$desc" "${line#"${line%%[![:space:]]*}"}"
         printf '  %s:%s\n      %s\n' "$f" "$lineno" "${line#"${line%%[![:space:]]*}"}" >&2
         findings=$((findings + 1))
