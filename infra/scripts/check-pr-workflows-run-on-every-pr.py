@@ -27,16 +27,21 @@ The rule is therefore total rather than a list: any workflow with a
 workflow that genuinely must be scoped states so in `PERMITTED` below with a
 reason — the exemption is a decision on the record, not a filter nobody reads.
 
+Parsed by line rather than with PyYAML, like every other guard here: the ARC
+runner image ships a bare Python, so `import yaml` is `exit 1` on the runner and
+green on a developer machine. This script learned that the hard way — its first
+CI run failed on exactly that import, which is why
+`check-guard-imports-are-stdlib.py` now exists.
+
 Run: python3 infra/scripts/check-pr-workflows-run-on-every-pr.py
      python3 infra/scripts/check-pr-workflows-run-on-every-pr.py --self-test
 """
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
-
-import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github/workflows"
@@ -45,30 +50,70 @@ WORKFLOWS = ROOT / ".github/workflows"
 PERMITTED: dict[str, str] = {}
 
 
-def triggers(doc: dict) -> dict:
-    # PyYAML parses a bare `on:` key as the boolean True.
-    on = doc.get(True, doc.get("on"))
-    return on if isinstance(on, dict) else {}
+ON_RE = re.compile(r"^(?:on|\"on\"|'on'|true|True):\s*(.*)$")
+PR_KEY_RE = re.compile(r"^(\s+)pull_request:\s*(.*)$")
+FILTER_RE = re.compile(r"^\s*(branches|branches-ignore)\s*:")
+
+
+def _indent(line: str) -> int:
+    return len(line) - len(line.lstrip(" "))
+
+
+def pull_request_filters(text: str) -> list[str] | None:
+    """Filter keys under the `pull_request` trigger, or None if there is none.
+
+    An empty list means the trigger exists and is unfiltered — the correct
+    state. That is deliberately distinct from None, so "no trigger" and "an
+    unfiltered trigger" cannot be confused by a caller counting coverage.
+    """
+    lines = text.splitlines()
+    in_on = False
+    on_indent = 0
+    for i, raw in enumerate(lines):
+        line = raw.split("#", 1)[0].rstrip() if not raw.lstrip().startswith("#") else ""
+        if not line.strip():
+            continue
+        if _indent(line) == 0:
+            m = ON_RE.match(line)
+            in_on = bool(m)
+            on_indent = 0
+            continue
+        if not in_on:
+            continue
+        m = PR_KEY_RE.match(line)
+        if not m or _indent(line) <= on_indent:
+            continue
+        # Inline mapping: `pull_request: {branches: [main]}`.
+        inline = m.group(2).strip()
+        if inline.startswith("{"):
+            return [k for k in ("branches", "branches-ignore") if f"{k}:" in inline]
+        # Block body: every following line indented deeper than the key.
+        pr_indent = _indent(line)
+        found: list[str] = []
+        for nxt in lines[i + 1 :]:
+            if not nxt.strip() or nxt.lstrip().startswith("#"):
+                continue
+            if _indent(nxt) <= pr_indent:
+                break
+            fm = FILTER_RE.match(nxt)
+            if fm:
+                found.append(fm.group(1))
+        return found
+    return None
 
 
 def problems_in(name: str, text: str) -> list[str]:
-    doc = yaml.safe_load(text)
-    if not isinstance(doc, dict):
-        return []
-    pr = triggers(doc).get("pull_request")
-    if pr is None or not isinstance(pr, dict):
-        return []
-    found = [k for k in ("branches", "branches-ignore") if k in pr]
-    if not found:
+    found = pull_request_filters(text)
+    if not found:  # None (no trigger) or [] (unfiltered) are both fine
         return []
     if name in PERMITTED:
         return []
     return [
-        f"{name}: `pull_request` is filtered by {', '.join(found)} "
-        f"({pr[found[0]]!r}). A PR based on another branch then runs none of "
-        f"this workflow, and — because the ruleset targets main — requires none "
-        f"of it either, so it reads as CLEAN unverified. Drop the filter, or "
-        f"add {name!r} to PERMITTED with a reason."
+        f"{name}: `pull_request` is filtered by {', '.join(found)}. A PR based "
+        f"on another branch then runs none of this workflow, and — because the "
+        f"ruleset targets main — requires none of it either, so it reads as "
+        f"CLEAN unverified. Drop the filter, or add {name!r} to PERMITTED with "
+        f"a reason."
     ]
 
 
@@ -85,13 +130,10 @@ def main() -> int:
         print(f"::error::{f}")
     if found:
         return 1
-    # A bare `pull_request:` (the correct, unfiltered form) parses to None, so
-    # membership is the test — `.get(...) is not None` would count zero of them
-    # and report a coverage number smaller than the truth.
     total = sum(
         1
         for p in WORKFLOWS.glob("*.y*ml")
-        if "pull_request" in triggers(yaml.safe_load(p.read_text()) or {})
+        if pull_request_filters(p.read_text()) is not None
     )
     print(
         f"check-pr-workflows-run-on-every-pr: {total} workflow(s) trigger on "

@@ -363,6 +363,17 @@ jobs:
         run: |
           python3 ./infra/scripts/check-pr-workflows-run-on-every-pr.py
           python3 ./infra/scripts/check-pr-workflows-run-on-every-pr.py --self-test
+      # Image runner ARC memakai Python polos, jadi `import yaml` LULUS di mesin
+      # pengembang dan GAGAL di runner — skrip keluar non-nol karena alasan yang
+      # tak ada hubungannya dengan yang diperiksanya, dan temuan yang jadi
+      # alasan keberadaannya tak pernah dibuat. Sudah 3× di job ini: fallback
+      # PyYAML actionlint (40+ hari merah palsu), `bc`/`yq` exit 127, lalu
+      # penjaga di atas gagal di run CI PERTAMANYA karena hal yang sama.
+      - name: CI guard scripts import only the standard library
+        shell: bash
+        run: |
+          python3 ./infra/scripts/check-guard-imports-are-stdlib.py
+          python3 ./infra/scripts/check-guard-imports-are-stdlib.py --self-test
       # The chart pulls `simpelv2-<image.name>`; release.yml publishes
       # `simpelv2-<matrix name>`. Nothing compared the two, and they drifted:
       # the chart wanted `simpelv2-gateway` while the release builds
