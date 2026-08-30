@@ -350,6 +350,12 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
                                 </button>
                             </div>
                         </header>
+                        // `bg-white` di sini DISENGAJA dan bukan sisa tema
+                        // terang: panel ini adalah pratinjau lembar label yang
+                        // akan dicetak di atas kertas. Ia harus berwarna sama
+                        // dengan hasil cetaknya, jadi menggelapkannya justru
+                        // membuat pratinjau berbohong. Satu-satunya `bg-white`
+                        // pekat yang tersisa di perlengkapan.
                         <div class="flex-1 overflow-y-auto bg-white px-5 py-4 print:overflow-visible print:px-0 print:py-0">
                             {move || render_label_sheet(selected_items(), label_size.get())}
                         </div>

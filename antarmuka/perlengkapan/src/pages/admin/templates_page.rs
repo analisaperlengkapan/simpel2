@@ -78,25 +78,25 @@ pub fn AdminTemplatesPage() -> impl IntoView {
     view! {
         <div class="max-w-6xl mx-auto p-6">
             <div class="mb-6">
-                <h1 class="text-2xl font-bold text-gray-800">"Document Templates"</h1>
-                <p class="text-sm text-gray-500">
+                <h1 class="text-2xl font-bold text-slate-100">"Document Templates"</h1>
+                <p class="text-sm text-slate-500">
                     "Pratinjau langsung template surat / SK / laporan. Pilih template di kiri, atur format, lalu klik "
                     <span class="font-semibold">"Render Preview"</span> "."
                 </p>
             </div>
 
             <Show when=move || error.get().is_some()>
-                <div class="mb-4 p-3 bg-red-50 text-red-700 rounded border border-red-200 text-sm">
+                <div class="mb-4 p-3 bg-danger-500/10 text-danger-300 rounded border border-danger-500/20 text-sm">
                     {move || error.get().unwrap_or_default()}
                 </div>
             </Show>
 
             <div class="grid grid-cols-12 gap-4">
                 // ── Left: template list ─────────────────────────────────
-                <div class="col-span-12 md:col-span-4 bg-white rounded-lg border p-3">
-                    <h2 class="font-semibold text-gray-700 mb-2">"Daftar Template"</h2>
+                <div class="col-span-12 md:col-span-4 rounded-lg border border-white/[0.06] bg-surface-panel p-3">
+                    <h2 class="font-semibold text-slate-200 mb-2">"Daftar Template"</h2>
                     <Show when=move || loading_list.get()>
-                        <p class="text-xs text-gray-400">"Memuat..."</p>
+                        <p class="text-xs text-slate-500">"Memuat..."</p>
                     </Show>
                     <ul class="space-y-1 max-h-[70vh] overflow-y-auto">
                         <For
@@ -116,15 +116,15 @@ pub fn AdminTemplatesPage() -> impl IntoView {
                                     <li>
                                         <button
                                             type="button"
-                                            class:bg-blue-50=is_selected.clone()
-                                            class:text-blue-700=is_selected
-                                            class="w-full text-left px-3 py-2 rounded hover:bg-gray-50 text-sm"
+                                            class:bg-slate-800=is_selected.clone()
+                                            class:text-gold-200=is_selected
+                                            class="w-full text-left px-3 py-2 rounded hover:bg-white/[0.04] text-sm"
                                             on:click=move |_| {
                                                 set_selected_id.set(Some(id_for_select.clone()));
                                             }
                                         >
-                                            <div class="font-medium">{t.name.clone()}</div>
-                                            <div class="text-xs text-gray-500">
+                                            <div class="font-medium text-slate-100">{t.name.clone()}</div>
+                                            <div class="text-xs text-slate-500">
                                                 {t.template_type.clone()} " · v" {t.version}
                                                 {if !t.is_active { " · inactive" } else { "" }}
                                             </div>
@@ -137,11 +137,11 @@ pub fn AdminTemplatesPage() -> impl IntoView {
                 </div>
 
                 // ── Right: preview pane ─────────────────────────────────
-                <div class="col-span-12 md:col-span-8 bg-white rounded-lg border p-3">
+                <div class="col-span-12 md:col-span-8 rounded-lg border border-white/[0.06] bg-surface-panel p-3">
                     <div class="flex items-center gap-3 mb-3">
-                        <label class="text-sm text-gray-600">"Format:"</label>
+                        <label class="text-sm text-slate-400">"Format:"</label>
                         <select
-                            class="border rounded px-2 py-1 text-sm"
+                            class="px-2 py-1 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                             prop:value=move || format.get()
                             on:change=move |ev| set_format.set(event_target_value(&ev))
                         >
@@ -188,7 +188,7 @@ pub fn AdminTemplatesPage() -> impl IntoView {
                                     // Browsers don't render .docx / .xlsx inline.
                                     view! {
                                         <div class="p-6 border-2 border-dashed rounded text-center">
-                                            <p class="text-sm text-gray-600 mb-2">
+                                            <p class="text-sm text-slate-400 mb-2">
                                                 "Format ini tidak bisa dipratinjau inline di browser."
                                             </p>
                                             <a
@@ -206,7 +206,7 @@ pub fn AdminTemplatesPage() -> impl IntoView {
                     }}
 
                     <Show when=move || selected_id.get().is_none()>
-                        <p class="text-sm text-gray-400 text-center py-12">
+                        <p class="text-sm text-slate-500 text-center py-12">
                             "Pilih sebuah template untuk melihat pratinjau."
                         </p>
                     </Show>

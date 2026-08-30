@@ -28,9 +28,9 @@ pub fn AnalisisList() -> impl IntoView {
     let data_resource = client.local_resource(query_analisis_page, move || page.get());
 
     view! {
-        <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="p-6 bg-surface-panel rounded-xl shadow-sm border border-white/[0.06]">
             <div class="flex items-center justify-between mb-6">
-                <h2 class="text-xl font-bold text-gray-800">"Analisis Kebutuhan"</h2>
+                <h2 class="text-xl font-bold text-slate-100">"Analisis Kebutuhan"</h2>
                 <a
                     href=routes::path::ANALITIK_ROADMAP_BUAT
                     class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
@@ -52,8 +52,8 @@ pub fn AnalisisList() -> impl IntoView {
                         .map(|response| {
                             if response.data.is_empty() {
                                 view! {
-                                    <div class="text-center py-12 text-gray-500">
-                                        <span class="text-4xl mb-3 text-gray-300">
+                                    <div class="text-center py-12 text-slate-500">
+                                        <span class="text-4xl mb-3 text-slate-600">
                                             <AppIcon icon=CHART_PIE />
                                         </span>
                                         <p>"Belum ada data analisis kebutuhan."</p>
@@ -65,7 +65,7 @@ pub fn AnalisisList() -> impl IntoView {
                                     <div class="overflow-x-auto">
                                         <table class="w-full text-left border-collapse">
                                             <thead>
-                                                <tr class="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
+                                                <tr class="bg-white/[0.03] text-slate-400 text-sm uppercase tracking-wider">
                                                     <th class="p-3 font-semibold border-b">"Judul"</th>
                                                     <th class="p-3 font-semibold border-b">"Kategori"</th>
                                                     <th class="p-3 font-semibold border-b">"Prioritas"</th>
@@ -74,13 +74,13 @@ pub fn AnalisisList() -> impl IntoView {
                                                     <th class="p-3 font-semibold border-b">"Aksi"</th>
                                                 </tr>
                                             </thead>
-                                            <tbody class="text-gray-700 text-sm">
+                                            <tbody class="text-slate-200 text-sm">
                                                 <For
                                                     each=move || response.data.clone()
                                                     key=|item| item.id.clone()
                                                     children=move |item: AnalisisKebutuhan| {
                                                         view! {
-                                                            <tr class="hover:bg-gray-50 border-b last:border-0 transition-colors">
+                                                            <tr class="hover:bg-white/[0.04] border-b last:border-0 transition-colors">
                                                                 <td class="p-3 font-medium">{item.judul}</td>
                                                                 <td class="p-3">
                                                                     <span class="px-2 py-1 rounded-full text-xs bg-purple-50 text-purple-600">
@@ -91,9 +91,9 @@ pub fn AnalisisList() -> impl IntoView {
                                                                     {
                                                                         let prio = item.prioritas.to_lowercase();
                                                                         let color = match prio.as_str() {
-                                                                            "tinggi" => "text-red-600 bg-red-50",
-                                                                            "sedang" => "text-yellow-600 bg-yellow-50",
-                                                                            _ => "text-green-600 bg-green-50",
+                                                                            "tinggi" => "text-danger-400 bg-danger-500/10",
+                                                                            "sedang" => "text-warning-400 bg-warning-500/10",
+                                                                            _ => "text-success-400 bg-success-500/10",
                                                                         };
                                                                         view! {
                                                                             <span class=format!(
@@ -110,14 +110,14 @@ pub fn AnalisisList() -> impl IntoView {
                                                                         .unwrap_or("-".to_string())}
                                                                 </td>
                                                                 <td class="p-3">
-                                                                    <span class="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700 capitalize">
+                                                                    <span class="px-2 py-1 rounded-full text-xs bg-white/[0.05] text-slate-200 capitalize">
                                                                         {item.status}
                                                                     </span>
                                                                 </td>
                                                                 <td class="p-3">
                                                                     <div class="flex gap-2">
                                                                         <button
-                                                                            class="text-blue-600 hover:text-blue-800"
+                                                                            class="text-info-400 hover:text-blue-800"
                                                                             title="Detail"
                                                                         >
                                                                             <AppIcon icon=EYE />

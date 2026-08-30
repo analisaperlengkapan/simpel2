@@ -334,6 +334,19 @@ jobs:
       - name: Frontend keeps no copy of the status vocabulary
         shell: bash
         run: python3 ./infra/scripts/check-fe-status-vocabulary.py
+      # `antarmuka/perlengkapan` dirender di atas navy (#0f172a). Layar yang
+      # ditulis dengan default terang Tailwind bukan sekadar tidak seragam:
+      # `/admin/roles` menaruh empat kartu putih pekat di halaman navy dan
+      # judulnya `text-gray-900` di atas navy itu — nyaris hitam, tak terbaca;
+      # nama template di `/admin/templates` tanpa kelas warna sama sekali
+      # sehingga mewarisi warna terang milik body ke atas panel putih dan
+      # lenyap; dan `<select>` di kedua formulir buat tidak punya latar maupun
+      # warna teks, jadi kontrol yang sudah ada nilainya terlihat kosong.
+      # Tak satu pun menggagalkan build. Tint alfa (`bg-white/10`) tetap sah —
+      # yang dilarang hanya warna terang pekat.
+      - name: Perlengkapan carries no light-palette class
+        shell: bash
+        run: python3 ./infra/scripts/check-dark-theme-palette.py
       # The chart pulls `simpelv2-<image.name>`; release.yml publishes
       # `simpelv2-<matrix name>`. Nothing compared the two, and they drifted:
       # the chart wanted `simpelv2-gateway` while the release builds

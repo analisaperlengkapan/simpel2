@@ -310,11 +310,11 @@ pub fn PemakaianBmnForm() -> impl IntoView {
     };
 
     view! {
-        <div class="max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">"Permohonan Izin Pemakaian BMN"</h2>
+        <div class="max-w-4xl mx-auto p-6 bg-surface-panel rounded-xl shadow-sm border border-white/[0.06]">
+            <h2 class="text-2xl font-bold text-slate-100 mb-6">"Permohonan Izin Pemakaian BMN"</h2>
 
             <Show when=move || success.get()>
-                <div class="mb-4 p-4 bg-green-50 text-green-700 rounded-lg border border-green-100 flex items-center gap-2">
+                <div class="mb-4 p-4 bg-success-500/10 text-success-300 rounded-lg border border-success-500/20 flex items-center gap-2">
                     <AppIcon icon=CHECK_CIRCLE />
                     "Permohonan izin berhasil diajukan!"
                 </div>
@@ -323,7 +323,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
             <Show when=move || error.get().is_some()>
                 <div
                     data-testid="form-error"
-                    class="mb-4 p-4 bg-red-50 text-red-700 rounded-lg border border-red-100 flex items-center gap-2"
+                    class="mb-4 p-4 bg-danger-500/10 text-danger-300 rounded-lg border border-danger-500/20 flex items-center gap-2"
                 >
                     <AppIcon icon=WARNING_CIRCLE />
                     {error.get()}
@@ -332,10 +332,10 @@ pub fn PemakaianBmnForm() -> impl IntoView {
 
             <form on:submit=on_submit class="space-y-6">
                 // Jenis BMN Selection
-                <div class="bg-blue-50 p-4 rounded-lg">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">"Jenis BMN"</label>
+                <div class="bg-info-500/10 p-4 rounded-lg">
+                    <label class="block text-sm font-medium text-slate-200 mb-2">"Jenis BMN"</label>
                     <select
-                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                         prop:value=move || jenis_bmn.get()
                         on:change=move |ev| set_jenis_bmn.set(event_target_value(&ev))
                     >
@@ -355,20 +355,20 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                 // that endpoint + the satker→pegawai cache land, operators
                 // type NIP/nama by hand below.
                 <div class="border-t pt-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                    <h3 class="text-lg font-semibold text-slate-100 mb-4">
                         "Informasi Pegawai yang Akan Menggunakan BMN"
-                        <span class="text-sm text-gray-500 ml-2">
+                        <span class="text-sm text-slate-500 ml-2">
                             "(Diisi oleh Operator Satker)"
                         </span>
                     </h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <label class="block text-sm font-medium text-slate-200 mb-1">
                                 "NIP"
                             </label>
                             <input
                                 type="text"
-                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                 placeholder="NIP Pegawai"
                                 prop:value=move || pegawai_nip.get()
                                 on:input=move |ev| set_pegawai_nip.set(event_target_value(&ev))
@@ -376,12 +376,12 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                             />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <label class="block text-sm font-medium text-slate-200 mb-1">
                                 "Nama Pegawai"
                             </label>
                             <input
                                 type="text"
-                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                 placeholder="Nama Lengkap"
                                 prop:value=move || pegawai_nama.get()
                                 on:input=move |ev| set_pegawai_nama.set(event_target_value(&ev))
@@ -389,36 +389,36 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                             />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <label class="block text-sm font-medium text-slate-200 mb-1">
                                 "Golongan"
                             </label>
                             <input
                                 type="text"
-                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                 placeholder="Contoh: III/c"
                                 prop:value=move || pegawai_golongan.get()
                                 on:input=move |ev| set_pegawai_golongan.set(event_target_value(&ev))
                             />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <label class="block text-sm font-medium text-slate-200 mb-1">
                                 "Pangkat"
                             </label>
                             <input
                                 type="text"
-                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                 placeholder="Contoh: Penata"
                                 prop:value=move || pegawai_pangkat.get()
                                 on:input=move |ev| set_pegawai_pangkat.set(event_target_value(&ev))
                             />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <label class="block text-sm font-medium text-slate-200 mb-1">
                                 "Unit Kerja"
                             </label>
                             <input
                                 type="text"
-                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                 placeholder="Unit kerja pegawai"
                                 prop:value=move || pegawai_unit_kerja.get()
                                 on:input=move |ev| {
@@ -427,12 +427,12 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                             />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <label class="block text-sm font-medium text-slate-200 mb-1">
                                 "Foto Pegawai (URL)"
                             </label>
                             <input
                                 type="text"
-                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                 placeholder="URL foto pegawai"
                                 prop:value=move || foto_pegawai.get()
                                 on:input=move |ev| set_foto_pegawai.set(event_target_value(&ev))
@@ -443,15 +443,15 @@ pub fn PemakaianBmnForm() -> impl IntoView {
 
                 // BMN Selection with Availability Check
                 <div class="border-t pt-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">"Pilih BMN"</h3>
+                    <h3 class="text-lg font-semibold text-slate-100 mb-4">"Pilih BMN"</h3>
                     <div class="flex gap-2">
                         <div class="flex-1">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <label class="block text-sm font-medium text-slate-200 mb-1">
                                 "NUP BMN"
                             </label>
                             <input
                                 type="text"
-                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                 placeholder="Nomor Urut Pendaftaran"
                                 prop:value=move || bmn_nup.get()
                                 on:input=move |ev| set_bmn_nup.set(event_target_value(&ev))
@@ -486,7 +486,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     <Show when=move || !bmn_kode_barang.get().is_empty()>
                         <div
                             data-testid="bmn-identitas"
-                            class="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700"
+                            class="mt-2 p-3 bg-white/[0.03] border border-white/[0.06] rounded-lg text-sm text-slate-200"
                         >
                             <span class="font-medium">{move || bmn_nama_barang.get()}</span>
                             " — kode barang "
@@ -506,7 +506,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                 view! {
                                     <div
                                         data-testid="bmn-ketersediaan"
-                                        class="mt-2 p-3 bg-green-50 text-green-700 rounded-lg border border-green-100 flex items-center gap-2"
+                                        class="mt-2 p-3 bg-success-500/10 text-success-300 rounded-lg border border-success-500/20 flex items-center gap-2"
                                     >
                                         <AppIcon icon=CHECK_CIRCLE />
                                         "BMN tersedia untuk digunakan"
@@ -517,7 +517,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                 view! {
                                     <div
                                         data-testid="bmn-ketersediaan"
-                                        class="mt-2 p-3 bg-red-50 text-red-700 rounded-lg border border-red-100"
+                                        class="mt-2 p-3 bg-danger-500/10 text-danger-300 rounded-lg border border-danger-500/20"
                                     >
                                         <div class="flex items-center gap-2 mb-1">
                                             <AppIcon icon=WARNING_CIRCLE />
@@ -541,18 +541,18 @@ pub fn PemakaianBmnForm() -> impl IntoView {
 
                 // Type-specific fields
                 <div class="border-t pt-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">"Detail BMN"</h3>
+                    <h3 class="text-lg font-semibold text-slate-100 mb-4">"Detail BMN"</h3>
 
                     // Vehicle-specific fields
                     <Show when=move || jenis_bmn.get() == "KENDARAAN_BERMOTOR">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    "Nomor Polisi" <span class="text-red-500">"*"</span>
+                                <label class="block text-sm font-medium text-slate-200 mb-1">
+                                    "Nomor Polisi" <span class="text-danger-400">"*"</span>
                                 </label>
                                 <input
                                     type="text"
-                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                    class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                     placeholder="B 1234 XYZ"
                                     prop:value=move || no_polisi.get()
                                     on:input=move |ev| set_no_polisi.set(event_target_value(&ev))
@@ -560,45 +560,45 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                 />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                <label class="block text-sm font-medium text-slate-200 mb-1">
                                     "Nomor BPKB"
                                 </label>
                                 <input
                                     type="text"
-                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                    class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                     prop:value=move || no_bpkb.get()
                                     on:input=move |ev| set_no_bpkb.set(event_target_value(&ev))
                                 />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                <label class="block text-sm font-medium text-slate-200 mb-1">
                                     "Nomor STNK"
                                 </label>
                                 <input
                                     type="text"
-                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                    class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                     prop:value=move || no_stnk.get()
                                     on:input=move |ev| set_no_stnk.set(event_target_value(&ev))
                                 />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                <label class="block text-sm font-medium text-slate-200 mb-1">
                                     "Nomor Rangka"
                                 </label>
                                 <input
                                     type="text"
-                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                    class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                     prop:value=move || no_rangka.get()
                                     on:input=move |ev| set_no_rangka.set(event_target_value(&ev))
                                 />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                <label class="block text-sm font-medium text-slate-200 mb-1">
                                     "Nomor Mesin"
                                 </label>
                                 <input
                                     type="text"
-                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                    class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                     prop:value=move || no_mesin.get()
                                     on:input=move |ev| set_no_mesin.set(event_target_value(&ev))
                                 />
@@ -610,11 +610,11 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     <Show when=move || jenis_bmn.get() == "RUMAH_NEGARA">
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    "Alamat" <span class="text-red-500">"*"</span>
+                                <label class="block text-sm font-medium text-slate-200 mb-1">
+                                    "Alamat" <span class="text-danger-400">"*"</span>
                                 </label>
                                 <textarea
-                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                    class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                     rows="3"
                                     placeholder="Alamat lengkap rumah negara"
                                     prop:value=move || alamat.get()
@@ -624,13 +624,13 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        "Luas Tanah (m²)" <span class="text-red-500">"*"</span>
+                                    <label class="block text-sm font-medium text-slate-200 mb-1">
+                                        "Luas Tanah (m²)" <span class="text-danger-400">"*"</span>
                                     </label>
                                     <input
                                         type="number"
                                         step="0.01"
-                                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                        class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                         prop:value=move || luas_tanah.get()
                                         on:input=move |ev| {
                                             set_luas_tanah.set(event_target_value(&ev))
@@ -639,13 +639,13 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                     />
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        "Luas Bangunan (m²)" <span class="text-red-500">"*"</span>
+                                    <label class="block text-sm font-medium text-slate-200 mb-1">
+                                        "Luas Bangunan (m²)" <span class="text-danger-400">"*"</span>
                                     </label>
                                     <input
                                         type="number"
                                         step="0.01"
-                                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                        class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                         prop:value=move || luas_bangunan.get()
                                         on:input=move |ev| {
                                             set_luas_bangunan.set(event_target_value(&ev))
@@ -660,12 +660,12 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     // Laptop-specific fields
                     <Show when=move || jenis_bmn.get() == "LAPTOP">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                "Serial Number" <span class="text-red-500">"*"</span>
+                            <label class="block text-sm font-medium text-slate-200 mb-1">
+                                "Serial Number" <span class="text-danger-400">"*"</span>
                             </label>
                             <input
                                 type="text"
-                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                 placeholder="Serial number laptop"
                                 prop:value=move || serial_number.get()
                                 on:input=move |ev| set_serial_number.set(event_target_value(&ev))
@@ -677,27 +677,27 @@ pub fn PemakaianBmnForm() -> impl IntoView {
 
                 // Common fields
                 <div class="border-t pt-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">"Periode Pemakaian"</h3>
+                    <h3 class="text-lg font-semibold text-slate-100 mb-4">"Periode Pemakaian"</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <label class="block text-sm font-medium text-slate-200 mb-1">
                                 "Tanggal Mulai"
                             </label>
                             <input
                                 type="date"
-                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                 prop:value=move || tanggal_mulai.get()
                                 on:input=move |ev| set_tanggal_mulai.set(event_target_value(&ev))
                                 required
                             />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <label class="block text-sm font-medium text-slate-200 mb-1">
                                 "Tanggal Selesai"
                             </label>
                             <input
                                 type="date"
-                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                 prop:value=move || tanggal_selesai.get()
                                 on:input=move |ev| set_tanggal_selesai.set(event_target_value(&ev))
                                 required
@@ -707,9 +707,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Keperluan"</label>
+                    <label class="block text-sm font-medium text-slate-200 mb-1">"Keperluan"</label>
                     <textarea
-                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                         rows="4"
                         placeholder="Jelaskan keperluan penggunaan BMN (minimal 10 karakter)"
                         prop:value=move || keperluan.get()
@@ -719,12 +719,12 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <label class="block text-sm font-medium text-slate-200 mb-1">
                         "Lokasi Pemakaian"
                     </label>
                     <input
                         type="text"
-                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                         placeholder="Lokasi penggunaan BMN"
                         prop:value=move || lokasi_pemakaian.get()
                         on:input=move |ev| set_lokasi_pemakaian.set(event_target_value(&ev))
@@ -734,9 +734,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                 // Additional BMN Items (multi-BMN per pegawai)
                 <div class="border-t pt-6">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-semibold text-gray-800">
+                        <h3 class="text-lg font-semibold text-slate-100">
                             "BMN Tambahan"
-                            <span class="text-sm font-normal text-gray-500 ml-2">
+                            <span class="text-sm font-normal text-slate-500 ml-2">
                                 "(Opsional, untuk pegawai yang menggunakan lebih dari 1 BMN)"
                             </span>
                         </h3>
@@ -776,10 +776,10 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                         .enumerate()
                                         .map(|(idx, _item)| {
                                             view! {
-                                                <div class="p-4 bg-gray-50 rounded-lg border relative">
+                                                <div class="p-4 bg-white/[0.03] rounded-lg border relative">
                                                     <button
                                                         type="button"
-                                                        class="absolute top-2 right-2 text-red-500 hover:text-red-700"
+                                                        class="absolute top-2 right-2 text-danger-400 hover:text-red-700"
                                                         on:click=move |_| {
                                                             let mut items = additional_bmn_items.get();
                                                             if idx < items.len() {
@@ -792,12 +792,12 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                                     </button>
                                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                                                         <div>
-                                                            <label class="block text-xs font-medium text-gray-600 mb-1">
+                                                            <label class="block text-xs font-medium text-slate-400 mb-1">
                                                                 "Kode Barang"
                                                             </label>
                                                             <input
                                                                 type="text"
-                                                                class="w-full px-3 py-1.5 text-sm border rounded-lg"
+                                                                class="w-full px-3 py-1.5 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                                                 placeholder="Kode barang"
                                                                 on:input=move |ev| {
                                                                     let mut items = additional_bmn_items.get();
@@ -809,12 +809,12 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                                             />
                                                         </div>
                                                         <div>
-                                                            <label class="block text-xs font-medium text-gray-600 mb-1">
+                                                            <label class="block text-xs font-medium text-slate-400 mb-1">
                                                                 "Nama Barang"
                                                             </label>
                                                             <input
                                                                 type="text"
-                                                                class="w-full px-3 py-1.5 text-sm border rounded-lg"
+                                                                class="w-full px-3 py-1.5 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                                                 placeholder="Nama barang"
                                                                 on:input=move |ev| {
                                                                     let mut items = additional_bmn_items.get();
@@ -826,12 +826,12 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                                             />
                                                         </div>
                                                         <div>
-                                                            <label class="block text-xs font-medium text-gray-600 mb-1">
+                                                            <label class="block text-xs font-medium text-slate-400 mb-1">
                                                                 "NUP"
                                                             </label>
                                                             <input
                                                                 type="text"
-                                                                class="w-full px-3 py-1.5 text-sm border rounded-lg"
+                                                                class="w-full px-3 py-1.5 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                                                 placeholder="NUP"
                                                                 on:input=move |ev| {
                                                                     let mut items = additional_bmn_items.get();
@@ -858,7 +858,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                 <div class="pt-6 flex justify-end gap-3 border-t">
                     <a
                         href=routes::path::PENGELOLAAN_PEMAKAIAN
-                        class="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                        class="px-6 py-2 text-slate-200 bg-white/[0.05] rounded-lg hover:bg-white/[0.09] transition-colors"
                     >
                         "Batal"
                     </a>

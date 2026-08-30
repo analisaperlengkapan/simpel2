@@ -519,7 +519,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
 
                         // Riwayat Proses (Fase 2.5 rollout — WorkflowTimeline reusable, tema gelap)
                         <SectionCard title="Riwayat Proses">
-                            <WorkflowTimeline steps=build_satker_timeline(&satker) dark=true />
+                            <WorkflowTimeline steps=build_satker_timeline(&satker) />
                         </SectionCard>
 
                         // ── Workflow Action Panels ──

@@ -371,7 +371,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                             Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
                                             Some(Ok(acts)) => {
                                                 let steps = build_timeline(&s_for_timeline, &acts);
-                                                view! { <WorkflowTimeline steps=steps dark=true /> }
+                                                view! { <WorkflowTimeline steps=steps /> }
                                                     .into_any()
                                             }
                                         }}
