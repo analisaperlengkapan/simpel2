@@ -99,15 +99,34 @@ ON CONFLICT (kode_satker) DO NOTHING;
 -- 2b. integrasi: MySIMKARI pegawai — one per DKI satker + one Bandung. Makes the
 --     gRPC GetMysimkariPegawai read path (nip_filter / kode_satker filter, the
 --     one perlengkapan's IntegrasiClient exercises) assert against REAL rows
---     instead of an always-empty result. satker_id is the MySIMKARI code (TEXT).
+--     instead of an always-empty result.
+--
+--     SHAPE NOTE (do not "tidy" this back into a VALUES list of codes). This
+--     fixture used to write the MySIMKARI *code* into `satker_id`, and a
+--     comment here asserted that was the column's meaning. It is not: the
+--     ingest stores the satker's `api_id`. Measured on the staging snapshot,
+--     21 325 of 21 328 employees join by `api_id` and 3 by code — so a
+--     code-shaped fixture is a shape that does not occur upstream, and every
+--     test standing on it certified a lookup that found nobody in production.
+--     The join below derives the value from the satkers seeded in step 1, so
+--     the fixture cannot drift from the column it is standing in for.
 -- ----------------------------------------------------------------------------
 INSERT INTO integrasi.mysimkari_pegawai
   (nip, nama, satker_id, nama_satker, jabatan, golpang, gol_kd, jk, email, no_hp, status_pegawai)
-VALUES
-  ('200000000000000001', 'E2E Operator Jakpus',  '0200010', 'KEJAKSAAN NEGERI JAKARTA PUSAT',   'Operator Satker',   'Penata Muda', 'III/a', 'L', '200000000000000001@kejaksaan.go.id', '081200000001', 'aktif'),
-  ('200000000000000002', 'E2E Operator Jaksel',  '0200020', 'KEJAKSAAN NEGERI JAKARTA SELATAN', 'Operator Satker',   'Penata Muda', 'III/a', 'P', '200000000000000002@kejaksaan.go.id', '081200000002', 'aktif'),
-  ('200000000000000009', 'E2E Pegawai Bandung',  '0300010', 'KEJAKSAAN NEGERI BANDUNG',         'Operator Satker',   'Penata',      'III/c', 'L', '200000000000000009@kejaksaan.go.id', '081200000009', 'aktif')
-ON CONFLICT (nip) DO NOTHING;
+SELECT v.nip, v.nama, s.api_id, s.nama_satker,
+       v.jabatan, v.golpang, v.gol_kd, v.jk, v.email, v.no_hp, 'aktif'
+  FROM (VALUES
+    ('200000000000000001', 'E2E Operator Jakpus', '0200010', 'Operator Satker', 'Penata Muda', 'III/a', 'L', '200000000000000001@kejaksaan.go.id', '081200000001'),
+    ('200000000000000002', 'E2E Operator Jaksel', '0200020', 'Operator Satker', 'Penata Muda', 'III/a', 'P', '200000000000000002@kejaksaan.go.id', '081200000002'),
+    ('200000000000000009', 'E2E Pegawai Bandung', '0300010', 'Operator Satker', 'Penata',      'III/c', 'L', '200000000000000009@kejaksaan.go.id', '081200000009')
+  ) AS v(nip, nama, kode_satker, jabatan, golpang, gol_kd, jk, email, no_hp)
+  JOIN integrasi.mysimkari_satker s ON s.kode_satker = v.kode_satker
+-- DO UPDATE, not DO NOTHING: an environment seeded before this fix already
+-- holds these NIPs with a code in `satker_id`, and DO NOTHING would leave the
+-- roster empty there forever.
+ON CONFLICT (nip) DO UPDATE SET
+  satker_id   = EXCLUDED.satker_id,
+  nama_satker = EXCLUDED.nama_satker;
 
 -- ----------------------------------------------------------------------------
 -- 3. integrasi: SIMAN assets — 2 for satker A, 2 for B (both DKI), 1 for C

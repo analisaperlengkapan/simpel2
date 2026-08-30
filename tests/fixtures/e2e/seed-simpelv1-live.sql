@@ -14,10 +14,17 @@
 BEGIN;
 SET search_path TO integrasi, public;
 
+-- satker_id holds the satker's `api_id`, not its code — see the SHAPE NOTE in
+-- seed-multisatker.sql, which seeds the satkers this joins to.
 INSERT INTO integrasi.mysimkari_pegawai (nip, nama, satker_id, nama_satker, jabatan, status_pegawai)
-VALUES
-  ('200000000000000001', 'E2E Pegawai Jakpus',  '0200010', 'KEJAKSAAN NEGERI JAKARTA PUSAT', 'Jaksa Fungsional',  'aktif'),
-  ('200000000000000009', 'E2E Pegawai Bandung', '0300010', 'KEJAKSAAN NEGERI BANDUNG',       'Kepala Sub Bagian', 'aktif')
-ON CONFLICT (nip) DO NOTHING;
+SELECT v.nip, v.nama, s.api_id, s.nama_satker, v.jabatan, 'aktif'
+  FROM (VALUES
+    ('200000000000000001', 'E2E Pegawai Jakpus',  '0200010', 'Jaksa Fungsional'),
+    ('200000000000000009', 'E2E Pegawai Bandung', '0300010', 'Kepala Sub Bagian')
+  ) AS v(nip, nama, kode_satker, jabatan)
+  JOIN integrasi.mysimkari_satker s ON s.kode_satker = v.kode_satker
+ON CONFLICT (nip) DO UPDATE SET
+  satker_id   = EXCLUDED.satker_id,
+  nama_satker = EXCLUDED.nama_satker;
 
 COMMIT;

@@ -1,6 +1,7 @@
 use super::PemakaianBmnService;
 use crate::pemakaian_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::satker_scope::SatkerScope;
 
 impl PemakaianBmnService {
     /// Satker yang aset-nya sedang ditanyakan, setelah dipastikan boleh
@@ -65,22 +66,18 @@ impl PemakaianBmnService {
     pub async fn cek_pegawai_in_satker(
         &self,
         nip: &str,
-        satker_id: &str,
+        scope: &SatkerScope,
     ) -> AppResult<CekPegawaiResponse> {
-        let pegawai = self.repository.find_pegawai_by_nip(nip).await?;
+        // The scope is a predicate inside the lookup, so an employee outside
+        // the caller's satker is simply not there — no second check to forget,
+        // and no answer that distinguishes "exists elsewhere" from "does not
+        // exist" (the cross-tenant existence oracle #93 closed).
+        let pegawai = self.repository.find_pegawai_by_nip(nip, scope).await?;
         let Some(pegawai) = pegawai else {
             return Err(AppError::BadRequest(
                 "Pegawai tidak ditemukan / tidak berada di satker bersangkutan".into(),
             ));
         };
-        // Match satker — case-insensitive utk toleransi format
-        // (kode_satker biasanya string numerik tapi safe).
-        let pegawai_satker = pegawai.satker_id.clone().unwrap_or_default();
-        if pegawai_satker.is_empty() || !pegawai_satker.eq_ignore_ascii_case(satker_id) {
-            return Err(AppError::BadRequest(
-                "Pegawai tidak ditemukan / tidak berada di satker bersangkutan".into(),
-            ));
-        }
 
         let pemakaian_aktif = self.repository.list_pemakaian_aktif_by_pegawai(nip).await?;
         let histori_pemakaian = self

@@ -42,19 +42,45 @@ use super::PemakaianBmnRepository;
 use crate::pemakaian_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::repo::PoolExt;
+use crate::shared::satker_scope::{BoxedParam, SatkerScope, as_refs};
 
 impl PemakaianBmnRepository {
-    /// Lookup pegawai dari cache MySIMKARI by NIP.
-    pub async fn find_pegawai_by_nip(&self, nip: &str) -> AppResult<Option<PegawaiInfo>> {
+    /// Lookup pegawai dari cache MySIMKARI by NIP, dibatasi cakupan pemanggil.
+    ///
+    /// An employee row is named personal data — NIP, name, rank, posting, photo
+    /// — so the caller's scope belongs in this signature, applied as a
+    /// predicate INSIDE the query. A check the caller performs afterwards is a
+    /// check the next caller forgets; that is how #870 leaked another satker's
+    /// roster. The predicate is built on the RESOLVED `kode_satker`
+    /// ([`crate::shared::pegawai_ref`]), never on `p.satker_id`.
+    pub async fn find_pegawai_by_nip(
+        &self,
+        nip: &str,
+        scope: &SatkerScope,
+    ) -> AppResult<Option<PegawaiInfo>> {
         let client = self.pool.client().await?;
+        let mut params: Vec<BoxedParam> = vec![Box::new(nip.to_string())];
+        let scope_sql = scope
+            .push_condition(
+                crate::shared::pegawai_ref::PEGAWAI_KODE_SATKER_SQL,
+                &mut params,
+            )
+            .map(|c| format!(" AND {c}"))
+            .unwrap_or_default();
         let row = client
             .query_opt(
-                r#"
-                SELECT nip, nama, jabatan, golpang AS pangkat, satker_id, nama_satker, foto
-                FROM integrasi.mysimkari_pegawai
-                WHERE nip = $1
-                "#,
-                &[&nip],
+                &format!(
+                    r#"
+                    SELECT p.nip, p.nama, p.jabatan, p.golpang AS pangkat,
+                           {kode_satker} AS satker_id, p.nama_satker, p.foto
+                    FROM integrasi.mysimkari_pegawai p
+                    {join}
+                    WHERE p.nip = $1{scope_sql}
+                    "#,
+                    join = crate::shared::pegawai_ref::PEGAWAI_SATKER_JOIN_SQL,
+                    kode_satker = crate::shared::pegawai_ref::PEGAWAI_KODE_SATKER_SQL,
+                ),
+                &as_refs(&params),
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;

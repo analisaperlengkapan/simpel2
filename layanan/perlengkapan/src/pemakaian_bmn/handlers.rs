@@ -461,24 +461,33 @@ pub async fn check_bmn_availability(
 
 #[derive(Debug, serde::Deserialize)]
 pub struct CekPegawaiQuery {
-    pub satker_id: String,
+    /// Kept only so an existing caller's URL still parses. The satker is
+    /// DERIVED from the caller's claims now: taking it from the query let any
+    /// authenticated user read another satker's employee record by naming it,
+    /// which is personal data (the #870 class).
+    #[serde(default)]
+    pub satker_id: Option<String>,
 }
 
-/// GET /pemakaian-bmn/cek-pegawai/{nip}?satker_id=...
+/// GET /pemakaian-bmn/cek-pegawai/{nip}
 ///
-/// Fase 1.11: Validate pegawai berada di satker pemohon (lookup MySIMKARI
-/// cache), lalu return info pegawai + pemakaian aktif + histori.
-/// 422 dgn pesan "Pegawai tidak ditemukan / tidak berada di satker
-/// bersangkutan" jika mismatch.
+/// Operator mengetik NIP, sistem mengembalikan identitas pegawai + pemakaian
+/// aktif + histori, sehingga tidak ada satu pun field pegawai yang perlu
+/// diketik ulang. Endpoint ini sudah ada sejak Fase 1.11 tetapi tidak pernah
+/// dipanggil frontend — dan tidak akan berguna kalau dipanggil, karena
+/// lookupnya mencocokkan `satker_id` (UUID) dengan sebuah `kode_satker`
+/// sehingga tak pernah menemukan siapa pun. Lihat
+/// [`crate::shared::pegawai_ref`].
+///
+/// Cakupan diambil dari klaim, bukan dari query.
 pub async fn cek_pegawai(
     State(service): State<PemakaianBmnService>,
     Path(nip): Path<String>,
-    axum::extract::Query(query): axum::extract::Query<CekPegawaiQuery>,
-    _claims: Claims,
+    axum::extract::Query(_query): axum::extract::Query<CekPegawaiQuery>,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<CekPegawaiResponse>>, AppError> {
-    let resp = service
-        .cek_pegawai_in_satker(&nip, &query.satker_id)
-        .await?;
+    let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
+    let resp = service.cek_pegawai_in_satker(&nip, &scope).await?;
     Ok(Json(ApiResponse::success(
         resp,
         "Pegawai terverifikasi".to_string(),

@@ -658,6 +658,19 @@ impl IntegrasiService for IntegrasiServiceImpl {
             req.kode_satker, req.nip_filter, page
         );
 
+        // `satker_id` holds the satker's `api_id`, NOT its `kode_satker` — the
+        // two are different namespaces, and on the staging snapshot 21 325 of
+        // 21 328 employees join by `api_id` against 3 by code. So the code this
+        // RPC speaks in has to be REACHED, through the satker table; reading it
+        // straight out of `satker_id` both returned a UUID under the name
+        // `kode_satker` and made the satker filter below match nothing.
+        //
+        // This is the second always-empty defect in this one RPC: the note that
+        // follows records the first. Both were invisible for the same reason —
+        // an empty result is a valid response, so nothing above ever errored.
+        const PEGAWAI_FROM: &str = r#"integrasi.mysimkari_pegawai p
+            LEFT JOIN integrasi.mysimkari_satker s ON s.api_id = p.satker_id"#;
+
         // Column mapping: the proto's normalized field names are ALIASED from
         // the MySIMKARI-native columns actually in the DDL (001_init_schema) —
         // the previous SELECT referenced columns that never existed
@@ -665,30 +678,29 @@ impl IntegrasiService for IntegrasiServiceImpl {
         // query errored and this RPC ALWAYS returned an empty list (proven
         // against a fresh-apply schema, 2026-07-02).
         const PEGAWAI_COLS: &str = r#"
-                nip, nama, jabatan,
-                COALESCE(golpang, '')                AS pangkat,
-                COALESCE(gol_kd, '')                 AS golongan,
-                COALESCE(nama_satker, '')            AS unit_kerja,
-                COALESCE(satker_id, '')              AS kode_satker,
-                COALESCE(email, email_dinas, '')     AS email,
-                COALESCE(no_hp, '')                  AS telepon,
-                status_pegawai                       AS status
+                p.nip, p.nama, p.jabatan,
+                COALESCE(p.golpang, '')              AS pangkat,
+                COALESCE(p.gol_kd, '')               AS golongan,
+                COALESCE(p.nama_satker, '')          AS unit_kerja,
+                COALESCE(s.kode_satker, '')          AS kode_satker,
+                COALESCE(p.email, p.email_dinas, '') AS email,
+                COALESCE(p.no_hp, '')                AS telepon,
+                p.status_pegawai                     AS status
         "#;
 
         // Filter precedence mirrors the request shape: an exact-NIP lookup
         // (used by the simpelv1 gateway employee-by-NIP endpoint) wins over
         // the satker listing. `nip_filter` was previously IGNORED entirely.
         let (where_clause, filter): (&str, Option<&str>) = if !req.nip_filter.is_empty() {
-            ("WHERE nip = $1", Some(req.nip_filter.as_str()))
+            ("WHERE p.nip = $1", Some(req.nip_filter.as_str()))
         } else if !req.kode_satker.is_empty() {
-            ("WHERE satker_id = $1", Some(req.kode_satker.as_str()))
+            ("WHERE s.kode_satker = $1", Some(req.kode_satker.as_str()))
         } else {
             ("", None)
         };
 
         // Count total
-        let count_query =
-            format!("SELECT COUNT(*) FROM integrasi.mysimkari_pegawai {where_clause}");
+        let count_query = format!("SELECT COUNT(*) FROM {PEGAWAI_FROM} {where_clause}");
         let count_res = match filter {
             Some(f) => self.state.db_client.query_one(&count_query, &[&f]).await,
             None => self.state.db_client.query_one(&count_query, &[]).await,
@@ -706,14 +718,12 @@ impl IntegrasiService for IntegrasiServiceImpl {
             Some(_) => (
                 "$2 OFFSET $3",
                 format!(
-                    "SELECT {PEGAWAI_COLS} FROM integrasi.mysimkari_pegawai {where_clause} ORDER BY nama LIMIT "
+                    "SELECT {PEGAWAI_COLS} FROM {PEGAWAI_FROM} {where_clause} ORDER BY p.nama LIMIT "
                 ),
             ),
             None => (
                 "$1 OFFSET $2",
-                format!(
-                    "SELECT {PEGAWAI_COLS} FROM integrasi.mysimkari_pegawai ORDER BY nama LIMIT "
-                ),
+                format!("SELECT {PEGAWAI_COLS} FROM {PEGAWAI_FROM} ORDER BY p.nama LIMIT "),
             ),
         };
         let query = format!("{query}{limit_params}");
