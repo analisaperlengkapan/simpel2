@@ -104,7 +104,6 @@ pub fn PenghapusanBmnListPage() -> impl IntoView {
             let search_opt = non_empty(&search_val);
 
             let filters = PenghapusanBmnFilters {
-                satker_id: None,
                 status: status_filter,
                 status_kode: None,
                 metode_penghapusan: metode_opt,

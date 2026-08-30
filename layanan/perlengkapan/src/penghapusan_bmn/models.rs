@@ -306,8 +306,6 @@ impl PenghapusanBmnStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PenghapusanBmn {
     pub id: Uuid,
-    pub satker_id: Uuid,
-    pub asset_id: Uuid,
     pub kode_barang: String,
     pub nama_barang: String,
     pub nup: String,
@@ -384,8 +382,9 @@ pub struct PenghapusanBmn {
     pub document_url: Option<String>,
 
     /// Authoritative MySIMKARI `kode_satker` of the satker that owns this
-    /// usulan, taken from the creator's JWT claims (#66) — not from the
-    /// client-supplied `satker_id` UUID, which nothing resolves.
+    /// usulan, taken from the creator's JWT claims (#66). It used to sit beside
+    /// a client-supplied `satker_id` UUID that nothing resolved; V010 dropped
+    /// that column, so this is now the only satker on the record.
     ///
     /// Already the RBAC visibility predicate (`repository::list`); exposed on
     /// the model because it is also one third of the asset identity that
@@ -400,8 +399,6 @@ pub struct PenghapusanBmn {
 /// Create penghapusan BMN request
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct CreatePenghapusanBmnRequest {
-    pub satker_id: Uuid,
-    pub asset_id: Uuid,
     pub kode_barang: String,
     #[validate(length(min = 1, max = 255))]
     pub nama_barang: String,
@@ -436,7 +433,6 @@ pub struct CreatePenghapusanBmnRequest {
 /// Satu item BMN dalam usulan multi-item (Fase 2.8).
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct CreatePenghapusanBmnItemRequest {
-    pub asset_id: Option<Uuid>,
     #[validate(length(min = 1, max = 50))]
     pub kode_barang: String,
     #[validate(length(min = 1, max = 255))]
@@ -452,7 +448,6 @@ pub struct CreatePenghapusanBmnItemRequest {
 pub struct PenghapusanBmnItem {
     pub id: Uuid,
     pub penghapusan_id: Uuid,
-    pub asset_id: Option<Uuid>,
     pub kode_barang: String,
     pub nama_barang: String,
     pub nup: String,
@@ -467,7 +462,6 @@ impl PenghapusanBmnItem {
         Self {
             id: row.get("id"),
             penghapusan_id: row.get("penghapusan_id"),
-            asset_id: row.try_get("asset_id").ok().flatten(),
             kode_barang: row.get("kode_barang"),
             nama_barang: row.get("nama_barang"),
             nup: row.get("nup"),
@@ -501,7 +495,6 @@ pub struct UpdatePenghapusanBmnRequest {
 /// Penghapusan BMN list filters
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PenghapusanBmnFilters {
-    pub satker_id: Option<Uuid>,
     pub status: Option<String>,
     pub status_kode: Option<i32>,
     pub metode_penghapusan: Option<String>,
@@ -605,8 +598,6 @@ impl PenghapusanBmn {
         let (status_label, status_tone, status_hint) = PenghapusanBmnStatus::describe(&status_str);
         Self {
             id: row.get("id"),
-            satker_id: row.get("satker_id"),
-            asset_id: row.get("asset_id"),
             kode_barang: row.get("kode_barang"),
             nama_barang: row.get("nama_barang"),
             nup: row.get("nup"),

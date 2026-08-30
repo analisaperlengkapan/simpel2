@@ -1,7 +1,9 @@
+use crate::api::bank_aset::BankAsetItem;
 use crate::api::{
     CreatePenghapusanBmnItemRequest, CreatePenghapusanBmnWorkflowRequest,
     create_penghapusan_bmn_workflow,
 };
+use crate::components::reference_picker::AsetPicker;
 use crate::routes;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -14,8 +16,6 @@ use phosphor_leptos::{FLOPPY_DISK, SPINNER};
 /// Form data for BMN disposal request.
 #[derive(Clone, Default)]
 struct PenghapusanFormData {
-    satker_id: String,
-    asset_id: String,
     kode_barang: String,
     nama_barang: String,
     nup: String,
@@ -44,6 +44,32 @@ pub fn PenghapusanForm() -> impl IntoView {
     // Fase 2.8: item BMN tambahan (multi-item). Item utama = field form di atas.
     let extras = RwSignal::new(Vec::<ExtraItem>::new());
 
+    // Picking the asset fills the three fields that identify it. They stay
+    // editable — SIMAN's own naming is inconsistent enough that an operator
+    // sometimes has to correct it — but nobody has to transcribe them.
+    let on_pick_aset = Callback::new(move |picked: Option<BankAsetItem>| {
+        let Some(item) = picked else {
+            form.update(|f| {
+                f.kode_barang.clear();
+                f.nama_barang.clear();
+                f.nup.clear();
+                f.nilai_perolehan.clear();
+            });
+            return;
+        };
+        form.update(|f| {
+            f.kode_barang = item.kode_barang.clone().unwrap_or_default();
+            f.nama_barang = item.nama_aset.clone().unwrap_or_default();
+            f.nup = item.nup.clone().unwrap_or_default();
+            // Blank rather than "0" when SIMAN has no figure: a zero here would
+            // travel into the SK as the asset's acquisition value.
+            f.nilai_perolehan = item
+                .nilai_perolehan
+                .map(|v| v.to_string())
+                .unwrap_or_default();
+        });
+    });
+
     let on_submit = move |ev: leptos::web_sys::SubmitEvent| {
         ev.prevent_default();
         let data = form.begin_submit();
@@ -51,11 +77,6 @@ pub fn PenghapusanForm() -> impl IntoView {
         // Rakit daftar item: item utama (field tunggal) + item tambahan valid.
         let mut items: Vec<CreatePenghapusanBmnItemRequest> =
             vec![CreatePenghapusanBmnItemRequest {
-                asset_id: if data.asset_id.is_empty() {
-                    None
-                } else {
-                    Some(data.asset_id.clone())
-                },
                 kode_barang: data.kode_barang.clone(),
                 nama_barang: data.nama_barang.clone(),
                 nup: data.nup.clone(),
@@ -65,7 +86,6 @@ pub fn PenghapusanForm() -> impl IntoView {
         for e in extras.get_untracked() {
             if !e.kode_barang.trim().is_empty() && !e.nup.trim().is_empty() {
                 items.push(CreatePenghapusanBmnItemRequest {
-                    asset_id: None,
                     kode_barang: e.kode_barang,
                     nama_barang: e.nama_barang,
                     nup: e.nup,
@@ -76,8 +96,6 @@ pub fn PenghapusanForm() -> impl IntoView {
         }
 
         let req = CreatePenghapusanBmnWorkflowRequest {
-            satker_id: data.satker_id,
-            asset_id: data.asset_id,
             kode_barang: data.kode_barang,
             nama_barang: data.nama_barang,
             nup: data.nup,
@@ -131,38 +149,7 @@ pub fn PenghapusanForm() -> impl IntoView {
                     "Identifikasi BMN"
                 </h3>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-200 mb-1" for="satker_id">
-                            "Satuan Kerja (Satker ID)"
-                        </label>
-                        <input
-                            id="satker_id"
-                            type="text"
-                            class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                            placeholder="ID Satuan Kerja"
-                            prop:value=move || form.get().satker_id.clone()
-                            on:input=move |ev| {
-                                form.update(|f| f.satker_id = event_target_value(&ev))
-                            }
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-200 mb-1" for="asset_id">
-                            "Asset ID (UUID)"
-                        </label>
-                        <input
-                            id="asset_id"
-                            type="text"
-                            class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                            placeholder="550e8400-e29b-41d4-a716-446655440000"
-                            prop:value=move || form.get().asset_id.clone()
-                            on:input=move |ev| form.update(|f| f.asset_id = event_target_value(&ev))
-                            required
-                        />
-                    </div>
-                </div>
+                <AsetPicker on_pick=on_pick_aset />
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>

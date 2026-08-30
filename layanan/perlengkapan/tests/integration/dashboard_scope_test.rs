@@ -416,11 +416,16 @@ async fn the_pemakaian_and_penghapusan_rekap_count_only_the_callers_records() {
             .expect("seed permit");
         client
             .execute(
+                // The two `gen_random_uuid()` columns this used to fill were
+                // dropped in V010: nothing resolved them, so the seed was
+                // inventing identifiers for a record that never needed any.
+                // `satker_code` is what the RBAC predicate reads, and it is
+                // what this test varies.
                 "INSERT INTO perlengkapan.penghapusan_bmn
-                    (satker_id, asset_id, kode_barang, nama_barang, nup,
+                    (kode_barang, nama_barang, nup,
                      tanggal_penghapusan, alasan, metode_penghapusan, status,
                      created_by, satker_code)
-                 VALUES (gen_random_uuid(), gen_random_uuid(), '3060201003', 'Meja Kerja',
+                 VALUES ('3060201003', 'Meja Kerja',
                          '15', '2026-01-01', 'rusak', 'LELANG', $1, $2, $3)",
                 &[&status, &uuid::Uuid::parse_str(PUSAT).unwrap(), &satker],
             )

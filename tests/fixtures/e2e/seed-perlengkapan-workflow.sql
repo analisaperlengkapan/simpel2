@@ -376,7 +376,7 @@ ON CONFLICT (pegawai_id, pakaian_id) DO UPDATE SET
 --    ditemukan" and the other two branches were unreachable from the suite.
 -- ----------------------------------------------------------------------------
 INSERT INTO perlengkapan.penghapusan_bmn
-  (id, satker_id, asset_id, kode_barang, nama_barang, nup,
+  (id, kode_barang, nama_barang, nup,
    tanggal_penghapusan, alasan, metode_penghapusan, nilai_perolehan,
    status, status_kode, catatan_operator, kewenangan_penetap_sk,
    created_by, satker_code)
@@ -392,7 +392,7 @@ VALUES
   -- H1 falls into H2's branch and the spec goes red. That is the point — the
   -- dotted spelling is what the rest of the system actually writes (5 live
   -- rows of pengajuan_kebutuhan_bmn_satker_barang carry it).
-  ('e1000000-0000-4e00-8e00-0000000a0001', 'e1a00000-0000-4e00-8e00-000000000001', 'e1b00000-0000-4e00-8e00-000000000001', '3.10.01.02.003', 'E2E Laptop Hapus A', 'E2E-A-2',
+  ('e1000000-0000-4e00-8e00-0000000a0001', '3.10.01.02.003', 'E2E Laptop Hapus A', 'E2E-A-2',
    '2026-06-01', 'Rusak berat, tidak ekonomis diperbaiki', 'DIMUSNAHKAN', 15000000,
    'DRAFT', 4000, 'Seed F-E2E penghapusan (operator step)', 'PUSAT',
    '11111111-1111-4111-8111-111111111111', '0200010'),
@@ -401,19 +401,17 @@ VALUES
   -- for. This is the "mohon verifikasi manual" branch — reachable only
   -- because satker is part of the key, since NUP alone would have matched
   -- some arbitrary asset anywhere in the country.
-  ('e1000000-0000-4e00-8e00-0000000a0002', 'e1a00000-0000-4e00-8e00-000000000002', 'e1b00000-0000-4e00-8e00-000000000002', '3.10.01.02.003', 'E2E Aset Hapus B (kode barang beda)', 'E2E-A-1',
+  ('e1000000-0000-4e00-8e00-0000000a0002', '3.10.01.02.003', 'E2E Aset Hapus B (kode barang beda)', 'E2E-A-1',
    '2026-06-01', 'Rusak berat, biaya perbaikan melebihi nilai', 'DIMUSNAHKAN', 4000000,
    'SUBMIT_WILAYAH', 4001, 'Seed F-E2E penghapusan (wilayah step)', 'PUSAT',
    '11111111-1111-4111-8111-111111111111', '0200010'),
   -- H3 keeps a NUP that is in NO satker's SIMAN data, so the third branch
   -- ("aset mungkin sudah dihapus/dipindahkan") stays covered.
-  ('e1000000-0000-4e00-8e00-0000000a0003', 'e1a00000-0000-4e00-8e00-000000000003', 'e1b00000-0000-4e00-8e00-000000000003', '3.05.02.01.002', 'E2E Aset Hapus C (tidak ada di SIMAN)', 'E2E-H-3',
+  ('e1000000-0000-4e00-8e00-0000000a0003', '3.05.02.01.002', 'E2E Aset Hapus C (tidak ada di SIMAN)', 'E2E-H-3',
    '2026-06-01', 'Usia teknis terlampaui, akan dilelang', 'DIJUAL', 22000000,
    'SUBMIT_PUSAT', 4003, 'Seed F-E2E penghapusan (pusat step)', 'PUSAT',
    '22222222-2222-4222-8222-222222222222', '0200020')
 ON CONFLICT (id) DO UPDATE SET
-  satker_id = EXCLUDED.satker_id,
-  asset_id = EXCLUDED.asset_id,
   kode_barang = EXCLUDED.kode_barang,
   nama_barang = EXCLUDED.nama_barang,
   nup = EXCLUDED.nup,
@@ -444,14 +442,13 @@ ON CONFLICT (id) DO UPDATE SET
 -- endpoint that would normally insert these, and the detail + generated SK
 -- lampiran render from this table).
 INSERT INTO perlengkapan.penghapusan_bmn_item
-  (id, penghapusan_id, asset_id, kode_barang, nama_barang, nup, nilai_perolehan, kondisi, urutan)
+  (id, penghapusan_id, kode_barang, nama_barang, nup, nilai_perolehan, kondisi, urutan)
 VALUES
-  ('e1c00000-0000-4e00-8e00-000000000001', 'e1000000-0000-4e00-8e00-0000000a0001', 'e1b00000-0000-4e00-8e00-000000000001', '3.10.01.02.003', 'E2E Laptop Hapus A', 'E2E-A-2', 15000000, 'RUSAK BERAT', 1),
-  ('e1c00000-0000-4e00-8e00-000000000002', 'e1000000-0000-4e00-8e00-0000000a0002', 'e1b00000-0000-4e00-8e00-000000000002', '3.10.01.02.003', 'E2E Aset Hapus B (kode barang beda)', 'E2E-A-1', 4000000, 'RUSAK BERAT', 1),
-  ('e1c00000-0000-4e00-8e00-000000000003', 'e1000000-0000-4e00-8e00-0000000a0003', 'e1b00000-0000-4e00-8e00-000000000003', '3.05.02.01.002', 'E2E Aset Hapus C (tidak ada di SIMAN)', 'E2E-H-3', 22000000, 'RUSAK RINGAN', 1)
+  ('e1c00000-0000-4e00-8e00-000000000001', 'e1000000-0000-4e00-8e00-0000000a0001', '3.10.01.02.003', 'E2E Laptop Hapus A', 'E2E-A-2', 15000000, 'RUSAK BERAT', 1),
+  ('e1c00000-0000-4e00-8e00-000000000002', 'e1000000-0000-4e00-8e00-0000000a0002', '3.10.01.02.003', 'E2E Aset Hapus B (kode barang beda)', 'E2E-A-1', 4000000, 'RUSAK BERAT', 1),
+  ('e1c00000-0000-4e00-8e00-000000000003', 'e1000000-0000-4e00-8e00-0000000a0003', '3.05.02.01.002', 'E2E Aset Hapus C (tidak ada di SIMAN)', 'E2E-H-3', 22000000, 'RUSAK RINGAN', 1)
 ON CONFLICT (id) DO UPDATE SET
   penghapusan_id = EXCLUDED.penghapusan_id,
-  asset_id = EXCLUDED.asset_id,
   kode_barang = EXCLUDED.kode_barang,
   nama_barang = EXCLUDED.nama_barang,
   nup = EXCLUDED.nup,

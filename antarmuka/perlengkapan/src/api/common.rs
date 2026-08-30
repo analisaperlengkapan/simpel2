@@ -35,8 +35,6 @@ pub struct CreateAnalisisRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PenghapusanBmnWorkflow {
     pub id: String,
-    pub satker_id: String,
-    pub asset_id: String,
     pub kode_barang: String,
     pub nama_barang: String,
     pub nup: String,
@@ -95,8 +93,6 @@ pub struct PenghapusanBmnWorkflow {
 /// Create SK Penghapusan BMN request (workflow)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreatePenghapusanBmnWorkflowRequest {
-    pub satker_id: String,
-    pub asset_id: String,
     pub kode_barang: String,
     pub nama_barang: String,
     pub nup: String,
@@ -116,7 +112,6 @@ pub struct CreatePenghapusanBmnWorkflowRequest {
 /// Penghapusan BMN list filters
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PenghapusanBmnFilters {
-    pub satker_id: Option<String>,
     pub status: Option<String>,
     pub status_kode: Option<i32>,
     pub metode_penghapusan: Option<String>,
@@ -134,7 +129,6 @@ pub struct UploadSignedSKRequest {
 pub struct PenghapusanBmnItem {
     pub id: String,
     pub penghapusan_id: String,
-    pub asset_id: Option<String>,
     pub kode_barang: String,
     pub nama_barang: String,
     pub nup: String,
@@ -149,7 +143,6 @@ pub struct PenghapusanBmnItem {
 /// Item input untuk create multi-item (Fase 2.8).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct CreatePenghapusanBmnItemRequest {
-    pub asset_id: Option<String>,
     pub kode_barang: String,
     pub nama_barang: String,
     pub nup: String,
