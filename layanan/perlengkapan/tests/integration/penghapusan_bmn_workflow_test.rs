@@ -54,8 +54,6 @@ async fn test_complete_penghapusan_bmn_workflow() {
 
     // 1. Create usulan penghapusan
     let mut req = server.post("/penghapusan-bmn").json(&json!({
-        "satker_id": "00000000-0000-0000-0000-000000000001",
-        "asset_id": "00000000-0000-0000-0000-000000000001",
         "kode_barang": "3060201003",
         "nama_barang": "Laptop Dell Latitude 5520",
         "nup": "15",
@@ -171,8 +169,6 @@ async fn test_penghapusan_bmn_rejection_workflow() {
 
     // Create
     let mut req = server.post("/penghapusan-bmn").json(&json!({
-        "satker_id": "00000000-0000-0000-0000-000000000001",
-        "asset_id": "00000000-0000-0000-0000-000000000002",
         "kode_barang": "3060201004",
         "nama_barang": "Printer HP LaserJet",
         "nup": "16",
@@ -262,8 +258,6 @@ async fn a_wilayah_validator_from_another_kejati_cannot_forward_it() {
     let validator_wilayah_id = "00000000-0000-0000-0000-000000000002";
 
     let mut req = server.post("/penghapusan-bmn").json(&json!({
-        "satker_id": "00000000-0000-0000-0000-000000000001",
-        "asset_id": "00000000-0000-0000-0000-000000000003",
         // The third asset the fixture seeds into `integrasi.siman_aset`; create
         // validates kode_barang + NUP against it, so an invented pair 400s
         // before the scope is ever reached.
@@ -323,6 +317,83 @@ async fn a_wilayah_validator_from_another_kejati_cannot_forward_it() {
         "out-of-region forward must not stamp a validator: {:?}",
         body["data"]
     );
+
+    teardown_test_db(&db_name).await;
+}
+
+/// V010 dropped two UUID columns that referenced nothing.
+///
+/// The form asked an operator to type both. `asset_id` had no source at all —
+/// SIMAN assets are keyed BIGSERIAL, so there was no UUID anywhere to copy, and
+/// measured on staging none of the stored values matched any `siman_aset.id`.
+/// `satker_id` was shadowed by `satker_code`, which comes from the creator's
+/// claims and is what the RBAC predicate actually filters on.
+///
+/// Asserting on the catalogue rather than on a successful insert, because an
+/// insert would keep passing if the columns came back as nullable — and a
+/// nullable column that resolves to nothing is still a field the next form will
+/// offer to fill. Both halves matter: the columns are gone, AND the one
+/// authoritative satker is still there.
+#[tokio::test]
+async fn the_two_unresolvable_uuid_columns_are_gone() {
+    let (_app, db, db_name) = setup_test_app().await;
+    let client = db.pool().get().await.unwrap();
+
+    let present = |cols: &[tokio_postgres::Row]| -> Vec<String> {
+        cols.iter()
+            .map(|r| r.get::<_, String>("column_name"))
+            .collect()
+    };
+
+    let parent = client
+        .query(
+            "SELECT column_name FROM information_schema.columns
+              WHERE table_schema = 'perlengkapan' AND table_name = 'penghapusan_bmn'",
+            &[],
+        )
+        .await
+        .expect("catalogue is readable");
+    let parent = present(&parent);
+    assert!(
+        !parent.iter().any(|c| c == "asset_id"),
+        "penghapusan_bmn.asset_id is back; nothing resolves it"
+    );
+    assert!(
+        !parent.iter().any(|c| c == "satker_id"),
+        "penghapusan_bmn.satker_id is back; satker_code is the satker"
+    );
+    assert!(
+        parent.iter().any(|c| c == "satker_code"),
+        "satker_code is the RBAC predicate's column and must survive: {parent:?}"
+    );
+
+    let item = client
+        .query(
+            "SELECT column_name FROM information_schema.columns
+              WHERE table_schema = 'perlengkapan' AND table_name = 'penghapusan_bmn_item'",
+            &[],
+        )
+        .await
+        .expect("catalogue is readable");
+    assert!(
+        !present(&item).iter().any(|c| c == "asset_id"),
+        "penghapusan_bmn_item.asset_id is back"
+    );
+
+    // The indexes went with the columns. They were B-trees over values that
+    // pointed at nothing, maintained on every write.
+    let idx: i64 = client
+        .query_one(
+            "SELECT count(*) FROM pg_indexes
+              WHERE schemaname = 'perlengkapan'
+                AND tablename LIKE 'penghapusan_bmn%'
+                AND (indexdef LIKE '%asset_id%' OR indexdef LIKE '%(satker_id%')",
+            &[],
+        )
+        .await
+        .expect("index catalogue is readable")
+        .get(0);
+    assert_eq!(idx, 0, "an index over a dropped column survived");
 
     teardown_test_db(&db_name).await;
 }

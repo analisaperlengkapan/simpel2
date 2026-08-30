@@ -191,7 +191,6 @@ pub async fn get_penghapusan_bmn_detail(
 /// List penghapusan BMN with filters
 #[derive(Debug, Deserialize)]
 pub struct ListPenghapusanQuery {
-    pub satker_id: Option<Uuid>,
     pub status: Option<String>,
     pub metode_penghapusan: Option<String>,
     pub tahun: Option<i32>,
@@ -206,7 +205,6 @@ pub async fn list_penghapusan_bmn(
 ) -> Result<Json<PaginatedResponse<PenghapusanBmn>>, AppError> {
     let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
     let filters = PenghapusanBmnFilters {
-        satker_id: query.satker_id,
         status: query.status,
         status_kode: None,
         metode_penghapusan: query.metode_penghapusan,

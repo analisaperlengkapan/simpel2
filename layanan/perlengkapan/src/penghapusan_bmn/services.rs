@@ -582,7 +582,10 @@ impl PenghapusanBmnService {
             .unwrap_or_else(|_| "00000000-0000-0000-0000-000000000002".to_string());
         let data = serde_json::json!({
             "id": id.to_string(),
-            "satker_id": penghapusan.satker_id,
+            // The authoritative MySIMKARI code. This was `satker_id`, the UUID
+            // V010 dropped — no template ever referenced it, so an SK could
+            // never have shown it, but it was the value on offer.
+            "satker_code": penghapusan.satker_code,
             "nama_barang": penghapusan.nama_barang,
             "alasan": penghapusan.alasan,
             "status": penghapusan.status,

@@ -67,8 +67,6 @@ async fn create_penghapusan(server: &TestServer) -> String {
         "operator_satker",
         OPERATOR,
         Some(json!({
-            "satker_id": "00000000-0000-0000-0000-000000000001",
-            "asset_id": "00000000-0000-0000-0000-000000000001",
             "kode_barang": "3060201003",
             "nama_barang": "Laptop Dell",
             "nup": "99",

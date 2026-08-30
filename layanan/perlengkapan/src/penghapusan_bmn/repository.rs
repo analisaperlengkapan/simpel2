@@ -34,7 +34,8 @@ impl PenghapusanBmnRepository {
         request: CreatePenghapusanBmnRequest,
         created_by: Uuid,
         // Authoritative MySIMKARI satker_code of the creating operator, derived
-        // from JWT claims (#66) — NOT the client-supplied request.satker_id UUID.
+        // from JWT claims (#66). Since V010 it is the record's only satker: the
+        // `satker_id` UUID the client used to send resolved to nothing.
         satker_code: Option<String>,
     ) -> AppResult<PenghapusanBmn> {
         let client = self.pool.get().await?;
@@ -51,7 +52,7 @@ impl PenghapusanBmnRepository {
 
         let query = r#"
             INSERT INTO perlengkapan.penghapusan_bmn (
-                id, satker_id, asset_id, kode_barang, nama_barang, nup,
+                id, kode_barang, nama_barang, nup,
                 tanggal_penghapusan, alasan, metode_penghapusan, nilai_perolehan,
                 nilai_perolehan_dari_backfill,
                 status, status_kode, lampiran_persyaratan, lampiran_pendukung,
@@ -59,11 +60,11 @@ impl PenghapusanBmnRepository {
                 kewenangan_penetap_sk, penetap_sk_jabatan,
                 created_by, satker_code, created_at, updated_at
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                $1, $2, $3, $4, $5, $6, $7, $8,
                 false,
-                $11, $12, $13, $14, $15, false,
-                $16, $17,
-                $18, $19, NOW(), NOW()
+                $9, $10, $11, $12, $13, false,
+                $14, $15,
+                $16, $17, NOW(), NOW()
             )
             RETURNING *
         "#;
@@ -77,8 +78,6 @@ impl PenghapusanBmnRepository {
                 query,
                 &[
                     &id,
-                    &request.satker_id,
-                    &request.asset_id,
                     &request.kode_barang,
                     &request.nama_barang,
                     &request.nup,
@@ -104,7 +103,6 @@ impl PenghapusanBmnRepository {
         // Tabel induk tetap menyimpan item pertama (kolom tunggal di atas).
         let items: Vec<CreatePenghapusanBmnItemRequest> = if request.items.is_empty() {
             vec![CreatePenghapusanBmnItemRequest {
-                asset_id: Some(request.asset_id),
                 kode_barang: request.kode_barang.clone(),
                 nama_barang: request.nama_barang.clone(),
                 nup: request.nup.clone(),
@@ -119,13 +117,12 @@ impl PenghapusanBmnRepository {
                 .execute(
                     r#"
                     INSERT INTO perlengkapan.penghapusan_bmn_item (
-                        penghapusan_id, asset_id, kode_barang, nama_barang, nup,
+                        penghapusan_id, kode_barang, nama_barang, nup,
                         nilai_perolehan, kondisi, urutan
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7)
                     "#,
                     &[
                         &id,
-                        &item.asset_id,
                         &item.kode_barang,
                         &item.nama_barang,
                         &item.nup,
@@ -274,12 +271,6 @@ impl PenghapusanBmnRepository {
             where_clauses.push(cond);
         }
         let mut param_count = params.len() + 1;
-
-        if let Some(ref satker_id) = filters.satker_id {
-            where_clauses.push(format!("satker_id = ${}", param_count));
-            params.push(Box::new(*satker_id));
-            param_count += 1;
-        }
 
         if let Some(ref status) = filters.status {
             // Normalize a comma-separated list + legacy/UI aliases to the

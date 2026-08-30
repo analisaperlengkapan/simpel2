@@ -22,9 +22,6 @@ pub async fn fetch_penghapusan_bmn_list(
         "{}?page={}&per_page={}",
         PENGHAPUSAN_BMN_BASE, page, per_page
     );
-    if let Some(ref satker_id) = filters.satker_id {
-        url.push_str(&format!("&satker_id={}", satker_id));
-    }
     if let Some(ref status) = filters.status {
         url.push_str(&format!("&status={}", status));
     }
