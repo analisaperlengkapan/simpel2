@@ -285,7 +285,13 @@ pub fn AsetPicker(
                 fallback=move || {
                     let item = chosen.get().expect("fallback hanya saat ada pilihan");
                     view! {
-                        <div class="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                        // Locator struktural untuk e2e: `getByText` mencocokkan
+                        // substring dan mengabaikan huruf besar-kecil, sehingga
+                        // pernah lulus sambil membaca elemen lain.
+                        <div
+                            data-testid="aset-terpilih"
+                            class="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4"
+                        >
                             <div class="flex items-start justify-between gap-3">
                                 <p class="text-base font-semibold text-slate-100">
                                     {item.nama_aset.clone().unwrap_or_else(|| "-".to_string())}
@@ -357,13 +363,19 @@ pub fn AsetPicker(
                 }}
 
                 <Show when=move || searched.get() && results.get().is_empty() && !busy.get()>
-                    <p class="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-slate-400">
+                    <p
+                        data-testid="aset-kosong"
+                        class="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-slate-400"
+                    >
                         "Tidak ada BMN yang cocok di lingkup satker Anda."
                     </p>
                 </Show>
 
                 <Show when=move || !results.get().is_empty()>
-                    <ul class="max-h-72 divide-y divide-white/[0.06] overflow-y-auto rounded-xl border border-white/[0.06] bg-surface-panel">
+                    <ul
+                        data-testid="aset-hasil"
+                        class="max-h-72 divide-y divide-white/[0.06] overflow-y-auto rounded-xl border border-white/[0.06] bg-surface-panel"
+                    >
                         <For
                             each=move || results.get()
                             key=|item| item.id.clone()
