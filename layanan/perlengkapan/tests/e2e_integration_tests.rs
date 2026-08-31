@@ -12,6 +12,7 @@ mod integration {
     mod kebutuhan_search_test;
     mod pakaian_dinas_campaign_scope_test;
     mod pakaian_dinas_pegawai_scope_test;
+    mod pakaian_dinas_spesifikasi_filter_test;
     mod pakaian_dinas_ukuran_test;
     mod pakaian_dinas_workflow_test;
     mod pegawai_satker_link_test;

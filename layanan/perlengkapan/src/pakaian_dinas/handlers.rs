@@ -31,7 +31,13 @@ pub struct JenisFilterQuery {
 pub struct SpesifikasiFilterQuery {
     #[serde(flatten)]
     pub pagination: PaginationQuery,
-    pub jenis_id: Option<Uuid>,
+    /// Named for the column and the create DTO, which is also what the
+    /// frontend has always sent. It used to be `jenis_id`, which nothing sent:
+    /// serde drops unknown query keys, so the filter was permanently `None`
+    /// and the endpoint answered 200 with EVERY jenis's spesifikasi. Both
+    /// callers pass a jenis (the master drawer and the campaign form's
+    /// picker), so the campaign form offered Toga rows under PDH.
+    pub jenis_pakaian_dinas_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -192,7 +198,7 @@ pub async fn get_all_spesifikasi(
         .get_all_spesifikasi(
             query.pagination.page,
             query.pagination.per_page,
-            query.jenis_id,
+            query.jenis_pakaian_dinas_id,
         )
         .await?;
 

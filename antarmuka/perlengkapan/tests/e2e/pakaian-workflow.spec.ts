@@ -18,17 +18,42 @@
  *   - the validator-action endpoint is role-gated.
  */
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { apiLogin, credsFor, storageStatePath, TEST_USERS, PERLENGKAPAN_API_URL } from "./helpers/real-auth";
+import { tokenFor, storageStatePath, PERLENGKAPAN_API_URL } from "./helpers/real-auth";
 import { reachable } from "./helpers/page-load";
 
 const BASE = "/perlengkapan/simpel/v2";
 const PD_API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/pakaian-dinas`;
 
-const userFor = (key: string) => {
-  const u = TEST_USERS.find((t) => t.key === key);
-  if (!u) throw new Error(`unknown test user ${key}`);
-  return u;
-};
+// Tokens come from the shared `tokenFor` helper rather than a spec-local
+// lookup. Two things follow from that, and this spec got both wrong when it
+// carried its own copy:
+//   - `admin` is deliberately NOT in `TEST_USERS` (it is the all-role seed
+//     user, not a satker-scoped one), so a local `TEST_USERS.find` throws on
+//     it — the same break the helper's docstring already records happening
+//     twice before,
+//   - `apiLogin` resolves to `{ accessToken, refreshToken }`, so interpolating
+//     its result into `Bearer ${...}` sends the literal `Bearer [object
+//     Object]` and the backend answers 401. `tokenFor` returns the string.
+
+/**
+ * Rows out of a `PaginatedResponse`, with the status asserted first.
+ *
+ * Reading `.data` off an unchecked response is why this spec's first CI run
+ * reported `Cannot read properties of undefined (reading 'find')` three times
+ * and never once printed the 401 that caused it.
+ */
+async function fetchRows<T>(
+  request: APIRequestContext,
+  url: string,
+  token: string,
+  what: string,
+): Promise<T[]> {
+  const res = await request.get(url, { headers: { Authorization: `Bearer ${token}` } });
+  expect(res.ok(), `${what} (${res.status()}): ${await res.text()}`).toBeTruthy();
+  const body = await res.json();
+  expect(Array.isArray(body.data), `${what} must return a paginated envelope`).toBeTruthy();
+  return body.data as T[];
+}
 
 // ── Master + campaign + report pages render real data ───────────────────────
 test.describe("Pakaian Dinas — master, campaign & report pages", () => {
@@ -64,25 +89,29 @@ test.describe("Pakaian Dinas — master spesifikasi & subspesifikasi", () => {
 
   /** The seeded jenis carrying the reference rows migrated from simpelv1. */
   async function jenisPdh(request: APIRequestContext): Promise<string> {
-    const token = await apiLogin(request, credsFor(userFor("admin")));
-    const res = await request.get(`${PD_API}/jenis?page=1&per_page=100`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    expect(res.ok(), "jenis list must load").toBeTruthy();
-    const rows = (await res.json()).data as Array<{ id: string; nama: string }>;
-    const pdh = rows.find((j) => j.nama.trim().toUpperCase() === "PDH");
+    const token = await tokenFor(request, "admin");
+    const list = await fetchRows<{ id: string; nama: string }>(
+      request,
+      `${PD_API}/jenis?page=1&per_page=100`,
+      token,
+      "jenis list",
+    );
+    const pdh = list.find((j) => j.nama.trim().toUpperCase() === "PDH");
     expect(pdh, "V011 seeds PDH; without it no campaign can be created").toBeTruthy();
     return pdh!.id;
   }
 
   test("the simpelv1 reference rows survived the migration", async ({ request }) => {
-    const token = await apiLogin(request, credsFor(userFor("admin")));
+    const token = await tokenFor(request, "admin");
     const id = await jenisPdh(request);
-    const res = await request.get(`${PD_API}/spesifikasi?page=1&per_page=100&jenis_pakaian_dinas_id=${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    expect(res.ok()).toBeTruthy();
-    const names = ((await res.json()).data as Array<{ nama: string; ukuran_group: string }>);
+    // `jenis_pakaian_dinas_id` is the name the backend reads; it used to read
+    // `jenis_id`, which nothing sent, so this list came back unfiltered.
+    const names = await fetchRows<{ nama: string; ukuran_group: string }>(
+      request,
+      `${PD_API}/spesifikasi?page=1&per_page=100&jenis_pakaian_dinas_id=${id}`,
+      token,
+      "spesifikasi list for PDH",
+    );
     // The three PDH rows simpelv1 has carried since 2023. Asserted by name AND
     // size family: a seed that lands the right label under the wrong family
     // would offer shoe sizes for a shirt.
@@ -135,12 +164,14 @@ test.describe("Pakaian Dinas — master spesifikasi is read-only for non-admins"
   }) => {
     // The server gates these with require_admin. Offering the button anyway
     // lets an operator fill the whole form and collect a 403.
-    const token = await apiLogin(request, credsFor(userFor("operator_a")));
-    const res = await request.get(`${PD_API}/jenis?page=1&per_page=100`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const rows = (await res.json()).data as Array<{ id: string; nama: string }>;
-    const pdh = rows.find((j) => j.nama.trim().toUpperCase() === "PDH");
+    const token = await tokenFor(request, "operator_a");
+    const list = await fetchRows<{ id: string; nama: string }>(
+      request,
+      `${PD_API}/jenis?page=1&per_page=100`,
+      token,
+      "jenis list as operator",
+    );
+    const pdh = list.find((j) => j.nama.trim().toUpperCase() === "PDH");
     expect(pdh, "V011 seeds PDH").toBeTruthy();
 
     await page.goto(`${BASE}/pakaian-dinas/jenis/${pdh!.id}/spesifikasi`, {
@@ -350,7 +381,7 @@ async function beAktivitas(
   request: import("@playwright/test").APIRequestContext,
   satkerRowId: string,
 ): Promise<number> {
-  const { accessToken } = await apiLogin(request, credsFor(userFor("validator_pusat")));
+  const accessToken = await tokenFor(request, "validator_pusat");
   const resp = await request.get(`${PD_API}/pengajuan/${CAMPAIGN}/satker?page=1&per_page=100`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -364,7 +395,7 @@ async function beAktivitas(
 
 test.describe("Pakaian Dinas — per-satker list resolves the mysimkari join", () => {
   test("satker list carries names resolved from integrasi.mysimkari_satker", async ({ request }) => {
-    const { accessToken } = await apiLogin(request, credsFor(userFor("validator_pusat")));
+    const accessToken = await tokenFor(request, "validator_pusat");
     const resp = await request.get(`${PD_API}/pengajuan/${CAMPAIGN}/satker?page=1&per_page=100`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
@@ -387,9 +418,9 @@ test.describe("Pakaian Dinas — validator wilayah forwards a satker", () => {
   test("validator_wilayah advances P1 (1001 → 1004)", async ({ request }) => {
     expect(await beAktivitas(request, P1_WILAYAH)).toBe(1001);
 
-    const wil = await apiLogin(request, credsFor(userFor("validator_wilayah")));
+    const wil = await tokenFor(request, "validator_wilayah");
     const resp = await request.post(`${PD_API}/validator-action`, {
-      headers: { Authorization: `Bearer ${wil.accessToken}` },
+      headers: { Authorization: `Bearer ${wil}` },
       data: { pengajuan_satker_id: P1_WILAYAH, aksi: "approve", komentar: "e2e teruskan" },
     });
     expect(resp.status(), "validator_wilayah may approve at 1001").toBe(200);
@@ -402,9 +433,9 @@ test.describe("Pakaian Dinas — validator pusat decides", () => {
   test("validator_pusat approves P2 (1004 → 1008 Selesai)", async ({ request }) => {
     expect(await beAktivitas(request, P2_PUSAT)).toBe(1004);
 
-    const pusat = await apiLogin(request, credsFor(userFor("validator_pusat")));
+    const pusat = await tokenFor(request, "validator_pusat");
     const resp = await request.post(`${PD_API}/validator-action`, {
-      headers: { Authorization: `Bearer ${pusat.accessToken}` },
+      headers: { Authorization: `Bearer ${pusat}` },
       data: { pengajuan_satker_id: P2_PUSAT, aksi: "approve", komentar: "e2e setujui" },
     });
     expect(resp.status(), "validator_pusat may approve at 1004").toBe(200);
@@ -416,9 +447,9 @@ test.describe("Pakaian Dinas — validator pusat decides", () => {
 // ── RBAC: the validator-action endpoint is role-gated ───────────────────────
 test.describe("Pakaian Dinas — role-gated validator action", () => {
   test("an operator cannot drive a validator action", async ({ request }) => {
-    const op = await apiLogin(request, credsFor(userFor("operator_a")));
+    const op = await tokenFor(request, "operator_a");
     const resp = await request.post(`${PD_API}/validator-action`, {
-      headers: { Authorization: `Bearer ${op.accessToken}` },
+      headers: { Authorization: `Bearer ${op}` },
       data: {
         pengajuan_satker_id: "d1000000-0000-4d00-8d00-0000000a0001",
         aksi: "approve",
