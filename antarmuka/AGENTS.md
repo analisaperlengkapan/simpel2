@@ -392,13 +392,50 @@ The fetch flow is the same across both MFEs:
 
    Sapuan pembanding FE↔BE ada di riwayat sesi (bandingkan optionality per
    field untuk struct bernama sama di `antarmuka/*/src/api/*.rs` vs
-   `layanan/*/src/**`). Arah `Request`/`Query` (FE required, BE `Option`)
-   aman — FE selalu mengirim nilai; yang berbahaya hanya arah **respons**.
+   `layanan/*/src/**`). Ditegakkan oleh
+   `infra/scripts/check-fe-be-dto-drift.py` (**BLOCKING**, job *Enforce Repo
+   Invariants*).
 
    Perbaikan struktural yang lebih tuntas (belum dikerjakan): pindahkan DTO
    respons ke `lib/perlengkapan` yang sudah WASM-safe dan pakai **tipe yang
    sama** di kedua sisi, seperti `lib_perlengkapan::response::PaginatedResponse`
    — kalau tipenya satu, drift-nya mustahil.
+
+5. **Nama parameter query WAJIB sama persis dengan field `Query<T>` backend.**
+   Sebelumnya di sini tertulis bahwa arah `Request`/`Query` "aman" karena FE
+   selalu mengirim nilai. **Itu salah**, dan cara gagalnya justru lebih senyap
+   daripada arah respons: serde **membuang** kunci query yang tak dikenal, jadi
+   parameter yang salah nama tidak menghasilkan 400, tidak menghasilkan error
+   deserialisasi, dan **tidak menghasilkan sinyal apa pun** — hanya 200 dengan
+   filternya diam-diam diabaikan.
+
+   Kejadian nyata (2026-08-31): `GET /pakaian-dinas/spesifikasi` menyempitkan
+   daftar per jenis. Backend menamai parameternya `jenis_id`; kedua pemanggil
+   FE sejak awal mengirim `jenis_pakaian_dinas_id` (nama kolomnya, dan nama
+   field di DTO create). Akibatnya laci master menampilkan spesifikasi milik
+   jenis lain, dan **picker di form pengajuan menawarkan baris Toga saat
+   operator memilih PDH** — ke dalam campaign yang membekukan apa pun yang
+   dipilih. Status 200, amplop JSON benar, dan kedua `cargo check` hijau karena
+   dua nama itu hidup di crate berbeda yang tak pernah bertemu di batas tipe.
+
+   Penjaganya `infra/scripts/check-fe-query-params-reach-backend.py`
+   (**BLOCKING**, job *Enforce Repo Invariants*): ia menurunkan setiap kunci
+   query yang bisa dibaca backend (struct di balik ekstraktor `Query<...>`,
+   mengikuti `serde(flatten)` dan menghormati `serde(rename)`) dan setiap nama
+   parameter yang dirangkai FE ke dalam URL, lalu menggagalkan yang tak
+   berpasangan. Yang **tidak** ia periksa: apakah parameter itu milik struct di
+   balik path tersebut — memasangkan URL→rute→handler butuh tabel rute diparse
+   dan path FE yang dirangkai saat runtime diselesaikan, dan turunan yang salah
+   lebih buruk daripada tidak ada (lihat memori
+   `project_gate_scope_must_be_derived`). Bentuk union tidak punya false
+   positive dan tetap menangkap kasus di atas.
+
+   **Uji filter sebagai filter, bukan sebagai nama.** Tes yang hanya membaca
+   ulang daftar akan lulus: baris yang dicari MEMANG ada di respons yang tak
+   terfilter, bersama baris yang seharusnya tidak ada. Asersi yang benar
+   membuat dua induk dengan satu anak masing-masing lalu menuntut respons
+   memuat yang satu dan **tidak** memuat yang lain
+   (`pakaian_dinas_spesifikasi_filter_test.rs`).
 
 ### 3. Run a single MFE locally
 
