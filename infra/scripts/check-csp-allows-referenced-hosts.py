@@ -8,9 +8,15 @@ kegagalan yang sama dengan NetworkPolicy yang menjatuhkan paket diam-diam, dan
 sudah berulang di repo ini.
 
 Penjaga ini menurunkan daftar host dari KODE — konstanta `MEDIA_MYSIMKARI` dan
-kerabatnya di `lib/ui` — lalu memastikan tiap host itu muncul di setiap CSP
-yang menyajikan frontend. Daftarnya diturunkan, bukan ditulis tangan, karena
-daftar tulis-tangan tidak ikut tumbuh saat host baru ditambahkan.
+kerabatnya — lalu memastikan tiap host itu muncul di setiap CSP yang menyajikan
+frontend. Daftarnya diturunkan, bukan ditulis tangan, karena daftar tulis-tangan
+tidak ikut tumbuh saat host baru ditambahkan.
+
+Berkas SUMBER-nya pun kini dipindai, bukan didaftar. Versi pertama menyebut
+`lib/ui/src/components/foto_pegawai.rs` secara harfiah, dan modul itu pindah ke
+`lib-core` begitu `layanan-integrasi` juga membutuhkannya — memindahkan satu
+berkas mematikan penjaganya. Itu cacat yang sama, satu tingkat lebih dalam:
+cakupan yang benar dengan daftar tulis-tangan yang tak ikut bergerak.
 
 Hanya pustaka standar: image runner ARC tidak punya PyYAML (exit 127, tiga kali
 di job yang sama).
@@ -22,8 +28,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# Sumber host: konstanta `pub const X: &str = "https://..."` di lib/ui.
-HOST_SOURCES = [ROOT / "lib/ui/src/components/foto_pegawai.rs"]
+# Sumber host: setiap `pub const X: &str = "https://..."` di pustaka bersama
+# dan di kedua frontend — di mana pun berkasnya berada.
+HOST_SOURCE_GLOBS = ("lib/*/src/**/*.rs", "antarmuka/*/src/**/*.rs")
 
 # Setiap berkas yang menyetel CSP untuk sebuah frontend.
 CSP_FILES = [
@@ -40,12 +47,21 @@ CONST_RE = re.compile(r'pub const [A-Z_]+: &str =\s*"(https://[^/"]+)')
 
 
 def hosts() -> set[str]:
-    found = set()
-    for path in HOST_SOURCES:
-        if not path.exists():
-            print(f"SUMBER HILANG: {path.relative_to(ROOT)}", file=sys.stderr)
-            sys.exit(1)
-        found.update(CONST_RE.findall(path.read_text(encoding="utf-8")))
+    found: set[str] = set()
+    scanned = 0
+    for glob in HOST_SOURCE_GLOBS:
+        for path in ROOT.glob(glob):
+            if "target" in path.parts:
+                continue
+            scanned += 1
+            found.update(CONST_RE.findall(path.read_text(encoding="utf-8", errors="replace")))
+    if not scanned:
+        print(
+            "Nol berkas terpindai — glob sumbernya tidak cocok apa pun, jadi "
+            "penjaga ini tidak menjaga apa-apa.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
     if not found:
         print(
             "Nol host terturunkan — pola konstanta berubah, dan penjaga yang "

@@ -38,7 +38,7 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use lib_ui::components::foto_pegawai::foto_pegawai_url;
+use lib_ui::components::foto_pegawai_url;
 use lib_ui::components::icon::AppIcon;
 use lib_ui::components::optimized_image::{Avatar, AvatarSize};
 use phosphor_leptos::{ARROW_COUNTER_CLOCKWISE, MAGNIFYING_GLASS, WARNING};

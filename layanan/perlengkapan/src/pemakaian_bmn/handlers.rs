@@ -299,6 +299,10 @@ pub async fn serve_konsep_surat(
 /// menampilkannya di iframe / new tab.
 pub async fn serve_sk_izin_pdf(
     State(service): State<PemakaianBmnService>,
+    // The photo on page 1 lives on the MySIMKARI media host, and
+    // `layanan-integrasi` is the only pod allowed to reach it. `None` (integrasi
+    // not wired) prints the placeholder box rather than failing the download.
+    State(integrasi): State<Option<crate::shared::grpc::clients::IntegrasiClient>>,
     Path(id): Path<Uuid>,
     claims: Claims,
 ) -> Result<axum::response::Response, AppError> {
@@ -306,9 +310,13 @@ pub async fn serve_sk_izin_pdf(
     use axum::response::IntoResponse;
     // Measured on staging: this served another satker's 5 057-byte decision
     // letter to an operator with no claim to the permit.
-    let bytes =
-        super::sk_izin_pdf::generate_sk_izin_pdf(&service, id, &SatkerScope::from_claims(&claims))
-            .await?;
+    let bytes = super::sk_izin_pdf::generate_sk_izin_pdf(
+        &service,
+        id,
+        &SatkerScope::from_claims(&claims),
+        integrasi.as_ref(),
+    )
+    .await?;
     let filename = format!("SK-Izin-Pemakaian-BMN-{}.pdf", id);
     let headers = [
         (header::CONTENT_TYPE, "application/pdf"),

@@ -279,6 +279,42 @@ Aturannya:
 - Konsumen membaca snapshot **lintas-skema**; ia milik `integrasi` karena
   `integrasi` memiliki tabel sumbernya. Itu aturan SSoT, bukan pengecualiannya.
 
+### 0c. Ia satu-satunya pod dengan egress keluar — itu membuatnya proksi
+
+`layanan-integrasi-egress` (`infra/helm/simpel/templates/network/policies.yaml`)
+adalah **satu-satunya** NetworkPolicy di namespace yang membuka
+`0.0.0.0/0:443`. Setiap pod lain egress-restricted, karena `allow-dns-egress`
+dan `allow-istio-control-plane-egress` memakai `podSelector: {}`.
+
+Akibatnya bukan hanya "integrasi yang menyinkron data". **Setiap kebutuhan
+mengambil sesuatu dari internet, oleh service mana pun, harus lewat sini** —
+dan itu RPC baru di `integrasi.proto`, bukan `reqwest` di service peminta.
+Kalau `reqwest` dipasang di tempat lain, ia tidak akan gagal saat dikompilasi,
+tidak akan gagal di compose (yang tanpa NetworkPolicy), dan baru diam di
+staging sebagai timeout TCP tanpa pesan.
+
+Preseden: `GetPegawaiFoto`. Foto pegawai adalah objek HTTPS publik yang bisa
+dirakit URL-nya oleh siapa pun — kedua frontend memang begitu, karena URL-nya
+diambil oleh **browser** pengguna, bukan oleh pod. perlengkapan merender SK
+izin pemakaian BMN di sisi server dan harus menanamkan gambarnya ke dalam PDF,
+jadi tidak ada browser untuk dititipi. Ia meminta byte-nya ke sini.
+
+Aturan turunannya:
+
+- **Bedakan "tidak ada" dari "tidak bisa diambil".** `found: false` = pegawainya
+  memang tak punya foto. Host mati / timeout / body bukan gambar = status gRPC.
+  Menyeragamkan keduanya membuat host media yang tumbang terlihat persis seperti
+  pegawai yang belum mengunggah foto — di halaman SK keduanya kotak kosong.
+- **Batasi apa yang boleh dialokasikan host tak tepercaya.** Body-nya mendarat
+  di memori lalu menyeberang gRPC dalam satu pesan: periksa `content_length`
+  sebelum mengunduh **dan** panjang sebenarnya sesudahnya.
+- **Periksa `content-type`, jangan diasumsikan.** Host media menjawab 200 dengan
+  halaman HTML untuk sebagian path; tanpa pemeriksaan itu, kegagalan muncul dua
+  service jauhnya dari sebabnya, sebagai "gambar tak bisa didekode".
+- **Jangan jadikan RPC-nya existence oracle.** "NIP tak ada" dan "tak ada foto"
+  dijawab identik, kalau tidak ia menjadi cara membaca keberadaan baris roster
+  nasional tanpa scoping.
+
 ### 1. Scheduler Configuration
 
 **IMPORTANT:** Scheduler is **DISABLED** by default. Use K8s CronJob for scheduling.
