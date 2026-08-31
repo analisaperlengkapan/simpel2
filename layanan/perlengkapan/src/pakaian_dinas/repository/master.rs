@@ -542,3 +542,57 @@ impl PakaianDinasRepository {
 
     // ============ Pengajuan ============
 }
+
+impl PakaianDinasRepository {
+    /// Sudah ada spesifikasi bernama sama di bawah jenis ini?
+    ///
+    /// Dicocokkan tanpa memedulikan kapitalisasi dan spasi tepi, sama seperti
+    /// penjaga di migrasi seed — kalau tidak, "Celana" dan " celana " lolos
+    /// sebagai dua baris berbeda.
+    pub async fn spesifikasi_nama_terpakai(
+        &self,
+        jenis_id: uuid::Uuid,
+        nama: &str,
+    ) -> AppResult<bool> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let row = client
+            .query_one(
+                "SELECT EXISTS(
+                    SELECT 1 FROM perlengkapan.ms_spesifikasi_pakaian_dinas
+                    WHERE jenis_pakaian_dinas_id = $1 AND upper(btrim(nama)) = upper(btrim($2))
+                 ) AS ada",
+                &[&jenis_id, &nama],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        Ok(row.get("ada"))
+    }
+
+    /// Sudah ada subspesifikasi bernama sama di bawah spesifikasi ini?
+    pub async fn subspesifikasi_nama_terpakai(
+        &self,
+        spesifikasi_id: uuid::Uuid,
+        nama: &str,
+    ) -> AppResult<bool> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let row = client
+            .query_one(
+                "SELECT EXISTS(
+                    SELECT 1 FROM perlengkapan.ms_subspesifikasi_pakaian_dinas
+                    WHERE spesifikasi_id = $1 AND upper(btrim(nama)) = upper(btrim($2))
+                 ) AS ada",
+                &[&spesifikasi_id, &nama],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        Ok(row.get("ada"))
+    }
+}

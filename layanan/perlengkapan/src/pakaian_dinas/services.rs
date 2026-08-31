@@ -260,6 +260,22 @@ impl PakaianDinasService {
             .get_jenis_by_id(request.jenis_pakaian_dinas_id)
             .await?;
 
+        // Dua spesifikasi bernama sama di bawah satu jenis menjadi DUA kolom
+        // ukuran yang identik pada formulir pengisian, dan laporan memilih
+        // salah satunya lewat `MAX(CASE WHEN ukuran_group = ...)` tanpa
+        // memberi tahu yang mana. Terbukti bisa terjadi: menekan Simpan dua
+        // kali menghasilkan baris kembar tanpa keberatan apa pun.
+        if self
+            .repository
+            .spesifikasi_nama_terpakai(request.jenis_pakaian_dinas_id, &request.nama)
+            .await?
+        {
+            return Err(bad_request(&format!(
+                "Spesifikasi \"{}\" sudah ada pada jenis ini",
+                request.nama.trim()
+            )));
+        }
+
         self.repository.create_spesifikasi(request).await
     }
 
@@ -313,6 +329,17 @@ impl PakaianDinasService {
         self.repository
             .get_spesifikasi_by_id(request.spesifikasi_id)
             .await?;
+
+        if self
+            .repository
+            .subspesifikasi_nama_terpakai(request.spesifikasi_id, &request.nama)
+            .await?
+        {
+            return Err(bad_request(&format!(
+                "Subspesifikasi \"{}\" sudah ada pada spesifikasi ini",
+                request.nama.trim()
+            )));
+        }
 
         self.repository.create_subspesifikasi(request).await
     }

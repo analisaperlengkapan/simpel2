@@ -310,6 +310,15 @@ jobs:
       - name: Frontend DTOs name only fields the backend sends
         shell: bash
         run: python3 ./infra/scripts/check-fe-be-dto-drift.py
+      # The other half of the same wire contract: query parameters. serde DROPS
+      # unknown query keys, so a frontend filter the backend never reads is a
+      # 200 with the filter silently ignored. `GET /pakaian-dinas/spesifikasi`
+      # took `jenis_id`; both callers sent `jenis_pakaian_dinas_id`, so the
+      # master drawer listed other jenis's rows and the campaign form offered
+      # Toga under PDH — into a campaign that freezes what was picked.
+      - name: Frontend query parameters reach a backend Query struct
+        shell: bash
+        run: python3 ./infra/scripts/check-fe-query-params-reach-backend.py
       # `view!` tokenises `>` as the end of the opening tag — inside an
       # attribute value too. So `prop:disabled=move || page.get() >= total`
       # ends the tag at the `>`, and every attribute after it becomes a text

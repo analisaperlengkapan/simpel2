@@ -459,6 +459,47 @@ pub async fn delete_jenis_pakaian_dinas(
 
 // --- Spesifikasi ---
 
+/// Request DTO for creating a spesifikasi.
+///
+/// Mirrors `layanan/perlengkapan/.../requests.rs::CreateSpesifikasiRequest`.
+/// `gender` is `L`, `P`, or `SEMUA`; `ukuran_group` is `BAJU`, `CELANA`, or
+/// `SEPATU` — the server rejects anything else, so the form offers exactly
+/// those and nothing is typed by hand.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateSpesifikasiRequest {
+    pub jenis_pakaian_dinas_id: String,
+    pub nama: String,
+    pub gender: String,
+    pub ukuran_group: String,
+    pub deskripsi: Option<String>,
+    pub is_active: bool,
+}
+
+/// Subspesifikasi — a gendered variant under one spesifikasi
+/// ("Lengan Pendek - L", "Celana Wanita").
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SubSpesifikasiPakaianDinas {
+    pub id: String,
+    pub spesifikasi_id: String,
+    pub nama: String,
+    pub gender: String,
+    #[serde(default = "default_true")]
+    pub is_active: bool,
+    #[serde(default)]
+    pub spesifikasi_nama: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Request DTO for creating a subspesifikasi.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateSubSpesifikasiRequest {
+    pub spesifikasi_id: String,
+    pub nama: String,
+    pub gender: String,
+    pub is_active: bool,
+}
+
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_spesifikasi_pakaian(
     page: i32,
@@ -1082,6 +1123,190 @@ pub async fn export_laporan_pakaian_dinas(
     _pengajuan_id: &str,
     _query: &LaporanQuery,
 ) -> Result<Vec<u8>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn create_spesifikasi_pakaian(
+    request: CreateSpesifikasiRequest,
+) -> Result<ApiResponse<SpesifikasiPakaianDinas>, crate::api::AppError> {
+    use crate::api::client::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
+    let resp = Request::post("/api/v1/perlengkapan/pakaian-dinas/spesifikasi")
+        .header("Authorization", &format!("Bearer {}", token))
+        .json(&request)?
+        .send()
+        .await?;
+
+    if !resp.ok() {
+        return Err(crate::api::AppError::network(format!(
+            "API Error: {}",
+            resp.status()
+        )));
+    }
+
+    let result: ApiResponse<SpesifikasiPakaianDinas> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_spesifikasi_pakaian(
+    _request: CreateSpesifikasiRequest,
+) -> Result<ApiResponse<SpesifikasiPakaianDinas>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn delete_spesifikasi_pakaian(
+    id: String,
+) -> Result<ApiResponse<()>, crate::api::AppError> {
+    use crate::api::client::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
+    let resp = Request::delete(&format!(
+        "/api/v1/perlengkapan/pakaian-dinas/spesifikasi/{}",
+        id
+    ))
+    .header("Authorization", &format!("Bearer {}", token))
+    .send()
+    .await?;
+
+    if !resp.ok() {
+        return Err(crate::api::AppError::network(format!(
+            "API Error: {}",
+            resp.status()
+        )));
+    }
+
+    let result: ApiResponse<()> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn delete_spesifikasi_pakaian(
+    _id: String,
+) -> Result<ApiResponse<()>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_subspesifikasi(
+    spesifikasi_id: Option<String>,
+) -> Result<PaginatedResponse<SubSpesifikasiPakaianDinas>, crate::api::AppError> {
+    use crate::api::client::get_auth_token;
+    use gloo_net::http::Request;
+
+    let mut url =
+        "/api/v1/perlengkapan/pakaian-dinas/subspesifikasi?page=1&per_page=100".to_string();
+    if let Some(sid) = spesifikasi_id {
+        url.push_str(&format!("&spesifikasi_id={}", sid));
+    }
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if !resp.ok() {
+        return Err(crate::api::AppError::network(format!(
+            "API Error: {}",
+            resp.status()
+        )));
+    }
+
+    let result: PaginatedResponse<SubSpesifikasiPakaianDinas> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_subspesifikasi(
+    _spesifikasi_id: Option<String>,
+) -> Result<PaginatedResponse<SubSpesifikasiPakaianDinas>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn create_subspesifikasi(
+    request: CreateSubSpesifikasiRequest,
+) -> Result<ApiResponse<SubSpesifikasiPakaianDinas>, crate::api::AppError> {
+    use crate::api::client::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
+    let resp = Request::post("/api/v1/perlengkapan/pakaian-dinas/subspesifikasi")
+        .header("Authorization", &format!("Bearer {}", token))
+        .json(&request)?
+        .send()
+        .await?;
+
+    if !resp.ok() {
+        return Err(crate::api::AppError::network(format!(
+            "API Error: {}",
+            resp.status()
+        )));
+    }
+
+    let result: ApiResponse<SubSpesifikasiPakaianDinas> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_subspesifikasi(
+    _request: CreateSubSpesifikasiRequest,
+) -> Result<ApiResponse<SubSpesifikasiPakaianDinas>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn delete_subspesifikasi(id: String) -> Result<ApiResponse<()>, crate::api::AppError> {
+    use crate::api::client::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
+    let resp = Request::delete(&format!(
+        "/api/v1/perlengkapan/pakaian-dinas/subspesifikasi/{}",
+        id
+    ))
+    .header("Authorization", &format!("Bearer {}", token))
+    .send()
+    .await?;
+
+    if !resp.ok() {
+        return Err(crate::api::AppError::network(format!(
+            "API Error: {}",
+            resp.status()
+        )));
+    }
+
+    let result: ApiResponse<()> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn delete_subspesifikasi(_id: String) -> Result<ApiResponse<()>, crate::api::AppError> {
     Err(crate::api::AppError::Unknown(
         "Server-side stub".to_string(),
     ))

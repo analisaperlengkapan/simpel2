@@ -17,18 +17,43 @@
  *     1004 → 1008, each asserted against backend state,
  *   - the validator-action endpoint is role-gated.
  */
-import { test, expect } from "@playwright/test";
-import { apiLogin, credsFor, storageStatePath, TEST_USERS, PERLENGKAPAN_API_URL } from "./helpers/real-auth";
+import { test, expect, type APIRequestContext } from "@playwright/test";
+import { tokenFor, storageStatePath, PERLENGKAPAN_API_URL } from "./helpers/real-auth";
 import { reachable } from "./helpers/page-load";
 
 const BASE = "/perlengkapan/simpel/v2";
 const PD_API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/pakaian-dinas`;
 
-const userFor = (key: string) => {
-  const u = TEST_USERS.find((t) => t.key === key);
-  if (!u) throw new Error(`unknown test user ${key}`);
-  return u;
-};
+// Tokens come from the shared `tokenFor` helper rather than a spec-local
+// lookup. Two things follow from that, and this spec got both wrong when it
+// carried its own copy:
+//   - `admin` is deliberately NOT in `TEST_USERS` (it is the all-role seed
+//     user, not a satker-scoped one), so a local `TEST_USERS.find` throws on
+//     it — the same break the helper's docstring already records happening
+//     twice before,
+//   - `apiLogin` resolves to `{ accessToken, refreshToken }`, so interpolating
+//     its result into `Bearer ${...}` sends the literal `Bearer [object
+//     Object]` and the backend answers 401. `tokenFor` returns the string.
+
+/**
+ * Rows out of a `PaginatedResponse`, with the status asserted first.
+ *
+ * Reading `.data` off an unchecked response is why this spec's first CI run
+ * reported `Cannot read properties of undefined (reading 'find')` three times
+ * and never once printed the 401 that caused it.
+ */
+async function fetchRows<T>(
+  request: APIRequestContext,
+  url: string,
+  token: string,
+  what: string,
+): Promise<T[]> {
+  const res = await request.get(url, { headers: { Authorization: `Bearer ${token}` } });
+  expect(res.ok(), `${what} (${res.status()}): ${await res.text()}`).toBeTruthy();
+  const body = await res.json();
+  expect(Array.isArray(body.data), `${what} must return a paginated envelope`).toBeTruthy();
+  return body.data as T[];
+}
 
 // ── Master + campaign + report pages render real data ───────────────────────
 test.describe("Pakaian Dinas — master, campaign & report pages", () => {
@@ -49,6 +74,111 @@ test.describe("Pakaian Dinas — master, campaign & report pages", () => {
   });
   test("laporan page is reachable", async ({ page }) => {
     await reachable(page, `${BASE}/pakaian-dinas/laporan`);
+  });
+});
+
+// ── Master spesifikasi: the step that made the whole feature unusable ───────
+// A campaign cannot be created without at least one spesifikasi, and until this
+// change nothing in either frontend could create one — the backend's
+// POST/PUT/DELETE for spesifikasi and subspesifikasi had zero callers, and
+// staging showed the result: 8 jenis, 0 spesifikasi, 0 subspesifikasi. These
+// tests drive the round trip so a regression takes the feature's entry point
+// away again and is caught here rather than by an operator.
+test.describe("Pakaian Dinas — master spesifikasi & subspesifikasi", () => {
+  test.use({ storageState: storageStatePath("admin") });
+
+  /** The seeded jenis carrying the reference rows migrated from simpelv1. */
+  async function jenisPdh(request: APIRequestContext): Promise<string> {
+    const token = await tokenFor(request, "admin");
+    const list = await fetchRows<{ id: string; nama: string }>(
+      request,
+      `${PD_API}/jenis?page=1&per_page=100`,
+      token,
+      "jenis list",
+    );
+    const pdh = list.find((j) => j.nama.trim().toUpperCase() === "PDH");
+    expect(pdh, "V011 seeds PDH; without it no campaign can be created").toBeTruthy();
+    return pdh!.id;
+  }
+
+  test("the simpelv1 reference rows survived the migration", async ({ request }) => {
+    const token = await tokenFor(request, "admin");
+    const id = await jenisPdh(request);
+    // `jenis_pakaian_dinas_id` is the name the backend reads; it used to read
+    // `jenis_id`, which nothing sent, so this list came back unfiltered.
+    const names = await fetchRows<{ nama: string; ukuran_group: string }>(
+      request,
+      `${PD_API}/spesifikasi?page=1&per_page=100&jenis_pakaian_dinas_id=${id}`,
+      token,
+      "spesifikasi list for PDH",
+    );
+    // The three PDH rows simpelv1 has carried since 2023. Asserted by name AND
+    // size family: a seed that lands the right label under the wrong family
+    // would offer shoe sizes for a shirt.
+    for (const [nama, grup] of [
+      ["Pakaian Dinas", "BAJU"],
+      ["Celana", "CELANA"],
+      ["Sepatu Dinas", "SEPATU"],
+    ]) {
+      const hit = names.find((s) => s.nama.trim().toUpperCase() === nama.toUpperCase());
+      expect(hit, `spesifikasi "${nama}" missing from PDH`).toBeTruthy();
+      expect(hit!.ukuran_group).toBe(grup);
+    }
+  });
+
+  test("admin creates then deletes a spesifikasi through the page", async ({ page, request }) => {
+    const id = await jenisPdh(request);
+    await page.goto(`${BASE}/pakaian-dinas/jenis/${id}/spesifikasi`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    const nama = `E2E Spesifikasi ${Date.now()}`;
+    await page.getByTestId("tambah-spesifikasi").click();
+    await page.getByLabel("Nama Spesifikasi").fill(nama);
+    // getByLabel resolves only because FormField now emits `for` — before this
+    // change no label in perlengkapan was associated with its control.
+    await page.getByLabel("Grup Ukuran").selectOption("CELANA");
+    await page.getByRole("button", { name: "Simpan" }).click();
+
+    const row = page.getByTestId("spesifikasi-tabel").locator("tr", { hasText: nama });
+    await expect(row, "the new spesifikasi must appear without a reload").toHaveCount(1, {
+      timeout: 20000,
+    });
+
+    // And it must be gone again — a create with no delete leaves master data
+    // that only a DBA can correct.
+    await row.getByRole("button", { name: "Hapus spesifikasi" }).click();
+    await expect(row).toHaveCount(0, { timeout: 20000 });
+  });
+
+});
+
+// Same page, a role that may not write it. Split into its own describe because
+// `test.use` binds a storage state per describe, not per test.
+test.describe("Pakaian Dinas — master spesifikasi is read-only for non-admins", () => {
+  test.use({ storageState: storageStatePath("operator_a") });
+
+  test("an operator sees the list but is not offered the write controls", async ({
+    page,
+    request,
+  }) => {
+    // The server gates these with require_admin. Offering the button anyway
+    // lets an operator fill the whole form and collect a 403.
+    const token = await tokenFor(request, "operator_a");
+    const list = await fetchRows<{ id: string; nama: string }>(
+      request,
+      `${PD_API}/jenis?page=1&per_page=100`,
+      token,
+      "jenis list as operator",
+    );
+    const pdh = list.find((j) => j.nama.trim().toUpperCase() === "PDH");
+    expect(pdh, "V011 seeds PDH").toBeTruthy();
+
+    await page.goto(`${BASE}/pakaian-dinas/jenis/${pdh!.id}/spesifikasi`, {
+      waitUntil: "domcontentloaded",
+    });
+    await expect(page.getByTestId("spesifikasi-tabel")).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId("tambah-spesifikasi")).toHaveCount(0);
   });
 });
 
@@ -251,7 +381,7 @@ async function beAktivitas(
   request: import("@playwright/test").APIRequestContext,
   satkerRowId: string,
 ): Promise<number> {
-  const { accessToken } = await apiLogin(request, credsFor(userFor("validator_pusat")));
+  const accessToken = await tokenFor(request, "validator_pusat");
   const resp = await request.get(`${PD_API}/pengajuan/${CAMPAIGN}/satker?page=1&per_page=100`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -265,7 +395,7 @@ async function beAktivitas(
 
 test.describe("Pakaian Dinas — per-satker list resolves the mysimkari join", () => {
   test("satker list carries names resolved from integrasi.mysimkari_satker", async ({ request }) => {
-    const { accessToken } = await apiLogin(request, credsFor(userFor("validator_pusat")));
+    const accessToken = await tokenFor(request, "validator_pusat");
     const resp = await request.get(`${PD_API}/pengajuan/${CAMPAIGN}/satker?page=1&per_page=100`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
@@ -288,9 +418,9 @@ test.describe("Pakaian Dinas — validator wilayah forwards a satker", () => {
   test("validator_wilayah advances P1 (1001 → 1004)", async ({ request }) => {
     expect(await beAktivitas(request, P1_WILAYAH)).toBe(1001);
 
-    const wil = await apiLogin(request, credsFor(userFor("validator_wilayah")));
+    const wil = await tokenFor(request, "validator_wilayah");
     const resp = await request.post(`${PD_API}/validator-action`, {
-      headers: { Authorization: `Bearer ${wil.accessToken}` },
+      headers: { Authorization: `Bearer ${wil}` },
       data: { pengajuan_satker_id: P1_WILAYAH, aksi: "approve", komentar: "e2e teruskan" },
     });
     expect(resp.status(), "validator_wilayah may approve at 1001").toBe(200);
@@ -303,9 +433,9 @@ test.describe("Pakaian Dinas — validator pusat decides", () => {
   test("validator_pusat approves P2 (1004 → 1008 Selesai)", async ({ request }) => {
     expect(await beAktivitas(request, P2_PUSAT)).toBe(1004);
 
-    const pusat = await apiLogin(request, credsFor(userFor("validator_pusat")));
+    const pusat = await tokenFor(request, "validator_pusat");
     const resp = await request.post(`${PD_API}/validator-action`, {
-      headers: { Authorization: `Bearer ${pusat.accessToken}` },
+      headers: { Authorization: `Bearer ${pusat}` },
       data: { pengajuan_satker_id: P2_PUSAT, aksi: "approve", komentar: "e2e setujui" },
     });
     expect(resp.status(), "validator_pusat may approve at 1004").toBe(200);
@@ -317,9 +447,9 @@ test.describe("Pakaian Dinas — validator pusat decides", () => {
 // ── RBAC: the validator-action endpoint is role-gated ───────────────────────
 test.describe("Pakaian Dinas — role-gated validator action", () => {
   test("an operator cannot drive a validator action", async ({ request }) => {
-    const op = await apiLogin(request, credsFor(userFor("operator_a")));
+    const op = await tokenFor(request, "operator_a");
     const resp = await request.post(`${PD_API}/validator-action`, {
-      headers: { Authorization: `Bearer ${op.accessToken}` },
+      headers: { Authorization: `Bearer ${op}` },
       data: {
         pengajuan_satker_id: "d1000000-0000-4d00-8d00-0000000a0001",
         aksi: "approve",
