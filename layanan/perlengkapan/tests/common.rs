@@ -178,6 +178,26 @@ pub async fn setup_test_db() -> (Database, String) {
         .await
         .unwrap();
 
+    // The barang-codification snapshot is integrasi's object, so apply
+    // integrasi's OWN migration rather than restating its definition here.
+    // This file already carries two scars from hand-written cross-schema
+    // stubs; a third would be a choice. Applying the real file also means a
+    // change to 006 that breaks its consumers fails in THIS suite, not first
+    // at deploy.
+    {
+        const KODEFIKASI_SQL: &str =
+            include_str!("../../integrasi/migrations/006_kodefikasi_barang.sql");
+        let client = db.pool().get().await.unwrap();
+        client
+            .batch_execute(KODEFIKASI_SQL)
+            .await
+            .expect("Failed to apply integrasi 006_kodefikasi_barang.sql");
+        // That file sets search_path for its own run. This connection returns
+        // to the pool, so restore the session default before something else
+        // borrows it and resolves an unqualified name into `integrasi`.
+        client.batch_execute("RESET search_path").await.unwrap();
+    }
+
     // Cross-schema SoT stub for satker identity (integrasi owns it; perlengkapan
     // reads it). Pakaian-dinas satker queries LEFT JOIN this, and the wilayah
     // resolver filters on `wilayah`.
@@ -271,13 +291,22 @@ pub async fn setup_test_db() -> (Database, String) {
             // SIMAN operator's own labels for one item — free text, 64 220
             // distinct values across those same 2 038 codes — so they vary
             // per row here and one is blank.
+            //
+            // The names below are the ones SIMAN gives 3060201003 and
+            // 3060201004 — "Pesawat Telephone" (929 real assets) and
+            // "Telephone Mobile" (4 074) — not names chosen to read nicely.
+            // They used to say "Meja Kerja" and "Kursi Kerja", which belong to
+            // 3050201002 and are a different item entirely: the same fiction
+            // the e2e seed carried. It stopped being harmless the moment
+            // `integrasi.mv_kodefikasi_barang` began deriving the codification
+            // from these very rows.
             "INSERT INTO integrasi.siman_aset
                 (jenis_aset, nama, ur_sskel, ur_kondisi, kd_brg, no_aset,
                  rph_aset, tgl_perlh, nama_satker, kdsatker_keu, merk, tipe, alamat)
              VALUES
-                ('Peralatan Mesin Non TIK', 'BMN Uji 003/15', 'Meja Kerja', 'Baik', '3060201003', '15', '12500000', '2021-03-11', 'KEJAKSAAN NEGERI UJI A', '006010199005016000KP', 'Uji Merk A', 'Tipe-1', 'Jl. Uji No. 1'),
-                ('Peralatan Mesin Non TIK', '  ',             'Meja Kerja', 'Baik', '3060201003', '99', '9750000',  '2021-03-11', 'KEJAKSAAN NEGERI UJI A', '006010199005016000KP', 'Uji Merk B', NULL,      NULL),
-                ('Peralatan Mesin Non TIK', 'BMN Uji 004/16', 'Kursi Kerja','Baik', '3060201004', '16', '4300000',  '2022-07-04', 'KEJAKSAAN NEGERI UJI A', '006010199005016000KP', 'Uji Merk C', NULL,      NULL)
+                ('Peralatan Mesin Non TIK', 'BMN Uji 003/15', 'Pesawat Telephone', 'Baik', '3060201003', '15', '12500000', '2021-03-11', 'KEJAKSAAN NEGERI UJI A', '006010199005016000KP', 'Uji Merk A', 'Tipe-1', 'Jl. Uji No. 1'),
+                ('Peralatan Mesin Non TIK', '  ',             'Pesawat Telephone', 'Baik', '3060201003', '99', '9750000',  '2021-03-11', 'KEJAKSAAN NEGERI UJI A', '006010199005016000KP', 'Uji Merk B', NULL,      NULL),
+                ('Peralatan Mesin Non TIK', 'BMN Uji 004/16', 'Telephone Mobile','Baik', '3060201004', '16', '4300000',  '2022-07-04', 'KEJAKSAAN NEGERI UJI A', '006010199005016000KP', 'Uji Merk C', NULL,      NULL)
              ON CONFLICT DO NOTHING",
             &[],
         )

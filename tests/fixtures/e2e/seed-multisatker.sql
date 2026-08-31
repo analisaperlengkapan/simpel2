@@ -196,6 +196,14 @@ VALUES
   ('Tanah',                       NULL, 'E2E-B-2', 'Tanah Bangunan Kantor Pemerintah', 'Tanah Kantor',  '2010104001', NULL,     NULL,         'Baik', 'Jl. Ampera Raya No.2',  'KEJAKSAAN NEGERI JAKARTA SELATAN', '006019999020001KD', NULL, '5000000000','2010-01-01'),
   ('Peralatan Mesin Khusus TIK',  NULL, 'E2E-C-1', 'Printer (Peralatan Personal Komputer)', 'Printer Epson', '3100203003', 'Epson', 'L3210', 'Rusak Ringan', 'Jl. Asia Afrika No.3', 'KEJAKSAAN NEGERI BANDUNG', '006018888010001KD', NULL, '4000000', '2022-11-20');
 
+-- The codification snapshot is only as fresh as its last refresh (integrasi
+-- migration 006). `integrasi-migrate` refreshes it at deploy, when siman_aset
+-- is still empty — so without this line the kebutuhan picker would offer
+-- nothing and every one of its assertions would fail on an empty list rather
+-- than on anything real. Production does the same thing after a sync, via the
+-- `integrasi-snapshot-refresh` CronJob.
+REFRESH MATERIALIZED VIEW integrasi.mv_kodefikasi_barang;
+
 -- ----------------------------------------------------------------------------
 -- 4. authenc: per-role test users (single role each so the JWT role is
 --    unambiguous). Password = "199203142014031001" (reused Argon2id hash).

@@ -23,6 +23,28 @@ pub struct BankAsetItem {
     pub updated_at: DateTime<Utc>,
 }
 
+/// One entry of the barang codification: the code, the standard name that
+/// belongs to it, and how much of the register carries it.
+///
+/// Read from `integrasi.mv_kodefikasi_barang`, and deliberately NOT satker
+/// scoped — see [`crate::bank_aset::repository::BankAsetRepository::kodefikasi`]
+/// for why a needs request must be able to name a barang its satker does not
+/// own yet.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct KodefikasiBarang {
+    /// Ten digits, no dots — SIMAN's storage form, which is also its
+    /// comparison form.
+    pub kode_barang: String,
+    /// `ur_sskel`: the standard name of the code, not the SIMAN operator's
+    /// own label for one item.
+    pub nama_barang: String,
+    /// Assets nationally carrying this code. Shown so an operator can tell a
+    /// mainstream item from a near-homonym, and used as the default ordering.
+    pub jumlah_aset: i64,
+    /// Satkers carrying it, for the same reason.
+    pub jumlah_satker: i64,
+}
+
 /// Slim lookup response used by the pemakaian-bmn form when the user types a
 /// NUP — the frontend auto-fills `bmn_kode_barang` + `bmn_nama_barang`.
 #[derive(Debug, Serialize, Deserialize, Clone)]

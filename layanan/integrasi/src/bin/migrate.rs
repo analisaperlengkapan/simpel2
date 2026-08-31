@@ -57,6 +57,22 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "005_satker_wilayah.sql",
         include_str!("../../migrations/005_satker_wilayah.sql"),
     ),
+    (
+        "006_kodefikasi_barang.sql",
+        include_str!("../../migrations/006_kodefikasi_barang.sql"),
+    ),
+];
+
+/// Derived snapshots of `siman_aset`, refreshed together.
+///
+/// Both exist for the same reason — the live derivation is a full scan of
+/// 624 533 rows — and both go stale on the same event, a SIMAN sync. Keeping
+/// them in one list is what stops the next snapshot from being added to the
+/// migration path and forgotten in the CronJob path, which is the shape of
+/// gate-scope drift this repository keeps rediscovering.
+const DERIVED_SNAPSHOTS: &[&str] = &[
+    "integrasi.mv_satker_code_map_auto",
+    "integrasi.mv_kodefikasi_barang",
 ];
 
 /// Render a `tokio_postgres::Error` using the server's own words.
@@ -150,26 +166,31 @@ async fn main() {
         }
     });
 
-    // `--refresh-satker-map`: refresh ONLY the satker code-map snapshot, without
-    // re-applying any DDL. Used by the `integrasi-satker-map-refresh` CronJob,
-    // which has to run between deploys (see 004_satker_code_map_materialized.sql:
-    // a stale snapshot makes satker-scoped users fail closed to zero rows). The
-    // full migrate path also refreshes, but re-running every CREATE OR REPLACE
+    // `--refresh-snapshots`: refresh the derived snapshots of `siman_aset`
+    // WITHOUT re-applying any DDL. Used by the refresh CronJob, which has to run
+    // between deploys (see 004_satker_code_map_materialized.sql: a stale
+    // snapshot makes satker-scoped users fail closed to zero rows, and a stale
+    // codification hides a barang the register already knows about). The full
+    // migrate path also refreshes, but re-running every CREATE OR REPLACE
     // against a live database on a 6-hourly timer is more blast radius than a
     // refresh needs.
-    if std::env::args().any(|a| a == "--refresh-satker-map") {
-        info!("integrasi-migrate: refreshing satker code-map snapshot…");
-        if let Err(e) = client
-            .batch_execute("REFRESH MATERIALIZED VIEW integrasi.mv_satker_code_map_auto;")
-            .await
-        {
-            error!(
-                "integrasi-migrate: satker code-map refresh failed: {}",
-                explain(&e)
-            );
-            std::process::exit(1);
+    // `--refresh-satker-map` is kept as an alias so a CronJob still running the
+    // previous spec during a rollout does not fail on an unknown flag.
+    if std::env::args().any(|a| a == "--refresh-snapshots" || a == "--refresh-satker-map") {
+        for view in DERIVED_SNAPSHOTS {
+            info!("integrasi-migrate: refreshing {view}…");
+            if let Err(e) = client
+                .batch_execute(&format!("REFRESH MATERIALIZED VIEW {view};"))
+                .await
+            {
+                error!("integrasi-migrate: {view} refresh failed: {}", explain(&e));
+                std::process::exit(1);
+            }
         }
-        info!("integrasi-migrate: satker code-map refreshed ✅");
+        info!(
+            "integrasi-migrate: {} derived snapshot(s) refreshed ✅",
+            DERIVED_SNAPSHOTS.len()
+        );
         return;
     }
 

@@ -251,6 +251,34 @@ hook deploy), dan menolak berkas yang ada di disk tapi tak terdaftar. Setiap
 stack e2e memigrasi DB kosong — lintasan pertama justru yang selalu berhasil —
 jadi lintasan kedua itulah yang mewakili deploy sungguhan.
 
+### 0b. Snapshot turunan: daftarnya di `DERIVED_SNAPSHOTS`, bukan tersebar
+
+Beberapa pertanyaan tak bisa dijawab langsung dari `integrasi.siman_aset` dengan
+harga yang wajar. 624.533 baris berarti tiap derivasi adalah seq scan penuh:
+
+| Snapshot | Migrasi | Kenapa | Basi berarti |
+|---|---|---|---|
+| `mv_satker_code_map_auto` | 004 | derivasi hidup = 11 dtk per request | pengguna tier satker **fail-closed ke NOL baris** |
+| `mv_kodefikasi_barang` | 006 | pencarian hidup = **1.286 ms per ketikan** | barang yang sudah ada di register tak bisa dipilih di form kebutuhan |
+
+Aturannya:
+
+- Snapshot baru **WAJIB** masuk `DERIVED_SNAPSHOTS` (`src/bin/migrate.rs`).
+  Daftar itulah yang dipakai flag `--refresh-snapshots`, yang dipanggil CronJob
+  `integrasi-snapshot-refresh`. Snapshot yang hanya di-`REFRESH` di dalam
+  migrasinya akan **selesai segar saat deploy lalu membusuk diam-diam** sampai
+  deploy berikutnya — di-refresh saat `siman_aset` masih kosong, pula.
+- `REFRESH` di dalam migrasi **tidak boleh `CONCURRENTLY`** (satu berkas = satu
+  transaksi; lihat §0). Konsekuensinya ia memegang ACCESS EXCLUSIVE selama
+  derivasinya — itu trade yang disengaja, bukan kelalaian.
+- Jangan pasang UNIQUE index pada kolom yang **diasumsikan** unik di data hulu.
+  `mv_kodefikasi_barang` mengelompokkan per `(kode_barang, nama_barang)` justru
+  karena hulunya bisa berhenti jadi fungsi: dijalankan ke staging apa adanya ia
+  memberi 2.038 baris untuk 2.034 kode. UNIQUE pada kode saja akan menggagalkan
+  REFRESH dan menjatuhkan konsumennya demi melaporkan masalah data.
+- Konsumen membaca snapshot **lintas-skema**; ia milik `integrasi` karena
+  `integrasi` memiliki tabel sumbernya. Itu aturan SSoT, bukan pengecualiannya.
+
 ### 1. Scheduler Configuration
 
 **IMPORTANT:** Scheduler is **DISABLED** by default. Use K8s CronJob for scheduling.

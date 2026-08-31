@@ -184,6 +184,38 @@ pub async fn fetch_list(filter: &ListFilter) -> AppResult<PaginatedResponse<Bank
     api_get::<PaginatedResponse<BankAsetItem>>(&url).await
 }
 
+/// Satu entri kodefikasi barang — cermin `KodefikasiBarang` di
+/// `layanan/perlengkapan/src/bank_aset/models.rs`.
+///
+/// Field-nya sengaja tidak `Option`: keempatnya `NOT NULL` di
+/// `integrasi.mv_kodefikasi_barang` (baris ber-kode atau ber-nama kosong
+/// disaring saat snapshot dibentuk).
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct KodefikasiBarang {
+    pub kode_barang: String,
+    pub nama_barang: String,
+    pub jumlah_aset: i64,
+    pub jumlah_satker: i64,
+}
+
+/// `GET /bank-aset/kodefikasi?q=&limit=` — kodefikasi barang untuk pemilih.
+///
+/// Tidak ber-scope satker, dan itu disengaja: permohonan kebutuhan justru
+/// paling sering menyebut barang yang satker-nya BELUM punya.
+pub async fn fetch_kodefikasi(q: &str, limit: u32) -> AppResult<Vec<KodefikasiBarang>> {
+    let mut url = format!("{API_BASE}/bank-aset/kodefikasi");
+    let q = q.trim();
+    if !q.is_empty() {
+        push_query(&mut url, "q", q);
+    }
+    push_query(&mut url, "limit", &limit.to_string());
+    let resp: ApiResponseWrap<Vec<KodefikasiBarang>> = api_get(&url).await?;
+    if !resp.success {
+        return Err(AppError::server(resp.message));
+    }
+    Ok(resp.data)
+}
+
 pub async fn fetch_detail(id: &str) -> AppResult<BankAsetDetail> {
     let url = format!("{API_BASE}/bank-aset/{id}");
     let resp: ApiResponseWrap<BankAsetDetail> = api_get(&url).await?;

@@ -38,6 +38,13 @@ pub fn create_routes(state: AppState) -> Router {
         // Bank Aset (unified SIMAN façade)
         .route("/bank-aset", get(crate::bank_aset::list_bank_aset))
         .route("/bank-aset/lookup", get(crate::bank_aset::lookup_bank_aset))
+        // Must be registered BEFORE `/bank-aset/{id}`: axum matches literal
+        // segments ahead of parameters, but keeping them adjacent in source
+        // order is what makes that visible to the next reader.
+        .route(
+            "/bank-aset/kodefikasi",
+            get(crate::bank_aset::get_bank_aset_kodefikasi),
+        )
         .route(
             "/bank-aset/dashboard",
             get(crate::bank_aset::get_bank_aset_dashboard),

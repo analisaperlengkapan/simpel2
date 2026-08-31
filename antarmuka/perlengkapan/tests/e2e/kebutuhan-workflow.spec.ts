@@ -86,14 +86,65 @@ test.describe('Kebutuhan BMN — operator submit to wilayah', () => {
     // the pre-seeded barang is visible in the Barang tab table
     await expect(page.getByText('E2E Barang Seed A').first()).toBeVisible({ timeout: 20000 });
 
-    // add a second barang through the real modal form
+    // add a second barang through the real modal form.
+    //
+    // Nama and kode barang are no longer typed — both already exist in the
+    // SIMAN codification, and typing them is what produced wrong codes and two
+    // spellings of one item that stop aggregating together. The form now picks
+    // an entry, so the assertion is on the STANDARD name that belongs to the
+    // code, not on a string this test invented.
     await page.getByRole('button', { name: 'Tambah Barang' }).click();
     const form = page.locator('form:has(button:has-text("Simpan"))');
     await expect(form).toBeVisible();
-    await form.getByRole('textbox').first().fill('E2E Barang UI Operator'); // Nama Barang
+
+    await form.getByLabel('Cari Barang').fill('Station Wagon');
+    const hasil = form.getByTestId('kodefikasi-hasil');
+    await expect(hasil, 'codification picker returned nothing').toBeVisible({ timeout: 20000 });
+    const baris = hasil.locator('li');
+    await expect(baris, 'one entry per code, not one per asset').toHaveCount(1);
+    await baris.first().getByRole('button').click();
+
+    // Picked, so the code comes with it rather than being typed beside it.
+    const terpilih = form.getByTestId('kodefikasi-terpilih');
+    await expect(terpilih).toBeVisible();
+    await expect(terpilih, 'the code travels with the name').toContainText('3020101003');
+
     await form.getByRole('spinbutton').first().fill('4'); // Jumlah
-    await form.getByRole('button', { name: 'Simpan' }).click();
-    await expect(page.getByText('E2E Barang UI Operator').first()).toBeVisible({ timeout: 15000 });
+    await form.getByTestId('barang-simpan').click();
+    await expect(page.getByText('Station Wagon').first()).toBeVisible({ timeout: 15000 });
+
+    // The manual escape hatch, checked here rather than in its own test
+    // because the modal is only reachable while the satker sits at 2001 —
+    // a separate test would depend on this one not having submitted yet.
+    //
+    // It has to exist: the codification is derived from assets already on the
+    // register, so a barang no satker owns yet is genuinely absent, and a needs
+    // request naming one is legitimate. It also has to be an ESCAPE hatch —
+    // reachable only after a search actually came back empty, never offered
+    // alongside the picker as an equal path.
+    await page.getByRole('button', { name: 'Tambah Barang' }).click();
+    await expect(form).toBeVisible();
+    await expect(
+      form.getByTestId('kodefikasi-manual'),
+      'the manual fields must not be reachable before a search fails',
+    ).toHaveCount(0);
+    await expect(
+      form.getByTestId('barang-simpan'),
+      'nothing picked, nothing to save',
+    ).toBeDisabled();
+
+    await form.getByLabel('Cari Barang').fill('Barang Yang Belum Ada Di Register');
+    await expect(form.getByTestId('kodefikasi-kosong')).toBeVisible({ timeout: 20000 });
+    await form.getByRole('button', { name: 'Isi manual' }).click();
+    await expect(form.getByTestId('kodefikasi-manual')).toBeVisible();
+    await expect(
+      form.getByTestId('barang-simpan'),
+      'the manual name carries over from the search box',
+    ).toBeEnabled();
+    // Scoped to the form: 'Batal' is a common label and the page behind the
+    // modal has its own.
+    await form.getByRole('button', { name: 'Batal' }).click();
+    await expect(form).toHaveCount(0);
 
     // submit to wilayah
     await clickAction(

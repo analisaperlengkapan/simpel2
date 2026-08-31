@@ -33,7 +33,7 @@
 -- keep it current, and both must stay:
 --   1. this migration REFRESHes on every run, and the Helm pre-install/
 --      pre-upgrade hook runs it on every deploy;
---   2. `integrasi-satker-map-refresh` (a Helm CronJob) refreshes on the sync
+--   2. `integrasi-snapshot-refresh` (a Helm CronJob) refreshes on the sync
 --      cadence, covering the gap between deploys.
 -- Non-CONCURRENTLY is deliberate: REFRESH ... CONCURRENTLY needs a UNIQUE index
 -- over plain columns, and this data has neither a unique key (4 kdsatker_keu
@@ -108,5 +108,5 @@ COMMENT ON MATERIALIZED VIEW integrasi.mv_satker_code_map_auto IS
     'Snapshot of v_satker_code_map_auto. Exists purely for speed: the underlying '
     'view re-derives the national mapping with a DISTINCT over all of siman_aset, '
     'which made every satker-scoped bank_aset query O(all assets). Refreshed by '
-    'the integrasi migrate job on deploy and by the satker-map-refresh CronJob on '
+    'the integrasi migrate job on deploy and by the snapshot-refresh CronJob on '
     'the sync cadence. STALE = satker-scoped users fail closed to zero rows.';
