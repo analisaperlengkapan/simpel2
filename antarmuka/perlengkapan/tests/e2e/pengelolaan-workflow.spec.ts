@@ -386,10 +386,23 @@ test.describe("Pengelolaan — create-form pages", () => {
   // the caller's satker on the server — which is why the cross-satker case below
   // now asserts an empty result rather than an error message.
 
-  /** Search the picker and pick the single row it returns. */
-  async function pickAset(page: Page, needle: string) {
-    await page.getByLabel("Cari BMN").fill(needle);
-    const hasil = page.getByTestId("aset-hasil");
+  /**
+   * Search one picker and pick the single row it returns.
+   *
+   * `slug` addresses a specific picker: a form may mount several (one per extra
+   * BMN row), and every id/testid carries the slug. It also forces the label
+   * match to be exact — `getByLabel` is substring + case-insensitive, so a bare
+   * "Cari BMN" would also match every "Cari BMN tambahan" box on the page.
+   */
+  async function pickAset(page: Page, needle: string, slug = "aset") {
+    const label = slug === "aset" ? "Cari BMN" : "Cari BMN tambahan";
+    const kotak = page.locator(`#${slug}-cari`);
+    // The label must point at THIS picker's box. Duplicated ids would make the
+    // second row's label focus the first row's input, so assert the pairing
+    // before typing into it.
+    await expect(page.getByLabel(label, { exact: true }).and(kotak)).toHaveCount(1);
+    await kotak.fill(needle);
+    const hasil = page.getByTestId(`${slug}-hasil`);
     await expect(hasil, `picker returned nothing for ${needle}`).toBeVisible({
       timeout: 20000,
     });
@@ -438,7 +451,7 @@ test.describe("Pengelolaan — create-form pages", () => {
   test("pemakaian picker never offers an asset belonging to another satker", async ({ page }) => {
     await page.goto(`${BASE}/pengelolaan/pemakaian/buat`, { waitUntil: "domcontentloaded" });
     // E2E-B-1 sits in satker 0200020. operator_a is in 0200010.
-    await page.getByLabel("Cari BMN").fill("E2E-B-1");
+    await page.getByLabel("Cari BMN", { exact: true }).fill("E2E-B-1");
 
     // Scoping happens server-side, so the row is not merely un-clickable — it
     // is never sent. Assert the empty state rather than the absence of a list:
@@ -450,6 +463,71 @@ test.describe("Pengelolaan — create-form pages", () => {
     await expect(page.getByTestId("aset-terpilih")).toHaveCount(0);
     // Nothing about the other satker's holder may appear.
     await expect(page.locator("body")).not.toContainText("E2E Operator Jaksel");
+  });
+
+  // The extra-BMN rows on both create forms were three (pemakaian) and four
+  // (penghapusan) free-text boxes asking for kode barang / nama barang / NUP —
+  // all three of which sit in integrasi.siman_aset. They now carry their own
+  // picker.
+  //
+  // Keying those rows by position was also measurably wrong. Against the old
+  // build: type AAA into row 0 and BBB into row 1 of the pemakaian form, delete
+  // row 0, and the surviving row STILL SHOWS AAA while the payload carries BBB
+  // (Leptos reuses the DOM node on rebuild, and those inputs had no
+  // `prop:value`, so nothing overwrote the deleted row's text). The second test
+  // below is the regression for that: identity must follow the row, not its
+  // index.
+
+  test("pemakaian extra BMN row resolves its own asset, independent of the main one", async ({
+    page,
+  }) => {
+    await page.goto(`${BASE}/pengelolaan/pemakaian/buat`, { waitUntil: "domcontentloaded" });
+    await pickAset(page, "E2E-A-1");
+
+    await page.getByTestId("tambah-bmn").click();
+    await pickAset(page, "E2E-A-2", "aset-tambahan-0");
+
+    // Each picker holds its own row. A single shared Vec would have let the
+    // second pick overwrite the first.
+    await expect(page.getByTestId("aset-terpilih")).toContainText("E2E-A-1");
+    const tambahan = page.getByTestId("aset-tambahan-0-terpilih");
+    await expect(tambahan).toContainText("E2E-A-2");
+    await expect(tambahan, "kode barang must come from SIMAN kd_brg").toContainText("3100102003");
+  });
+
+  test("removing an extra BMN row keeps the remaining row's own asset", async ({ page }) => {
+    await page.goto(`${BASE}/pengelolaan/pemakaian/buat`, { waitUntil: "domcontentloaded" });
+
+    await page.getByTestId("tambah-bmn").click();
+    await page.getByTestId("tambah-bmn").click();
+    // Fill only the SECOND row, then delete the first. Keying rows by position
+    // would reassign identity here and hand row 1's picker the row 0 slug —
+    // the pick would appear to jump to the deleted row.
+    await pickAset(page, "E2E-A-2", "aset-tambahan-1");
+
+    await page.getByRole("button", { name: "Hapus BMN tambahan" }).first().click();
+
+    await expect(page.getByTestId("aset-tambahan-0-terpilih")).toHaveCount(0);
+    await expect(page.getByTestId("aset-tambahan-1-terpilih")).toContainText("E2E-A-2");
+  });
+
+  test("penghapusan extra item row fills its identity from the picker", async ({ page }) => {
+    await page.goto(`${BASE}/pengelolaan/penghapusan/buat`, { waitUntil: "domcontentloaded" });
+
+    await expect(page.getByText("Belum ada item tambahan.")).toBeVisible();
+    await page.getByRole("button", { name: "+ Tambah Item" }).click();
+    await pickAset(page, "E2E-A-2", "aset-tambahan-0");
+
+    // Identity is read from the picked row, not transcribed. Only the
+    // acquisition value stays typeable: the server overrides nilai_perolehan
+    // from SIMAN for the MAIN item only, so an extra item whose asset carries
+    // no figure still needs somewhere to put one.
+    const tambahan = page.getByTestId("aset-tambahan-0-terpilih");
+    await expect(tambahan).toContainText("3100102003");
+    await expect(tambahan).toContainText("E2E-A-2");
+    // Addressed by id, not by label: the main form carries a "Nilai Perolehan
+    // (Rp)" label of its own, so getByLabel would match two elements.
+    await expect(page.locator("#nilai-tambahan-0")).toBeVisible();
   });
 });
 

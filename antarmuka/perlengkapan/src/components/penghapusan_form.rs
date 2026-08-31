@@ -11,7 +11,7 @@ use leptos_meta::Title;
 use leptos_router::hooks::use_navigate;
 use lib_ui::components::icon::AppIcon;
 use lib_ui::hooks::{use_form, use_toast::use_toast};
-use phosphor_leptos::{FLOPPY_DISK, SPINNER};
+use phosphor_leptos::{FLOPPY_DISK, SPINNER, X};
 
 /// Form data for BMN disposal request.
 #[derive(Clone, Default)]
@@ -36,13 +36,32 @@ struct ExtraItem {
     nilai_perolehan: String,
 }
 
+/// Satu baris item tambahan.
+///
+/// Isi baris tinggal di sinyalnya sendiri dan daftar hanya menyimpan kuncinya.
+/// Sebelumnya barisnya dikenali dari indeks posisi: tiap `on:input` menangkap
+/// `i` lalu menulis ke `v[i]`, sehingga menghapus satu baris menggeser makna
+/// setiap penutup di bawahnya. Di sini kotak-kotaknya punya `prop:value`,
+/// jadi tampilannya masih ikut terkoreksi — pada formulir pemakaian, yang
+/// tidak punya `prop:value`, kekeliruan yang sama membuat layar dan muatan
+/// berbeda. Dengan `For` berkunci, identitas melekat pada barisnya.
+#[derive(Clone, Copy)]
+struct BarisItemTambahan {
+    kunci: usize,
+    isi: RwSignal<ExtraItem>,
+}
+
 #[component]
 pub fn PenghapusanForm() -> impl IntoView {
     let form = use_form(PenghapusanFormData::default());
     let toast = use_toast();
     let navigate = use_navigate();
     // Fase 2.8: item BMN tambahan (multi-item). Item utama = field form di atas.
-    let extras = RwSignal::new(Vec::<ExtraItem>::new());
+    let baris_tambahan = RwSignal::new(Vec::<BarisItemTambahan>::new());
+    // Kunci dihitung maju dan tak pernah dipakai ulang: indeks posisi akan
+    // menggeser identitas baris begitu baris di atasnya dihapus, menukar isi
+    // dua pemilih.
+    let kunci_berikutnya = StoredValue::new(0usize);
 
     // Picking the asset fills the three fields that identify it. They stay
     // editable — SIMAN's own naming is inconsistent enough that an operator
@@ -83,7 +102,8 @@ pub fn PenghapusanForm() -> impl IntoView {
                 nilai_perolehan: data.nilai_perolehan.parse::<f64>().ok(),
                 kondisi: None,
             }];
-        for e in extras.get_untracked() {
+        for baris in baris_tambahan.get_untracked() {
+            let e = baris.isi.get_untracked();
             if !e.kode_barang.trim().is_empty() && !e.nup.trim().is_empty() {
                 items.push(CreatePenghapusanBmnItemRequest {
                     kode_barang: e.kode_barang,
@@ -215,7 +235,18 @@ pub fn PenghapusanForm() -> impl IntoView {
                         <button
                             type="button"
                             class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
-                            on:click=move |_| extras.update(|v| v.push(ExtraItem::default()))
+                            on:click=move |_| {
+                                let kunci = kunci_berikutnya.get_value();
+                                kunci_berikutnya.set_value(kunci + 1);
+                                baris_tambahan
+                                    .update(|daftar| {
+                                        daftar
+                                            .push(BarisItemTambahan {
+                                                kunci,
+                                                isi: RwSignal::new(ExtraItem::default()),
+                                            });
+                                    });
+                            }
                         >
                             "+ Tambah Item"
                         </button>
@@ -223,103 +254,99 @@ pub fn PenghapusanForm() -> impl IntoView {
                     <p class="mb-3 text-xs text-slate-500">
                         "Item utama diisi di atas. Tambahkan BMN lain bila satu usulan SK mencakup beberapa aset."
                     </p>
-                    {move || {
-                        let rows = extras.get();
-                        if rows.is_empty() {
+
+                    // Tiap baris memilih asetnya: cari, pilih, lalu identitasnya
+                    // datang dari SIMAN. Sebelumnya baris tambahan adalah empat
+                    // kotak kosong — satu-satunya tempat di formulir ini yang
+                    // menuntut kode barang, nama barang, dan NUP diketik ulang,
+                    // padahal ketiganya ada di basis data.
+                    //
+                    // Hanya "Nilai Perolehan" yang tersisa sebagai isian, dan
+                    // itu disengaja: server menimpa nilai perolehan dari SIMAN
+                    // untuk item UTAMA saja (`services.rs` create), sedangkan
+                    // nilai tiap item tambahan tersimpan apa adanya — jadi bila
+                    // SIMAN tak mencatat angkanya, operator masih punya tempat
+                    // untuk melengkapinya. Kosong tetap dikirim kosong, bukan 0.
+                    <Show
+                        when=move || !baris_tambahan.get().is_empty()
+                        fallback=|| {
                             view! {
-                                <p class="text-xs text-slate-500 italic">
-                                    "Belum ada item tambahan."
-                                </p>
+                                <p class="text-xs text-slate-500 italic">"Belum ada item tambahan."</p>
                             }
-                                .into_any()
-                        } else {
-                            view! {
-                                <div class="space-y-2">
-                                    {rows
-                                        .into_iter()
-                                        .enumerate()
-                                        .map(|(i, item)| {
-                                            view! {
-                                                <div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Kode Barang"
-                                                        class="md:col-span-3 px-3 py-1.5 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                                        prop:value=item.kode_barang.clone()
-                                                        on:input=move |ev| {
-                                                            extras
-                                                                .update(|v| {
-                                                                    if let Some(r) = v.get_mut(i) {
-                                                                        r.kode_barang = event_target_value(&ev);
-                                                                    }
-                                                                })
-                                                        }
-                                                    />
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Nama Barang"
-                                                        class="md:col-span-4 px-3 py-1.5 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                                        prop:value=item.nama_barang.clone()
-                                                        on:input=move |ev| {
-                                                            extras
-                                                                .update(|v| {
-                                                                    if let Some(r) = v.get_mut(i) {
-                                                                        r.nama_barang = event_target_value(&ev);
-                                                                    }
-                                                                })
-                                                        }
-                                                    />
-                                                    <input
-                                                        type="text"
-                                                        placeholder="NUP"
-                                                        class="md:col-span-2 px-3 py-1.5 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                                        prop:value=item.nup.clone()
-                                                        on:input=move |ev| {
-                                                            extras
-                                                                .update(|v| {
-                                                                    if let Some(r) = v.get_mut(i) {
-                                                                        r.nup = event_target_value(&ev);
-                                                                    }
-                                                                })
-                                                        }
-                                                    />
-                                                    <input
-                                                        type="number"
-                                                        placeholder="Nilai"
-                                                        class="md:col-span-2 px-3 py-1.5 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                                        prop:value=item.nilai_perolehan.clone()
-                                                        on:input=move |ev| {
-                                                            extras
-                                                                .update(|v| {
-                                                                    if let Some(r) = v.get_mut(i) {
-                                                                        r.nilai_perolehan = event_target_value(&ev);
-                                                                    }
-                                                                })
-                                                        }
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        class="md:col-span-1 rounded bg-danger-500/10 px-2 py-1.5 text-xs text-danger-300 hover:bg-red-200"
-                                                        on:click=move |_| {
-                                                            extras
-                                                                .update(|v| {
-                                                                    if i < v.len() {
-                                                                        v.remove(i);
-                                                                    }
-                                                                })
-                                                        }
-                                                    >
-                                                        "Hapus"
-                                                    </button>
-                                                </div>
-                                            }
-                                        })
-                                        .collect_view()}
-                                </div>
-                            }
-                                .into_any()
                         }
-                    }}
+                    >
+                        <div class="space-y-3">
+                            <For
+                                each=move || baris_tambahan.get()
+                                key=|baris| baris.kunci
+                                children=move |baris| {
+                                    let isi = baris.isi;
+                                    let on_pick = Callback::new(move |picked: Option<BankAsetItem>| {
+                                        isi.update(|item| {
+                                            let Some(aset) = picked else {
+                                                *item = ExtraItem::default();
+                                                return;
+                                            };
+                                            item.kode_barang = aset
+                                                .kode_barang
+                                                .clone()
+                                                .unwrap_or_default();
+                                            item.nama_barang = aset
+                                                .nama_aset
+                                                .clone()
+                                                .unwrap_or_default();
+                                            item.nup = aset.nup.clone().unwrap_or_default();
+                                            item.nilai_perolehan = aset
+                                                .nilai_perolehan
+                                                .map(|v| v.to_string())
+                                                .unwrap_or_default();
+                                        });
+                                    });
+                                    let slug = format!("aset-tambahan-{}", baris.kunci);
+                                    let label = "Cari BMN tambahan".to_string();
+                                    let id_nilai = format!("nilai-tambahan-{}", baris.kunci);
+                                    view! {
+                                        <div class="relative rounded-lg border border-white/10 bg-slate-900/40 p-3">
+                                            <button
+                                                type="button"
+                                                aria-label="Hapus item tambahan"
+                                                class="absolute top-2 right-2 z-10 text-danger-400 hover:text-red-700"
+                                                on:click=move |_| {
+                                                    baris_tambahan
+                                                        .update(|daftar| {
+                                                            daftar.retain(|lain| lain.kunci != baris.kunci)
+                                                        })
+                                                }
+                                            >
+                                                <AppIcon icon=X />
+                                            </button>
+                                            <AsetPicker slug=slug label=label on_pick=on_pick />
+                                            <div class="mt-3">
+                                                <label
+                                                    class="mb-1 block text-xs font-medium text-slate-400"
+                                                    for=id_nilai.clone()
+                                                >
+                                                    "Nilai Perolehan (Rp)"
+                                                </label>
+                                                <input
+                                                    id=id_nilai
+                                                    type="number"
+                                                    placeholder="Kosongkan bila SIMAN tidak mencatat nilainya"
+                                                    class="w-full px-3 py-1.5 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
+                                                    prop:value=move || isi.get().nilai_perolehan
+                                                    on:input=move |ev| {
+                                                        isi.update(|r| {
+                                                            r.nilai_perolehan = event_target_value(&ev)
+                                                        })
+                                                    }
+                                                />
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            />
+                        </div>
+                    </Show>
                 </div>
 
                 // -- Detail Penghapusan --
