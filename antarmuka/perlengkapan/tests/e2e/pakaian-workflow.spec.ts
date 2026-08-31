@@ -17,7 +17,7 @@
  *     1004 → 1008, each asserted against backend state,
  *   - the validator-action endpoint is role-gated.
  */
-import { test, expect } from "@playwright/test";
+import { test, expect, type APIRequestContext } from "@playwright/test";
 import { apiLogin, credsFor, storageStatePath, TEST_USERS, PERLENGKAPAN_API_URL } from "./helpers/real-auth";
 import { reachable } from "./helpers/page-load";
 
@@ -49,6 +49,103 @@ test.describe("Pakaian Dinas — master, campaign & report pages", () => {
   });
   test("laporan page is reachable", async ({ page }) => {
     await reachable(page, `${BASE}/pakaian-dinas/laporan`);
+  });
+});
+
+// ── Master spesifikasi: the step that made the whole feature unusable ───────
+// A campaign cannot be created without at least one spesifikasi, and until this
+// change nothing in either frontend could create one — the backend's
+// POST/PUT/DELETE for spesifikasi and subspesifikasi had zero callers, and
+// staging showed the result: 8 jenis, 0 spesifikasi, 0 subspesifikasi. These
+// tests drive the round trip so a regression takes the feature's entry point
+// away again and is caught here rather than by an operator.
+test.describe("Pakaian Dinas — master spesifikasi & subspesifikasi", () => {
+  test.use({ storageState: storageStatePath("admin") });
+
+  /** The seeded jenis carrying the reference rows migrated from simpelv1. */
+  async function jenisPdh(request: APIRequestContext): Promise<string> {
+    const token = await apiLogin(request, credsFor(userFor("admin")));
+    const res = await request.get(`${PD_API}/jenis?page=1&per_page=100`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(res.ok(), "jenis list must load").toBeTruthy();
+    const rows = (await res.json()).data as Array<{ id: string; nama: string }>;
+    const pdh = rows.find((j) => j.nama.trim().toUpperCase() === "PDH");
+    expect(pdh, "V011 seeds PDH; without it no campaign can be created").toBeTruthy();
+    return pdh!.id;
+  }
+
+  test("the simpelv1 reference rows survived the migration", async ({ request }) => {
+    const token = await apiLogin(request, credsFor(userFor("admin")));
+    const id = await jenisPdh(request);
+    const res = await request.get(`${PD_API}/spesifikasi?page=1&per_page=100&jenis_pakaian_dinas_id=${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(res.ok()).toBeTruthy();
+    const names = ((await res.json()).data as Array<{ nama: string; ukuran_group: string }>);
+    // The three PDH rows simpelv1 has carried since 2023. Asserted by name AND
+    // size family: a seed that lands the right label under the wrong family
+    // would offer shoe sizes for a shirt.
+    for (const [nama, grup] of [
+      ["Pakaian Dinas", "BAJU"],
+      ["Celana", "CELANA"],
+      ["Sepatu Dinas", "SEPATU"],
+    ]) {
+      const hit = names.find((s) => s.nama.trim().toUpperCase() === nama.toUpperCase());
+      expect(hit, `spesifikasi "${nama}" missing from PDH`).toBeTruthy();
+      expect(hit!.ukuran_group).toBe(grup);
+    }
+  });
+
+  test("admin creates then deletes a spesifikasi through the page", async ({ page, request }) => {
+    const id = await jenisPdh(request);
+    await page.goto(`${BASE}/pakaian-dinas/jenis/${id}/spesifikasi`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    const nama = `E2E Spesifikasi ${Date.now()}`;
+    await page.getByTestId("tambah-spesifikasi").click();
+    await page.getByLabel("Nama Spesifikasi").fill(nama);
+    await page.getByLabel("Grup Ukuran").selectOption("CELANA");
+    await page.getByRole("button", { name: "Simpan" }).click();
+
+    const row = page.getByTestId("spesifikasi-tabel").locator("tr", { hasText: nama });
+    await expect(row, "the new spesifikasi must appear without a reload").toHaveCount(1, {
+      timeout: 20000,
+    });
+
+    // And it must be gone again — a create with no delete leaves master data
+    // that only a DBA can correct.
+    await row.getByRole("button", { name: "Hapus spesifikasi" }).click();
+    await expect(row).toHaveCount(0, { timeout: 20000 });
+  });
+
+});
+
+// Same page, a role that may not write it. Split into its own describe because
+// `test.use` binds a storage state per describe, not per test.
+test.describe("Pakaian Dinas — master spesifikasi is read-only for non-admins", () => {
+  test.use({ storageState: storageStatePath("operator_a") });
+
+  test("an operator sees the list but is not offered the write controls", async ({
+    page,
+    request,
+  }) => {
+    // The server gates these with require_admin. Offering the button anyway
+    // lets an operator fill the whole form and collect a 403.
+    const token = await apiLogin(request, credsFor(userFor("operator_a")));
+    const res = await request.get(`${PD_API}/jenis?page=1&per_page=100`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const rows = (await res.json()).data as Array<{ id: string; nama: string }>;
+    const pdh = rows.find((j) => j.nama.trim().toUpperCase() === "PDH");
+    expect(pdh, "V011 seeds PDH").toBeTruthy();
+
+    await page.goto(`${BASE}/pakaian-dinas/jenis/${pdh!.id}/spesifikasi`, {
+      waitUntil: "domcontentloaded",
+    });
+    await expect(page.getByTestId("spesifikasi-tabel")).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId("tambah-spesifikasi")).toHaveCount(0);
   });
 });
 
