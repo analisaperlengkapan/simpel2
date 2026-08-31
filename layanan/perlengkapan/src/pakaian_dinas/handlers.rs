@@ -966,6 +966,81 @@ pub async fn cetak_laporan(
 
 // ============ Unit Tests ============
 
+// ============ Pengisian ukuran per satker ============
+
+/// Daftar pengisian satu satker pada satu pengajuan.
+///
+/// Kolomnya dari kampanye, orangnya dari kepegawaian, ukurannya dari yang sudah
+/// tersimpan. Operator satker tidak mengetik satu pun identitas.
+pub async fn get_roster_pengisian(
+    State(service): State<PakaianDinasService>,
+    // MySIMKARI `kode_satker`, not a uuid (V006/#94).
+    Path((pengajuan_id, satker_code)): Path<(Uuid, String)>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<RosterPengisian>>, AppError> {
+    let roster = service
+        .repository
+        .get_roster_pengisian(
+            pengajuan_id,
+            &satker_code,
+            &SatkerScope::from_claims(&claims),
+        )
+        .await?;
+    Ok(Json(ApiResponse::success(
+        roster,
+        "Daftar pengisian berhasil diambil".to_string(),
+    )))
+}
+
+/// Simpan ukuran satu pegawai — satu baris, satu simpanan.
+///
+/// Per pegawai dan bukan satu kiriman raksasa di akhir: satker besar berisi
+/// ratusan orang, dan kehilangan seluruh pekerjaan karena satu kegagalan di
+/// langkah terakhir adalah kerugian yang tidak perlu.
+pub async fn simpan_ukuran_pegawai(
+    State(service): State<PakaianDinasService>,
+    Path((pengajuan_id, satker_code, nip)): Path<(Uuid, String, String)>,
+    claims: Claims,
+    Json(request): Json<SimpanUkuranPegawaiRequest>,
+) -> Result<Json<ApiResponse<RosterPengisian>>, AppError> {
+    let scope = SatkerScope::from_claims(&claims);
+    service
+        .repository
+        .simpan_ukuran_pegawai(pengajuan_id, &satker_code, &nip, &request, &scope)
+        .await?;
+    // Kembalikan daftar yang sudah diperbarui supaya layar tidak perlu menebak
+    // keadaan barunya sendiri.
+    let roster = service
+        .repository
+        .get_roster_pengisian(pengajuan_id, &satker_code, &scope)
+        .await?;
+    Ok(Json(ApiResponse::success(
+        roster,
+        "Ukuran pegawai berhasil disimpan".to_string(),
+    )))
+}
+
+/// Keluarkan satu pegawai dari pengajuan.
+pub async fn hapus_pegawai_dari_pengajuan(
+    State(service): State<PakaianDinasService>,
+    Path((pengajuan_id, satker_code, nip)): Path<(Uuid, String, String)>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<RosterPengisian>>, AppError> {
+    let scope = SatkerScope::from_claims(&claims);
+    service
+        .repository
+        .hapus_pegawai_dari_pengajuan(pengajuan_id, &satker_code, &nip, &scope)
+        .await?;
+    let roster = service
+        .repository
+        .get_roster_pengisian(pengajuan_id, &satker_code, &scope)
+        .await?;
+    Ok(Json(ApiResponse::success(
+        roster,
+        "Pegawai dikeluarkan dari pengajuan".to_string(),
+    )))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

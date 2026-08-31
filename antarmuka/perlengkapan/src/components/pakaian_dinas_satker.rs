@@ -23,6 +23,8 @@ use crate::components::workflow_ui::{
     WorkflowTimeline,
 };
 use crate::features::auth::AuthService;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::PENCIL_SIMPLE;
 
 /// Status badge tailored to a workflow code.
 fn status_badge(code: i32) -> impl IntoView {
@@ -256,6 +258,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                     .unwrap_or(false)
                                             };
                                             let s_click = s.clone();
+                                            let s_isi = s.clone();
                                             view! {
                                                 <div class=move || {
                                                     format!(
@@ -278,8 +281,25 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                         </div>
                                                         {status_badge(code)}
                                                     </div>
+                                                    // Tautan pengisian. Sampai
+                                                    // ini ada, satu-satunya hal
+                                                    // yang bisa dilakukan pada
+                                                    // sebuah satker adalah
+                                                    // melihat riwayatnya — tidak
+                                                    // ada jalan menuju daftar
+                                                    // pegawainya untuk diisi.
+                                                    <a
+                                                        href=crate::routes::url::pakaian_pengisian(
+                                                            &s_isi.pengajuan_id,
+                                                            &s_isi.satker_id,
+                                                        )
+                                                        class="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 transition hover:opacity-90"
+                                                    >
+                                                        <AppIcon icon=PENCIL_SIMPLE size=14 />
+                                                        "Isi Ukuran Pegawai"
+                                                    </a>
                                                     <button
-                                                        class="mt-4 w-full rounded-lg border border-info-500/30 bg-info-500/10 px-3 py-1.5 text-xs font-medium text-info-300 transition hover:bg-info-500/20"
+                                                        class="mt-2 w-full rounded-lg border border-info-500/30 bg-info-500/10 px-3 py-1.5 text-xs font-medium text-info-300 transition hover:bg-info-500/20"
                                                         on:click=move |_| selected.set(Some(s_click.clone()))
                                                     >
                                                         "Lihat Riwayat & Aksi"
@@ -371,8 +391,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                             Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
                                             Some(Ok(acts)) => {
                                                 let steps = build_timeline(&s_for_timeline, &acts);
-                                                view! { <WorkflowTimeline steps=steps /> }
-                                                    .into_any()
+                                                view! { <WorkflowTimeline steps=steps /> }.into_any()
                                             }
                                         }}
                                     </Suspense>
