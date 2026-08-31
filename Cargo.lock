@@ -560,7 +560,7 @@ dependencies = [
  "jsonwebtoken",
  "ldap3",
  "lib-core",
- "lru 0.18.2",
+ "lru 0.18.3",
  "metrics",
  "openssl",
  "quick-xml",
@@ -1498,7 +1498,7 @@ dependencies = [
  "azul-css",
  "base64 0.22.1",
  "hyphenation",
- "lru 0.18.2",
+ "lru 0.18.3",
  "roxmltree",
  "rust-fontconfig",
  "serde",
@@ -6291,9 +6291,9 @@ dependencies = [
 
 [[package]]
 name = "lru"
-version = "0.18.2"
+version = "0.18.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d2f2f9b4ba7e6b24d95e7e899329d35be83bcded72c8540cdd5368932d1d90a"
+checksum = "0d317b4b9eb398e6acce275758ec6125535505e7a146fb1a9b8bda2451b0ff4c"
 dependencies = [
  "hashbrown 0.17.0",
 ]
@@ -9412,7 +9412,7 @@ dependencies = [
  "lib-backend",
  "lib-core",
  "log",
- "lru 0.18.2",
+ "lru 0.18.3",
  "parking_lot",
  "pem 3.0.6",
  "proptest",
