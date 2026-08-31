@@ -209,7 +209,32 @@ test.describe("Pakaian Dinas — pengisian ukuran per satker", () => {
     expect(typeof data.dapat_diubah).toBe("boolean");
 
     await page.goto(ISI, { waitUntil: "domcontentloaded" });
-    await expect(page.getByTestId("pengisian-tabel")).toBeVisible({ timeout: 20000 });
+
+    // Name the state before asserting the table. A missing `pengisian-tabel`
+    // has three different causes that all report as "element(s) not found":
+    // the route does not resolve (404), the campaign carries no clothing types
+    // so the page refuses to draw a size table, or the table is genuinely
+    // broken. Only the last is this test's subject, and the first run of this
+    // test hit the second — the fixture gave …c1 no items, so the page was
+    // right and the failure message pointed at the wrong thing.
+    const kosong = page.getByTestId("pengisian-tanpa-jenis-pakaian");
+    const tabel = page.getByTestId("pengisian-tabel");
+    await expect
+      .poll(
+        async () => {
+          if (await tabel.count()) return "tabel";
+          if (await kosong.count()) return "kampanye-tanpa-jenis-pakaian";
+          if (await page.getByTestId("halaman-404").count()) return "404";
+          return "belum-termuat";
+        },
+        {
+          timeout: 20000,
+          message:
+            "halaman pengisian tidak menampilkan tabel ukuran — nilai di bawah menamai sebabnya",
+        },
+      )
+      .toBe("tabel");
+    await expect(tabel).toBeVisible();
   });
 
   test("another satker's roster is not reachable", async ({ request }) => {

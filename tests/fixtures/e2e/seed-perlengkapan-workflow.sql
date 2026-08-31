@@ -341,6 +341,25 @@ ON CONFLICT (id) DO UPDATE SET
   spesifikasi_nama = EXCLUDED.spesifikasi_nama,
   spesifikasi_ukuran_group = EXCLUDED.spesifikasi_ukuran_group;
 
+-- The SAME items for the fill-in campaign (…c1). Without them the pengisian
+-- page renders "Pengajuan ini belum memuat satu pun jenis pakaian" and no size
+-- table at all — correctly, because a campaign with no clothing types is a
+-- campaign nobody can fill in. Only …c2 had items, so the fixture described a
+-- campaign that could be reported on but never filled, and the roster page had
+-- nothing to draw.
+INSERT INTO perlengkapan.pengajuan_pakaian_dinas_pakaian
+  (id, pengajuan_id, jenis_pakaian_id, jenis_pakaian_nama, spesifikasi_id, spesifikasi_nama, spesifikasi_ukuran_group)
+VALUES
+  ('d1000000-0000-4d00-8d00-00000000b101', 'd1000000-0000-4d00-8d00-0000000000c1', 'd1000000-0000-4d00-8d00-000000000001', 'PDH E2E', 'd1000000-0000-4d00-8d00-00000000f001', 'Kemeja PDH E2E', 'BAJU'),
+  ('d1000000-0000-4d00-8d00-00000000b102', 'd1000000-0000-4d00-8d00-0000000000c1', 'd1000000-0000-4d00-8d00-000000000002', 'PDL E2E', 'd1000000-0000-4d00-8d00-00000000f002', 'Kemeja PDL E2E', 'BAJU')
+ON CONFLICT (id) DO UPDATE SET
+  pengajuan_id = EXCLUDED.pengajuan_id,
+  jenis_pakaian_id = EXCLUDED.jenis_pakaian_id,
+  jenis_pakaian_nama = EXCLUDED.jenis_pakaian_nama,
+  spesifikasi_id = EXCLUDED.spesifikasi_id,
+  spesifikasi_nama = EXCLUDED.spesifikasi_nama,
+  spesifikasi_ukuran_group = EXCLUDED.spesifikasi_ukuran_group;
+
 -- Every (pegawai × item) has a size, so an unfiltered rekap has 2 rows per item
 -- and each filter can be seen to cut the count.
 INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran

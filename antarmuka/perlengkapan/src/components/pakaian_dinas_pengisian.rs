@@ -247,7 +247,10 @@ fn halaman(
         <SectionCard title="Daftar Pegawai">
             {if pakaian.is_empty() {
                 view! {
-                    <p class="rounded-lg border border-warning-500/20 bg-warning-500/10 px-3 py-2 text-sm text-warning-300">
+                    <p
+                        data-testid="pengisian-tanpa-jenis-pakaian"
+                        class="rounded-lg border border-warning-500/20 bg-warning-500/10 px-3 py-2 text-sm text-warning-300"
+                    >
                         "Pengajuan ini belum memuat satu pun jenis pakaian, jadi tidak ada ukuran yang bisa diisi. Hubungi pengelola pusat."
                     </p>
                 }
