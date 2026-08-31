@@ -225,7 +225,29 @@ pub fn AsetPicker(
     /// Dipanggil dengan aset terpilih, atau `None` saat pilihan dibatalkan.
     #[prop(into)]
     on_pick: Callback<Option<BankAsetItem>>,
+    /// Pembeda DOM ketika satu halaman memasang lebih dari satu pemilih.
+    ///
+    /// Usulan pemakaian dan penghapusan boleh memuat beberapa BMN, jadi tiap
+    /// baris item memasang pemilihnya sendiri. Tanpa pembeda, `id`/`for`
+    /// menjadi kembar — label baris kedua menunjuk kotak baris pertama — dan
+    /// `data-testid` kembar membuat locator Playwright gagal dalam mode ketat.
+    /// Default `"aset"` mempertahankan penamaan pemilih tunggal yang sudah
+    /// dipakai spesifikasi e2e.
+    #[prop(into, optional)]
+    slug: Option<String>,
+    /// Label kotak pencarian; default `"Cari BMN"`.
+    #[prop(into, optional)]
+    label: Option<String>,
 ) -> impl IntoView {
+    // Show memanggil ulang children maupun fallback-nya, sehingga nilai tetap
+    // ini disimpan sekali dan diambil per pemanggilan.
+    let slug = StoredValue::new(slug.unwrap_or_else(|| "aset".to_string()));
+    let label = StoredValue::new(label.unwrap_or_else(|| "Cari BMN".to_string()));
+    let id_cari = StoredValue::new(format!("{}-cari", slug.get_value()));
+    let id_terpilih = StoredValue::new(format!("{}-terpilih", slug.get_value()));
+    let id_hasil = StoredValue::new(format!("{}-hasil", slug.get_value()));
+    let id_kosong = StoredValue::new(format!("{}-kosong", slug.get_value()));
+
     let (query, set_query) = signal(String::new());
     let (results, set_results) = signal(Vec::<BankAsetItem>::new());
     let (chosen, set_chosen) = signal(None::<BankAsetItem>);
@@ -289,7 +311,7 @@ pub fn AsetPicker(
                         // substring dan mengabaikan huruf besar-kecil, sehingga
                         // pernah lulus sambil membaca elemen lain.
                         <div
-                            data-testid="aset-terpilih"
+                            data-testid=id_terpilih.get_value()
                             class="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4"
                         >
                             <div class="flex items-start justify-between gap-3">
@@ -321,15 +343,18 @@ pub fn AsetPicker(
                 }
             >
                 <div>
-                    <label class="mb-1 block text-sm font-medium text-slate-300" for="aset-cari">
-                        "Cari BMN"
+                    <label
+                        class="mb-1 block text-sm font-medium text-slate-300"
+                        for=id_cari.get_value()
+                    >
+                        {move || label.get_value()}
                     </label>
                     <div class="relative">
                         <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
                             <AppIcon icon=MAGNIFYING_GLASS size=16 />
                         </span>
                         <input
-                            id="aset-cari"
+                            id=id_cari.get_value()
                             class=format!("{FIELD} pl-9")
                             placeholder="Ketik nama barang, kode barang, NUP, atau merk — misal: station wagon"
                             prop:value=move || query.get()
@@ -364,7 +389,7 @@ pub fn AsetPicker(
 
                 <Show when=move || searched.get() && results.get().is_empty() && !busy.get()>
                     <p
-                        data-testid="aset-kosong"
+                        data-testid=id_kosong.get_value()
                         class="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-slate-400"
                     >
                         "Tidak ada BMN yang cocok di lingkup satker Anda."
@@ -373,7 +398,7 @@ pub fn AsetPicker(
 
                 <Show when=move || !results.get().is_empty()>
                     <ul
-                        data-testid="aset-hasil"
+                        data-testid=id_hasil.get_value()
                         class="max-h-72 divide-y divide-white/[0.06] overflow-y-auto rounded-xl border border-white/[0.06] bg-surface-panel"
                     >
                         <For

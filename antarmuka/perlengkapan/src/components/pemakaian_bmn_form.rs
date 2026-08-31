@@ -6,7 +6,8 @@
 //! - This form is ONLY accessible by Operator Satker
 //! - Operator Satker creates permits ON BEHALF OF employees (pegawai)
 //! - There is NO self-service for employees in perlengkapan domain
-//! - Operator Satker inputs pegawai NIP and name manually or selects from dropdown
+//! - Operator Satker enters the pegawai's NIP and the identity fills itself
+//!   from `integrasi.mysimkari_pegawai`; the same holds for every BMN row
 //!
 //! Requirements: REQ-P001, REQ-P002, REQ-P014
 
@@ -24,6 +25,44 @@ use crate::components::reference_picker::{AsetPicker, PegawaiPicker, merk_tipe};
 use leptos_router::hooks::use_navigate;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{CHECK_CIRCLE, PAPER_PLANE_TILT, PLUS, SPINNER, WARNING_CIRCLE, X};
+
+/// Satu baris "BMN tambahan".
+///
+/// Isi baris tinggal di sinyalnya sendiri dan daftar hanya menyimpan kuncinya.
+/// Sebelumnya daftar dan isi berbagi satu `Vec` yang dirender lewat indeks
+/// posisi, dan itu bisa dibuktikan salah: isi dua baris "AAA" dan "BBB", lalu
+/// hapus baris pertama — baris yang tersisa TETAP MENAMPILKAN "AAA", padahal
+/// yang dikirim ke server adalah "BBB". Layar dan muatan berbeda. (Leptos
+/// memakai ulang simpul DOM saat membangun ulang, dan kotak-kotak itu tak
+/// punya `prop:value`, jadi tak ada yang menimpa teks baris yang dihapus.)
+/// Dengan `For` berkunci, identitas melekat pada barisnya, bukan pada
+/// posisinya.
+#[derive(Clone, Copy)]
+struct BarisBmnTambahan {
+    kunci: usize,
+    isi: RwSignal<CreateBmnItemRequest>,
+}
+
+/// Baris kosong — bentuknya sama dengan yang dikirim ke server saat baris baru
+/// ditambahkan dan saat pilihannya dibatalkan.
+fn baris_kosong() -> CreateBmnItemRequest {
+    CreateBmnItemRequest {
+        bmn_nup: String::new(),
+        bmn_kode_barang: String::new(),
+        bmn_nama_barang: String::new(),
+        bmn_merk: None,
+        bmn_tahun_perolehan: None,
+        bmn_kondisi: None,
+        detail_bmn: None,
+        keterangan: None,
+    }
+}
+
+/// String kosong bukan nilai; SIMAN memakainya untuk "tidak tercatat".
+fn bukan_kosong(s: String) -> Option<String> {
+    let s = s.trim().to_string();
+    if s.is_empty() { None } else { Some(s) }
+}
 
 #[component]
 pub fn PemakaianBmnForm() -> impl IntoView {
@@ -80,8 +119,11 @@ pub fn PemakaianBmnForm() -> impl IntoView {
     });
 
     // Additional BMN items (multi-BMN per pegawai)
-    let (additional_bmn_items, set_additional_bmn_items) =
-        signal::<Vec<CreateBmnItemRequest>>(vec![]);
+    let baris_tambahan = RwSignal::new(Vec::<BarisBmnTambahan>::new());
+    // Kunci baris harus tetap melekat pada barisnya walau baris di atasnya
+    // dihapus, jadi ia dihitung maju dan tidak pernah dipakai ulang — indeks
+    // posisi akan menggeser identitas baris dan menukar isi dua pemilih.
+    let kunci_berikutnya = StoredValue::new(0usize);
 
     // Common fields
     let (tanggal_mulai, set_tanggal_mulai) = signal("".to_string());
@@ -300,7 +342,11 @@ pub fn PemakaianBmnForm() -> impl IntoView {
             file_pendukung: None,
             is_renewal: None,
             previous_permit_id: None,
-            additional_bmn_items: additional_bmn_items.get(),
+            additional_bmn_items: baris_tambahan
+                .get()
+                .iter()
+                .map(|baris| baris.isi.get())
+                .collect(),
         };
 
         let navigate = navigate.clone();
@@ -631,7 +677,14 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     />
                 </div>
 
-                // Additional BMN Items (multi-BMN per pegawai)
+                // BMN tambahan — tiap baris memilih dari SIMAN, tidak diketik.
+                //
+                // Barisnya dulu tiga isian bebas: kode barang, nama barang, NUP
+                // — ketiganya ada di `integrasi.siman_aset`, dan ketiganya
+                // diketik ulang. Kini barisnya memakai pemilih yang sama dengan
+                // BMN utama, jadi merk, tahun perolehan, dan kondisi ikut
+                // terisi; ketiganya dulu selalu dikirim `None` karena operator
+                // memang tak punya tempat untuk mengisinya.
                 <div class="border-t pt-6">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg font-semibold text-slate-100">
@@ -642,21 +695,19 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                         </h3>
                         <button
                             type="button"
+                            data-testid="tambah-bmn"
                             class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 flex items-center gap-1"
                             on:click=move |_| {
-                                let mut items = additional_bmn_items.get();
-                                items
-                                    .push(CreateBmnItemRequest {
-                                        bmn_nup: String::new(),
-                                        bmn_kode_barang: String::new(),
-                                        bmn_nama_barang: String::new(),
-                                        bmn_merk: None,
-                                        bmn_tahun_perolehan: None,
-                                        bmn_kondisi: None,
-                                        detail_bmn: None,
-                                        keterangan: None,
+                                let kunci = kunci_berikutnya.get_value();
+                                kunci_berikutnya.set_value(kunci + 1);
+                                baris_tambahan
+                                    .update(|daftar| {
+                                        daftar
+                                            .push(BarisBmnTambahan {
+                                                kunci,
+                                                isi: RwSignal::new(baris_kosong()),
+                                            });
                                     });
-                                set_additional_bmn_items.set(items);
                             }
                         >
                             <AppIcon icon=PLUS />
@@ -664,94 +715,59 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                         </button>
                     </div>
 
-                    {move || {
-                        let items = additional_bmn_items.get();
-                        if items.is_empty() {
-                            view! { <div></div> }.into_any()
-                        } else {
-                            view! {
-                                <div class="space-y-3">
-                                    {items
-                                        .into_iter()
-                                        .enumerate()
-                                        .map(|(idx, _item)| {
-                                            view! {
-                                                <div class="p-4 bg-white/[0.03] rounded-lg border relative">
-                                                    <button
-                                                        type="button"
-                                                        class="absolute top-2 right-2 text-danger-400 hover:text-red-700"
-                                                        on:click=move |_| {
-                                                            let mut items = additional_bmn_items.get();
-                                                            if idx < items.len() {
-                                                                items.remove(idx);
-                                                                set_additional_bmn_items.set(items);
-                                                            }
-                                                        }
-                                                    >
-                                                        <AppIcon icon=X />
-                                                    </button>
-                                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                                        <div>
-                                                            <label class="block text-xs font-medium text-slate-400 mb-1">
-                                                                "Kode Barang"
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                class="w-full px-3 py-1.5 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                                                placeholder="Kode barang"
-                                                                on:input=move |ev| {
-                                                                    let mut items = additional_bmn_items.get();
-                                                                    if let Some(item) = items.get_mut(idx) {
-                                                                        item.bmn_kode_barang = event_target_value(&ev);
-                                                                    }
-                                                                    set_additional_bmn_items.set(items);
-                                                                }
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label class="block text-xs font-medium text-slate-400 mb-1">
-                                                                "Nama Barang"
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                class="w-full px-3 py-1.5 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                                                placeholder="Nama barang"
-                                                                on:input=move |ev| {
-                                                                    let mut items = additional_bmn_items.get();
-                                                                    if let Some(item) = items.get_mut(idx) {
-                                                                        item.bmn_nama_barang = event_target_value(&ev);
-                                                                    }
-                                                                    set_additional_bmn_items.set(items);
-                                                                }
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label class="block text-xs font-medium text-slate-400 mb-1">
-                                                                "NUP"
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                class="w-full px-3 py-1.5 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                                                placeholder="NUP"
-                                                                on:input=move |ev| {
-                                                                    let mut items = additional_bmn_items.get();
-                                                                    if let Some(item) = items.get_mut(idx) {
-                                                                        item.bmn_nup = event_target_value(&ev);
-                                                                    }
-                                                                    set_additional_bmn_items.set(items);
-                                                                }
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
+                    <div class="space-y-3">
+                        <For
+                            each=move || baris_tambahan.get()
+                            key=|baris| baris.kunci
+                            children=move |baris| {
+                                let isi = baris.isi;
+                                let on_pick = Callback::new(move |picked: Option<BankAsetItem>| {
+                                    isi.update(|item| match picked {
+                                        Some(aset) => {
+                                            item.bmn_kode_barang = aset
+                                                .kode_barang
+                                                .clone()
+                                                .unwrap_or_default();
+                                            item.bmn_nama_barang = aset
+                                                .nama_aset
+                                                .clone()
+                                                .unwrap_or_default();
+                                            item.bmn_nup = aset.no_aset.clone();
+                                            item.bmn_merk = bukan_kosong(merk_tipe(&aset));
+                                            item.bmn_tahun_perolehan = tahun_perolehan(&aset)
+                                                .parse()
+                                                .ok();
+                                            item.bmn_kondisi = aset
+                                                .kondisi
+                                                .clone()
+                                                .and_then(bukan_kosong);
+                                        }
+                                        None => *item = baris_kosong(),
+                                    });
+                                });
+                                let slug = format!("aset-tambahan-{}", baris.kunci);
+                                let label = "Cari BMN tambahan".to_string();
+                                view! {
+                                    <div class="relative rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                                        <button
+                                            type="button"
+                                            aria-label="Hapus BMN tambahan"
+                                            class="absolute top-2 right-2 text-danger-400 hover:text-red-700"
+                                            on:click=move |_| {
+                                                baris_tambahan
+                                                    .update(|daftar| {
+                                                        daftar.retain(|lain| lain.kunci != baris.kunci)
+                                                    });
                                             }
-                                        })
-                                        .collect::<Vec<_>>()}
-                                </div>
+                                        >
+                                            <AppIcon icon=X />
+                                        </button>
+                                        <AsetPicker slug=slug label=label on_pick=on_pick />
+                                    </div>
+                                }
                             }
-                                .into_any()
-                        }
-                    }}
+                        />
+                    </div>
                 </div>
 
                 // Submit buttons
