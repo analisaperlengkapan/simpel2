@@ -158,10 +158,19 @@ pub fn OptimizedImage(
 
 /// Avatar component with optimized image loading
 ///
-/// Specialized component for user avatars with fallback to initials
+/// Specialized component for user avatars with fallback to initials.
+///
+/// The fallback used to be `bg-primary text-white`, and `primary` is defined in
+/// NEITHER tailwind config — not portal's, not perlengkapan's. So the circle
+/// behind the initials was transparent everywhere this component was used,
+/// which happened to be nowhere: it had no callers at all. The palette now uses
+/// tokens both apps actually declare.
 #[component]
 pub fn Avatar(
-    /// Avatar image URL (optional)
+    /// Avatar image URL. An empty string counts as absent, so a caller holding
+    /// an `Option<String>` can pass `unwrap_or_default()` without the component
+    /// rendering `<img src="">`, firing a doomed request, and only then falling
+    /// back to the initials.
     #[prop(optional, into)]
     src: Option<String>,
     /// User name for fallback initials
@@ -194,19 +203,26 @@ pub fn Avatar(
 
     view! {
         <div class=format!(
-            "relative inline-flex items-center justify-center rounded-full overflow-hidden bg-primary text-white font-semibold {} {}",
+            "relative inline-flex items-center justify-center rounded-full overflow-hidden border border-white/10 bg-navy-800 text-slate-100 font-semibold {} {}",
             size_class,
             class,
         )>
             {move || {
-                if let Some(ref image_src) = src {
+                if let Some(image_src) = src.as_deref().filter(|s| !s.trim().is_empty()) {
                     if !image_error.get() {
                         view! {
                             <img
-                                src=image_src.clone()
+                                src=image_src.to_string()
                                 alt=name.clone()
                                 loading="lazy"
                                 decoding="async"
+                                // Memusat, bukan `object-top`. Dicoba
+                                // keduanya terhadap pasfoto MySIMKARI yang
+                                // nyata (1103x1600): menjangkar ke atas
+                                // menampilkan latar di atas kepala lalu
+                                // memotong wajah ke bawah — lebih buruk, bukan
+                                // lebih baik. Diputuskan dari screenshot, bukan
+                                // dari dugaan tentang letak wajah.
                                 class="w-full h-full object-cover"
                                 on:error=move |_| set_image_error.set(true)
                             />

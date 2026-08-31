@@ -1,5 +1,6 @@
 {{- if .Values.portal.enabled }}
 {{- $cspConnect := join " " .Values.portal.csp.connectSrc -}}
+{{- $cspImg := join " " .Values.portal.csp.imgSrc -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -28,8 +29,13 @@ data:
         gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/javascript application/xml+rss application/json application/wasm;
 
         # Common security headers reused per location (add_header tidak diwarisi).
+        #
+        # `img-src` diturunkan dari values, sama seperti `connect-src`. Ia dulu
+        # `'self' data:` mati, dan itu memblokir foto pegawai MySIMKARI TANPA
+        # satu pun pesan yang terlihat — browser menolak gambarnya diam-diam.
+        # Hostnya disebut eksplisit, bukan dibuka lebar dengan `https:`.
         map $sent_http_content_type $simpel_csp {
-            default "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src {{ $cspConnect }}; font-src 'self'; frame-ancestors 'self'";
+            default "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src {{ $cspImg }}; connect-src {{ $cspConnect }}; font-src 'self'; frame-ancestors 'self'";
         }
 
         # Sama dengan perlengkapan: cegah nginx leak port internal 8080 ke

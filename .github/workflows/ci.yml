@@ -325,6 +325,17 @@ jobs:
       - name: Comparisons in view! attributes are braced
         shell: bash
         run: python3 ./infra/scripts/check-view-attr-comparisons.py
+      # Foto pegawai disajikan MySIMKARI, bukan SIMPel, dan CSP yang menyajikan
+      # portal berbunyi `img-src 'self' data:` — host itu diblokir TANPA satu
+      # pun pesan yang terlihat: tak ada galat di layar, tak ada permintaan
+      # gagal di log server, hanya gambar yang tidak muncul. Kelas kegagalan
+      # yang sama dengan NetworkPolicy yang menjatuhkan paket diam-diam.
+      # Daftar hostnya diturunkan dari konstanta di `lib/ui`, bukan ditulis
+      # tangan — daftar tulis-tangan tidak ikut tumbuh saat host baru
+      # ditambahkan.
+      - name: CSP allows every external host the code references
+        shell: bash
+        run: python3 ./infra/scripts/check-csp-allows-referenced-hosts.py
       # Label status pernah disalin ke frontend sebagai `match` atas nama
       # state. Salinannya jadi EMPAT, masing-masing dengan celah berbeda:
       # kedua state V035 (`SUBMITTED_APPROVER_SATKER`, `REVISI_OPERATOR`) dan

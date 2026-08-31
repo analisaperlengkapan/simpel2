@@ -900,8 +900,14 @@ portal:
   pdb: { enabled: false, minAvailable: 0 }
   terminationGracePeriodSeconds: 30
   tmpVolumeSizeLimit: 32Mi
-  # CSP `connect-src` host list — diturunkan ke nginx config map.
+  # CSP host list — diturunkan ke nginx config map.
   csp:
+    # Foto pegawai disajikan MySIMKARI, bukan SIMPel. Tanpa host ini di
+    # `img-src`, browser menolak gambarnya tanpa pesan apa pun di layar.
+    imgSrc:
+      - "'self'"
+      - "data:"
+      - "https://media-mysimkari.kejaksaan.go.id"
     connectSrc:
       - "'self'"
       - "https://*.kejaksaan.go.id"

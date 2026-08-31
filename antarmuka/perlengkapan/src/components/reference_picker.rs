@@ -38,7 +38,9 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use lib_ui::components::foto_pegawai::foto_pegawai_url;
 use lib_ui::components::icon::AppIcon;
+use lib_ui::components::optimized_image::{Avatar, AvatarSize};
 use phosphor_leptos::{ARROW_COUNTER_CLOCKWISE, MAGNIFYING_GLASS, WARNING};
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
@@ -176,11 +178,32 @@ pub fn PegawaiPicker(
                     .map(|resp| {
                         let p = resp.pegawai.clone();
                         let aktif = resp.pemakaian_aktif.len();
+                        let nama = p.nama.clone().unwrap_or_else(|| "-".to_string());
                         view! {
-                            <div class="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
-                                <p class="text-base font-semibold text-slate-100">
-                                    {p.nama.clone().unwrap_or_else(|| "-".to_string())}
-                                </p>
+                            // `data-testid` seperti pada AsetPicker. Kartu ini
+                            // tak punya satu pun, sehingga tak ada locator yang
+                            // bisa menunjuknya — dan `getByText` di sini sudah
+                            // pernah lulus sambil membaca elemen lain.
+                            <div
+                                data-testid="pegawai-terpilih"
+                                class="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4"
+                            >
+                                // Foto pegawai dari MySIMKARI. Kolomnya sudah
+                                // ada, sinkronisasi sudah menulisnya, API sudah
+                                // mengembalikannya — tapi tak pernah ada satu
+                                // pun `<img>` yang menampilkannya di kedua
+                                // frontend. Operator melihat wajah orang yang
+                                // ia ajukan, bukan hanya deretan angka NIP.
+                                <div class="flex items-start gap-4">
+                                    <Avatar
+                                        src=foto_pegawai_url(p.foto.as_deref()).unwrap_or_default()
+                                        name=nama.clone()
+                                        size=AvatarSize::XLarge
+                                    />
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-base font-semibold text-slate-100">{nama}</p>
+                                    </div>
+                                </div>
                                 <dl class="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
                                     <ReadOnlyField label="NIP" value=p.nip.clone() />
                                     <ReadOnlyField
