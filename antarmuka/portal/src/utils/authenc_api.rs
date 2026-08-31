@@ -69,6 +69,11 @@ pub struct UserInfo {
     pub last_name: Option<String>,
     pub phone: Option<String>,
     pub avatar: Option<String>,
+    /// MySIMKARI photo FILE NAME (not a URL) — build the URL with
+    /// `lib_ui::foto_pegawai_url`. Distinct from `avatar`, which is an IAM
+    /// concept nothing ever populates.
+    #[serde(default)]
+    pub foto: Option<String>,
     /// Raw satker (work unit) code
     #[serde(default)]
     pub satker_code: Option<String>,

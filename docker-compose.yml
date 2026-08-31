@@ -96,6 +96,13 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       DB_NAME: dbsimpelv2
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/dbsimpelv2
+      # The cluster gives authenc this (values.yaml, `authenc.env`); compose
+      # never did, so `state.integrasi_client` was None in every test run and
+      # the whole fetch-at-read path — `satuan_kerja`, and now the employee
+      # photo — was exercised nowhere. `/auth/me` still answers 200 without it,
+      # just with a raw satker code and no photo, which is why nothing noticed.
+      # http:// scheme required: tonic parses this as a URI.
+      INTEGRASI_GRPC_URL: http://layanan-integrasi:50052
     depends_on:
       postgres:
         condition: service_healthy

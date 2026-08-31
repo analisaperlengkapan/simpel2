@@ -128,6 +128,20 @@ pub struct UserProfileResponse {
     /// Nama satuan kerja (human-readable label derived from satker_code)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub satuan_kerja: Option<String>,
+    /// MySIMKARI photo FILE NAME, resolved from integrasi at read time.
+    ///
+    /// Deliberately NOT `avatar`: `avatar` is an IAM concept (an image the
+    /// user uploads here) and has always been `None` because nothing uploads
+    /// one. This is kepegawaian data, owned by integrasi, and it is the same
+    /// field name perlengkapan's `PegawaiInfo` already carries — one name for
+    /// one thing across both frontends. The frontends build the URL from it
+    /// (`lib_ui::foto_pegawai_url`), so the media host stays in one place.
+    ///
+    /// Resolved per request rather than stored: authenc is IAM-pure, and a
+    /// `foto` column here would be a second copy of integrasi's data
+    /// (SSoT — consumers fetch at read).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub foto: Option<String>,
     /// Primary role
     pub role: String,
     /// Permissions list
@@ -169,6 +183,79 @@ const SATKER_CACHE_ERROR_TTL: std::time::Duration = std::time::Duration::from_se
 /// This prevents unbounded memory growth over the lifetime of a long-running
 /// server.
 const SATKER_CACHE_MAX_ENTRIES: usize = 2048;
+
+/// A cached photo lookup: `(file_name, inserted_at, is_authoritative)`.
+/// An empty `file_name` means "this employee has no photo", which is a real
+/// answer and cached as one.
+type FotoCacheEntry = (String, std::time::Instant, bool);
+type FotoCacheMap = std::collections::HashMap<String, FotoCacheEntry>;
+
+static FOTO_CACHE: std::sync::LazyLock<tokio::sync::RwLock<FotoCacheMap>> =
+    std::sync::LazyLock::new(|| tokio::sync::RwLock::new(std::collections::HashMap::new()));
+
+/// Resolve an employee's MySIMKARI photo file name via integrasi.
+///
+/// Same shape as [`resolve_satuan_kerja`], and for the same reason: `/auth/me`
+/// is hit on every page load, so an uncached gRPC round trip per call would
+/// put integrasi on the critical path of the portal rendering at all. A
+/// failure resolves to "no photo" — the avatar falls back to initials, which
+/// is the correct degradation for a decorative field and never blocks login.
+async fn resolve_foto_pegawai(
+    integrasi_client: &Option<std::sync::Arc<authenc_federation::IntegrasiGrpcClient>>,
+    nip: Option<&str>,
+) -> Option<String> {
+    let nip = nip.map(str::trim).filter(|n| !n.is_empty())?;
+
+    {
+        let cache = FOTO_CACHE.read().await;
+        if let Some((foto, inserted_at, is_authoritative)) = cache.get(nip) {
+            let ttl = if *is_authoritative {
+                SATKER_CACHE_TTL
+            } else {
+                SATKER_CACHE_ERROR_TTL
+            };
+            if inserted_at.elapsed() < ttl {
+                return Some(foto.clone()).filter(|f| !f.is_empty());
+            }
+        }
+    }
+
+    let (resolved, authoritative) = if let Some(client) = integrasi_client {
+        match client.get_pegawai_by_nip(nip).await {
+            Ok(Some(pegawai)) => (pegawai.foto.trim().to_string(), true),
+            Ok(None) => (String::new(), true),
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    "Failed to resolve pegawai photo from integrasi; falling back to initials"
+                );
+                (String::new(), false)
+            }
+        }
+    } else {
+        (String::new(), false)
+    };
+
+    {
+        let mut cache = FOTO_CACHE.write().await;
+        cache.insert(
+            nip.to_string(),
+            (resolved.clone(), std::time::Instant::now(), authoritative),
+        );
+        if cache.len() > SATKER_CACHE_MAX_ENTRIES {
+            cache.retain(|_, (_, inserted_at, is_auth)| {
+                let ttl = if *is_auth {
+                    SATKER_CACHE_TTL
+                } else {
+                    SATKER_CACHE_ERROR_TTL
+                };
+                inserted_at.elapsed() < ttl
+            });
+        }
+    }
+
+    Some(resolved).filter(|f| !f.is_empty())
+}
 
 /// Resolve a raw satker_code to the human-readable `nama_satker` via the
 /// integrasi gRPC service.  Falls back to returning the raw code when the
@@ -872,6 +959,7 @@ pub async fn get_current_user_handler(
             };
             let satuan_kerja =
                 resolve_satuan_kerja(&state.integrasi_client, &user.satker_code).await;
+            let foto = resolve_foto_pegawai(&state.integrasi_client, user.nip.as_deref()).await;
 
             (
                 axum::http::StatusCode::OK,
@@ -889,6 +977,7 @@ pub async fn get_current_user_handler(
                     avatar: None,
                     satker_code: Some(user.satker_code).filter(|s| !s.is_empty()),
                     satuan_kerja,
+                    foto,
                     role: user
                         .roles
                         .first()
@@ -1023,6 +1112,7 @@ pub async fn update_profile_handler(
         _ => user.nama.clone(),
     };
     let satuan_kerja = resolve_satuan_kerja(&state.integrasi_client, &user.satker_code).await;
+    let foto = resolve_foto_pegawai(&state.integrasi_client, user.nip.as_deref()).await;
 
     Ok(Json(UserProfileResponse {
         id: user.id,
@@ -1038,6 +1128,7 @@ pub async fn update_profile_handler(
         avatar: None,
         satker_code: Some(user.satker_code).filter(|s| !s.is_empty()),
         satuan_kerja,
+        foto,
         role: user
             .roles
             .first()

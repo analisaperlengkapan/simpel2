@@ -319,6 +319,14 @@ jobs:
       - name: Frontend query parameters reach a backend Query struct
         shell: bash
         run: python3 ./infra/scripts/check-fe-query-params-reach-backend.py
+      # authenc keeps its own copies of three services' .proto files, because
+      # its Dockerfile copies only `layanan/authenc` into the build context.
+      # Adding a field to the owner and not the copy is a one-way silent break:
+      # prost ignores unknown fields, so a consumer built from a stale copy
+      # simply never receives the value and nothing fails to compile.
+      - name: Duplicated .proto copies agree
+        shell: bash
+        run: python3 ./infra/scripts/check-proto-copies-agree.py
       # `view!` tokenises `>` as the end of the opening tag — inside an
       # attribute value too. So `prop:disabled=move || page.get() >= total`
       # ends the tag at the `>`, and every attribute after it becomes a text

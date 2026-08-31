@@ -4,18 +4,19 @@ use crate::components::layout::main_layout::MainLayout;
 use crate::features::auth::AuthService;
 use leptos::prelude::*;
 use leptos_fetch::QueryClient;
+use lib_ui::components::{Avatar, AvatarSize, foto_pegawai_url};
 use serde::Deserialize;
 
 /// `()`-keyed wrapper around `fetch_profile` so the profile page,
 /// the navbar header, and any future consumer of /me share a
 /// single in-flight request and a single cached payload.
-async fn query_profile(_: ()) -> Result<ProfileData, String> {
+pub(crate) async fn query_profile(_: ()) -> Result<ProfileData, String> {
     fetch_profile().await
 }
 
 /// Profile response from /api/v1/auth/me
 #[derive(Clone, Debug, Deserialize)]
-struct ProfileData {
+pub(crate) struct ProfileData {
     #[allow(dead_code)]
     id: String,
     username: String,
@@ -35,6 +36,11 @@ struct ProfileData {
     satker_code: Option<String>,
     #[serde(default)]
     satuan_kerja: Option<String>,
+    /// MySIMKARI photo file name, resolved by authenc from integrasi at read
+    /// time. `#[serde(default)]` because a user with no NIP has no photo and
+    /// authenc omits the field entirely.
+    #[serde(default)]
+    foto: Option<String>,
     role: String,
     #[serde(default)]
     email_verified: bool,
@@ -72,6 +78,65 @@ async fn fetch_profile() -> Result<ProfileData, String> {
     {
         let _ = token;
         Err("Profile fetch not supported outside WASM".into())
+    }
+}
+
+/// The signed-in employee's MySIMKARI photo, falling back to their initials.
+///
+/// Mounted by both the profile header and the navbar. It reads the SAME
+/// `()`-keyed `/me` query they already share, so putting the photo in the
+/// navbar costs no extra request — and the URL is built by
+/// `lib_ui::foto_pegawai_url`, the one place that knows the media host (which
+/// is also where `check-csp-allows-referenced-hosts.py` derives the CSP
+/// allow-list from).
+#[component]
+pub(crate) fn PegawaiAvatar(
+    /// Rendered size; the navbar uses a small circle, the profile header a
+    /// large one.
+    #[prop(default = AvatarSize::Medium)]
+    size: AvatarSize,
+    /// Extra classes for the circle (the navbar draws a gold ring).
+    #[prop(optional, into)]
+    class: Option<String>,
+) -> impl IntoView {
+    let client: QueryClient = expect_context();
+    let profile = client.local_resource(query_profile, || ());
+    let class = StoredValue::new(class.unwrap_or_default());
+
+    view! {
+        <Suspense fallback=move || {
+            view! {
+                <Avatar
+                    name="".to_string()
+                    size=size
+                    class=class.get_value()
+                />
+            }
+        }>
+            {move || {
+                let (foto, nama) = profile
+                    .get()
+                    .and_then(|r| r.ok())
+                    .map(|d| {
+                        let nama = d
+                            .nama
+                            .clone()
+                            .or(d.name.clone())
+                            .unwrap_or_else(|| d.username.clone());
+                        (d.foto.clone(), nama)
+                    })
+                    .unwrap_or((None, String::new()));
+
+                view! {
+                    <Avatar
+                        src=foto_pegawai_url(foto.as_deref()).unwrap_or_default()
+                        name=nama
+                        size=size
+                        class=class.get_value()
+                    />
+                }
+            }}
+        </Suspense>
     }
 }
 
@@ -119,6 +184,23 @@ pub fn ProfilePage() -> impl IntoView {
 
                                     view! {
                                         <div class="space-y-5">
+                                            // Who this is, with the face on it.
+                                            // The photo has been in
+                                            // `integrasi.mysimkari_pegawai.foto`
+                                            // all along; the identity page just
+                                            // never showed it.
+                                            <div class="flex items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                                                <PegawaiAvatar size=AvatarSize::XLarge />
+                                                <div class="min-w-0">
+                                                    <p class="text-lg font-semibold text-gray-900 dark:text-white truncate">
+                                                        {display_name.clone()}
+                                                    </p>
+                                                    <p class="text-sm text-gray-500 dark:text-gray-400 truncate">
+                                                        {display_nip.clone()}
+                                                    </p>
+                                                </div>
+                                            </div>
+
                                             // Identity
                                             <ProfileSection
                                                 title="Identitas"

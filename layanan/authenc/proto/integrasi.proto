@@ -366,6 +366,9 @@ message MysimkariPegawai {
   string telepon = 9;
   string status = 10;
   map<string, string> extra_fields = 11;
+  // MySIMKARI's photo FILE NAME, not a URL. Consumers build the URL from it
+  // (`lib_ui::foto_pegawai_url`).
+  string foto = 12;
 }
 
 // ===========================================================================
