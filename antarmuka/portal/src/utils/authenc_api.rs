@@ -925,6 +925,10 @@ impl AuthencApiClient {
             last_name: Some("User".to_string()),
             phone: None,
             avatar: None,
+            // A file name, matching the shape the real `/auth/me` returns —
+            // not a URL and not an empty string, both of which would let a
+            // consumer that mishandles either pass against this stub.
+            foto: Some("mock-pasfoto.jpg".to_string()),
             satker_code: Some("0100000".to_string()),
             satuan_kerja: Some("Bagian Umum".to_string()),
             role: "admin".to_string(),
