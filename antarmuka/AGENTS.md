@@ -423,7 +423,14 @@ The fetch flow is the same across both MFEs:
    query yang bisa dibaca backend (struct di balik ekstraktor `Query<...>`,
    mengikuti `serde(flatten)` dan menghormati `serde(rename)`) dan setiap nama
    parameter yang dirangkai FE ke dalam URL, lalu menggagalkan yang tak
-   berpasangan. Yang **tidak** ia periksa: apakah parameter itu milik struct di
+   berpasangan. Ia memindai **seluruh pohon FE**, bukan `src/api/`: portal
+   menaruh kliennya di `src/utils/authenc_api.rs`, jadi cakupan per-direktori
+   akan meliput perlengkapan saja — kegagalan cakupan-tulis-tangan yang sama
+   yang justru ingin dicegah penjaga ini. Ia juga memisahkan query string dari
+   **body form**: `"grant_type=…&code=…"` yang di-POST bursa token OAuth
+   terlihat identik dengan query string, jadi literal hanya dihitung bila
+   memuat `?` atau diawali `&` (bentuk *append*, yang justru bentuk bug di
+   atas). Yang **tidak** ia periksa: apakah parameter itu milik struct di
    balik path tersebut — memasangkan URL→rute→handler butuh tabel rute diparse
    dan path FE yang dirangkai saat runtime diselesaikan, dan turunan yang salah
    lebih buruk daripada tidak ada (lihat memori

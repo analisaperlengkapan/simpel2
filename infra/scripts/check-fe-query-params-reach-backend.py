@@ -46,7 +46,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
-FE_GLOBS = ("antarmuka/*/src/api/*.rs", "antarmuka/*/src/api/**/*.rs")
+# The WHOLE frontend tree, not `src/api/`: portal keeps its clients in
+# `src/utils/` (`authenc_api.rs`), so a scan scoped to `src/api/` would have
+# covered perlengkapan only and left every portal query parameter unguarded --
+# the same hand-written-scope failure this guard exists to prevent
+# (project_gate_scope_must_be_derived). Files that mention no `/api/` path are
+# skipped below, which keeps the widened scan from reading query-like strings
+# out of code that is not an API client.
+FE_GLOBS = ("antarmuka/*/src/**/*.rs",)
 BE_GLOBS = ("layanan/*/src/**/*.rs", "layanan/*/crates/*/src/**/*.rs")
 
 SKIP_DIRS = {"target", "node_modules", "dist", ".git"}
@@ -74,9 +81,9 @@ FIELD_RE = re.compile(
 SERDE_RENAME_RE = re.compile(r'serde\s*\(\s*[^)]*rename\s*=\s*"([^"]+)"')
 SERDE_ALIAS_RE = re.compile(r'serde\s*\(\s*[^)]*alias\s*=\s*"([^"]+)"')
 
-# `?name=` / `&name=` inside a Rust string literal. The frontend builds every
-# URL as a literal or a `format!`, so the NAMES are always spelled out even
-# when the values are placeholders.
+# `name=` inside the query part of a Rust string literal. The frontend builds
+# every URL as a literal or a `format!`, so the NAMES are always spelled out
+# even when the values are placeholders.
 FE_PARAM_RE = re.compile(r'[?&]([a-zA-Z_][a-zA-Z0-9_]*)=')
 
 # Rust line and block comments. Stripped before scanning so a parameter named
@@ -171,13 +178,39 @@ def backend_query_keys() -> set[str]:
     return keys, extracted
 
 
+def query_part(literal: str) -> str | None:
+    """The query portion of a string literal, or None if it carries none.
+
+    A literal counts when it contains `?` (a whole URL) or begins with `&`
+    (a fragment appended to a URL built elsewhere -- which is exactly how the
+    spesifikasi filter was sent, so dropping that form would blind the guard
+    to the bug it exists for).
+
+    A FORM BODY looks identical to a query string otherwise, and this is what
+    separates them: `"grant_type=authorization_code&code={}&..."` is posted as
+    `application/x-www-form-urlencoded` by the OAuth token exchange, has no
+    `?`, and does not start with `&`. Without this rule its fields read as
+    query parameters no `Query<...>` declares, and the guard would demand an
+    allowlist entry for correct code.
+    """
+    body = literal[1:-1]  # strip the surrounding quotes
+    if "?" in body:
+        return body[body.index("?") :]
+    if body.startswith("&"):
+        return body
+    return None
+
+
 def frontend_params() -> dict[str, list[str]]:
     """Query key -> the frontend files that send it."""
     found: dict[str, list[str]] = {}
     for path in _iter(FE_GLOBS):
         src = strip_comments(path.read_text(encoding="utf-8", errors="replace"))
         for literal in STRING_LITERAL_RE.findall(src):
-            for name in FE_PARAM_RE.findall(literal):
+            query = query_part(literal)
+            if query is None:
+                continue
+            for name in FE_PARAM_RE.findall(query):
                 rel = str(path.relative_to(ROOT))
                 found.setdefault(name, [])
                 if rel not in found[name]:
