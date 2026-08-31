@@ -42,6 +42,24 @@ const PD_API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/pakaian-dinas`;
  * reported `Cannot read properties of undefined (reading 'find')` three times
  * and never once printed the 401 that caused it.
  */
+/**
+ * The `data` object out of an `ApiResponse`, with the status asserted first.
+ * The list-shaped sibling is [`fetchRows`]; both exist so that no call site
+ * reaches for `.data` before knowing the request succeeded.
+ */
+async function fetchObject<T>(
+  request: APIRequestContext,
+  url: string,
+  token: string,
+  what: string,
+): Promise<T> {
+  const res = await request.get(url, { headers: { Authorization: `Bearer ${token}` } });
+  expect(res.ok(), `${what} (${res.status()}): ${await res.text()}`).toBeTruthy();
+  const body = await res.json();
+  expect(body.data, `${what} must carry a data object`).toBeTruthy();
+  return body.data as T;
+}
+
 async function fetchRows<T>(
   request: APIRequestContext,
   url: string,
@@ -53,6 +71,13 @@ async function fetchRows<T>(
   const body = await res.json();
   expect(Array.isArray(body.data), `${what} must return a paginated envelope`).toBeTruthy();
   return body.data as T[];
+}
+
+/** The subset of `RosterPengisian` these tests assert on. */
+interface Roster {
+  satker_kode: string;
+  dapat_diubah: boolean;
+  pegawai: Array<{ nip: string }>;
 }
 
 // ── Master + campaign + report pages render real data ───────────────────────
@@ -169,13 +194,13 @@ test.describe("Pakaian Dinas — pengisian ukuran per satker", () => {
     page,
     request,
   }) => {
-    const token = await apiLogin(request, credsFor(userFor("operator_a")));
-    const res = await request.get(
+    const token = await tokenFor(request, "operator_a");
+    const data = await fetchObject<Roster>(
+      request,
       `${PD_API}/pengajuan/${PENGAJUAN}/satker/${SATKER}/pegawai`,
-      { headers: { Authorization: `Bearer ${token}` } },
+      token,
+      "roster for the caller's own satker",
     );
-    expect(res.ok(), "roster endpoint must answer").toBeTruthy();
-    const data = (await res.json()).data;
     // Every person in the satker appears, whether or not they have been filled
     // in yet — a roster that only lists people already saved cannot be used to
     // add the ones who are missing.
@@ -190,7 +215,7 @@ test.describe("Pakaian Dinas — pengisian ukuran per satker", () => {
   test("another satker's roster is not reachable", async ({ request }) => {
     // 0200020 belongs to operator_b. Out of scope answers NotFound rather than
     // Forbidden: a 403 would confirm the row exists under another satker.
-    const token = await apiLogin(request, credsFor(userFor("operator_a")));
+    const token = await tokenFor(request, "operator_a");
     const res = await request.get(
       `${PD_API}/pengajuan/${PENGAJUAN}/satker/0200020/pegawai`,
       { headers: { Authorization: `Bearer ${token}` } },
@@ -201,12 +226,13 @@ test.describe("Pakaian Dinas — pengisian ukuran per satker", () => {
   test("a satker past its own stage cannot have sizes written", async ({ request }) => {
     // Jakpus on this campaign sits at 1004 (Diajukan ke Pusat). Writing must be
     // refused by the SERVER, not merely by a disabled button.
-    const token = await apiLogin(request, credsFor(userFor("operator_a")));
-    const roster = await request.get(
+    const token = await tokenFor(request, "operator_a");
+    const data = await fetchObject<Roster>(
+      request,
       `${PD_API}/pengajuan/${PENGAJUAN}/satker/${SATKER}/pegawai`,
-      { headers: { Authorization: `Bearer ${token}` } },
+      token,
+      "roster before asserting it is locked",
     );
-    const data = (await roster.json()).data;
     test.skip(data.dapat_diubah, "this campaign is still editable; nothing to assert here");
 
     const nip = data.pegawai[0]?.nip;
@@ -225,12 +251,13 @@ test.describe("Pakaian Dinas — pengisian ukuran per satker", () => {
     page,
     request,
   }) => {
-    const token = await apiLogin(request, credsFor(userFor("operator_a")));
-    const roster = await request.get(
+    const token = await tokenFor(request, "operator_a");
+    const data = await fetchObject<Roster>(
+      request,
       `${PD_API}/pengajuan/${PENGAJUAN}/satker/${SATKER}/pegawai`,
-      { headers: { Authorization: `Bearer ${token}` } },
+      token,
+      "roster before asserting the locked notice",
     );
-    const data = (await roster.json()).data;
     test.skip(data.dapat_diubah, "campaign still editable; the locked notice is not shown");
 
     await page.goto(ISI, { waitUntil: "domcontentloaded" });
