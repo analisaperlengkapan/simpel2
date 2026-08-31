@@ -535,11 +535,24 @@ impl PakaianDinasService {
             .ok_or_else(|| bad_request("Status aktivitas tidak valid"))?;
 
         match (current.clone(), action, role) {
-            // Pelaksana submits to validator
-            (AktivitasStatus::Input, "submit", "pelaksana") => {
+            // Satker mengajukan ke validator wilayah.
+            //
+            // Peran di sini dulu `"pelaksana"` — nama yang TIDAK ADA di IAM.
+            // Peran yang disemai hanya operator_satker, validator_satker,
+            // approver_satker, validator_wilayah, validator_pusat, dan admin;
+            // frontend pun tidak pernah menyebut "pelaksana". Akibatnya langkah
+            // satker pada alur ini tak terjangkau siapa pun: setiap "Ajukan"
+            // ditolak "Aksi 'submit' tidak valid untuk status 'Input'". Tes
+            // integrasi yang ada lolos hanya karena ia mengarang string peran
+            // itu sendiri di header — peran yang tak akan pernah diterbitkan
+            // IAM mana pun.
+            //
+            // `operator_satker` adalah peran yang benar-benar mengisi
+            // formulirnya. `admin` ikut diterima, seperti pada tahap validator.
+            (AktivitasStatus::Input, "submit", "operator_satker" | "admin") => {
                 Ok(AktivitasStatus::SubmitToValidator.to_i32())
             }
-            (AktivitasStatus::RevisiPelaksana, "submit", "pelaksana") => {
+            (AktivitasStatus::RevisiPelaksana, "submit", "operator_satker" | "admin") => {
                 Ok(AktivitasStatus::SubmitToValidator.to_i32())
             }
 
@@ -560,7 +573,7 @@ impl PakaianDinasService {
             }
 
             // Kejagung direct flow
-            (AktivitasStatus::StartKejagung, "submit", "pelaksana") => {
+            (AktivitasStatus::StartKejagung, "submit", "operator_satker" | "admin") => {
                 Ok(AktivitasStatus::SubmitToPusat.to_i32())
             }
 
@@ -961,14 +974,14 @@ mod tests {
     }
 
     #[test]
-    fn test_determine_next_status_pelaksana_submit() {
+    fn test_determine_next_status_operator_submit() {
         // Create a mock service (without actual repository)
         // In production, use mockall or similar for proper mocking
 
         // Test workflow transitions
         let test_cases = vec![
-            (1000, "submit", "pelaksana", 1001),
-            (1003, "submit", "pelaksana", 1001),
+            (1000, "submit", "operator_satker", 1001),
+            (1003, "submit", "operator_satker", 1001),
             (1001, "approve", "validator_wilayah", 1004),
             (1001, "reject", "validator_wilayah", 1003),
             (1004, "approve", "validator_pusat", 1008),
