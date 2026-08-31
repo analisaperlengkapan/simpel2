@@ -267,9 +267,16 @@ pub fn SpesifikasiPage() -> impl IntoView {
                                                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
                                                             "Keterangan"
                                                         </th>
-                                                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                                            "Aksi"
-                                                        </th>
+                                                        // Kolom aksi hanya ada
+                                                        // bila ada aksi: bagi
+                                                        // peran baca-saja ia
+                                                        // kolom kosong yang
+                                                        // tak pernah terisi.
+                                                        <Show when=move || is_admin>
+                                                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                                "Aksi"
+                                                            </th>
+                                                        </Show>
                                                     </tr>
                                                 </thead>
                                                 <tbody class="divide-y divide-white/[0.04]">
@@ -348,8 +355,8 @@ fn baris_spesifikasi(
             <td class="px-4 py-3 text-sm text-slate-400">
                 {item.deskripsi.clone().unwrap_or_else(|| "-".to_string())}
             </td>
-            <td class="px-4 py-3 text-right">
-                <Show when=move || is_admin>
+            <Show when=move || is_admin>
+                <td class="px-4 py-3 text-right">
                     <button
                         type="button"
                         aria-label="Hapus spesifikasi"
@@ -368,12 +375,12 @@ fn baris_spesifikasi(
                     >
                         <AppIcon icon=TRASH />
                     </button>
-                </Show>
-            </td>
+                </td>
+            </Show>
         </tr>
         <Show when=is_open>
             <tr>
-                <td colspan="5" class="bg-white/[0.015] px-4 py-4">
+                <td colspan=move || if is_admin { "5" } else { "4" } class="bg-white/[0.015] px-4 py-4">
                     <SubSpesifikasiPanel spesifikasi_id=id.clone() is_admin=is_admin />
                 </td>
             </tr>
