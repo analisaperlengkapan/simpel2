@@ -147,8 +147,9 @@ pub fn SpesifikasiPage() -> impl IntoView {
                     </Show>
                     <form on:submit=on_submit>
                         <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                            <FormField label="Nama Spesifikasi" required=true>
+                            <FormField label="Nama Spesifikasi" for_id="spek-nama" required=true>
                                 <input
+                                    id="spek-nama"
                                     type="text"
                                     class=FIELD
                                     placeholder="Contoh: Pakaian Dinas, Celana, Sepatu Dinas"
@@ -159,10 +160,12 @@ pub fn SpesifikasiPage() -> impl IntoView {
                             </FormField>
                             <FormField
                                 label="Grup Ukuran"
+                                for_id="spek-grup"
                                 helper="Menentukan daftar ukuran yang ditawarkan saat pengisian."
                                 required=true
                             >
                                 <select
+                                    id="spek-grup"
                                     class=FIELD
                                     prop:value=move || form_group.get()
                                     on:change=move |ev| form_group.set(event_target_value(&ev))
@@ -175,10 +178,12 @@ pub fn SpesifikasiPage() -> impl IntoView {
                             </FormField>
                             <FormField
                                 label="Gender"
+                                for_id="spek-gender"
                                 helper="\"Semua\" berlaku untuk seluruh pegawai; L/P hanya muncul bagi yang sesuai."
                                 required=true
                             >
                                 <select
+                                    id="spek-gender"
                                     class=FIELD
                                     prop:value=move || form_gender.get()
                                     on:change=move |ev| form_gender.set(event_target_value(&ev))
@@ -189,8 +194,9 @@ pub fn SpesifikasiPage() -> impl IntoView {
                                         .collect_view()}
                                 </select>
                             </FormField>
-                            <FormField label="Keterangan">
+                            <FormField label="Keterangan" for_id="spek-keterangan">
                                 <input
+                                    id="spek-keterangan"
                                     type="text"
                                     class=FIELD
                                     placeholder="Opsional"
@@ -380,6 +386,10 @@ fn baris_spesifikasi(
 /// Pendek - L", "Celana Wanita") that simpelv1 has carried since 2023.
 #[component]
 fn SubSpesifikasiPanel(spesifikasi_id: String, is_admin: bool) -> impl IntoView {
+    // `Show` re-invokes its children, so these are stored once and read per
+    // call instead of being moved into the first invocation.
+    let id_nama = StoredValue::new(format!("sub-nama-{spesifikasi_id}"));
+    let id_gender = StoredValue::new(format!("sub-gender-{spesifikasi_id}"));
     let sid = StoredValue::new(spesifikasi_id);
     let refresh = RwSignal::new(0);
     let (nama, set_nama) = signal(String::new());
@@ -487,8 +497,9 @@ fn SubSpesifikasiPanel(spesifikasi_id: String, is_admin: bool) -> impl IntoView 
             <Show when=move || is_admin>
                 <form class="flex flex-wrap items-end gap-3" on:submit=on_submit>
                     <div class="min-w-[16rem] flex-1">
-                        <FormField label="Nama Subspesifikasi">
+                        <FormField label="Nama Subspesifikasi" for_id=id_nama.get_value()>
                             <input
+                                id=id_nama.get_value()
                                 type="text"
                                 class=FIELD
                                 placeholder="Contoh: Lengan Pendek - L"
@@ -499,8 +510,9 @@ fn SubSpesifikasiPanel(spesifikasi_id: String, is_admin: bool) -> impl IntoView 
                         </FormField>
                     </div>
                     <div class="w-44">
-                        <FormField label="Gender">
+                        <FormField label="Gender" for_id=id_gender.get_value()>
                             <select
+                                id=id_gender.get_value()
                                 class=FIELD
                                 prop:value=move || gender.get()
                                 on:change=move |ev| gender.set(event_target_value(&ev))

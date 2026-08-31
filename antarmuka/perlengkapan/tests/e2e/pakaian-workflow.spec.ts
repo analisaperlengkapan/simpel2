@@ -106,6 +106,8 @@ test.describe("Pakaian Dinas — master spesifikasi & subspesifikasi", () => {
     const nama = `E2E Spesifikasi ${Date.now()}`;
     await page.getByTestId("tambah-spesifikasi").click();
     await page.getByLabel("Nama Spesifikasi").fill(nama);
+    // getByLabel resolves only because FormField now emits `for` — before this
+    // change no label in perlengkapan was associated with its control.
     await page.getByLabel("Grup Ukuran").selectOption("CELANA");
     await page.getByRole("button", { name: "Simpan" }).click();
 
