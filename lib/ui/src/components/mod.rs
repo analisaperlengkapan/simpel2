@@ -16,6 +16,7 @@ pub mod error_boundary;
 pub mod feedback;
 pub mod floating;
 pub mod forms;
+pub mod foto_pegawai;
 pub mod guards;
 pub mod icon;
 pub mod layout;
@@ -47,6 +48,7 @@ pub use monitoring_dashboard::*;
 pub use navigation::{AppHeader, Breadcrumb};
 pub use notifications::*;
 // Image optimization components (includes Avatar, OptimizedImage)
+pub use foto_pegawai::{MEDIA_MYSIMKARI, foto_pegawai_url};
 pub use optimized_image::*;
 pub use search::*;
 pub use security_meta::*;
