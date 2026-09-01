@@ -13,7 +13,7 @@
 # job. The backend images cook the identical tokio with the identical profile on
 # stable without incident, so pinning here closes the last hole in the F-CI
 # toolchain pin.
-FROM rust:1.97-bookworm AS chef
+FROM rust:1.98-bookworm AS chef
 RUN cargo install cargo-chef --locked
 
 FROM chef as planner

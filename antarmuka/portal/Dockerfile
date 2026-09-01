@@ -3,7 +3,7 @@
 # Toolchain: STABLE, pinned — see the same note in
 # `antarmuka/perlengkapan/Dockerfile`. The floating `rustlang/rust:nightly` tag
 # ICE'd on tokio under the fat-LTO release profile; no FE crate needs nightly.
-FROM rust:1.97-bookworm AS chef
+FROM rust:1.98-bookworm AS chef
 RUN cargo install cargo-chef --locked
 
 FROM chef as planner
