@@ -5,9 +5,9 @@
 
 use crate::api::{
     AppError, JenisPakaianDinas, LaporanDaftarPegawai, LaporanQuery, LaporanRekapUkuran,
-    PaginatedResponse, PengajuanPakaianDinas, export_laporan_pakaian_dinas,
+    PaginatedResponse, PengajuanPakaianDinas, PengajuanSatker, export_laporan_pakaian_dinas,
     fetch_jenis_pakaian_dinas, fetch_laporan_daftar_pegawai, fetch_laporan_rekap_ukuran,
-    fetch_pengajuan_pakaian_dinas,
+    fetch_pengajuan_pakaian_dinas, fetch_pengajuan_satker,
 };
 use crate::components::layout::{EmptyState, ErrorState, LoadingState, PageLayout, SectionCard};
 use leptos::prelude::*;
@@ -25,6 +25,22 @@ async fn query_pengajuan_options(_: ()) -> Result<Vec<PengajuanPakaianDinas>, Ap
 
 async fn query_jenis_options(_: ()) -> Result<Vec<JenisPakaianDinas>, AppError> {
     fetch_jenis_pakaian_dinas(1, 100).await.map(|r| r.data)
+}
+
+/// The satker taking part in ONE campaign, keyed by that campaign.
+///
+/// Unlike the two above this cannot be keyed `()`: which satker exist is a
+/// property of the campaign, and a national list would offer 238 satker of
+/// which a given campaign may involve three. It is also already scoped
+/// server-side — an operator sees only their own — so the dropdown cannot
+/// offer a satker whose report the caller may not read.
+async fn query_satker_options(
+    pengajuan_id: Option<String>,
+) -> Result<Vec<PengajuanSatker>, AppError> {
+    let Some(id) = pengajuan_id else {
+        return Ok(Vec::new());
+    };
+    fetch_pengajuan_satker(id, 1, 500).await.map(|r| r.data)
 }
 
 /// Rekap query keyed by the entire filter struct — so toggling
@@ -214,6 +230,11 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
     let client: QueryClient = expect_context();
     let pengajuan_options = client.local_resource(query_pengajuan_options, || ());
     let jenis_options = client.local_resource(query_jenis_options, || ());
+    // Re-fetches whenever the period changes, and clearing the period empties
+    // it — a satker filter left over from another campaign would silently
+    // narrow the next report to nothing.
+    let satker_options =
+        client.local_resource(query_satker_options, move || selected_pengajuan.get());
 
     let tab_class = move |tab: &'static str| {
         let active = active_tab.get() == tab;
@@ -371,23 +392,62 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                         <label class="mb-1.5 block text-xs font-medium text-slate-400">
                             "Satker"
                         </label>
-                        // Free-text `kode_satker`, which asks the user to know a
-                        // code. The campaign's own satker list
-                        // (`/pengajuan/{id}/satker`) would make this a dropdown;
-                        // left as-is here because this change is about the
-                        // server honouring the filter, not about how it is picked.
-                        <input
-                            data-testid="laporan-satker"
-                            type="text"
-                            class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200 placeholder-slate-500"
-                            placeholder="ID Satker (opsional)"
-                            on:change=move |ev| {
-                                let val = event_target_value(&ev);
-                                set_selected_satker
-                                    .set(if val.is_empty() { None } else { Some(val) });
-                                set_daftar_page.set(1);
+                        // Picked from the campaign's own satker list, not typed.
+                        // It used to be a free-text box asking for a `kode_satker`
+                        // — a code nobody carries in their head, where one wrong
+                        // digit returns an empty report that looks exactly like a
+                        // satker with nothing to report.
+                        <Suspense fallback=move || {
+                            view! {
+                                <select class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-500">
+                                    <option>"Memuat..."</option>
+                                </select>
                             }
-                        />
+                        }>
+                            {move || {
+                                let opsi = match satker_options.get() {
+                                    Some(Ok(v)) => v,
+                                    _ => Vec::new(),
+                                };
+                                let belum_pilih_periode = selected_pengajuan.get().is_none();
+                                view! {
+                                    <select
+                                        data-testid="laporan-satker"
+                                        class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200 disabled:text-slate-500"
+                                        prop:disabled=belum_pilih_periode
+                                        on:change=move |ev| {
+                                            let val = event_target_value(&ev);
+                                            set_selected_satker
+                                                .set(if val.is_empty() { None } else { Some(val) });
+                                            set_daftar_page.set(1);
+                                        }
+                                    >
+                                        <option value="">
+                                            {if belum_pilih_periode {
+                                                "Pilih periode dulu"
+                                            } else {
+                                                "Semua Satker"
+                                            }}
+                                        </option>
+                                        {opsi
+                                            .into_iter()
+                                            .map(|s| {
+                                                // `satker_id` IS the MySIMKARI `kode_satker`
+                                                // the filter expects; `satker_kode` is the
+                                                // same value joined back for display, and is
+                                                // not always present.
+                                                let nilai = s.satker_id.clone();
+                                                let label = s
+                                                    .satker_nama
+                                                    .clone()
+                                                    .unwrap_or_else(|| nilai.clone());
+                                                view! { <option value=nilai>{label}</option> }
+                                            })
+                                            .collect_view()}
+                                    </select>
+                                }
+                            }}
+                        </Suspense>
                     </div>
 
                     // Jenis Kelamin
@@ -506,6 +566,69 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
             // around the `<Suspense>` would still fire the request.
             <div class="mt-4">
                 <Show when=move || selected_pengajuan.get().is_some() fallback=pilih_pengajuan_prompt>
+                    // What the numbers below actually cover.
+                    //
+                    // Every laporan query counts only satker that reached
+                    // `Selesai` — deliberately, since a recap is a procurement
+                    // figure and half-revised sizes should not be ordered
+                    // against. But the filter was invisible: mid-campaign the
+                    // report just came back small, and a recap over 3 of 238
+                    // satker rendered identically to a complete one.
+                    //
+                    // Both counts were already on the campaign this page has
+                    // fetched for its own dropdown, computed with the same
+                    // predicate. They were simply never shown.
+                    {move || {
+                        let terpilih = selected_pengajuan.get()?;
+                        let daftar = match pengajuan_options.get() {
+                            Some(Ok(v)) => v,
+                            _ => return None,
+                        };
+                        let p = daftar.into_iter().find(|p| p.id == terpilih)?;
+                        let selesai = p.satker_selesai.unwrap_or(0);
+                        let total = p.total_satker.unwrap_or(0);
+                        let lengkap = total > 0 && selesai == total;
+                        // Three states, because two of them collapse into a
+                        // sentence that is not true. A campaign with no
+                        // participating satker at all is not "0 of 0 finished,
+                        // so the numbers are not final" — there is nothing to
+                        // finish and nothing to report. Staging carries exactly
+                        // such a campaign, which is how this was caught.
+                        let (kelas, teks) = if total == 0 {
+                            (
+                                "border-white/10 bg-white/[0.04] text-slate-400",
+                                "Belum ada satker yang ditetapkan untuk pengajuan ini, jadi belum ada yang bisa dilaporkan."
+                                    .to_string(),
+                            )
+                        } else if lengkap {
+                            (
+                                "border-success-500/20 bg-success-500/10 text-success-300",
+                                format!(
+                                    "Seluruh {total} satker sudah Selesai — angka di bawah mencakup pengajuan ini sepenuhnya.",
+                                ),
+                            )
+                        } else {
+                            (
+                                "border-warning-500/20 bg-warning-500/10 text-warning-300",
+                                format!(
+                                    "Mencakup {selesai} dari {total} satker yang sudah Selesai.                                      Satker yang masih diisi atau menunggu validasi belum terhitung,                                      jadi angka di bawah belum final.",
+                                ),
+                            )
+                        };
+                        Some(
+                            view! {
+                                <p
+                                    data-testid="laporan-cakupan"
+                                    data-lengkap=lengkap.to_string()
+                                    class=format!(
+                                        "mb-4 rounded-lg border px-3 py-2 text-sm {kelas}",
+                                    )
+                                >
+                                    {teks}
+                                </p>
+                            },
+                        )
+                    }}
                     <Show when=move || active_tab.get() == "rekap">
                         <RekapUkuranTab
                             pengajuan_id=selected_pengajuan
