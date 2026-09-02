@@ -5,8 +5,11 @@
 
 use crate::components::navigation::menu::{PortalMenuItem, resolve_menu_sections, topbar_items};
 use crate::features::auth::{AuthService, UserSession};
+use crate::features::profile::page::PegawaiAvatar;
 use leptos::prelude::*;
-use lib_ui::components::{BrandedLogo, BrandedLogoSize, GlobalSearchBar, NotificationBell};
+use lib_ui::components::{
+    AvatarSize, BrandedLogo, BrandedLogoSize, GlobalSearchBar, NotificationBell,
+};
 use lib_ui::prelude::*;
 
 /// Main navigation bar with navy/gold Kejaksaan RI branding
@@ -195,19 +198,17 @@ pub fn Navbar(
                                                 </p>
                                             </div>
                                             <div class="relative">
-                                                <div class="w-9 h-9 bg-navy-600 rounded-full flex items-center justify-center border-2 border-gold-400/50">
-                                                    <svg
-                                                        class="w-5 h-5 text-gold-300"
-                                                        fill="currentColor"
-                                                        viewBox="0 0 20 20"
-                                                    >
-                                                        <path
-                                                            fill-rule="evenodd"
-                                                            d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                                                            clip-rule="evenodd"
-                                                        />
-                                                    </svg>
-                                                </div>
+                                                // The employee's own photo,
+                                                // from the /me query the
+                                                // profile page already caches —
+                                                // this mount costs no extra
+                                                // request. Falls back to their
+                                                // initials, and to the generic
+                                                // circle before /me resolves.
+                                                <PegawaiAvatar
+                                                    size=AvatarSize::Medium
+                                                    class="!w-9 !h-9 border-2 border-gold-400/50"
+                                                />
                                                 // Online indicator
                                                 <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-navy-700 rounded-full"></div>
                                             </div>
@@ -301,19 +302,10 @@ pub fn Navbar(
                                 <>
                                     // User info on mobile
                                     <div class="flex items-center gap-3 px-4 py-3 bg-white/5 rounded-xl mb-3 border border-white/5">
-                                        <div class="w-10 h-10 bg-navy-600 rounded-full flex items-center justify-center border-2 border-gold-400/50">
-                                            <svg
-                                                class="w-5 h-5 text-gold-300"
-                                                fill="currentColor"
-                                                viewBox="0 0 20 20"
-                                            >
-                                                <path
-                                                    fill-rule="evenodd"
-                                                    d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                                                    clip-rule="evenodd"
-                                                />
-                                            </svg>
-                                        </div>
+                                        <PegawaiAvatar
+                                            size=AvatarSize::Medium
+                                            class="border-2 border-gold-400/50"
+                                        />
                                         <div>
                                             <p class="text-sm font-semibold text-white">
                                                 {session.name.clone()}

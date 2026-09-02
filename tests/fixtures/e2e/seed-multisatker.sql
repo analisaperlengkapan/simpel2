@@ -111,22 +111,31 @@ ON CONFLICT (kode_satker) DO NOTHING;
 --     The join below derives the value from the satkers seeded in step 1, so
 --     the fixture cannot drift from the column it is standing in for.
 -- ----------------------------------------------------------------------------
+-- `foto` carries MySIMKARI's file NAME, not a URL. Only the first employee
+-- gets one, deliberately: the suite asserts both that a photo reaches the
+-- frontend AND that an employee without one is a normal case rather than an
+-- error. The name embeds a space and parentheses because the real ones do —
+-- that is what forced the percent-encoding in `lib_ui::foto_pegawai_url`.
 INSERT INTO integrasi.mysimkari_pegawai
-  (nip, nama, satker_id, nama_satker, jabatan, golpang, gol_kd, jk, email, no_hp, status_pegawai)
+  (nip, nama, satker_id, nama_satker, jabatan, golpang, gol_kd, jk, email, no_hp, status_pegawai, foto)
 SELECT v.nip, v.nama, s.api_id, s.nama_satker,
-       v.jabatan, v.golpang, v.gol_kd, v.jk, v.email, v.no_hp, 'aktif'
+       v.jabatan, v.golpang, v.gol_kd, v.jk, v.email, v.no_hp, 'aktif', v.foto
   FROM (VALUES
-    ('200000000000000001', 'E2E Operator Jakpus', '0200010', 'Operator Satker', 'Penata Muda', 'III/a', 'L', '200000000000000001@kejaksaan.go.id', '081200000001'),
-    ('200000000000000002', 'E2E Operator Jaksel', '0200020', 'Operator Satker', 'Penata Muda', 'III/a', 'P', '200000000000000002@kejaksaan.go.id', '081200000002'),
-    ('200000000000000009', 'E2E Pegawai Bandung', '0300010', 'Operator Satker', 'Penata',      'III/c', 'L', '200000000000000009@kejaksaan.go.id', '081200000009')
-  ) AS v(nip, nama, kode_satker, jabatan, golpang, gol_kd, jk, email, no_hp)
+    ('200000000000000001', 'E2E Operator Jakpus', '0200010', 'Operator Satker', 'Penata Muda', 'III/a', 'L', '200000000000000001@kejaksaan.go.id', '081200000001', 'E2E Operator Jakpus (1).jpg'),
+    ('200000000000000002', 'E2E Operator Jaksel', '0200020', 'Operator Satker', 'Penata Muda', 'III/a', 'P', '200000000000000002@kejaksaan.go.id', '081200000002', NULL),
+    ('200000000000000009', 'E2E Pegawai Bandung', '0300010', 'Operator Satker', 'Penata',      'III/c', 'L', '200000000000000009@kejaksaan.go.id', '081200000009', NULL)
+  ) AS v(nip, nama, kode_satker, jabatan, golpang, gol_kd, jk, email, no_hp, foto)
   JOIN integrasi.mysimkari_satker s ON s.kode_satker = v.kode_satker
 -- DO UPDATE, not DO NOTHING: an environment seeded before this fix already
 -- holds these NIPs with a code in `satker_id`, and DO NOTHING would leave the
 -- roster empty there forever.
 ON CONFLICT (nip) DO UPDATE SET
   satker_id   = EXCLUDED.satker_id,
-  nama_satker = EXCLUDED.nama_satker;
+  nama_satker = EXCLUDED.nama_satker,
+  -- `foto` belongs in the UPDATE list for the same reason the others do: a
+  -- database seeded before the column was populated already holds these NIPs,
+  -- and leaving it out means the photo never arrives there.
+  foto        = EXCLUDED.foto;
 
 -- ----------------------------------------------------------------------------
 -- 3. integrasi: SIMAN assets — 2 for satker A, 2 for B (both DKI), 1 for C

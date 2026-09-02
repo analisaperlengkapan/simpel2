@@ -685,7 +685,8 @@ impl IntegrasiService for IntegrasiServiceImpl {
                 COALESCE(s.kode_satker, '')          AS kode_satker,
                 COALESCE(p.email, p.email_dinas, '') AS email,
                 COALESCE(p.no_hp, '')                AS telepon,
-                p.status_pegawai                     AS status
+                p.status_pegawai                     AS status,
+                COALESCE(p.foto, '')                 AS foto
         "#;
 
         // Filter precedence mirrors the request shape: an exact-NIP lookup
@@ -756,6 +757,7 @@ impl IntegrasiService for IntegrasiServiceImpl {
                     email: row.try_get("email").unwrap_or_default(),
                     telepon: row.try_get("telepon").unwrap_or_default(),
                     status: row.try_get("status").unwrap_or_default(),
+                    foto: row.try_get("foto").unwrap_or_default(),
                     extra_fields: HashMap::new(),
                 })
                 .collect(),

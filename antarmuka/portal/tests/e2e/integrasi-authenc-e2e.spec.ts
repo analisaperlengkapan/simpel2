@@ -144,6 +144,9 @@ interface UserProfile {
   email_verified?: boolean;
   mfa_enabled?: boolean;
   realm_id?: string;
+  satuan_kerja?: string;
+  /** MySIMKARI photo FILE NAME (not a URL), resolved from integrasi. */
+  foto?: string;
 }
 
 // ── Test Suite ─────────────────────────────────────────────────────────────
@@ -591,6 +594,73 @@ test.describe('Integrasi ↔ Authenc Integration', () => {
       } else {
         console.log(`  Token refresh: HTTP ${refreshResp.status()} (${refreshResp.ok() ? 'OK' : 'not implemented'})`);
       }
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Section 5: fetch-at-read — authenc resolves kepegawaian data it does not
+  // store. Until this suite existed, compose gave authenc no
+  // INTEGRASI_GRPC_URL at all, so `state.integrasi_client` was None and this
+  // whole path ran in NO test: /auth/me answers 200 either way, just with a
+  // raw satker code and no photo.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  test.describe('Fetch-at-read from integrasi', () => {
+    /** operator_b — seeded in `mysimkari_pegawai` with `foto` NULL on purpose. */
+    const NO_PHOTO_USER = {
+      username: '200000000000000002',
+      password: '199203142014031001',
+    };
+
+    async function profileOf(
+      request: import('@playwright/test').APIRequestContext,
+      user: { username: string; password: string },
+    ): Promise<UserProfile> {
+      const loginResp = await request.post(`${AUTHENC_URL}/api/v1/auth/login`, {
+        data: { username: user.username, password: user.password },
+      });
+      expect(loginResp.ok(), `login ${user.username} (${loginResp.status()})`).toBeTruthy();
+      const { access_token } = await loginResp.json();
+      const profileResp = await request.get(`${AUTHENC_URL}/api/v1/auth/me`, {
+        headers: { Authorization: `Bearer ${access_token}` },
+      });
+      expect(
+        profileResp.ok(),
+        `/auth/me ${user.username} (${profileResp.status()}): ${await profileResp.text()}`,
+      ).toBeTruthy();
+      return profileResp.json();
+    }
+
+    test('the employee photo reaches /auth/me from integrasi', async ({ request }) => {
+      // The file name is the seeded one, verbatim — spaces and parentheses
+      // included, because the real MySIMKARI names have them and that is what
+      // the frontend has to percent-encode.
+      const profile = await profileOf(request, PROFILE_USER);
+      expect(
+        profile.foto,
+        'authenc must resolve `foto` from integrasi.mysimkari_pegawai at read time',
+      ).toBe('E2E Operator Jakpus (1).jpg');
+    });
+
+    test('an employee with no photo omits the field rather than sending an empty one', async ({
+      request,
+    }) => {
+      // The opposite direction: without this, a resolver that returned
+      // `Some("")` would pass the test above's sibling and render an <img> with
+      // an empty src on every screen belonging to someone with no photo.
+      const profile = await profileOf(request, NO_PHOTO_USER);
+      expect(profile.foto ?? null, 'no photo means no field, not an empty string').toBeNull();
+    });
+
+    test('satuan_kerja is a resolved name, not the raw code', async ({ request }) => {
+      // Same client, same read path — this is the assertion that would have
+      // caught the missing INTEGRASI_GRPC_URL on its own.
+      const profile = await profileOf(request, PROFILE_USER);
+      expect(profile.satuan_kerja, 'satker name resolved through integrasi').toBeTruthy();
+      expect(
+        profile.satuan_kerja,
+        'a raw kode_satker here means the integrasi client is not wired',
+      ).not.toBe('0200010');
     });
   });
 });

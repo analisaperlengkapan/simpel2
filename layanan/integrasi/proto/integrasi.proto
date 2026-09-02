@@ -396,6 +396,12 @@ message MysimkariPegawai {
   string telepon = 9;
   string status = 10;
   map<string, string> extra_fields = 11;
+  // MySIMKARI's photo FILE NAME, not a URL. `integrasi.mysimkari_pegawai.foto`
+  // has carried it since 001_init_schema; nothing ever read it out, so the
+  // photo existed in the database and reached no screen. Consumers build the
+  // URL from it (`lib_ui::foto_pegawai_url`), which keeps the media host in
+  // one place for the CSP guard to derive.
+  string foto = 12;
 }
 
 // ===========================================================================

@@ -69,6 +69,11 @@ pub struct UserInfo {
     pub last_name: Option<String>,
     pub phone: Option<String>,
     pub avatar: Option<String>,
+    /// MySIMKARI photo FILE NAME (not a URL) — build the URL with
+    /// `lib_ui::foto_pegawai_url`. Distinct from `avatar`, which is an IAM
+    /// concept nothing ever populates.
+    #[serde(default)]
+    pub foto: Option<String>,
     /// Raw satker (work unit) code
     #[serde(default)]
     pub satker_code: Option<String>,
@@ -920,6 +925,10 @@ impl AuthencApiClient {
             last_name: Some("User".to_string()),
             phone: None,
             avatar: None,
+            // A file name, matching the shape the real `/auth/me` returns —
+            // not a URL and not an empty string, both of which would let a
+            // consumer that mishandles either pass against this stub.
+            foto: Some("mock-pasfoto.jpg".to_string()),
             satker_code: Some("0100000".to_string()),
             satuan_kerja: Some("Bagian Umum".to_string()),
             role: "admin".to_string(),
