@@ -503,3 +503,89 @@ impl MysimkariPegawai {
         }
     }
 }
+
+// ============================================================================
+// Pengisian ukuran per satker
+// ============================================================================
+
+/// Satu kolom ukuran pada satu pengajuan.
+///
+/// Kampanye memilih spesifikasi mana yang diminta saat dibuat, dan pilihan itu
+/// dibekukan di `pengajuan_pakaian_dinas_pakaian` — nama dan grup ukurannya
+/// ikut disalin. Jadi kolom yang diisi satker adalah kolom kampanye ITU, bukan
+/// tiga kolom baju/celana/sepatu yang ditulis mati: kampanye PDH memunculkan
+/// Pakaian Dinas, Celana, dan Sepatu Dinas; kampanye lain memunculkan miliknya
+/// sendiri.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PengajuanPakaianItem {
+    pub id: Uuid,
+    pub jenis_pakaian_nama: String,
+    pub spesifikasi_id: Uuid,
+    pub spesifikasi_nama: String,
+    pub spesifikasi_ukuran_group: String,
+    pub subspesifikasi_id: Option<Uuid>,
+    pub subspesifikasi_nama: Option<String>,
+    /// `L`, `P`, atau kosong/`SEMUA`. Kolom ber-gender hanya ditawarkan kepada
+    /// pegawai yang cocok, supaya operator tidak diminta mengisi ukuran yang
+    /// memang tidak berlaku.
+    pub subspesifikasi_gender: Option<String>,
+}
+impl PengajuanPakaianItem {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            jenis_pakaian_nama: row.get("jenis_pakaian_nama"),
+            spesifikasi_id: row.get("spesifikasi_id"),
+            spesifikasi_nama: row.get("spesifikasi_nama"),
+            spesifikasi_ukuran_group: row.get("spesifikasi_ukuran_group"),
+            subspesifikasi_id: row.try_get("subspesifikasi_id").ok().flatten(),
+            subspesifikasi_nama: row.try_get("subspesifikasi_nama").ok().flatten(),
+            subspesifikasi_gender: row.try_get("subspesifikasi_gender").ok().flatten(),
+        }
+    }
+}
+
+/// Ukuran satu pegawai untuk satu kolom.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UkuranPegawaiItem {
+    pub pakaian_id: Uuid,
+    pub ukuran: String,
+}
+
+/// Satu baris pada daftar pengisian.
+///
+/// Identitasnya datang dari `integrasi.mysimkari_pegawai` — daftar kepegawaian
+/// satker itu apa adanya, bukan daftar yang diketik ulang. `sudah_diisi`
+/// menandai pegawai yang barisnya sudah tersimpan di pengajuan ini.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RosterPegawai {
+    pub nip: String,
+    pub nama: String,
+    pub jabatan: Option<String>,
+    pub pangkat: Option<String>,
+    pub gol_kd: Option<String>,
+    pub eselon: Option<String>,
+    /// `L` atau `P`.
+    pub jenis_kelamin: String,
+    pub jenis: Option<String>,
+    pub foto: Option<String>,
+    pub with_hijab: bool,
+    pub sudah_diisi: bool,
+    pub ukuran: Vec<UkuranPegawaiItem>,
+}
+
+/// Isi halaman pengisian: kolomnya, orangnya, dan boleh-tidaknya diubah.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RosterPengisian {
+    pub pengajuan_satker_id: Uuid,
+    pub pengajuan_nama: String,
+    pub satker_kode: String,
+    pub satker_nama: Option<String>,
+    pub aktivitas_id: i32,
+    /// Benar hanya saat statusnya Input (1000) atau Dikembalikan (1003) —
+    /// dua status yang sama yang mengizinkan operator menekan "Ajukan"
+    /// (`services.rs` transition table).
+    pub dapat_diubah: bool,
+    pub pakaian: Vec<PengajuanPakaianItem>,
+    pub pegawai: Vec<RosterPegawai>,
+}

@@ -42,6 +42,24 @@ const PD_API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/pakaian-dinas`;
  * reported `Cannot read properties of undefined (reading 'find')` three times
  * and never once printed the 401 that caused it.
  */
+/**
+ * The `data` object out of an `ApiResponse`, with the status asserted first.
+ * The list-shaped sibling is [`fetchRows`]; both exist so that no call site
+ * reaches for `.data` before knowing the request succeeded.
+ */
+async function fetchObject<T>(
+  request: APIRequestContext,
+  url: string,
+  token: string,
+  what: string,
+): Promise<T> {
+  const res = await request.get(url, { headers: { Authorization: `Bearer ${token}` } });
+  expect(res.ok(), `${what} (${res.status()}): ${await res.text()}`).toBeTruthy();
+  const body = await res.json();
+  expect(body.data, `${what} must carry a data object`).toBeTruthy();
+  return body.data as T;
+}
+
 async function fetchRows<T>(
   request: APIRequestContext,
   url: string,
@@ -53,6 +71,13 @@ async function fetchRows<T>(
   const body = await res.json();
   expect(Array.isArray(body.data), `${what} must return a paginated envelope`).toBeTruthy();
   return body.data as T[];
+}
+
+/** The subset of `RosterPengisian` these tests assert on. */
+interface Roster {
+  satker_kode: string;
+  dapat_diubah: boolean;
+  pegawai: Array<{ nip: string }>;
 }
 
 // ── Master + campaign + report pages render real data ───────────────────────
@@ -151,6 +176,119 @@ test.describe("Pakaian Dinas — master spesifikasi & subspesifikasi", () => {
     await expect(row).toHaveCount(0, { timeout: 20000 });
   });
 
+});
+
+// ── Pengisian: the head the workflow never had ─────────────────────────────
+// Nothing in the backend wrote `pengajuan_pakaian_dinas_satker_pegawai` or its
+// sizes table before this — both were only ever read (report, dashboard) and
+// cascade-deleted. The rows staging holds came from the e2e seed, not from the
+// application, so the approval chain had nothing an operator could have filled.
+test.describe("Pakaian Dinas — pengisian ukuran per satker", () => {
+  test.use({ storageState: storageStatePath("operator_a") });
+
+  const PENGAJUAN = "d1000000-0000-4d00-8d00-0000000000c1";
+  const SATKER = "0200010";
+  const ISI = `${BASE}/pakaian-dinas/pengajuan/${PENGAJUAN}/satker/${SATKER}/isi`;
+
+  test("the roster comes from kepegawaian, not from a table anyone types into", async ({
+    page,
+    request,
+  }) => {
+    const token = await tokenFor(request, "operator_a");
+    const data = await fetchObject<Roster>(
+      request,
+      `${PD_API}/pengajuan/${PENGAJUAN}/satker/${SATKER}/pegawai`,
+      token,
+      "roster for the caller's own satker",
+    );
+    // Every person in the satker appears, whether or not they have been filled
+    // in yet — a roster that only lists people already saved cannot be used to
+    // add the ones who are missing.
+    expect(Array.isArray(data.pegawai)).toBeTruthy();
+    expect(data.satker_kode).toBe(SATKER);
+    expect(typeof data.dapat_diubah).toBe("boolean");
+
+    await page.goto(ISI, { waitUntil: "domcontentloaded" });
+
+    // Name the state before asserting the table. A missing `pengisian-tabel`
+    // has three different causes that all report as "element(s) not found":
+    // the route does not resolve (404), the campaign carries no clothing types
+    // so the page refuses to draw a size table, or the table is genuinely
+    // broken. Only the last is this test's subject, and the first run of this
+    // test hit the second — the fixture gave …c1 no items, so the page was
+    // right and the failure message pointed at the wrong thing.
+    const kosong = page.getByTestId("pengisian-tanpa-jenis-pakaian");
+    const tabel = page.getByTestId("pengisian-tabel");
+    await expect
+      .poll(
+        async () => {
+          if (await tabel.count()) return "tabel";
+          if (await kosong.count()) return "kampanye-tanpa-jenis-pakaian";
+          if (await page.getByTestId("halaman-404").count()) return "404";
+          return "belum-termuat";
+        },
+        {
+          timeout: 20000,
+          message:
+            "halaman pengisian tidak menampilkan tabel ukuran — nilai di bawah menamai sebabnya",
+        },
+      )
+      .toBe("tabel");
+    await expect(tabel).toBeVisible();
+  });
+
+  test("another satker's roster is not reachable", async ({ request }) => {
+    // 0200020 belongs to operator_b. Out of scope answers NotFound rather than
+    // Forbidden: a 403 would confirm the row exists under another satker.
+    const token = await tokenFor(request, "operator_a");
+    const res = await request.get(
+      `${PD_API}/pengajuan/${PENGAJUAN}/satker/0200020/pegawai`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    expect(res.status(), "cross-satker roster must not be readable").toBe(404);
+  });
+
+  test("a satker past its own stage cannot have sizes written", async ({ request }) => {
+    // Jakpus on this campaign sits at 1004 (Diajukan ke Pusat). Writing must be
+    // refused by the SERVER, not merely by a disabled button.
+    const token = await tokenFor(request, "operator_a");
+    const data = await fetchObject<Roster>(
+      request,
+      `${PD_API}/pengajuan/${PENGAJUAN}/satker/${SATKER}/pegawai`,
+      token,
+      "roster before asserting it is locked",
+    );
+    test.skip(data.dapat_diubah, "this campaign is still editable; nothing to assert here");
+
+    const nip = data.pegawai[0]?.nip;
+    expect(nip, "the satker must have at least one person").toBeTruthy();
+    const res = await request.put(
+      `${PD_API}/pengajuan/${PENGAJUAN}/satker/${SATKER}/pegawai/${nip}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { with_hijab: false, ukuran: [] },
+      },
+    );
+    expect(res.status(), "a submitted satker must refuse edits").toBe(400);
+  });
+
+  test("the page says why it is read-only instead of silently doing nothing", async ({
+    page,
+    request,
+  }) => {
+    const token = await tokenFor(request, "operator_a");
+    const data = await fetchObject<Roster>(
+      request,
+      `${PD_API}/pengajuan/${PENGAJUAN}/satker/${SATKER}/pegawai`,
+      token,
+      "roster before asserting the locked notice",
+    );
+    test.skip(data.dapat_diubah, "campaign still editable; the locked notice is not shown");
+
+    await page.goto(ISI, { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("pengisian-terkunci")).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId("ajukan-pengisian")).toHaveCount(0);
+  });
 });
 
 // Same page, a role that may not write it. Split into its own describe because

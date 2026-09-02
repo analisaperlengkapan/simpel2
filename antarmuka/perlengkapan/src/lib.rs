@@ -58,6 +58,7 @@ use components::laporan_kebutuhan_bmn::LaporanKebutuhanBmn;
 use components::pakaian_dinas_jenis_list::PakaianDinasJenisList;
 use components::pakaian_dinas_laporan::PakaianDinasLaporan;
 use components::pakaian_dinas_pengajuan_list::PakaianDinasPengajuanList;
+use components::pakaian_dinas_pengisian::PakaianDinasPengisian;
 use components::pakaian_dinas_satker::PakaianDinasSatkerDetail;
 use components::pakaian_dinas_ukuran::UkuranPegawai;
 use components::panduan::PanduanPengguna;
@@ -311,6 +312,12 @@ pub fn App() -> impl IntoView {
                                             <Route
                                                 path=path!("/pakaian-dinas/pengajuan/:pengajuan_id/satker")
                                                 view=PakaianDinasSatkerDetail
+                                            />
+                                            <Route
+                                                path=path!(
+                                                    "/pakaian-dinas/pengajuan/:pengajuan_id/satker/:satker_code/isi"
+                                                )
+                                                view=PakaianDinasPengisian
                                             />
                                             <Route
                                                 path=path!("/pakaian-dinas/ukuran")

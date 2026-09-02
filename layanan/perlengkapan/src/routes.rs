@@ -210,6 +210,19 @@ pub fn create_routes(state: AppState) -> Router {
             "/pakaian-dinas/pengajuan/{pengajuan_id}/satker",
             get(pakaian_dinas::get_pengajuan_satker_list),
         )
+        // Pengisian ukuran per satker. Rute literal `pegawai` didaftarkan
+        // pada segmen yang sama dengan `{satker_code}`, jadi urutannya
+        // mengikuti pola yang sudah dipakai di berkas ini: yang lebih spesifik
+        // lebih dulu.
+        .route(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{satker_code}/pegawai",
+            get(pakaian_dinas::get_roster_pengisian),
+        )
+        .route(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{satker_code}/pegawai/{nip}",
+            put(pakaian_dinas::simpan_ukuran_pegawai)
+                .delete(pakaian_dinas::hapus_pegawai_dari_pengajuan),
+        )
         .route(
             "/pakaian-dinas/satker/{id}",
             get(pakaian_dinas::get_pengajuan_satker_by_id),

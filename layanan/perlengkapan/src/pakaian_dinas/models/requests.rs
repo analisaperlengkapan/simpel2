@@ -162,3 +162,27 @@ pub struct LaporanFilter {
 fn default_true() -> bool {
     true
 }
+
+/// Menyimpan ukuran satu pegawai pada satu pengajuan.
+///
+/// Identitas pegawai TIDAK dikirim klien: ia diambil dari
+/// `integrasi.mysimkari_pegawai` saat menyimpan, lalu dibekukan sebagai bukti
+/// historis pada baris pengajuan. Jabatan dan pangkat berubah karena mutasi
+/// dan promosi, jadi yang perlu tercatat adalah keadaan saat pengajuan dibuat
+/// — dan membiarkan klien mengirimnya berarti mengizinkan nama seseorang
+/// diubah dari luar.
+#[derive(Debug, Clone, Deserialize, Validate)]
+pub struct SimpanUkuranPegawaiRequest {
+    #[serde(default)]
+    pub with_hijab: bool,
+    /// Kosong berarti pegawai tercatat ikut serta tetapi ukurannya belum ada;
+    /// itu keadaan yang sah dan berbeda dari tidak diikutkan sama sekali.
+    #[serde(default)]
+    pub ukuran: Vec<UkuranPegawaiInput>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct UkuranPegawaiInput {
+    pub pakaian_id: Uuid,
+    pub ukuran: String,
+}

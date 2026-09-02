@@ -72,6 +72,13 @@ pub mod url {
         format!("/perlengkapan/simpel/v2/bank-aset/daftar/{}", id)
     }
 
+    pub fn pakaian_pengisian(pengajuan_id: &str, satker_code: &str) -> String {
+        format!(
+            "/perlengkapan/simpel/v2/pakaian-dinas/pengajuan/{}/satker/{}/isi",
+            pengajuan_id, satker_code
+        )
+    }
+
     pub fn pakaian_spesifikasi(jenis_id: impl std::fmt::Display) -> String {
         format!(
             "/perlengkapan/simpel/v2/pakaian-dinas/jenis/{}/spesifikasi",

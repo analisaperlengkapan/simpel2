@@ -1311,3 +1311,231 @@ pub async fn delete_subspesifikasi(_id: String) -> Result<ApiResponse<()>, crate
         "Server-side stub".to_string(),
     ))
 }
+
+// --- Pengisian ukuran per satker ---
+
+/// Satu kolom ukuran pada satu pengajuan. Cerminan
+/// `pakaian_dinas::models::entities::PengajuanPakaianItem`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PengajuanPakaianItem {
+    pub id: String,
+    pub jenis_pakaian_nama: String,
+    pub spesifikasi_id: String,
+    pub spesifikasi_nama: String,
+    pub spesifikasi_ukuran_group: String,
+    #[serde(default)]
+    pub subspesifikasi_id: Option<String>,
+    #[serde(default)]
+    pub subspesifikasi_nama: Option<String>,
+    #[serde(default)]
+    pub subspesifikasi_gender: Option<String>,
+}
+
+impl PengajuanPakaianItem {
+    /// Judul kolom: nama subspesifikasi bila ada, karena itulah yang membedakan
+    /// dua baris di bawah spesifikasi yang sama.
+    pub fn judul(&self) -> String {
+        match &self.subspesifikasi_nama {
+            Some(n) if !n.trim().is_empty() => n.clone(),
+            _ => self.spesifikasi_nama.clone(),
+        }
+    }
+
+    /// Berlaku untuk pegawai ber-gender `jk`?
+    ///
+    /// Kolom tanpa gender, atau ber-gender `SEMUA`, berlaku untuk semua orang.
+    pub fn berlaku_untuk(&self, jk: &str) -> bool {
+        match self.subspesifikasi_gender.as_deref() {
+            None | Some("") | Some("SEMUA") => true,
+            Some(g) => g.eq_ignore_ascii_case(jk),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UkuranPegawaiItem {
+    pub pakaian_id: String,
+    pub ukuran: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RosterPegawai {
+    pub nip: String,
+    pub nama: String,
+    #[serde(default)]
+    pub jabatan: Option<String>,
+    #[serde(default)]
+    pub pangkat: Option<String>,
+    #[serde(default)]
+    pub gol_kd: Option<String>,
+    #[serde(default)]
+    pub eselon: Option<String>,
+    pub jenis_kelamin: String,
+    #[serde(default)]
+    pub jenis: Option<String>,
+    #[serde(default)]
+    pub foto: Option<String>,
+    #[serde(default)]
+    pub with_hijab: bool,
+    #[serde(default)]
+    pub sudah_diisi: bool,
+    #[serde(default)]
+    pub ukuran: Vec<UkuranPegawaiItem>,
+}
+
+impl RosterPegawai {
+    pub fn ukuran_untuk(&self, pakaian_id: &str) -> Option<&str> {
+        self.ukuran
+            .iter()
+            .find(|u| u.pakaian_id == pakaian_id)
+            .map(|u| u.ukuran.as_str())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RosterPengisian {
+    pub pengajuan_satker_id: String,
+    pub pengajuan_nama: String,
+    pub satker_kode: String,
+    #[serde(default)]
+    pub satker_nama: Option<String>,
+    pub aktivitas_id: i32,
+    pub dapat_diubah: bool,
+    #[serde(default)]
+    pub pakaian: Vec<PengajuanPakaianItem>,
+    #[serde(default)]
+    pub pegawai: Vec<RosterPegawai>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimpanUkuranPegawaiRequest {
+    pub with_hijab: bool,
+    pub ukuran: Vec<UkuranPegawaiItem>,
+}
+
+fn roster_url(pengajuan_id: &str, satker_code: &str) -> String {
+    format!(
+        "/api/v1/perlengkapan/pakaian-dinas/pengajuan/{}/satker/{}/pegawai",
+        pengajuan_id, satker_code
+    )
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_roster_pengisian(
+    pengajuan_id: String,
+    satker_code: String,
+) -> Result<RosterPengisian, crate::api::AppError> {
+    use crate::api::client::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
+    let resp = Request::get(&roster_url(&pengajuan_id, &satker_code))
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+    if !resp.ok() {
+        return Err(crate::api::AppError::network(format!(
+            "API Error: {}",
+            resp.status()
+        )));
+    }
+    let result: ApiResponse<RosterPengisian> = resp.json().await?;
+    Ok(result.data)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_roster_pengisian(
+    _pengajuan_id: String,
+    _satker_code: String,
+) -> Result<RosterPengisian, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn simpan_ukuran_pegawai(
+    pengajuan_id: String,
+    satker_code: String,
+    nip: String,
+    request: SimpanUkuranPegawaiRequest,
+) -> Result<RosterPengisian, crate::api::AppError> {
+    use crate::api::client::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
+    let resp = Request::put(&format!(
+        "{}/{}",
+        roster_url(&pengajuan_id, &satker_code),
+        nip
+    ))
+    .header("Authorization", &format!("Bearer {}", token))
+    .json(&request)?
+    .send()
+    .await?;
+    if !resp.ok() {
+        return Err(crate::api::AppError::network(format!(
+            "API Error: {}",
+            resp.status()
+        )));
+    }
+    let result: ApiResponse<RosterPengisian> = resp.json().await?;
+    Ok(result.data)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn simpan_ukuran_pegawai(
+    _pengajuan_id: String,
+    _satker_code: String,
+    _nip: String,
+    _request: SimpanUkuranPegawaiRequest,
+) -> Result<RosterPengisian, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn keluarkan_pegawai_dari_pengajuan(
+    pengajuan_id: String,
+    satker_code: String,
+    nip: String,
+) -> Result<RosterPengisian, crate::api::AppError> {
+    use crate::api::client::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
+    let resp = Request::delete(&format!(
+        "{}/{}",
+        roster_url(&pengajuan_id, &satker_code),
+        nip
+    ))
+    .header("Authorization", &format!("Bearer {}", token))
+    .send()
+    .await?;
+    if !resp.ok() {
+        return Err(crate::api::AppError::network(format!(
+            "API Error: {}",
+            resp.status()
+        )));
+    }
+    let result: ApiResponse<RosterPengisian> = resp.json().await?;
+    Ok(result.data)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn keluarkan_pegawai_dari_pengajuan(
+    _pengajuan_id: String,
+    _satker_code: String,
+    _nip: String,
+) -> Result<RosterPengisian, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}

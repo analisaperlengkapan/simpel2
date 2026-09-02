@@ -10,10 +10,15 @@
 //! The pakaian header/satker status column is `aktivitas_id` (FK →
 //! `ms_aktivitas_bmn.kode`), matching the code + FE contract; the squashed
 //! baseline was reconciled to it (was `status_kode`) and the pakaian codes
-//! 1000-1012 are now seeded. The per-satker workflow row
-//! (`pengajuan_pakaian_dinas_satker`) has no API creator yet (no "submit"
-//! materializes it from satker_terpilih), so the validator test seeds that one
-//! row directly — legitimate setup — then drives the real transition logic.
+//! 1000-1012 are now seeded.
+//!
+//! The per-satker workflow row (`pengajuan_pakaian_dinas_satker`) used to have
+//! no API creator at all, so the validator test below seeds one directly. That
+//! premise no longer holds — creating a campaign now materialises a row per
+//! targeted satker at 1000 — but the direct seed is kept here on purpose: this
+//! file's subject is the TRANSITION logic, and seeding the starting row keeps
+//! it independent of how that row comes to exist. The creation path itself is
+//! covered in `pakaian_dinas_pengisian_test.rs`.
 
 use crate::common::{setup_test_app, teardown_test_db};
 use axum_test::TestServer;
@@ -298,8 +303,15 @@ async fn test_pakaian_dinas_validator_workflow() {
         res.text()
     );
 
-    // 1. Pelaksana submits: Input(1000) → SubmitToValidator(1001).
-    let res = action("pelaksana", "submit").await;
+    // 1. Operator satker submits: Input(1000) → SubmitToValidator(1001).
+    //
+    // This used to pass `"pelaksana"`, a role string no IAM issues — the seeded
+    // roles are operator_satker / validator_satker / approver_satker /
+    // validator_wilayah / validator_pusat / admin, and neither frontend has
+    // ever mentioned it. The test invented the role in a header and so
+    // certified a step that no real user could take: every "Ajukan" was
+    // refused with "Aksi 'submit' tidak valid untuk status 'Input'".
+    let res = action("operator_satker", "submit").await;
     assert_eq!(res.status_code(), 200, "submit: {:?}", res.text());
     assert_eq!(
         res.json::<serde_json::Value>()["data"]["aktivitas_id"],

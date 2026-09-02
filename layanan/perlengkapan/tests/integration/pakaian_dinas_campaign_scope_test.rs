@@ -154,27 +154,35 @@ async fn seed_at(
     )
     .unwrap();
 
-    // No API path materialises the per-satker rows yet, so seed them directly —
-    // legitimate setup; everything under test below is the production path.
-    let own_id = Uuid::new_v4();
-    let foreign_id = Uuid::new_v4();
+    // Creating a campaign now materialises one participation row per targeted
+    // satker, so these are LOOKED UP rather than inserted. Inserting them again
+    // produced two rows per satker — two statuses for the same thing — which is
+    // what this assertion caught. Only the status and the child rows are seeded
+    // here; the row itself comes from the production path.
     let client = db.pool().get().await.unwrap();
+    let mut ids = std::collections::HashMap::new();
+    for satker in ["SKR001", "SKR002"] {
+        let row = client
+            .query_one(
+                "SELECT id FROM perlengkapan.pengajuan_pakaian_dinas_satker \
+                 WHERE pengajuan_id = $1 AND satker_id = $2",
+                &[&pengajuan_id, &satker],
+            )
+            .await
+            .expect("campaign creation must materialise the participation row");
+        ids.insert(satker, row.get::<_, Uuid>("id"));
+    }
+    let own_id = ids["SKR001"];
+    let foreign_id = ids["SKR002"];
     for (row_id, satker) in [(own_id, "SKR001"), (foreign_id, "SKR002")] {
         client
             .execute(
-                "INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker \
-                 (id, pengajuan_id, satker_id, aktivitas_id, created_by) \
-                 VALUES ($1, $2, $3, $5, $4)",
-                &[
-                    &row_id,
-                    &pengajuan_id,
-                    &satker,
-                    &Uuid::parse_str(OPERATOR).unwrap(),
-                    &aktivitas,
-                ],
+                "UPDATE perlengkapan.pengajuan_pakaian_dinas_satker \
+                 SET aktivitas_id = $2 WHERE id = $1",
+                &[&row_id, &aktivitas],
             )
             .await
-            .expect("seed participation row");
+            .expect("set participation status");
         client
             .execute(
                 "INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_aktivitas \

@@ -255,6 +255,63 @@ impl PakaianDinasRepository {
                 .map_err(|e| bad_request(&e.to_string()))?;
         }
 
+        // Baris workflow per satker. Tanpa ini kampanye lahir tanpa satu pun
+        // satker yang bisa dibuka: `_satker_terpilih` hanya mencatat SIAPA yang
+        // disasar, sedangkan yang punya status, riwayat, dan tombol adalah
+        // `_satker`. Terbukti: kampanye yang dibuat lewat API mengembalikan
+        // `total_satker: 2` sementara daftar satkernya kosong, sehingga tidak
+        // ada yang bisa diisi maupun diajukan.
+        //
+        // Dibuat di depan, bukan saat satker pertama kali membuka: pusat perlu
+        // melihat siapa yang BELUM mulai, dan daftar yang hanya memuat yang
+        // sudah bergerak tidak bisa menjawab itu.
+        let satker_workflow: Vec<String> = if resolved_satker_codes.is_empty() {
+            // "semua": seluruh satker MySIMKARI. Daftarnya diambil dari SoT,
+            // bukan dikirim klien.
+            client
+                .query(
+                    "SELECT kode_satker FROM integrasi.mysimkari_satker
+                     WHERE kode_satker IS NOT NULL AND btrim(kode_satker) <> ''
+                     ORDER BY kode_satker",
+                    &[],
+                )
+                .await
+                .map_err(|e| bad_request(&e.to_string()))?
+                .iter()
+                .map(|row| row.get::<_, String>("kode_satker"))
+                .collect()
+        } else {
+            resolved_satker_codes.clone()
+        };
+
+        for satker_id in &satker_workflow {
+            // Tak ada unique constraint pada (pengajuan_id, satker_id), jadi
+            // penjagaannya di predikat — `ON CONFLICT` akan diam-diam tidak
+            // melakukan apa pun karena tak ada konflik yang bisa dideteksi.
+            client
+                .execute(
+                    r#"
+                    INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker
+                        (pengajuan_id, satker_id, aktivitas_id, created_by)
+                    -- Cast eksplisit, bukan hiasan: tanpa itu Postgres
+                    -- menyimpulkan `$2` sebagai `text` dari daftar SELECT dan
+                    -- sebagai `character varying` dari perbandingan di
+                    -- NOT EXISTS, lalu menolak seluruh pernyataan dengan
+                    -- "inconsistent types deduced for parameter $2". Lolos
+                    -- `cargo check` maupun clippy — hanya tes terhadap
+                    -- Postgres sungguhan yang menangkapnya.
+                    SELECT $1::uuid, $2::varchar, 1000, $3::uuid
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM perlengkapan.pengajuan_pakaian_dinas_satker
+                        WHERE pengajuan_id = $1::uuid AND satker_id = $2::varchar
+                    )
+                    "#,
+                    &[&id, satker_id, &user_id],
+                )
+                .await
+                .map_err(|e| bad_request(&e.to_string()))?;
+        }
+
         self.get_pengajuan_by_id(id).await
     }
 

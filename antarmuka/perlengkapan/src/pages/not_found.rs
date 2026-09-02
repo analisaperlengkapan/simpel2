@@ -8,7 +8,10 @@ use phosphor_leptos::HOUSE;
 #[component]
 pub fn NotFound() -> impl IntoView {
     view! {
-        <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0f172a, #1e3a5f, #0a1020); text-align: center; padding: 2rem;">
+        <div
+            data-testid="halaman-404"
+            style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0f172a, #1e3a5f, #0a1020); text-align: center; padding: 2rem;"
+        >
             <div>
                 <div style="font-size: 5rem; font-weight: 900; color: rgba(255,255,255,0.06); line-height: 1;">
                     "404"
