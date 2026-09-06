@@ -580,7 +580,7 @@ dependencies = [
  "tokio",
  "tokio-postgres",
  "tokio-test",
- "toml 1.1.4+spec-1.1.0",
+ "toml 1.1.5+spec-1.1.0",
  "tracing",
  "url",
  "urlencoding",
@@ -2224,7 +2224,7 @@ dependencies = [
  "rust-ini",
  "serde_core",
  "serde_json",
- "toml 1.1.4+spec-1.1.0",
+ "toml 1.1.5+spec-1.1.0",
  "winnow 1.0.2",
  "yaml-rust2",
 ]
@@ -8525,7 +8525,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-postgres",
- "toml 1.1.4+spec-1.1.0",
+ "toml 1.1.5+spec-1.1.0",
  "url",
  "walkdir",
 ]
@@ -9197,7 +9197,7 @@ dependencies = [
  "thiserror 2.0.20",
  "tokio",
  "tokio-postgres",
- "toml 1.1.4+spec-1.1.0",
+ "toml 1.1.5+spec-1.1.0",
  "tower",
  "tower-http",
  "tracing",
@@ -9225,7 +9225,7 @@ dependencies = [
  "serde_yaml",
  "thiserror 2.0.20",
  "tokio",
- "toml 1.1.4+spec-1.1.0",
+ "toml 1.1.5+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
 ]
@@ -9276,7 +9276,7 @@ dependencies = [
  "tokio-postgres",
  "tokio-postgres-rustls",
  "tokio-rustls",
- "toml 1.1.4+spec-1.1.0",
+ "toml 1.1.5+spec-1.1.0",
  "tonic-build",
  "totp-rs",
  "tower",
@@ -9307,7 +9307,7 @@ dependencies = [
  "thiserror 2.0.20",
  "tokio",
  "tokio-test",
- "toml 1.1.4+spec-1.1.0",
+ "toml 1.1.5+spec-1.1.0",
  "tonic",
  "tracing",
  "uuid",
@@ -9375,7 +9375,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
- "toml 1.1.4+spec-1.1.0",
+ "toml 1.1.5+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
  "url",
@@ -9440,7 +9440,7 @@ dependencies = [
  "tokio",
  "tokio-postgres",
  "tokio-postgres-rustls",
- "toml 1.1.4+spec-1.1.0",
+ "toml 1.1.5+spec-1.1.0",
  "totp-lite",
  "totp-rs",
  "tracing",
@@ -9665,7 +9665,7 @@ dependencies = [
  "tokio",
  "tokio-postgres",
  "tokio-postgres-rustls",
- "toml 1.1.4+spec-1.1.0",
+ "toml 1.1.5+spec-1.1.0",
  "tonic",
  "tracing",
  "uuid",
@@ -10899,9 +10899,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "1.1.4+spec-1.1.0"
+version = "1.1.5+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3aace63f4bbcdfc2c965b059de67119c89c4017a70d633be6c104910f67056f5"
+checksum = "12c0ba9680044b4ce98d391a62094047eada0d64860b80166c39f4a6b5640785"
 dependencies = [
  "indexmap 2.14.0",
  "serde_core",
