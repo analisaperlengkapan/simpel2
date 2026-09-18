@@ -9,8 +9,10 @@ use uuid::Uuid;
 ///
 /// This is deliberate — a recap is a procurement figure, and counting sizes a
 /// wilayah validator has not yet accepted would order uniforms against numbers
-/// still being revised. But it was written as a bare `1008` in four separate
-/// query strings with nothing naming it, and its effect is invisible from the
+/// still being revised. But it was written as a bare `1008` in six separate
+/// query strings with nothing naming it — four here and two more in
+/// `pengajuan.rs`, which is where the campaign list computes the very counts
+/// the page now shows — and its effect is invisible from the
 /// outside: mid-campaign the report simply comes back small, or empty, and a
 /// recap covering 3 of 238 satker renders exactly like a complete one.
 ///

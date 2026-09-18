@@ -611,7 +611,13 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                             (
                                 "border-warning-500/20 bg-warning-500/10 text-warning-300",
                                 format!(
-                                    "Mencakup {selesai} dari {total} satker yang sudah Selesai.                                      Satker yang masih diisi atau menunggu validasi belum terhitung,                                      jadi angka di bawah belum final.",
+                                    // `\` continuations, not a wrapped literal: joining the
+                                    // lines the other way leaves the indentation INSIDE the
+                                    // string, and HTML collapsing it is what hides that from
+                                    // the screen while every other reader keeps the gap.
+                                    "Mencakup {selesai} dari {total} satker yang sudah Selesai. \
+                                     Satker yang masih diisi atau menunggu validasi belum \
+                                     terhitung, jadi angka di bawah belum final.",
                                 ),
                             )
                         };
