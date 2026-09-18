@@ -32,7 +32,6 @@ nor yq (see project_arc_runner_image_missing_tools).
 
 from __future__ import annotations
 
-import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -42,24 +41,50 @@ ROOT = Path(__file__).resolve().parents[2]
 PROTO_GLOB = "layanan/*/proto/*.proto"
 SKIP_DIRS = {"target", "node_modules", ".git"}
 
-# A `//` comment, but not one inside a string literal. Proto string literals in
-# this tree are option values (`option go_package = "...";`) and contain no
-# `//`, but the pattern is written to leave quoted runs alone anyway.
-STRING_LITERAL_RE = re.compile(r'"(?:[^"\\]|\\.)*"')
-LINE_COMMENT_RE = re.compile(r"//[^\n]*")
-BLOCK_COMMENT_RE = re.compile(r"/\*.*?\*/", re.S)
-
-
 def strip_comments(src: str) -> str:
+    """Remove `//` and `/* */` comments, preserving string literals.
+
+    A single left-to-right scan, NOT a regex pass. The first version of this
+    function found every quoted run in the file and treated each as a string
+    literal to be protected — which meant a QUOTE INSIDE A COMMENT opened a
+    fake literal, and the comment text after it survived as "code". Adding a
+    comment that said `// False means "no photo on record"` made this guard
+    report the two copies as disagreeing on lines that were both comments.
+
+    That is the fourth time in this repo a comment has been read as code
+    (see project_comments_are_parsed_as_code). A character scan cannot make
+    the mistake: a quote inside a comment is never the start of a literal,
+    because the scanner is already in the comment state when it reaches it.
+    """
     out: list[str] = []
-    idx = 0
-    for m in STRING_LITERAL_RE.finditer(src):
-        chunk = BLOCK_COMMENT_RE.sub(" ", src[idx : m.start()])
-        out.append(LINE_COMMENT_RE.sub("", chunk))
-        out.append(m.group(0))
-        idx = m.end()
-    tail = BLOCK_COMMENT_RE.sub(" ", src[idx:])
-    out.append(LINE_COMMENT_RE.sub("", tail))
+    i, n = 0, len(src)
+    while i < n:
+        c = src[i]
+        if c == '"':
+            out.append(c)
+            i += 1
+            while i < n:
+                out.append(src[i])
+                if src[i] == "\\" and i + 1 < n:
+                    out.append(src[i + 1])
+                    i += 2
+                    continue
+                if src[i] == '"':
+                    i += 1
+                    break
+                i += 1
+            continue
+        if src.startswith("//", i):
+            while i < n and src[i] != "\n":
+                i += 1
+            continue
+        if src.startswith("/*", i):
+            end = src.find("*/", i + 2)
+            i = n if end == -1 else end + 2
+            out.append(" ")
+            continue
+        out.append(c)
+        i += 1
     return "".join(out)
 
 
@@ -135,5 +160,72 @@ def main() -> int:
     return 0
 
 
+def _canaries() -> int:
+    """Prove the comment stripper on the cases that actually broke it.
+
+    Every case below is a REGRESSION, not a description: the previous
+    regex-pair implementation leaks the comment text of the first two and
+    would report two identically-generated copies as disagreeing.
+    """
+    failures = 0
+
+    def expect(label: str, src: str, keep: list[str], drop: list[str]) -> None:
+        nonlocal failures
+        out = strip_comments(src)
+        bad = [f"missing {k!r}" for k in keep if k not in out]
+        bad += [f"leaked {d!r}" for d in drop if d in out]
+        print(f"  {'ok  ' if not bad else 'FAIL'} {label}" + ("" if not bad else f" — {'; '.join(bad)}"))
+        if bad:
+            failures += 1
+
+    expect(
+        "a quote inside a line comment does not open a string literal",
+        '// False means "no photo on record", ordinary\nstring foto = 12;\n',
+        ["string foto = 12;"],
+        ["no photo on record", "False means"],
+    )
+    expect(
+        "two consecutive quoted comments do not pair their quotes",
+        '// a "x" b\n// c "y" d\nbool found = 1;\n',
+        ["bool found = 1;"],
+        ["x", "y"],
+    )
+    expect(
+        "a real string literal survives, `//` inside it included",
+        'option go_package = "github.com/x//y";\n',
+        ['"github.com/x//y"'],
+        [],
+    )
+    expect(
+        "block comments go",
+        "/* drop\n   this */\nint32 a = 1;\n",
+        ["int32 a = 1;"],
+        ["drop"],
+    )
+    expect(
+        "an unterminated block comment does not swallow the file silently",
+        "int32 a = 1;\n/* never closed\n",
+        ["int32 a = 1;"],
+        ["never closed"],
+    )
+    expect(
+        "an escaped quote does not end the literal early",
+        'option x = "a\\"//b";\nint32 a = 1;\n',
+        ['"a\\"//b"', "int32 a = 1;"],
+        [],
+    )
+
+    # The other direction: the copies as committed must PASS. A guard that
+    # only ever proves it can fail is a guard nobody has proven can pass.
+    rc = main()
+    print(f"  {'ok  ' if rc == 0 else 'FAIL'} the copies as committed agree (exit {rc})")
+    if rc != 0:
+        failures += 1
+
+    return failures
+
+
 if __name__ == "__main__":
+    if "--self-test" in sys.argv:
+        sys.exit(_canaries())
     sys.exit(main())

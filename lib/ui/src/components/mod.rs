@@ -16,7 +16,6 @@ pub mod error_boundary;
 pub mod feedback;
 pub mod floating;
 pub mod forms;
-pub mod foto_pegawai;
 pub mod guards;
 pub mod icon;
 pub mod layout;
@@ -48,7 +47,14 @@ pub use monitoring_dashboard::*;
 pub use navigation::{AppHeader, Breadcrumb};
 pub use notifications::*;
 // Image optimization components (includes Avatar, OptimizedImage)
-pub use foto_pegawai::{MEDIA_MYSIMKARI, foto_pegawai_url};
+// Re-exported, not defined here. `layanan-integrasi` needs the same URL to
+// fetch the photo bytes for the SK izin PDF — it is the only pod with egress
+// to the media host — and a backend service cannot depend on a Leptos crate.
+// So the builder lives in `lib-core`, which both sides already depend on, and
+// this re-export keeps every existing `lib_ui::foto_pegawai_url` call working.
+// A second hand-rolled encoder in integrasi is exactly the two-sided drift
+// this repo keeps paying for.
+pub use lib_core::foto_pegawai::{MEDIA_MYSIMKARI, foto_pegawai_url};
 pub use optimized_image::*;
 pub use search::*;
 pub use security_meta::*;

@@ -17,6 +17,12 @@
 //! Rantai datanya sudah utuh sebelum ini (kolom ada, sinkronisasi menulisnya,
 //! API mengembalikannya); yang tidak pernah ada adalah penampilnya. Nol `<img>`
 //! foto pegawai di kedua frontend.
+//!
+//! Ada di `lib-core`, bukan `lib-ui`, karena dua sisi memerlukannya: frontend
+//! merakit URL untuk `<img>`, dan `layanan-integrasi` merakit URL yang SAMA
+//! untuk mengunduh bytenya ke SK izin pemakaian BMN — ia satu-satunya pod yang
+//! punya egress ke host media. Satu implementasi, bukan dua yang boleh
+//! menyimpang diam-diam.
 
 /// Host penyimpanan foto MySIMKARI.
 ///
@@ -29,7 +35,7 @@ pub const MEDIA_MYSIMKARI: &str =
 
 /// Percent-encode satu segmen path.
 ///
-/// Ditulis tangan alih-alih menarik dependensi: lib-ui dikompilasi untuk
+/// Ditulis tangan alih-alih menarik dependensi: lib-core dikompilasi untuk
 /// wasm32 dan host, dan aturannya cukup sempit — pertahankan huruf, angka, dan
 /// `-._~`, sandikan sisanya. Itu lebih ketat dari yang diwajibkan RFC 3986 dan
 /// itu disengaja: menyandikan yang sebenarnya aman tidak merusak apa pun,

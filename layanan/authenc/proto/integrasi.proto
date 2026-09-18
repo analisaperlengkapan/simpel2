@@ -40,6 +40,10 @@ service IntegrasiService {
   rpc GetMysimkariSatker(GetMysimkariSatkerRequest) returns (GetMysimkariSatkerResponse);
   rpc GetMysimkariPegawai(GetMysimkariPegawaiRequest) returns (GetMysimkariPegawaiResponse);
 
+  // Photo BYTES for one employee. `layanan-integrasi` is the only pod with
+  // egress to the media host, so perlengkapan asks it rather than fetching.
+  rpc GetPegawaiFoto(GetPegawaiFotoRequest) returns (GetPegawaiFotoResponse);
+
   // =========================================================================
   // SIMAN v2.0 Data Access (Asset Management)
   // =========================================================================
@@ -367,8 +371,20 @@ message MysimkariPegawai {
   string status = 10;
   map<string, string> extra_fields = 11;
   // MySIMKARI's photo FILE NAME, not a URL. Consumers build the URL from it
-  // (`lib_ui::foto_pegawai_url`).
+  // (`lib_core::foto_pegawai::foto_pegawai_url`).
   string foto = 12;
+}
+
+message GetPegawaiFotoRequest {
+  string nip = 1;
+}
+
+message GetPegawaiFotoResponse {
+  // `found == false` means the employee has no photo on record — an ordinary
+  // answer, not an error. A real failure comes back as a gRPC status.
+  bool found = 1;
+  bytes data = 2;
+  string content_type = 3;
 }
 
 // ===========================================================================
