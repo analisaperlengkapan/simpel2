@@ -410,6 +410,19 @@ jobs:
         run: |
           python3 ./infra/scripts/check-guard-imports-are-stdlib.py
           python3 ./infra/scripts/check-guard-imports-are-stdlib.py --self-test
+      # Pembungkus retry untuk pemeriksaan dependency (security.yml +
+      # maintenance.yml). Self-test-nya WAJIB: klasifikasi di dalamnya punya
+      # satu arah yang berbahaya — "tak ada jawaban" dihitung hijau. Kalau
+      # urutan pemeriksaannya terbalik, sebuah TEMUAN sungguhan bisa terserap
+      # jadi hijau, dan seluruh pemeriksaan dependency berhenti menangkap apa
+      # pun tanpa satu pun tanda. Itu bukan hipotesis: ia sudah terjadi di sini
+      # saat pola `failed to fetch` yang terlalu lebar menelan kegagalan
+      # toolchain cargo-deny (lihat komentar di skrip). Self-test mengunci
+      # urutan itu. Tanpa langkah ini, kebijakan "tanpa jawaban = hijau" tidak
+      # punya penjaga sama sekali.
+      - name: Dependency-check retry wrapper self-test
+        shell: bash
+        run: python3 ./infra/scripts/retry-dependency-check.py --selftest
       # Kodefikasi SIMAN adalah FUNGSI: 2.033 kode barang, 2.033 nama, nol kode
       # bermakna ganda di 624.533 baris. Fixture e2e melanggarnya tanpa
       # ketahuan — tiap kode yang dipakainya nyata, hanya namanya milik barang

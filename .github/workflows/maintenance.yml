@@ -199,23 +199,45 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: cargo audit
         shell: bash
+        # continue-on-error tetap ada (job ini murni pelaporan), tapi pembungkus
+        # retry menyembuhkan akar masalahnya: `cargo audit` lebih dulu mengambil
+        # DB advisory RustSec, jadi kegagalan jaringan mengosongkan laporan ini
+        # tanpa ada yang menyadarinya.
         continue-on-error: true
         run: |
           if ! command -v cargo-audit &>/dev/null; then
-            cargo install cargo-audit --locked
+            curl -LsSf --retry 4 --retry-delay 2 --retry-all-errors \
+              --connect-timeout 15 --max-time 180 \
+              "https://github.com/rustsec/rustsec/releases/download/cargo-audit/v0.22.1/cargo-audit-x86_64-unknown-linux-gnu-v0.22.1.tgz" \
+              | tar -xzf- --strip-components=1 -C "$CARGO_HOME/bin/" \
+                cargo-audit-x86_64-unknown-linux-gnu-v0.22.1/cargo-audit 2>/dev/null \
+              || cargo install cargo-audit --locked
           fi
-          {
-            echo "## Cargo Audit"
-            echo '```'
-            cargo audit 2>&1 | head -120 || true
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          # Pembungkus menulis markdown-nya SENDIRI (heading + <details> + fence
+          # + verdict). Jangan membungkusnya dengan fence lain di sini: fence
+          # bersarang merusak render summary, dan verdict-nya justru menghilang
+          # di dalam blok kode.
+          echo "## Cargo Audit" >> "$GITHUB_STEP_SUMMARY"
+          python3 ./infra/scripts/retry-dependency-check.py \
+            --name "cargo audit (maintenance)" --attempts 3 --timeout 420 \
+            --allow-failure -- cargo audit || true
       - name: cargo outdated
         shell: bash
         continue-on-error: true
         run: |
           if ! command -v cargo-outdated &>/dev/null; then
-            cargo install cargo-outdated --locked
+            # `cargo install` mengunduh + mengompilasi dari crates.io: jalur
+            # jaringan + kompilasi. Sama seperti tetangganya, ia di-retry.
+            ok=0
+            for attempt in 1 2 3; do
+              if cargo install cargo-outdated --locked; then ok=1; break; fi
+              echo "::warning::cargo install cargo-outdated gagal (percobaan ${attempt}/3)"
+              [ "$attempt" -lt 3 ] && sleep $((attempt * 10))
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "::warning::cargo-outdated tidak terpasang (jaringan/crates.io) — laporan dilewati, bukan temuan dependency"
+              exit 0
+            fi
           fi
           {
             echo "## Cargo Outdated"
