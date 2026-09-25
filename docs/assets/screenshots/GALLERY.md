@@ -4,6 +4,8 @@ Seluruh **70 tampilan** di bawah ini diambil otomatis dari aplikasi yang benar-b
 
 | Cara memperbarui | Perintah |
 |---|---|
+| Nyalakan stack (satu origin) | `docker compose -f docker-compose.yml -f docker-compose.e2e.yml -f docker-compose.screenshots.yml up -d --build postgres redis authenc secreton layanan-integrasi layanan-perlengkapan portal perlengkapan cross-app-ingress` |
+| Isi data uji (WAJIB, berurutan) | `docker compose -f docker-compose.yml -f docker-compose.e2e.yml run -T --rm e2e-seed -v ON_ERROR_STOP=1 -h postgres -U postgres -d dbsimpelv2 -f - < tests/fixtures/e2e/seed-multisatker.sql` lalu hal yang sama untuk `tests/fixtures/e2e/seed-perlengkapan-workflow.sql` |
 | Ambil ulang seluruh gambar | `node tests/e2e/screenshots/capture.mjs` |
 | Periksa kualitas gambar | `python3 tests/e2e/screenshots/check.py` |
 | Bentuk ulang galeri ini (termasuk README) | `python3 tests/e2e/screenshots/gallery.py --prefix docs/assets/screenshots/ --embed README.md` |
@@ -56,7 +58,7 @@ Titik masuk SSO dan hasil akhir sebuah sesi.
 
 ![/perlengkapan/simpel/v2/login](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__login.png)
 
-<sub>1600×3764 piksel</sub>
+<sub>1600×3727 piksel</sub>
 
 **`/perlengkapan/simpel/v2/login (anon)`**
 
@@ -158,7 +160,7 @@ IAM: pengguna, peran, klien OAuth2, audit.
 
 ![/portal/admin/audit](docs/assets/screenshots/portal__portal__admin__audit.png)
 
-<sub>1600×2506 piksel</sub>
+<sub>1600×1089 piksel</sub>
 
 **`/portal/admin/clients`**
 
@@ -204,13 +206,13 @@ Beranda aplikasi dan indeks modul.
 
 ![/perlengkapan/simpel/v2/](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__.png)
 
-<sub>1600×3764 piksel</sub>
+<sub>1600×3727 piksel</sub>
 
 **`/perlengkapan/simpel/v2/dashboard`**
 
 ![/perlengkapan/simpel/v2/dashboard](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__dashboard.png)
 
-<sub>1600×3764 piksel</sub>
+<sub>1600×3727 piksel</sub>
 
 ### Bank Aset
 
@@ -272,7 +274,7 @@ Usulan kebutuhan per satker dan alur persetujuannya.
 
 ![/perlengkapan/simpel/v2/kebutuhan-bmn/detail/:id](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__detail__id.png)
 
-<sub>1600×1000 piksel</sub>
+<sub>1600×1150 piksel</sub>
 
 **`/perlengkapan/simpel/v2/kebutuhan-bmn/laporan`**
 
@@ -290,7 +292,7 @@ Usulan kebutuhan per satker dan alur persetujuannya.
 
 ![/perlengkapan/simpel/v2/kebutuhan-bmn/satker/:satker_id](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__satker__satker_id.png)
 
-<sub>1600×1077 piksel</sub>
+<sub>1600×1090 piksel</sub>
 
 ### Pakaian Dinas
 
@@ -346,7 +348,7 @@ Izin pemakaian beserta rantai persetujuannya.
 
 ![/perlengkapan/simpel/v2/pengelolaan/pemakaian](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian.png)
 
-<sub>1600×1059 piksel</sub>
+<sub>1600×1054 piksel</sub>
 
 **`/perlengkapan/simpel/v2/pengelolaan/pemakaian/buat`**
 
@@ -364,7 +366,7 @@ Izin pemakaian beserta rantai persetujuannya.
 
 ![/perlengkapan/simpel/v2/pengelolaan/pemakaian/monitoring](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian__monitoring.png)
 
-<sub>1600×1273 piksel</sub>
+<sub>1600×1196 piksel</sub>
 
 ### Penghapusan BMN
 
@@ -386,7 +388,7 @@ Usulan penghapusan sampai Konsep SK.
 
 ![/perlengkapan/simpel/v2/pengelolaan/penghapusan/detail/:id](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pengelolaan__penghapusan__detail__id.png)
 
-<sub>1600×1690 piksel</sub>
+<sub>1600×1585 piksel</sub>
 
 ### Analitik & Roadmap
 
@@ -428,7 +430,7 @@ Panduan, FAQ, dan helpdesk.
 
 ![/perlengkapan/simpel/v2/bantuan/helpdesk](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__bantuan__helpdesk.png)
 
-<sub>1600×1274 piksel</sub>
+<sub>1600×1223 piksel</sub>
 
 **`/perlengkapan/simpel/v2/bantuan/panduan`**
 
@@ -486,4 +488,4 @@ Peran dan hak akses.
 
 ![/perlengkapan/simpel/v2/admin/workflow-monitoring](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__admin__workflow-monitoring.png)
 
-<sub>1600×1285 piksel</sub>
+<sub>1600×1338 piksel</sub>

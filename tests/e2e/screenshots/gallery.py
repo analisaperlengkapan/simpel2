@@ -198,6 +198,25 @@ def main() -> int:
     )
     lines.append("|---|---|")
     lines.append(
+        "| Nyalakan stack (satu origin) | `docker compose -f docker-compose.yml -f "
+        "docker-compose.e2e.yml -f docker-compose.screenshots.yml up -d --build postgres redis "
+        "authenc secreton layanan-integrasi layanan-perlengkapan portal perlengkapan "
+        "cross-app-ingress` |"
+    )
+    # Seeding is NOT optional and NOT obvious: without it the capture does not
+    # fail loudly, it reports a plausible-looking "64 screenshots, 7 unresolved
+    # routes" and exits 1. The missing rows are the ones a workflow needs (an
+    # izin to open, a penghapusan to inspect), so the detail pages silently drop
+    # out of the gallery while the run appears to have mostly worked. Both files
+    # are required, and in this order — the workflow fixture references the
+    # users/satkers the first one seeds.
+    lines.append(
+        "| Isi data uji (WAJIB, berurutan) | `docker compose -f docker-compose.yml -f "
+        "docker-compose.e2e.yml run -T --rm e2e-seed -v ON_ERROR_STOP=1 -h postgres -U postgres "
+        "-d dbsimpelv2 -f - < tests/fixtures/e2e/seed-multisatker.sql` lalu hal yang sama untuk "
+        "`tests/fixtures/e2e/seed-perlengkapan-workflow.sql` |"
+    )
+    lines.append(
         "| Ambil ulang seluruh gambar | `node tests/e2e/screenshots/capture.mjs` |"
     )
     lines.append("| Periksa kualitas gambar | `python3 tests/e2e/screenshots/check.py` |")
