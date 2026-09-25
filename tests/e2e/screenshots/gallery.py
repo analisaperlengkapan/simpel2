@@ -256,8 +256,36 @@ def main() -> int:
         # Keep the BEGIN marker comment itself (it carries the "do not edit"
         # warning), replace only what sits between the two markers.
         begin_line_end = text.find("\n", i)
-        block = "\n" + "\n".join(lines) + "\n\n"
+        # `lines` already ends with a blank separator, so joining leaves one
+        # trailing "\n"; adding "\n\n" then produced TWO blank lines before the
+        # END marker (README.md:617-618) and tripped markdownlint MD012
+        # (no-multiple-blanks) — the only lint failure on this PR. Normalise to
+        # exactly one blank line between the last image and the marker.
+        block = "\n" + "\n".join(lines).rstrip("\n") + "\n\n"
         embed_path.write_text(text[: begin_line_end + 1] + block + text[j:])
+
+        # A generator that can emit a lint failure should not need a human to
+        # notice it. Check the block we just wrote for the specific rule it
+        # broke, so a future edit to the append logic fails here instead of in
+        # CI.
+        written = "\n".join(
+            (text[: begin_line_end + 1] + block + text[j:]).splitlines()
+        )
+        body = written.split("\n")
+        doubled = [
+            n + 1
+            for n in range(len(body) - 1)
+            if body[n].strip() == "" and body[n + 1].strip() == ""
+        ]
+        if doubled:
+            print(
+                f"::error::{embed_path}:{doubled[0]} blok galeri memuat baris "
+                "kosong berurutan — markdownlint MD012 akan merah. Perbaiki "
+                "perakitan `lines` sebelum ini.",
+                file=sys.stderr,
+            )
+            return 2
+
         print(f"embedded gallery into {embed_path}")
 
     return 0
