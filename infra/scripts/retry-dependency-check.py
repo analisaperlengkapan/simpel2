@@ -229,14 +229,13 @@ CLEAN_RE = re.compile("|".join(CLEAN_PATTERNS), re.I)
 # ringkasannya bisa didiagnosis tanpa membuka log mentah.
 ID_RE = re.compile(r"RUSTSEC-\d{4}-\d{4}|CVE-\d{4}-\d{4,}|GHSA-[0-9a-z-]{4,}")
 FIELD_RE = re.compile(r"^(Crate|Version|Title|ID|Date|Solution|Severity|Warning):")
-RAW_ERROR_RE = re.compile(r"^error:")
 
 # `cargo audit` mewarnai keluarannya secara default, jadi barisnya berbentuk
 # `\x1b[1mCrate:\x1b[0m rustls` — bukan `Crate: rustls`. Tanpa dibersihkan,
-# pencocokan ber-anchor `^` (FIELD_RE, RAW_ERROR_RE) tak pernah kena, sehingga
-# ekstraksi "temuan apa?" diam-diam menghasilkan NOL baris di dunia nyata
-# (terbukti pada run 2026-09-25: bagian sinyal tak muncul sama sekali, padahal
-# direproduksi sintetis lulus karena tak ada kode ANSI di sana).
+# pencocokan ber-anchor `^` (FIELD_RE) tak pernah kena, sehingga ekstraksi
+# "temuan apa?" diam-diam menghasilkan NOL baris di dunia nyata (terbukti pada
+# run 2026-09-25: bagian sinyal tak muncul sama sekali, padahal direproduksi
+# sintetis lulus karena tak ada kode ANSI di sana).
 #
 # Dibersihkan di sini, bukan dengan mengandalkan `--color never`, supaya
 # pembungkus tetap benar untuk alat apa pun dan pemanggil apa pun.
@@ -245,6 +244,70 @@ ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
 def strip_ansi(text: str) -> str:
     return ANSI_RE.sub("", text)
+
+
+CRATE_RE = re.compile(r"^Crate:\s*(\S+)")
+WARNING_FIELD_RE = re.compile(r"^Warning:")
+DEPENDENCY_BLOCK_RE = re.compile(r"^(Dependency tree|Tree):")
+
+
+def extract_findings(output: str, max_blocks: int = 3) -> list[str]:
+    """Ambil header blok temuan SUNGGUHAN dari keluaran `cargo audit`.
+
+    Kenapa diparse per-blok, bukan dengan mengangkur ke baris `error:`:
+    `run_once` menangkap stdout dan stderr **terpisah** lalu menyambungnya
+    (`stdout + stderr`). `cargo audit` menulis laporan ke stdout dan baris
+    ringkasan `error: N vulnerability found!` ke stderr, jadi di keluaran yang
+    benar-benar diklasifikasi baris `error:` itu berada di UJUNG — ratusan
+    baris sesudah blok advisory yang diterangkannya. Jendela ±baris di sekitar
+    anchor karena itu tak pernah menjangkau bloknya, dan ekstraksi diam-diam
+    hanya menyisakan baris `error:` itu sendiri (persis yang terjadi di CI
+    2026-09-25). Sebelumnya ia tampak berhasil hanya karena log CI yang sudah
+    di-merge men-interleave kedua stream sehingga `error:` kebetulan mendarat
+    di tengah blok — bergantung pada urutan yang kebetulan, bukan pada isi.
+
+    Parser ini membaca blok apa adanya: tiap `Crate:` membuka blok, `Dependency
+    tree:` menutupnya (pohon dependensi bisa ratusan baris dan bukan bagian
+    dari jawaban "temuan apa?"). Sebuah blok dihitung temuan bila punya
+    `Severity:` atau punya `ID:` TANPA `Warning:` — di `cargo audit`,
+    advisory informasional (unmaintained/yanked/unsound) selalu memuat
+    `Warning:` dan tak pernah memuat `Severity:`. Dengan begitu blok peringatan
+    tidak ikut membanjiri ringkasan.
+    """
+    out: list[str] = []
+    block: list[str] = []
+
+    def flush() -> None:
+        if not block or len(out) >= max_blocks * 14:
+            block.clear()
+            return
+        has_warning = any(WARNING_FIELD_RE.match(l) for l in block)
+        has_severity = any(l.startswith("Severity:") for l in block)
+        has_id = any(l.startswith("ID:") for l in block)
+        if has_severity or (has_id and not has_warning):
+            out.extend(block)
+            out.append("")
+
+    for raw in output.splitlines():
+        stripped = raw.strip()
+        if CRATE_RE.match(stripped):
+            flush()
+            block = [stripped]
+            continue
+        if DEPENDENCY_BLOCK_RE.match(stripped):
+            flush()
+            block = []
+            continue
+        if not block:
+            continue
+        if FIELD_RE.match(stripped) and not CLEAN_RE.search(raw):
+            block.append(stripped)
+        elif ID_RE.search(raw):
+            block.append(stripped)
+    flush()
+
+    return out[: max_blocks * 14]
+
 
 
 def classify(output: str, returncode: int, timed_out: bool) -> tuple[str, str]:
@@ -435,6 +498,71 @@ def selftest_capture() -> list[str]:
             failures.append(f"capture: rc={rc}, mau 1 saat gagal non-jaringan")
         else:
             print("  ok  capture: gagal non-jaringan tetap merah")
+
+    failures += selftest_findings()
+
+    return failures
+
+
+def selftest_findings() -> list[str]:
+    """Buktikan ekstraksi temuan berfungsi di bentuk keluaran yang NYATA.
+
+    Versi sebelumnya lulus uji yang menaruh blok advisory dan baris `error:`
+    berdekatan. `run_once` menangkap stdout dan stderr terpisah lalu
+    menyambungnya, jadi di keluaran sungguhan `error:` berada di ujung, ratusan
+    baris dari bloknya — dan jendela ±baris di sekitar anchor tak pernah
+    mencapainya. Ekstraksinya menghasilkan NOL baris temuan, dan tak ada uji
+    yang gagal. Uji di bawah menaruh keduanya persis seperti `run_once`
+    melihatnya: blok advisory (stdout) di depan, ringkasan (stderr) di ekor.
+    """
+    failures: list[str] = []
+    # Dua blok; hanya yang pertama adalah temuan sungguhan. Yang kedua meniru
+    # advisory informasional `cargo audit` (selalu ber-`Warning:`, tanpa
+    # `Severity:`) yang tak boleh membanjiri ringkasan.
+    stream = (
+        "Crate:     rustls\n"
+        "Version:   0.23.43\n"
+        "Title:     TLS 1.3 handshake messages incorrectly accepted\n"
+        "Date:      2026-09-14\n"
+        "ID:        RUSTSEC-2026-0285\n"
+        "URL:       https://rustsec.org/advisories/RUSTSEC-2026-0285\n"
+        "Severity:  5.3 (medium)\n"
+        "Solution:  Upgrade to >=0.23.45\n"
+        "Dependency tree:\n"
+        "rustls 0.23.43\n"
+        "└── tokio-rustls 0.26.4\n"
+        "Crate:     validit\n"
+        "Version:   0.2.5\n"
+        "Warning:   yanked\n"
+        "Dependency tree:\n"
+        "validit 0.2.5\n"
+        "└── openraft 0.9.25\n"
+        "\n"
+        # stdout berakhir; stderr-nya menyusul di ujung, jauh dari bloknya:
+        "error: 1 vulnerability found!\n"
+        "warning: 9 allowed warnings found\n"
+    )
+    got = extract_findings(strip_ansi(stream))
+    joined = "\n".join(got)
+    for want in (
+        "Crate:     rustls",
+        "Version:   0.23.43",
+        "RUSTSEC-2026-0285",
+        "Severity:  5.3 (medium)",
+        "Solution:  Upgrade to >=0.23.45",
+    ):
+        if want not in joined:
+            failures.append(f"findings: '{want}' tak tersorot dari keluaran nyata")
+    if "Warning:" in joined:
+        failures.append("findings: blok peringatan ikut terbawa ke ringkasan")
+    if "tokio-rustls" in joined:
+        failures.append("findings: ekor pohon dependensi bocor ke ringkasan")
+    if not failures:
+        print("  ok  findings: blok temuan tersorot lintas-stream")
+
+    # Ekstraksi harus tetap jujur saat tak ada temuan sama sekali.
+    if extract_findings("error: 1 vulnerability found!\n"):
+        failures.append("findings: mengarang temuan dari keluaran tanpa blok")
 
     return failures
 
@@ -649,34 +777,11 @@ def main() -> int:
         # diperbaiki. Kejadian nyata 2026-09-25.
         #
         # Jadi bila ada sinyal temuan, sorot blok yang menjawabnya DI ATAS ekor
-        # biasa.
-        #
-        # Jendelanya diangkur ke baris sinyal, bukan disapu dari seluruh
-        # keluaran: `cargo audit` mencetak blok WARNING lebih dulu (ratusan
-        # baris ber-Crate/ID/Solution untuk advisory yang justru sudah
-        # di-ignore), jadi sapuan global menghabiskan kuota pada warning dan
-        # memotong blok vulnerability-nya — persis informasi yang dicari.
+        # biasa. Pemilihannya ada di `extract_findings` (lihat docstring-nya
+        # untuk alasan ia memarse per-blok alih-alih mengangkur ke `error:`).
         signal_lines: list[str] = []
         if verdict == "RED":
-            all_lines = output.splitlines()
-            anchors = [
-                i for i, l in enumerate(all_lines) if DECISIVE_RE.search(l)
-            ]
-            seen: set[str] = set()
-            for i in anchors:
-                # Blok advisory itu contiguous: header di atas baris
-                # "error: N vulnerability found", detail di bawahnya.
-                for raw in all_lines[max(0, i - 14): i + 16]:
-                    stripped = raw.strip()
-                    if not stripped or stripped in seen:
-                        continue
-                    if FIELD_RE.match(stripped) and not CLEAN_RE.search(raw):
-                        seen.add(stripped)
-                        signal_lines.append(stripped)
-                    elif (ID_RE.search(raw) or RAW_ERROR_RE.match(stripped)) \
-                            and not any(stripped in s for s in signal_lines):
-                        seen.add(stripped)
-                        signal_lines.append(stripped)
+            signal_lines = extract_findings(output)
 
         summary_lines.append("<details><summary>Keluaran (ekor 100 baris)</summary>")
         summary_lines.append("")
