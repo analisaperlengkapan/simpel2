@@ -156,7 +156,7 @@ pub fn AdminRolesPage() -> impl IntoView {
                                                         <span class="text-success-400 mr-2">
                                                             <AppIcon icon=CHECK />
                                                         </span>
-                                                        "Roadmap Sarpras: Approve"
+                                                        "Analisis Kebutuhan: Approve"
                                                     </div>
                                                 }
                                                     .into_any()

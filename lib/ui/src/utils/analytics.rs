@@ -419,6 +419,13 @@ fn generate_event_id() -> String {
 }
 
 /// Log event to console
+///
+/// The body is debug-only, so in a release build the parameter is unused and
+/// rustc says so — a warning clippy never sees, because CI lints the dev
+/// profile where `debug_assertions` is on. Gated rather than `_`-prefixed: the
+/// name is part of the debug output above, and renaming it would break the one
+/// build where this function does anything.
+#[cfg_attr(not(debug_assertions), allow(unused_variables))]
 fn log_event(event: &UserEvent) {
     #[cfg(debug_assertions)]
     {

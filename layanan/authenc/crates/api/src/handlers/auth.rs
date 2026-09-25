@@ -366,6 +366,26 @@ impl IntoResponse for ErrorResponse {
     }
 }
 
+/// Annotate `response` with the actor a handler just authenticated.
+///
+/// See [`crate::middleware::security::AuthenticatedActor`] for why this handoff
+/// exists. A login handler is the one place the identity is known but the audit
+/// write is not; returning the response unchanged keeps every other path
+/// (failed logins, unauthenticated requests) correctly unattributed.
+fn with_authenticated_actor(
+    mut response: axum::response::Response,
+    user_id: &str,
+    client_id: Option<&str>,
+) -> axum::response::Response {
+    response
+        .extensions_mut()
+        .insert(crate::middleware::security::AuthenticatedActor {
+            user_id: user_id.to_string(),
+            client_id: client_id.map(str::to_string),
+        });
+    response
+}
+
 /// POST /api/v1/auth/login - Username/password login
 ///
 /// Authenticates a user with username and password.
@@ -527,7 +547,7 @@ pub async fn login_handler(
                 }
             };
 
-            (
+            let response = (
                 axum::http::StatusCode::OK,
                 axum::Json(LoginResponse {
                     access_token,
@@ -546,7 +566,12 @@ pub async fn login_handler(
                     },
                 }),
             )
-                .into_response()
+                .into_response();
+            // Hand the now-verified identity to `security_monitoring_middleware`
+            // so the AUTH_SUCCESS audit row carries the user instead of leaving
+            // `user_id` NULL. This is the only place the login path knows who
+            // the caller is.
+            with_authenticated_actor(response, &uid, None)
         }
 
         Ok(AuthResult::MfaRequired {

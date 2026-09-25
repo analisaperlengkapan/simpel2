@@ -67,10 +67,12 @@ pub fn ClientDetailPage() -> impl IntoView {
     };
     let client_enabled = move || client.get().map(|c| c.enabled).unwrap_or(false);
     let client_created = move || {
-        client
-            .get()
-            .map(|c| c.created_at.clone())
-            .unwrap_or_default()
+        lib_ui::utils::format_iso_local(
+            &client
+                .get()
+                .map(|c| c.created_at.clone())
+                .unwrap_or_default(),
+        )
     };
     let client_uris = move || {
         client
@@ -145,7 +147,7 @@ pub fn ClientDetailPage() -> impl IntoView {
 
                             <div class="grid grid-cols-3 divide-x border-t">
                                 <div class="px-4 py-3 text-center">
-                                    <p class="text-xs text-gray-500">"ID Klien"</p>
+                                    <p class="text-xs text-gray-500">"ID Internal"</p>
                                     <p class="text-xs font-mono text-gray-700 truncate">
                                         {client_id_display}
                                     </p>

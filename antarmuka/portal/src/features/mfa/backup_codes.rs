@@ -367,13 +367,8 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
 struct MfaBackupCodesRequest {
-    /// Authorization token
-    token: String,
-    /// Action to perform (generate, list, verify)
+    /// Action to perform (generate, list)
     action: String,
-    /// Backup code to verify (for verify action)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    code: Option<String>,
 }
 
 /// Response payload from authenc backup codes API
@@ -409,13 +404,13 @@ async fn generate_backup_codes() -> Result<BackupCodesResponse, Box<dyn std::err
 
         // Prepare request body
         let request_body = MfaBackupCodesRequest {
-            token,
             action: "generate".to_string(),
-            code: None,
         };
 
-        // Make API request
+        // Make API request — the access token travels in the Authorization
+        // header, which is the only credential path authenc accepts.
         let response = gloo_net::http::Request::post("/api/v1/auth/mfa/backup-codes")
+            .header("Authorization", &format!("Bearer {token}"))
             .json(&request_body)?
             .send()
             .await?;
@@ -461,13 +456,13 @@ async fn get_backup_code_status() -> Result<BackupCodeStatusResponse, Box<dyn st
 
         // Prepare request body
         let request_body = MfaBackupCodesRequest {
-            token,
             action: "list".to_string(),
-            code: None,
         };
 
-        // Make API request
+        // Make API request — see `generate_backup_codes` for why the token goes
+        // in the header rather than the body.
         let response = gloo_net::http::Request::post("/api/v1/auth/mfa/backup-codes")
+            .header("Authorization", &format!("Bearer {token}"))
             .json(&request_body)?
             .send()
             .await?;

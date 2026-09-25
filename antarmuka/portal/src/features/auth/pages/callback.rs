@@ -48,8 +48,13 @@ pub fn CallbackPage() -> impl IntoView {
                         }
                     }
                     Err(e) => {
+                        // Keep the developer-facing detail in the console; the
+                        // card gets the operator-facing translation.
+                        web_sys::console::warn_1(
+                            &format!("[oauth-callback] {e}").into(),
+                        );
                         set_status.set(CallbackStatus::Error);
-                        set_error_message.set(Some(e));
+                        set_error_message.set(Some(user_facing_callback_error(&e)));
                     }
                 }
             });
@@ -57,8 +62,8 @@ pub fn CallbackPage() -> impl IntoView {
     }
 
     view! {
-        <div class="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-            <div class="max-w-md w-full">
+        <crate::components::layout::AuthLayout>
+            <div class="max-w-md w-full mx-auto">
                 {move || match status.get() {
                     CallbackStatus::Processing => {
                         view! {
@@ -180,7 +185,49 @@ pub fn CallbackPage() -> impl IntoView {
                     }
                 }}
             </div>
-        </div>
+        </crate::components::layout::AuthLayout>
+    }
+}
+
+/// Translate an internal OAuth failure into something a Jaksa can act on.
+///
+/// The strings produced by the flow are written for whoever debugs it — "Missing
+/// authorization code", "Invalid state parameter. Possible CSRF attack
+/// detected." — and they are rendered verbatim into the error card. Two problems
+/// with that. The reader is an operator, not the developer, and has no lever
+/// over an authorization code; and the CSRF string announces a security incident
+/// for what is far more often a stale bookmark or a session that expired
+/// mid-redirect. Naming the likely cause and the next step is the useful thing.
+///
+/// The raw string is deliberately not appended: it is kept in the browser
+/// console for support to retrieve, while the page stays readable.
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+fn user_facing_callback_error(raw: &str) -> String {
+    let lower = raw.to_lowercase();
+    if lower.contains("no window") || lower.contains("failed to get url") {
+        "Browser tidak dapat membaca alamat halaman ini. Muat ulang halaman lalu coba lagi."
+            .to_string()
+    } else if lower.contains("missing authorization code") || lower.contains("missing state") {
+        "Tautan masuk ini tidak lengkap atau sudah kedaluwarsa. Ini biasanya terjadi bila \
+         halaman dimuat ulang atau tautan dibuka kembali dari riwayat peramban. Silakan mulai \
+         proses masuk kembali dari halaman login."
+            .to_string()
+    } else if lower.contains("state parameter") {
+        "Sesi masuk Anda sudah berakhir sebelum proses selesai. Silakan mulai proses masuk \
+         kembali dari halaman login."
+            .to_string()
+    } else if lower.contains("invalid url") || lower.contains("failed to get origin") {
+        "Alamat halaman masuk tidak dikenali. Buka kembali halaman login SIMPEL lalu coba lagi."
+            .to_string()
+    } else if lower.contains("oauth error") {
+        format!("Penyedia identitas menolak permintaan masuk ini ({raw}). Hubungi administrator sistem bila berlanjut.")
+    } else if lower.contains("failed to decode token") {
+        "Server mengirim data sesi yang tidak dapat dibaca. Hubungi administrator sistem."
+            .to_string()
+    } else {
+        "Proses masuk tidak dapat diselesaikan. Silakan coba lagi; bila masih gagal, hubungi \
+         administrator sistem."
+            .to_string()
     }
 }
 
@@ -251,4 +298,59 @@ async fn process_oauth_callback() -> Result<UserSession, String> {
 #[allow(dead_code)]
 async fn process_oauth_callback() -> Result<UserSession, String> {
     Err("OAuth callback not available in non-WASM environment".to_string())
+}
+
+#[cfg(test)]
+mod callback_error_tests {
+    use super::user_facing_callback_error;
+
+    /// The equivalence that matters is not "the wording is nice" but "no internal
+    /// string escapes to the page". Asserting the raw term is ABSENT is the half
+    /// that catches a future edit which appends the cause for convenience.
+    #[test]
+    fn internal_jargon_never_reaches_the_reader() {
+        for raw in [
+            "Missing authorization code",
+            "Missing state parameter",
+            "Invalid state parameter. Possible CSRF attack detected.",
+            "Failed to decode token: invalid signature",
+            "Invalid URL",
+        ] {
+            let out = user_facing_callback_error(raw);
+            assert!(!out.is_empty());
+            for jargon in ["authorization code", "CSRF", "decode", "parameter"] {
+                assert!(
+                    !out.to_lowercase().contains(jargon.to_lowercase().as_str()),
+                    "jargon {jargon:?} leaked from {raw:?} into {out:?}"
+                );
+            }
+        }
+    }
+
+    /// The mapping must be discriminating, not a single catch-all: a stale link
+    /// and an expired session are different situations and deserve different
+    /// instructions.
+    #[test]
+    fn distinct_causes_map_to_distinct_guidance() {
+        let stale = user_facing_callback_error("Missing authorization code");
+        let expired = user_facing_callback_error(
+            "Invalid state parameter. Possible CSRF attack detected.",
+        );
+        let provider = user_facing_callback_error("OAuth error: access_denied - user cancelled");
+
+        assert_ne!(stale, expired);
+        assert!(stale.contains("kedaluwarsa"));
+        assert!(expired.contains("berakhir"));
+        // The provider's own code is the one thing worth echoing back.
+        assert!(provider.contains("access_denied"));
+    }
+
+    /// An unseen failure must still produce actionable text rather than an empty
+    /// card or a panic.
+    #[test]
+    fn an_unrecognised_failure_still_tells_the_user_what_to_do() {
+        let out = user_facing_callback_error("koneksi terputus di tengah jalan");
+        assert!(!out.is_empty());
+        assert!(out.contains("coba lagi") || out.contains("administrator"));
+    }
 }

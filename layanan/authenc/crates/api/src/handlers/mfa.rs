@@ -59,6 +59,18 @@ pub trait MfaApiService: Send + Sync {
 
     /// Get MFA enrollment status for a user.
     async fn get_status(&self, user_id: Uuid) -> Result<MfaStatusData, MfaApiError>;
+
+    /// Replace the user's backup codes and return the fresh set.
+    ///
+    /// Regenerating (not merely listing) is the only safe way to hand codes
+    /// back: the stored codes are hashed-at-rest by the store contract and the
+    /// plaintext exists only at generation time, so a "list" that returned them
+    /// would either be impossible or a plaintext leak. Invalidating the previous
+    /// set at the same time is what the UI already warns the user about.
+    async fn generate_backup_codes(&self, user_id: Uuid) -> Result<Vec<String>, MfaApiError>;
+
+    /// Number of backup codes the user has not yet spent.
+    async fn backup_codes_remaining(&self, user_id: Uuid) -> Result<usize, MfaApiError>;
 }
 
 // =============================================================================
@@ -397,16 +409,16 @@ pub async fn totp_verify_handler(
 // =============================================================================
 
 /// Request body for backup codes operations
+///
+/// Deliberately carries no token field. An earlier version accepted
+/// `token: Option<String>` and ignored it, which is a credential path that looks
+/// supported (the field is right there in the schema) but is not — and the only
+/// way to find out was a 401. The credential is the `Authorization` header and
+/// nothing else.
 #[derive(Debug, Deserialize)]
 pub struct BackupCodesRequest {
     /// Action: "generate" or "list"
     pub action: String,
-    /// Optional token for authentication
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub token: Option<String>,
-    /// Optional code for verification
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub code: Option<String>,
 }
 
 /// Response for backup codes operations
@@ -429,39 +441,49 @@ pub struct RecoveryVerifyRequest {
 }
 
 /// POST /api/v1/auth/mfa/backup-codes — Generate or list backup codes
+///
+/// Authenticated by the `Authorization: Bearer <access token>` header, the same
+/// way every other authenticated route works. The body's optional `token` field
+/// is ignored: reading the credential from the body is not a credential path
+/// this service supports, and `extract_user_from_token` only ever consults the
+/// header — which is why the frontend used to see a bare 401 here.
 pub async fn mfa_backup_codes_handler(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
     Json(request): Json<BackupCodesRequest>,
 ) -> Result<Json<BackupCodesResponse>, MfaApiError> {
-    let _user_id = auth_helpers::extract_user_from_token(&state, &headers)
+    let user_id = auth_helpers::extract_user_from_token(&state, &headers)
         .await
         .map_err(|e| MfaApiError::unauthorized(e.message))?;
 
-    let _mfa_service = state
+    let mfa_service = state
         .mfa_service
         .as_ref()
         .ok_or_else(MfaApiError::not_configured)?;
 
     match request.action.as_str() {
         "generate" => {
-            // TODO: Generate backup codes via MFA service
-            Err(MfaApiError::internal(
-                "Backup code generation not yet implemented",
-            ))
+            let codes = mfa_service.generate_backup_codes(user_id).await?;
+            let remaining = codes.len() as i32;
+            Ok(Json(BackupCodesResponse {
+                codes: Some(codes),
+                remaining,
+                message: "Kode pemulihan baru dibuat; kode lama tidak berlaku lagi.".to_string(),
+            }))
         }
         "list" => {
-            // TODO: List remaining backup codes status
-            Err(MfaApiError::internal(
-                "Backup code listing not yet implemented",
-            ))
+            let remaining = mfa_service.backup_codes_remaining(user_id).await? as i32;
+            // `codes: None` on purpose — see the trait note: the plaintext only
+            // exists at generation time, so the status view reports the count.
+            Ok(Json(BackupCodesResponse {
+                codes: None,
+                remaining,
+                message: format!("{remaining} kode pemulihan tersisa."),
+            }))
         }
         _ => Err(MfaApiError {
             error: "invalid_action".to_string(),
-            message: format!(
-                "Unknown action: {}. Use 'generate' or 'list'",
-                request.action
-            ),
+            message: format!("Unknown action: {}. Use 'generate' or 'list'", request.action),
         }),
     }
 }

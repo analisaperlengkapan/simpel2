@@ -20,6 +20,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_params_map;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use lib_ui::utils::formatters::format_iso_local;
 use phosphor_leptos::{
     ARROW_COUNTER_CLOCKWISE, ARROW_LEFT, ARROW_RIGHT, CHECK, CHECK_CIRCLE, DATABASE, FAST_FORWARD,
     INFO, LIST, PACKAGE, PAPER_PLANE_TILT, PLUS, TRASH, WARNING_CIRCLE, X, X_CIRCLE,
@@ -63,21 +64,27 @@ fn is_override_reason_valid(reason: &str) -> bool {
 /// berbasis timestamp riil sehingga aman terhadap revisi/percabangan.
 fn build_satker_timeline(s: &PengajuanKebutuhanBmnSatker) -> Vec<WorkflowStep> {
     let mut steps: Vec<WorkflowStep> = Vec::new();
+    // Timestamps are formatted HERE, not stored raw: the backend sends RFC 3339
+    // UTC (`2026-09-24T19:42:10.591175Z`) and the timeline renders whatever
+    // string it is handed, so an unformatted value reaches the screen as machine
+    // time no operator can read. `format_iso_local` also tolerates the empty
+    // string that nullable columns produce.
+    let ts_of = |raw: &str| format_iso_local(raw);
     steps.push(
         WorkflowStep::new("Pengajuan Dibuat", StepStatus::Done)
-            .with_timestamp(s.created_at.clone())
+            .with_timestamp(ts_of(&s.created_at))
             .with_note(s.catatan_satker.clone()),
     );
     if let Some(ts) = &s.tanggal_submit_wilayah {
         steps.push(
             WorkflowStep::new("Diajukan ke Validator Wilayah", StepStatus::Done)
-                .with_timestamp(ts.clone()),
+                .with_timestamp(ts_of(ts)),
         );
     }
     if let Some(ts) = &s.tanggal_submit_pusat {
         steps.push(
             WorkflowStep::new("Diteruskan ke Validator Pusat", StepStatus::Done)
-                .with_timestamp(ts.clone())
+                .with_timestamp(ts_of(ts))
                 .with_note(s.catatan_validator_wilayah.clone()),
         );
     }
@@ -1379,7 +1386,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                 {format!(
                                                                     "{} — {}",
                                                                     akt.nama.clone().unwrap_or("System".into()),
-                                                                    akt.created_at,
+                                                                    format_iso_local(&akt.created_at),
                                                                 )}
                                                             </div>
                                                         </div>

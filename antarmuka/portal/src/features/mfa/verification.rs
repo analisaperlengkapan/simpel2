@@ -20,23 +20,25 @@ pub struct MfaVerificationRequest {
 }
 
 /// MFA verification response from authenc API
+///
+/// Flat, matching `MfaVerifyResponse` on the authenc side — authenc does not
+/// wrap handler payloads in a `{success, data, message}` envelope (see
+/// `LoginResponse`). The previous envelope expectation made every successful
+/// MFA login fail with "missing field `success`", so the second factor could
+/// never be completed.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MfaVerificationResponse {
-    /// Success status
-    pub success: bool,
-    /// Response data
-    pub data: MfaVerificationData,
-    /// Response message
-    pub message: String,
-}
-
-/// MFA verification data
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MfaVerificationData {
     /// JWT access token
     pub access_token: String,
-    /// User session data
-    pub user: serde_json::Value,
+    /// Token type (always "Bearer")
+    #[serde(default)]
+    pub token_type: Option<String>,
+    /// Token lifetime in seconds
+    #[serde(default)]
+    pub expires_in: Option<u64>,
+    /// Refresh token for session renewal
+    #[serde(default)]
+    pub refresh_token: Option<String>,
 }
 
 /// API error response structure
@@ -243,14 +245,22 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                                     #[cfg(target_arch = "wasm32")]
                                                     {
                                                         use crate::features::auth::AuthService;
-                                                        AuthService::save_token(&response.data.access_token);
+                                                        AuthService::save_token(&response.access_token);
+                                                        // The login flow persists the refresh token;
+                                                        // dropping it here meant an MFA user was
+                                                        // silently unable to refresh their session and
+                                                        // got logged out at access-token expiry.
+                                                        if let Some(refresh) = &response.refresh_token {
+                                                            AuthService::save_refresh_token(refresh);
+                                                        }
                                                         match AuthService::decode_jwt_claims(
-                                                            &response.data.access_token,
+                                                            &response.access_token,
                                                         ) {
                                                             Ok(mut session) => {
                                                                 session.mfa_enabled = true;
                                                                 session.mfa_setup_required = false;
-                                                                session.access_token = Some(response.data.access_token);
+                                                                session.access_token = Some(response.access_token);
+                                                                session.refresh_token = response.refresh_token.clone();
                                                                 AuthService::save_session(&session);
                                                                 crate::utils::app_state::app_state_login(session.clone());
                                                                 if let Some(setter) = set_user_session {

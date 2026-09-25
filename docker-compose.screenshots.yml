@@ -1,0 +1,35 @@
+# =====================================================================
+# Screenshot / documentation sweep overlay
+# =====================================================================
+# Purpose: expose the WHOLE application — both frontends plus both backends —
+# on ONE origin, so a documentation screenshot job can falsify the claim
+# "this page renders" under the same topology production uses.
+#
+# Why one origin and not the two compose FE ports: in production Istio serves
+# `/portal`, `/perlengkapan` and `/api/*` from a single host. SSO depends on
+# that (portal writes `localStorage["auth_token"]`, perlengkapan reads the
+# SAME-ORIGIN token), and the FE WASM calls every backend ORIGIN-RELATIVE.
+# Photographing the FE on `:3001` would silently detach both — the session
+# handoff and every `/api/**` call — and produce 60 screenshots of an empty
+# shell that look like product defects.
+#
+# Reuses the SAME ingress config CI uses for the cross-app SSO suite
+# (`infra/nginx/e2e-cross-app-ingress.conf`) rather than a second copy: an
+# ingress that exists twice will eventually describe two different topologies,
+# and the one the screenshots used would be the one nobody maintained.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+#                  -f docker-compose.screenshots.yml up -d \
+#     postgres redis authenc secreton layanan-integrasi layanan-perlengkapan \
+#     portal perlengkapan cross-app-ingress
+services:
+  # `profiles: ["cross-app"]` in the e2e overlay keeps this out of a bare `up`.
+  # Clearing the profile here opts it back in for a capped command line.
+  cross-app-ingress:
+    profiles: []
+    ports:
+      # Stable host port so the capture script (and a human) can reach the app
+      # by URL. 18099 is outside the range the e2e overlays already claim
+      # (authenc REST 18088) and outside the FE dev ports (3000/3001).
+      - "${SCREENSHOT_INGRESS_HOST_PORT:-18099}:8080"

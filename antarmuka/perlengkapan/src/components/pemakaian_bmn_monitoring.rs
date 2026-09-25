@@ -148,7 +148,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                         .map(|c| c.sedang_dipakai.to_string())
                         .unwrap_or_else(|| "-".to_string());
                     let (tidak, tidak_sub) = match s.as_ref().and_then(|c| c.tidak_dipakai) {
-                        Some(v) => (v.to_string(), "BMN BAIK tanpa izin aktif".to_string()),
+                        Some(v) => (v.to_string(), "BMN berkondisi baik tanpa izin aktif".to_string()),
                         None => ("—".to_string(), "Data SIMAN tidak tersedia".to_string()),
                     };
                     let expired = s

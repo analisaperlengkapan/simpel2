@@ -33,4 +33,11 @@ pub struct AuditLog {
     pub status: String,
     /// Optional additional details about the event for context
     pub detail: Option<String>,
+    /// Optional client address the event originated from.
+    ///
+    /// Distinct from the `ip` key that callers also write into `detail`: that
+    /// one is prose inside a JSON blob, this one lands in the `ip_address`
+    /// `inet` column that the audit UI reads. Storing only the former left the
+    /// column NULL, so the admin table showed `-` for every event.
+    pub ip_address: Option<String>,
 }

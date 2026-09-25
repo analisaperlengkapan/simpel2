@@ -55,13 +55,26 @@ impl PgAuditLogStore {
         });
         let status = normalize_status(&log.status);
 
+        // `ip_address` is an `inet` column. Non-parsing values (a hostname, a
+        // comma-joined proxy chain) are stored as NULL rather than failing the
+        // write: an audit event with no address beats no audit event. The cast
+        // happens in SQL so a bad value is dropped by the database, not by a
+        // string we guessed at.
+        let ip_address: Option<String> = log
+            .ip_address
+            .as_ref()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
+
         self.db
             .execute(
-                r#"INSERT INTO audit_logs ("timestamp", event_type, user_id, client_id, action, status, details)
+                r#"INSERT INTO audit_logs ("timestamp", event_type, user_id, client_id, action, status, details, ip_address)
                    VALUES ($1, $2,
                            (SELECT id FROM users WHERE id = $3),
                            (SELECT id FROM oauth2_clients WHERE id = $4),
-                           $5, $6, $7)"#,
+                           $5, $6, $7,
+                           CASE WHEN $8::text IS NULL THEN NULL ELSE $8::text::inet END)"#,
                 &[
                     &log.timestamp,
                     &log.event,
@@ -70,6 +83,7 @@ impl PgAuditLogStore {
                     &log.event,
                     &status,
                     &details,
+                    &ip_address,
                 ],
             )
             .await

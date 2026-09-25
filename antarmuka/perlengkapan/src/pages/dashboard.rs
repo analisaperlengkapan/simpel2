@@ -972,8 +972,8 @@ pub fn DashboardHome() -> impl IntoView {
                     <QuickNav
                         href=routes::path::ANALITIK_ROADMAP
                         icon="fas fa-road"
-                        label="Roadmap Sarpras"
-                        description="Prediksi kebutuhan sarana prasarana"
+                        label="Analisis Kebutuhan"
+                        description="Analisis dan usulan kebutuhan sarana prasarana"
                         tone="teal"
                     />
                 </div>

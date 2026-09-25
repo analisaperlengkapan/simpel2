@@ -13,6 +13,27 @@ use tracing::{error, info, warn};
 
 use authenc_core::services::pg_audit_log_store::PgAuditLogStore;
 
+/// The actor a handler resolved while serving a request.
+///
+/// Audit attribution cannot be done from the middleware alone. On the login
+/// path the caller is *nobody* until the handler has verified the password, and
+/// then the identity only exists inside the handler's `AuthResult`. Without a
+/// way to hand it back, `audit_logs.user_id` stayed NULL on every login row and
+/// the audit table's "User" column rendered as `-` for the most important event
+/// it records.
+///
+/// The split keeps one writer (the middleware owns the audit write) while
+/// letting the handler, which is the only party that knows, supply the subject.
+/// Absent — an unauthenticated or failed attempt — means "no actor yet", which
+/// is the truth and not a placeholder.
+#[derive(Clone, Debug)]
+pub struct AuthenticatedActor {
+    /// The authenticated user's id.
+    pub user_id: String,
+    /// The OAuth2 client the request came through, when known.
+    pub client_id: Option<String>,
+}
+
 /// Configuration for security monitoring
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SecurityMonitoringConfig {
@@ -90,6 +111,10 @@ impl SecurityMonitoringState {
                     .map(|s| s.to_string()),
                 status: status.to_string(),
                 detail: Some(serde_json::to_string(&details).unwrap_or_default()),
+                ip_address: details
+                    .get("ip")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
             };
 
             if let Err(e) = audit_store.add_log(&event).await {
@@ -100,6 +125,33 @@ impl SecurityMonitoringState {
             info!("Security event: {} - {}", event_type, details);
         }
     }
+}
+
+/// The end user's address, read from the forwarding headers the ingress sets.
+///
+/// `ConnectInfo` only ever reports the immediate TCP peer, and in this
+/// deployment that is the proxy — so an audit trail built on it alone records
+/// the ingress as every user's address, which is worse than recording nothing
+/// because it looks plausible. The leftmost `X-Forwarded-For` entry is the
+/// original client; `X-Real-IP` is the single-value fallback some proxies send.
+///
+/// Returns `None` when neither header is present or parses, letting the caller
+/// fall back to the peer address rather than emitting a bogus one.
+fn forwarded_client_ip(request: &Request<Body>) -> Option<String> {
+    request
+        .headers()
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.split(',').next())
+        .or_else(|| {
+            request
+                .headers()
+                .get("x-real-ip")
+                .and_then(|v| v.to_str().ok())
+        })
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
 }
 
 /// Middleware for security monitoring and alerting
@@ -124,12 +176,27 @@ pub async fn security_monitoring_middleware(
         .unwrap_or("unknown")
         .to_string();
 
+    // `ConnectInfo` is the address of the immediate peer — behind the ingress
+    // that is the proxy, not the user. The audit row kept the peer address in a
+    // `details.ip` string while `audit_logs.ip_address` (an `inet` column, the
+    // one the admin table shows) stayed NULL, so every row displayed `-`.
+    // Prefer the forwarded client, and record it in the column built for it.
+    // Read BEFORE `next.run` consumes the request.
+    let client_ip = forwarded_client_ip(&request).unwrap_or_else(|| ip.clone());
+
     // Check for suspicious patterns
     let suspicious_indicators = detect_suspicious_activity(&request, &ip);
 
     let mut response = next.run(request).await;
     let duration = start_time.elapsed();
     let status_code = response.status();
+
+    // The handler is the only party that knows who the caller turned out to be
+    // (see `AuthenticatedActor`). Take it before the response is returned.
+    let actor = response
+        .extensions()
+        .get::<AuthenticatedActor>()
+        .cloned();
 
     // Log security events
     if state
@@ -138,8 +205,8 @@ pub async fn security_monitoring_middleware(
         .iter()
         .any(|p| path.starts_with(p))
     {
-        let event_details = serde_json::json!({
-            "ip": ip,
+        let mut event_details = serde_json::json!({
+            "ip": client_ip,
             "method": method.as_str(),
             "path": path,
             "status_code": status_code.as_u16(),
@@ -147,6 +214,15 @@ pub async fn security_monitoring_middleware(
             "user_agent": user_agent,
             "suspicious_indicators": suspicious_indicators
         });
+        // Attribute the event to whoever the handler verified, so `user_id` is
+        // populated on the `inet`/uuid columns the admin table actually reads
+        // rather than only surviving as prose in `details`.
+        if let Some(actor) = &actor {
+            event_details["user_id"] = serde_json::Value::String(actor.user_id.clone());
+            if let Some(client_id) = &actor.client_id {
+                event_details["client_id"] = serde_json::Value::String(client_id.clone());
+            }
+        }
 
         // Log authentication attempts
         if state.config.log_auth_attempts && path.contains("/auth/") {
@@ -172,7 +248,7 @@ pub async fn security_monitoring_middleware(
             warn!(
                 "Suspicious activity detected: {} from IP {}",
                 suspicious_indicators.join(", "),
-                ip
+                client_ip
             );
             state
                 .log_security_event("SUSPICIOUS_ACTIVITY", "warning", event_details)
