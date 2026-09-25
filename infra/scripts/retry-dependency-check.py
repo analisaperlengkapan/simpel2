@@ -209,6 +209,22 @@ DECISIVE_PATTERNS = [
 NETWORK_RE = re.compile("|".join(NETWORK_PATTERNS), re.I)
 DECISIVE_RE = re.compile("|".join(DECISIVE_PATTERNS), re.I | re.M)
 
+# Kalimat BERSIH yang memuat kata "found"/"detected" tetapi justru berarti TIDAK
+# ADA temuan. Tanpa dinetralkan, pola sinyal temuan di atas membacanya sebagai
+# temuan — sehingga pemindaian yang LULUS dilaporkan sebagai kegagalan.
+#
+# Ini bukan hipotetis. `composer audit` yang bersih mencetak tepat
+# "No security vulnerability advisories found.", dan sejak penjaga ini dipasang
+# job `composer-audit (simpelv1)` merah tanpa satu pun advisory. Pola
+# `advisories? (found|detected)` cocok dengan frasa itu apa adanya. Sinyal merah
+# yang tak berarti apa-apa adalah sinyal yang akan diabaikan, dan begitu diabaikan
+# ia juga menyembunyikan temuan yang sungguhan.
+CLEAN_PATTERNS = [
+    r"\bno\s+(security\s+)?(vulnerabilit(?:y|ies)|advisories?)\b[^\n]{0,40}?\b(found|detected)\b",
+    r"\b0\s+(vulnerabilit(?:y|ies)|advisories?)\b[^\n]{0,40}?\b(found|detected)\b",
+]
+CLEAN_RE = re.compile("|".join(CLEAN_PATTERNS), re.I)
+
 
 def classify(output: str, returncode: int, timed_out: bool) -> tuple[str, str]:
     """Tentukan GREEN / RED / HANG beserta alasannya.
@@ -217,8 +233,15 @@ def classify(output: str, returncode: int, timed_out: bool) -> tuple[str, str]:
     memastikan tak ada sinyal keras yang muncul. Kalau sebuah temuan sudah
     tercetak di output, proses yang kemudian mati karena jaringan tetap RED —
     temuan itu nyata dan kita sudah melihatnya.
+
+    Kalimat penyangkalan ("no ... advisories found") dinetralkan lebih dulu,
+    per-baris, supaya pernyataan bersih tidak dibaca sebagai temuan. Neutralisasi
+    itu per-baris (`[^\\n]`), jadi "No vulnerabilities found" di satu baris tidak
+    bisa menelan temuan di baris berikutnya.
     """
-    if DECISIVE_RE.search(output):
+    scrubbed = CLEAN_RE.sub(" ", output)
+
+    if DECISIVE_RE.search(scrubbed):
         return "RED", "output memuat sinyal temuan/konfigurasi — bukan kegagalan jaringan"
 
     if timed_out:
@@ -243,6 +266,24 @@ SELF_TESTS: list[tuple[str, str, int, bool, str]] = [
     ("temuan cargo-audit", "error: 2 vulnerabilities found!\n", 1, False, "RED"),
     ("temuan cargo-deny", "error[advisories]: 1 advisory found\n", 1, False, "RED"),
     ("temuan composer", "Found 3 security vulnerability advisories\n", 1, False, "RED"),
+    # Kalimat penyangkalan: pemindaian BERSIH tak boleh dibaca sebagai temuan.
+    ("composer bersih (baseline v4)",
+     "-------------------------------------\n"
+     "No security vulnerability advisories found.\n", 0, False, "GREEN"),
+    ("cargo-audit bersih",
+     "No vulnerabilities found\n", 0, False, "GREEN"),
+    ("penyangkalan bersih tapi alat keluar non-nol",
+     "No security vulnerability advisories found.\n", 1, False, "RED"),
+    # Batas neutralisasi: per-baris. Penyangkalan di satu baris TIDAK boleh
+    # menelan temuan nyata di baris berikutnya.
+    ("penyangkalan + temuan di baris lain tetap RED",
+     "No vulnerabilities found\n"
+     "error: 2 vulnerabilities found!\n", 1, False, "RED"),
+    ("composer bersih + temuan di baris lain tetap RED",
+     "No security vulnerability advisories found.\n"
+     "Found 1 security vulnerability advisory\n", 1, False, "RED"),
+    ("temuan composer di baris yang sama tetap RED",
+     "Found 3 security vulnerability advisories\n", 1, False, "RED"),
     ("jaringan: connect refused",
      "error: failed to update advisory database: error sending request: tcp connect error", 1, False, "HANG"),
     ("jaringan: DNS",
