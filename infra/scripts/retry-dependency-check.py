@@ -229,6 +229,7 @@ CLEAN_RE = re.compile("|".join(CLEAN_PATTERNS), re.I)
 # ringkasannya bisa didiagnosis tanpa membuka log mentah.
 ID_RE = re.compile(r"RUSTSEC-\d{4}-\d{4}|CVE-\d{4}-\d{4,}|GHSA-[0-9a-z-]{4,}")
 FIELD_RE = re.compile(r"^(Crate|Version|Title|ID|Date|Solution|Severity|Warning):")
+RAW_ERROR_RE = re.compile(r"^error:")
 
 
 def classify(output: str, returncode: int, timed_out: bool) -> tuple[str, str]:
@@ -624,25 +625,35 @@ def main() -> int:
         # vulnerability found" tanpa nama crate, ID, atau versi yang
         # diperbaiki. Kejadian nyata 2026-09-25.
         #
-        # Jadi bila ada sinyal temuan, sorot baris sinyal itu + semacamnya
-        # (ID advisory, Crate/Version/Title) DI ATAS ekor biasa.
+        # Jadi bila ada sinyal temuan, sorot blok yang menjawabnya DI ATAS ekor
+        # biasa.
+        #
+        # Jendelanya diangkur ke baris sinyal, bukan disapu dari seluruh
+        # keluaran: `cargo audit` mencetak blok WARNING lebih dulu (ratusan
+        # baris ber-Crate/ID/Solution untuk advisory yang justru sudah
+        # di-ignore), jadi sapuan global menghabiskan kuota pada warning dan
+        # memotong blok vulnerability-nya — persis informasi yang dicari.
         signal_lines: list[str] = []
         if verdict == "RED":
+            all_lines = output.splitlines()
+            anchors = [
+                i for i, l in enumerate(all_lines) if DECISIVE_RE.search(l)
+            ]
             seen: set[str] = set()
-            for raw in output.splitlines():
-                stripped = raw.strip()
-                if not stripped or stripped in seen:
-                    continue
-                is_signal = (
-                    DECISIVE_RE.search(raw)
-                    or ID_RE.search(raw)
-                    or FIELD_RE.match(stripped)
-                )
-                # Baris judul advisory tak boleh tertelan sebagai sinyal:
-                # CLEAN_RE juga cocok di sana, dan baris itu justru penting.
-                if is_signal and not CLEAN_RE.search(raw):
-                    seen.add(stripped)
-                    signal_lines.append(stripped)
+            for i in anchors:
+                # Blok advisory itu contiguous: header di atas baris
+                # "error: N vulnerability found", detail di bawahnya.
+                for raw in all_lines[max(0, i - 14): i + 16]:
+                    stripped = raw.strip()
+                    if not stripped or stripped in seen:
+                        continue
+                    if FIELD_RE.match(stripped) and not CLEAN_RE.search(raw):
+                        seen.add(stripped)
+                        signal_lines.append(stripped)
+                    elif (ID_RE.search(raw) or RAW_ERROR_RE.match(stripped)) \
+                            and not any(stripped in s for s in signal_lines):
+                        seen.add(stripped)
+                        signal_lines.append(stripped)
 
         summary_lines.append("<details><summary>Keluaran (ekor 100 baris)</summary>")
         summary_lines.append("")
