@@ -225,6 +225,11 @@ CLEAN_PATTERNS = [
 ]
 CLEAN_RE = re.compile("|".join(CLEAN_PATTERNS), re.I)
 
+# Untuk mengekstrak baris yang menjawab "temuan apa?" saat verdict RED, supaya
+# ringkasannya bisa didiagnosis tanpa membuka log mentah.
+ID_RE = re.compile(r"RUSTSEC-\d{4}-\d{4}|CVE-\d{4}-\d{4,}|GHSA-[0-9a-z-]{4,}")
+FIELD_RE = re.compile(r"^(Crate|Version|Title|ID|Date|Solution|Severity|Warning):")
+
 
 def classify(output: str, returncode: int, timed_out: bool) -> tuple[str, str]:
     """Tentukan GREEN / RED / HANG beserta alasannya.
@@ -612,8 +617,44 @@ def main() -> int:
     summary_lines.append("")
 
     if output.strip():
+        # Ekor buta 100 baris menyembunyikan justru bagian yang dibutuhkan saat
+        # RED. `cargo audit` mencetak judul advisory lebih dulu, lalu tabel
+        # dependency-tree yang panjang (ratusan baris), jadi memotong dari ekor
+        # membuang header-nya dan menyisakan pohonnya: pembaca melihat "1
+        # vulnerability found" tanpa nama crate, ID, atau versi yang
+        # diperbaiki. Kejadian nyata 2026-09-25.
+        #
+        # Jadi bila ada sinyal temuan, sorot baris sinyal itu + semacamnya
+        # (ID advisory, Crate/Version/Title) DI ATAS ekor biasa.
+        signal_lines: list[str] = []
+        if verdict == "RED":
+            seen: set[str] = set()
+            for raw in output.splitlines():
+                stripped = raw.strip()
+                if not stripped or stripped in seen:
+                    continue
+                is_signal = (
+                    DECISIVE_RE.search(raw)
+                    or ID_RE.search(raw)
+                    or FIELD_RE.match(stripped)
+                )
+                # Baris judul advisory tak boleh tertelan sebagai sinyal:
+                # CLEAN_RE juga cocok di sana, dan baris itu justru penting.
+                if is_signal and not CLEAN_RE.search(raw):
+                    seen.add(stripped)
+                    signal_lines.append(stripped)
+
         summary_lines.append("<details><summary>Keluaran (ekor 100 baris)</summary>")
         summary_lines.append("")
+        if signal_lines:
+            summary_lines.append("Baris sinyal (diekstrak dari seluruh keluaran):")
+            summary_lines.append("")
+            summary_lines.append("```")
+            summary_lines.extend(signal_lines[:40])
+            summary_lines.append("```")
+            summary_lines.append("")
+            summary_lines.append("Ekornya:")
+            summary_lines.append("")
         summary_lines.append("```")
         summary_lines.extend(output.strip().splitlines()[-100:])
         summary_lines.append("```")
