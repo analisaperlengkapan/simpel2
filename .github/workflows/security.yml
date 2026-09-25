@@ -99,19 +99,47 @@ jobs:
       # diaktifkan feature mana pun, dan cuma tercatat di Cargo.lock (lockfile
       # bersifat feature-agnostic). Alasan seperti itu bisa basi diam-diam
       # begitu ada yang mengaktifkan feature-nya, jadi tegakkan secara mekanis
-      # alih-alih mengandalkan komentar. `cargo tree -i` keluar 0 walau paket
-      # tak ditemukan, jadi yang diperiksa adalah ADA/TIDAKNYA baris output.
+      # alih-alih mengandalkan komentar. Yang diperiksa adalah ADA/TIDAKNYA baris
+      # `rkyv v…` di pohon PENUH, bukan `-i`: `-i` keluar non-nol justru pada
+      # kasus normal "crate tak ada", sehingga kegagalan jaringan tak bisa
+      # dibedakan dari hasil yang sah. Lihat komentar di dalam langkah.
       - name: Assert lockfile-only audit ignores still hold
         shell: bash
         run: |
           set -euo pipefail
+          repo=$(pwd)
+          tmp=$(mktemp -d)
+          # Dua cacat ditutup di sini, keduanya kelas yang sama dengan probe
+          # ignore basi di atas:
+          #
+          # 1. Versi lama menjalankan `cargo tree -i "$crate" 2>/dev/null | grep`
+          #    tanpa timeout. `cargo tree` bisa menggantung menembus batas job,
+          #    dan `2>/dev/null` membuat SETIAP kegagalannya — jaringan, panic,
+          #    toolchain hilang — tercetak persis seperti "crate-nya memang tak
+          #    ada": `ok: rkyv tetap di luar build graph`. Probe yang tak bisa
+          #    membedakan "sudah diperiksa dan bersih" dari "tidak bisa
+          #    diperiksa" adalah probe yang lulus tanpa memeriksa apa pun.
+          # 2. `-i` keluar non-nol justru pada kasus NORMAL (crate memang tak
+          #    ada), jadi kegagalannya tak bisa dibedakan dari jaringan.
+          #    Pohon PENUH keluar 0, sehingga ketiadaan crate menjadi bermakna.
+          python3 "$repo/infra/scripts/retry-dependency-check.py" \
+            --name "cargo tree (probe lockfile-only)" \
+            --attempts 3 --timeout 300 \
+            --capture "$tmp/tree.txt" \
+            -- cargo tree --workspace --all-features --target all
+          if [ ! -s "$tmp/tree.txt" ]; then
+            echo "::notice::cargo tree tak pernah menjawab (jaringan) — probe \
+          lockfile-only dilewati, bukan dianggap lulus."
+            exit 0
+          fi
           fail=0
           # crate -> advisory yang di-ignore atas dasar "tak pernah dikompilasi"
           for pair in "rkyv:RUSTSEC-2026-0235"; do
             crate="${pair%%:*}"
             advisory="${pair##*:}"
-            if cargo tree --workspace --all-features --target all \
-                 -i "$crate" 2>/dev/null | grep -q "^${crate} v"; then
+            # Baris pohon menjorok, jadi batas kiri tidak boleh `^` telanjang:
+            # `(^|[^a-zA-Z0-9_-])` mencegah `foo-rkyv` ikut cocok.
+            if grep -qE "(^|[^a-zA-Z0-9_-])${crate} v" "$tmp/tree.txt"; then
               echo "::error file=.cargo/audit.toml::${crate} kini MASUK build graph — ${advisory} tak lagi lockfile-only. Cabut ignore-nya dan tangani advisory sungguhan."
               fail=1
             else
@@ -129,14 +157,40 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          repo=$(pwd)
           tmp=$(mktemp -d)
           cp Cargo.lock "$tmp/"
-          # cargo audit keluar non-nol saat ada temuan; di sini kita hanya
-          # butuh laporannya, dan skrip di bawah yang memutuskan lulus/gagal
-          # (termasuk menolak laporan kosong = probe rusak).
-          ( cd "$tmp" && cargo audit --json -f Cargo.lock ) > "$tmp/report.json" || true
-          python3 ./infra/scripts/check-audit-ignores-live.py .cargo/audit.toml \
-            < "$tmp/report.json"
+          # `cargo audit` lebih dulu mengambil DB advisory RustSec dari GitHub,
+          # jadi probe ini pun terkena kelas kegagalan yang sama dengan langkah
+          # `cargo audit` di bawah: satu koneksi putus menghasilkan stdout
+          # kosong, dan versi sebelumnya menyerahkan kosong itu ke penjaga di
+          # hilir — yang lalu melaporkan "gagal mem-parse laporan JSON", merah
+          # yang tak ada hubungannya dengan ignore basi. (Terjadi sungguhan pada
+          # run 2026-09-24: probe menggantung ~7 menit lalu menyerahkan 0 byte.)
+          #
+          # Pembungkus menutupnya: laporan diperoleh → berkas ditulis; tak pernah
+          # menjawab → hijau DAN berkas sengaja tak ditulis, sehingga cabang di
+          # bawah melewatinya dengan alasan jujur alih-alih mem-parse kosong.
+          #
+          # `cd "$tmp"` TETAP wajib dan sengaja: dari direktori yang tak memuat
+          # `.cargo/audit.toml`, daftar ignore tak ikut terpakai sehingga yang
+          # terukur adalah advisory yang benar-benar menyala. Menjalankannya dari
+          # akar repo akan menyaring justru advisory yang sedang kita uji, dan
+          # SEMUA entri lalu terbaca basi. Karena itu skrip pembungkus dipanggil
+          # lewat path absolut.
+          cd "$tmp"
+          python3 "$repo/infra/scripts/retry-dependency-check.py" \
+            --name "cargo audit --json (probe ignore basi)" \
+            --attempts 3 --timeout 300 \
+            --capture "$tmp/report.json" \
+            -- cargo audit --json -f Cargo.lock
+          if [ ! -s "$tmp/report.json" ]; then
+            echo "::notice::probe cargo-audit tak pernah menjawab (jaringan) — \
+          pemeriksaan ignore basi dilewati, bukan dianggap lulus."
+            exit 0
+          fi
+          python3 "$repo/infra/scripts/check-audit-ignores-live.py" \
+            "$repo/.cargo/audit.toml" < "$tmp/report.json"
 
       - name: cargo audit
         shell: bash

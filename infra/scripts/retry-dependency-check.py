@@ -298,17 +298,83 @@ def selftest() -> int:
             if got == "HANG":
                 failures.append(f"TEMUAN LOLOS JADI HIJAU: {name}")
 
+    failures += selftest_capture()
+
     if failures:
         print("\nSELF-TEST GAGAL:", file=sys.stderr)
         for f in failures:
             print("  " + f, file=sys.stderr)
         return 1
-    print(f"\nself-test lulus ({len(SELF_TESTS)} kasus)")
+    print(f"\nself-test lulus ({len(SELF_TESTS)} kasus klasifikasi + capture)")
     return 0
 
 
-def run_once(cmd: list[str], timeout: int) -> tuple[int, str, bool]:
-    """Jalankan sekali. Kembalikan (returncode, output gabungan, apakah timeout).
+def selftest_capture() -> list[str]:
+    """Uji mode `--capture` lawan probe yang menyerahkan JSON.
+
+    Yang dipertaruhkan di sini bukan klasifikasi melainkan **kejujuran berkas
+    hasil**: `security.yml` memakai ketiadaan berkas untuk memutuskan "tak bisa
+    diperiksa" versus "bersih". Kalau probe yang menggantung menulis berkas
+    kosong, penjaga di hilir akan mem-parse-nya, gagal, dan melaporkan
+    `gagal mem-parse laporan JSON` — merah yang menyesatkan, persis cacat yang
+    mode ini ada untuk menutupnya.
+    """
+    import tempfile
+
+    failures: list[str] = []
+
+    def probe(script: str, tmp: str) -> int:
+        args = argparse.Namespace(
+            name="probe-uji", attempts=2, base_delay=0.01, timeout=10,
+            capture=os.path.join(tmp, "report.json"),
+        )
+        return capture(["python3", "-c", script], args)
+
+    # 1. Laporan sungguhan ditulis apa adanya, walau exit code non-nol.
+    #    (`cargo audit` keluar non-nol justru saat ia menemukan advisory.)
+    with tempfile.TemporaryDirectory() as tmp:
+        rc = probe("import sys; sys.stdout.write('{\"vulnerabilities\":{\"list\":[]}}'); sys.exit(1)", tmp)
+        path = os.path.join(tmp, "report.json")
+        got = open(path, encoding="utf-8").read() if os.path.exists(path) else None
+        if rc != 0:
+            failures.append(f"capture: rc={rc}, mau 0 saat laporan ada")
+        if got != '{"vulnerabilities":{"list":[]}}':
+            failures.append(f"capture: isi laporan salah: {got!r}")
+        else:
+            print("  ok  capture: laporan ditulis walau exit code non-nol")
+
+    # 2. Tak pernah menjawab → hijau, dan berkas TIDAK ditulis (biar hilir
+    #    melewatinya dengan alasan jujur alih-alih mem-parse berkas kosong).
+    with tempfile.TemporaryDirectory() as tmp:
+        rc = probe("import sys; sys.stderr.write('error: failed to update advisory database: "
+                   "error sending request: tcp connect error'); sys.exit(1)", tmp)
+        path = os.path.join(tmp, "report.json")
+        if rc != 0:
+            failures.append(f"capture: rc={rc}, mau 0 saat jaringan gagal (kebijakan hijau)")
+        if os.path.exists(path):
+            failures.append("capture: berkas ditulis padahal tak ada laporan — "
+                            "hilir akan mem-parse kosong dan merah menyesatkan")
+        else:
+            print("  ok  capture: jaringan gagal = hijau tanpa berkas")
+
+    # 3. Gagal BUKAN karena jaringan → merah, jangan ditelan.
+    with tempfile.TemporaryDirectory() as tmp:
+        rc = probe("import sys; sys.stderr.write('error: invalid config: unable to parse manifest'); "
+                   "sys.exit(2)", tmp)
+        if rc != 1:
+            failures.append(f"capture: rc={rc}, mau 1 saat gagal non-jaringan")
+        else:
+            print("  ok  capture: gagal non-jaringan tetap merah")
+
+    return failures
+
+
+def run_once(cmd: list[str], timeout: int) -> tuple[int, str, str, bool]:
+    """Jalankan sekali. Kembalikan (returncode, stdout, stderr, apakah timeout).
+
+    stdout dipisahkan dari stderr karena mode `--capture` menulis stdout apa
+    adanya sebagai laporan terstruktur; mencampurnya dengan progres/log ke
+    stderr akan menghasilkan "JSON" yang tak bisa diparse.
 
     `subprocess.run` dengan `timeout` MEMBUNUH anaknya dan mengembalikan
     `TimeoutExpired`, jadi satu percobaan yang menggantung tidak menahan job
@@ -323,17 +389,101 @@ def run_once(cmd: list[str], timeout: int) -> tuple[int, str, bool]:
             # Jangan raise; kita yang memutuskan arti returncode.
             check=False,
         )
-        return proc.returncode, (proc.stdout or "") + (proc.stderr or ""), False
+        return proc.returncode, proc.stdout or "", proc.stderr or "", False
     except subprocess.TimeoutExpired as e:
-        partial = ""
-        for stream in (e.stdout, e.stderr):
-            if stream:
-                partial += stream.decode() if isinstance(stream, bytes) else stream
-        return 124, partial, True
+        def decode(stream):
+            if not stream:
+                return ""
+            return stream.decode() if isinstance(stream, bytes) else stream
+
+        return 124, decode(e.stdout), decode(e.stderr), True
     except FileNotFoundError as e:
         # Alatnya tidak ada di PATH: itu kesalahan setup, bukan temuan dan bukan
         # jaringan. Jangan dianggap hijau.
-        return 127, f"error: command not found: {e}", False
+        return 127, "", f"error: command not found: {e}", False
+
+
+def capture(cmd: list[str], args) -> int:
+    """Jalankan pemeriksaan yang KELUARANNYA adalah muatannya, bukan exit code.
+
+    Dipakai oleh probe seperti "tidak ada ignore basi" (`security.yml`), yang
+    menjalankan `cargo audit --json` lalu menyerahkan JSON-nya ke skrip lain.
+    Di sana exit code bukan sinyal: `cargo audit` keluar non-nol justru KETIKA
+    ia menemukan advisory, dan himpunan advisory itulah yang dibutuhkan.
+
+    Kriteria berhasilnya karena itu "stdout memuat sesuatu", dan kegagalan
+    jaringan diperlakukan persis seperti di jalur utama: diulang, lalu dihitung
+    hijau bila tak pernah menjawab.
+
+    Berkas ditulis HANYA bila ada laporan sungguhan. Pemanggil membedakan tiga
+    keadaan — laporan ada, laporan tak ada (jaringan), laporan ada tapi rusak
+    (temuan nyata) — dan hanya yang terakhir yang boleh merah. Itu penting:
+    sebelum ini probe menjalankan `cargo audit` telanjang, satu koneksi putus
+    menghasilkan stdout kosong, dan penjaga di hilir melaporkannya sebagai
+    "gagal mem-parse laporan JSON" — job merah yang tak ada hubungannya dengan
+    ignore basi. Persis kelas yang seharusnya ditutup pembungkus ini.
+    """
+    for attempt in range(1, args.attempts + 1):
+        started = time.monotonic()
+        rc, stdout, stderr, timed_out = run_once(cmd, args.timeout)
+        elapsed = time.monotonic() - started
+        combined = stdout + stderr
+        print(f"[{args.name}] percobaan {attempt}/{args.attempts}: rc={rc} "
+              f"{'timeout' if timed_out else 'selesai'} dalam {elapsed:.1f}s", flush=True)
+
+        if stdout.strip():
+            try:
+                with open(args.capture, "w", encoding="utf-8") as fh:
+                    fh.write(stdout)
+            except OSError as exc:
+                print(f"error: tak bisa menulis {args.capture}: {exc}", file=sys.stderr)
+                return 1
+            print(f"[{args.name}] laporan ditulis ke {args.capture} "
+                  f"({len(stdout)} byte)", flush=True)
+            _write_summary(args.name, "GREEN",
+                           f"laporan diperoleh pada percobaan {attempt}.")
+            return 0
+
+        # stdout kosong. Kalau ini kegagalan jaringan (atau timeout), ulangi;
+        # kalau bukan, itu kesalahan nyata — jangan ditelan.
+        verdict, reason = classify(combined, rc, timed_out)
+        if verdict == "RED" and not timed_out:
+            print(f"[{args.name}] gagal dan bukan karena jaringan: {reason}",
+                  file=sys.stderr)
+            _write_summary(args.name, "RED", f"gagal tanpa laporan: {reason}")
+            return 1
+
+        if attempt < args.attempts:
+            delay = args.base_delay * (2 ** (attempt - 1))
+            print(f"[{args.name}] tak ada laporan; mencoba ulang dalam {delay:.0f}s...",
+                  flush=True)
+            time.sleep(delay)
+
+    # Tak pernah menjawab: hijau sesuai kebijakan, TAPI berkasnya sengaja tidak
+    # ditulis supaya hilir bisa membedakan "tak bisa diperiksa" dari "bersih".
+    print(f"[{args.name}] tidak ada laporan setelah {args.attempts} percobaan "
+          f"— dihitung hijau (jaringan), berkas tidak ditulis.", flush=True)
+    _write_summary(
+        args.name, "HANG",
+        f"Probe tidak pernah mendapat jawaban setelah {args.attempts} percobaan. "
+        "Dihitung **hijau** sesuai kebijakan, dan berkas laporan sengaja TIDAK "
+        "ditulis sehingga pemeriksaan di hilir melewatinya dengan alasan yang "
+        "jujur — bukan seolah-olah ignore-nya sudah diverifikasi.",
+    )
+    return 0
+
+
+def _write_summary(name: str, verdict: str, detail: str) -> None:
+    icons = {"GREEN": "✅ OK", "RED": "❌ FAIL", "HANG": "✅ OK (jaringan)"}
+    body = f"### {name}: {icons[verdict]}\n\n{detail}\n"
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if path:
+        try:
+            with open(path, "a", encoding="utf-8") as fh:
+                fh.write(body + "\n")
+        except OSError:
+            pass
+    print(body)
 
 
 def main() -> int:
@@ -343,6 +493,12 @@ def main() -> int:
     ap.add_argument("--base-delay", type=float, default=5.0)
     ap.add_argument("--timeout", type=int, default=300)
     ap.add_argument("--allow-failure", action="store_true")
+    ap.add_argument(
+        "--capture",
+        metavar="PATH",
+        help="tulis stdout percobaan yang berhasil ke PATH (untuk probe yang "
+             "muatannya adalah keluaran, bukan exit code)",
+    )
     ap.add_argument(
         "--selftest",
         action="store_true",
@@ -365,12 +521,16 @@ def main() -> int:
         print("error: no command given (use -- <cmd>)", file=sys.stderr)
         return 2
 
+    if args.capture:
+        return capture(cmd, args)
+
     summary_lines: list[str] = []
     verdict, reason, output = "RED", "tidak pernah dijalankan", ""
 
     for attempt in range(1, args.attempts + 1):
         started = time.monotonic()
-        rc, output, timed_out = run_once(cmd, args.timeout)
+        rc, stdout, stderr, timed_out = run_once(cmd, args.timeout)
+        output = stdout + stderr
         elapsed = time.monotonic() - started
         verdict, reason = classify(output, rc, timed_out)
         tag = f"percobaan {attempt}/{args.attempts}"
