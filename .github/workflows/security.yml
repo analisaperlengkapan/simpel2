@@ -34,9 +34,73 @@ jobs:
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
+      # This job is the one that checks out FULL history (fetch-depth: 0), and
+      # that fetch is where it fails: `curl 92 HTTP/2 stream N was not closed
+      # cleanly: CANCEL (err 8)` -> `fatal: early EOF` -> `fetch-pack: invalid
+      # index-pack output`, then the transfer stalls until timeout-minutes kills
+      # the job (observed 2026-09-25, twice in a row, ~19 min into a 30 min job).
+      #
+      # The summary is right to fail-closed here — a cancelled secret scan must
+      # never read as green — so the repair belongs in the transport, not in the
+      # classification. HTTP/1.1 is the documented mitigation for the HTTP/2
+      # stream CANCEL class; the buffer setting covers the large pack this repo
+      # produces. Set BEFORE checkout so the action's own git inherits it.
+      - name: Harden git transport (HTTP/2 stream CANCEL on full-history fetch)
+        shell: bash
+        run: |
+          git config --global http.version HTTP/1.1
+          git config --global http.postBuffer 524288000
+          git config --global http.lowSpeedLimit 1000
+          git config --global http.lowSpeedTime 300
+      # `actions/checkout` cannot be retried (no `retry` on `uses` steps), so a
+      # single transport blip is fatal. Let it fail softly, then repair with a
+      # bounded retry loop — and re-assert afterwards that history really is
+      # present, so a half-fetched tree can never reach the scanner.
       - uses: actions/checkout@v7
+        id: checkout
+        continue-on-error: true
         with:
           fetch-depth: 0
+      - name: Repair incomplete checkout (bounded retry)
+        if: steps.checkout.outcome == 'failure'
+        shell: bash
+        run: |
+          set -uo pipefail
+          git rev-parse --git-dir >/dev/null 2>&1 || git init -q .
+          git remote get-url origin >/dev/null 2>&1 || \
+            git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          for attempt in 1 2 3 4 5; do
+            echo "::group::repair attempt ${attempt}/5"
+            git fetch --prune --no-tags origin '+refs/heads/*:refs/remotes/origin/*' && rc=0 || rc=$?
+            echo "::endgroup::"
+            if [ "$rc" -eq 0 ]; then
+              echo "fetch repaired on attempt ${attempt}"
+              # Fetching refs alone leaves no working tree; the scanner reads
+              # files literally, so check the reviewed commit out by SHA. Without
+              # this the scan would run against a partial tree and could report
+              # "no findings" for code it never read.
+              git checkout -f --detach "${GITHUB_SHA}"
+              exit 0
+            fi
+            sleep $((attempt * 10))
+          done
+          echo "::error::full-history fetch failed after 5 attempts (transport, not a finding)"
+          exit 1
+      - name: Assert full history and working tree are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse --git-dir >/dev/null
+          # A shallow tree would silently narrow the scan; gitleaks must see
+          # every commit, so an incomplete fetch is a hard failure, not a pass.
+          test -f .git/shallow && { echo "::error::history is shallow"; exit 1; } || true
+          commits=$(git rev-list --count HEAD)
+          echo "history: ${commits} commits reachable from HEAD"
+          test "$commits" -gt 1 || { echo "::error::no usable history"; exit 1; }
+          # Guard the other failure mode: refs present but no checked-out files.
+          # `.gitleaks.toml` is the config the next step is handed, so its
+          # absence proves the tree is not usable.
+          test -s .gitleaks.toml || { echo "::error::working tree is not checked out"; exit 1; }
       - name: Cleanup stale temp files (self-hosted fix)
         shell: bash
         run: rm -f /tmp/gitleaks.tmp /tmp/gitleaks-report.*
