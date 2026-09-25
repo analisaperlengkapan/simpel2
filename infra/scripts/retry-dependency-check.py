@@ -231,6 +231,21 @@ ID_RE = re.compile(r"RUSTSEC-\d{4}-\d{4}|CVE-\d{4}-\d{4,}|GHSA-[0-9a-z-]{4,}")
 FIELD_RE = re.compile(r"^(Crate|Version|Title|ID|Date|Solution|Severity|Warning):")
 RAW_ERROR_RE = re.compile(r"^error:")
 
+# `cargo audit` mewarnai keluarannya secara default, jadi barisnya berbentuk
+# `\x1b[1mCrate:\x1b[0m rustls` — bukan `Crate: rustls`. Tanpa dibersihkan,
+# pencocokan ber-anchor `^` (FIELD_RE, RAW_ERROR_RE) tak pernah kena, sehingga
+# ekstraksi "temuan apa?" diam-diam menghasilkan NOL baris di dunia nyata
+# (terbukti pada run 2026-09-25: bagian sinyal tak muncul sama sekali, padahal
+# direproduksi sintetis lulus karena tak ada kode ANSI di sana).
+#
+# Dibersihkan di sini, bukan dengan mengandalkan `--color never`, supaya
+# pembungkus tetap benar untuk alat apa pun dan pemanggil apa pun.
+ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+
+
+def strip_ansi(text: str) -> str:
+    return ANSI_RE.sub("", text)
+
 
 def classify(output: str, returncode: int, timed_out: bool) -> tuple[str, str]:
     """Tentukan GREEN / RED / HANG beserta alasannya.
@@ -272,6 +287,14 @@ SELF_TESTS: list[tuple[str, str, int, bool, str]] = [
     ("temuan cargo-audit", "error: 2 vulnerabilities found!\n", 1, False, "RED"),
     ("temuan cargo-deny", "error[advisories]: 1 advisory found\n", 1, False, "RED"),
     ("temuan composer", "Found 3 security vulnerability advisories\n", 1, False, "RED"),
+    # cargo-audit mewarnai keluarannya. Pola ber-anchor `^` (mis. `^error:`) tidak
+    # akan kena bila kode ANSI belum dibersihkan — dan itu membuat verdict salah
+    # DIAM-DIAM. Kasus ini ada karena versi sebelumnya lulus uji sintetis tanpa
+    # ANSI sementara di CI sungguhan gagal mendeteksi temuan apa pun.
+    ("temuan berwarna (ANSI) tetap RED",
+     "\x1b[0m\x1b[1m\x1b[31merror:\x1b[0m 1 vulnerability found!\n", 1, False, "RED"),
+    ("cargo-deny berwarna (ANSI) tetap RED",
+     "\x1b[1merror\x1b[0m\x1b[1m[advisories]\x1b[0m: 1 advisory found\n", 1, False, "RED"),
     # Kalimat penyangkalan: pemindaian BERSIH tak boleh dibaca sebagai temuan.
     ("composer bersih (baseline v4)",
      "-------------------------------------\n"
@@ -577,7 +600,7 @@ def main() -> int:
     for attempt in range(1, args.attempts + 1):
         started = time.monotonic()
         rc, stdout, stderr, timed_out = run_once(cmd, args.timeout)
-        output = stdout + stderr
+        output = strip_ansi(stdout + stderr)
         elapsed = time.monotonic() - started
         verdict, reason = classify(output, rc, timed_out)
         tag = f"percobaan {attempt}/{args.attempts}"
