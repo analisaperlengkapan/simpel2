@@ -90,6 +90,20 @@ Unit Tests dan Integration Tests berada di dalam *crate* masing-masing, bukan di
   decode JWT client-side). Dengan fix, UI-data e2e jalan **di CI** — tetap
   utamakan bukti scoping **server-side via API** (deterministik, tak rapuh
   selector); UI-layer = pelengkap render.
+- **Screenshot sweep + galeri README:** `tests/e2e/screenshots/` memotret **setiap**
+  rute kedua FE terhadap stack nyata (satu origin, sesi hasil login asli Authenc),
+  lalu `gallery.py --embed README.md` menyisipkan hasilnya ke README. Rute
+  **diturunkan** dari router (`screenshot-routes.py` menelusuri nesting `routes.rs`
+  KEDUA FE, termasuk rute detail ber-parameter yang TIDAK ada di daftar `pub const`
+  yang dikurasi — memakai daftar kurasi berarti halaman detail tak pernah
+  terpotret). Tiga penjaga: `check.py` menolak PNG kosong/seragam secara piksel;
+  `capture.mjs` menandai 404, halaman login di rute ter-autentikasi, panic WASM,
+  enum mentah, UUID tak berlabel, timestamp UTC mentah, dan **luber horizontal**;
+  `gallery.py` **menolak menulis** selama masih ada temuan atau rute tak terpotret.
+  Tangkapan guard (operator membuka rute admin) ditandai `expectDenied` — kartu 403
+  itu asersi yang LULUS, jadi sinyalnya masuk `expected`; dan rute bergerbang yang
+  justru merender normal menjadi temuan `GUARD-TIDAK-MENAHAN`. Perintah: capture →
+  check → gallery (lihat header README "Galeri Tampilan Aplikasi").
 - **Portal e2e (real-auth):** job `e2e-portal` bawa stack compose (portal FE +
   authenc captcha-debug) seperti `e2e-perlengkapan`; spec mem-proxy `/api/**` ke
   authenc via Playwright `page.route()` (TIDAK butuh proxy nginx portal). **Gate
