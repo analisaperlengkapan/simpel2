@@ -483,7 +483,10 @@ pub async fn mfa_backup_codes_handler(
         }
         _ => Err(MfaApiError {
             error: "invalid_action".to_string(),
-            message: format!("Unknown action: {}. Use 'generate' or 'list'", request.action),
+            message: format!(
+                "Unknown action: {}. Use 'generate' or 'list'",
+                request.action
+            ),
         }),
     }
 }

@@ -50,9 +50,7 @@ pub fn CallbackPage() -> impl IntoView {
                     Err(e) => {
                         // Keep the developer-facing detail in the console; the
                         // card gets the operator-facing translation.
-                        web_sys::console::warn_1(
-                            &format!("[oauth-callback] {e}").into(),
-                        );
+                        web_sys::console::warn_1(&format!("[oauth-callback] {e}").into());
                         set_status.set(CallbackStatus::Error);
                         set_error_message.set(Some(user_facing_callback_error(&e)));
                     }
@@ -220,7 +218,9 @@ fn user_facing_callback_error(raw: &str) -> String {
         "Alamat halaman masuk tidak dikenali. Buka kembali halaman login SIMPEL lalu coba lagi."
             .to_string()
     } else if lower.contains("oauth error") {
-        format!("Penyedia identitas menolak permintaan masuk ini ({raw}). Hubungi administrator sistem bila berlanjut.")
+        format!(
+            "Penyedia identitas menolak permintaan masuk ini ({raw}). Hubungi administrator sistem bila berlanjut."
+        )
     } else if lower.contains("failed to decode token") {
         "Server mengirim data sesi yang tidak dapat dibaca. Hubungi administrator sistem."
             .to_string()
@@ -333,9 +333,8 @@ mod callback_error_tests {
     #[test]
     fn distinct_causes_map_to_distinct_guidance() {
         let stale = user_facing_callback_error("Missing authorization code");
-        let expired = user_facing_callback_error(
-            "Invalid state parameter. Possible CSRF attack detected.",
-        );
+        let expired =
+            user_facing_callback_error("Invalid state parameter. Possible CSRF attack detected.");
         let provider = user_facing_callback_error("OAuth error: access_denied - user cancelled");
 
         assert_ne!(stale, expired);

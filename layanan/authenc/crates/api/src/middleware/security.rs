@@ -193,10 +193,7 @@ pub async fn security_monitoring_middleware(
 
     // The handler is the only party that knows who the caller turned out to be
     // (see `AuthenticatedActor`). Take it before the response is returned.
-    let actor = response
-        .extensions()
-        .get::<AuthenticatedActor>()
-        .cloned();
+    let actor = response.extensions().get::<AuthenticatedActor>().cloned();
 
     // Log security events
     if state
