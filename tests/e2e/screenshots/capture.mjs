@@ -334,6 +334,13 @@ async function seedSession(context, tokens) {
  */
 async function shoot(page, url, file, findings, opts = {}) {
   const expectDenied = opts.expectDenied === true;
+  // Declared FIRST because the layout check below pushes to it. It used to be
+  // declared ~120 lines further down, after that `flags.push` — a temporal dead
+  // zone, so any page wider than the viewport threw
+  // `ReferenceError: Cannot access 'flags' before initialization` and was filed
+  // as a generic capture failure instead of `meluber-horizontal:...`. The one
+  // signal that says "this page is untidy" was the one that could never fire.
+  const flags = [];
   let consoleErrors = [];
   let pageErrors = [];
   const onConsole = (m) => {
@@ -453,7 +460,6 @@ async function shoot(page, url, file, findings, opts = {}) {
       source = '';
     }
 
-    const flags = [];
     if (/Halaman Tidak Ditemukan|404 Not Found/i.test(text)) flags.push('RUTE-404');
     if (/Akses Ditolak/.test(text)) flags.push('AKSES-DITOLAK');
     // An AUTHENTICATED route that renders the login page means the request was
