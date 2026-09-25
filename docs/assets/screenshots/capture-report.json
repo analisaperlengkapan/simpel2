@@ -210,13 +210,13 @@
     {
       "fe": "perlengkapan",
       "route": "/perlengkapan/simpel/v2/kebutuhan-bmn/:id/edit",
-      "path": "/perlengkapan/simpel/v2/kebutuhan-bmn/ac86b420-0896-4e1a-96c0-b194bbbda8d9/edit",
+      "path": "/perlengkapan/simpel/v2/kebutuhan-bmn/1fb98964-b196-4b18-8e9c-24cef3243233/edit",
       "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__id__edit.png"
     },
     {
       "fe": "perlengkapan",
       "route": "/perlengkapan/simpel/v2/kebutuhan-bmn/detail/:id",
-      "path": "/perlengkapan/simpel/v2/kebutuhan-bmn/detail/ac86b420-0896-4e1a-96c0-b194bbbda8d9",
+      "path": "/perlengkapan/simpel/v2/kebutuhan-bmn/detail/1fb98964-b196-4b18-8e9c-24cef3243233",
       "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__detail__id.png"
     },
     {
@@ -431,7 +431,9 @@
       "flags": [],
       "expected": [],
       "consoleErrors": [],
-      "pageErrors": [],
+      "pageErrors": [
+        "TypeError: WebAssembly compilation aborted: Network error: Response body loading was aborted"
+      ],
       "textPreview": "Sistem Informasi\nManajemen Perlengkapan\n\nKEJAKSAAN REPUBLIK INDONESIA\n\n\"Demi Keadilan Berdasarkan Ketuhanan Yang Maha Esa\"\n\nMasuk ke Aplikasi"
     },
     {
@@ -495,7 +497,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Selamat Pagi\n\nE2E Admin Pusat\nAdministrator Global\nNIP: 200000000000000005\nAdministrator\nRingkasan Akun\n\nEmail\n\n200000000000000005@kejaksaan.go.id\n\nMFA\n\nBelum Aktif\n\nEmail Verifikasi\n\nTerverifikasi\n\nStatistik Sistem\n\nTOTAL PENGGUNA\n\n9\n\nPENGGUNA AKTIF\n\n9\n\nSESI AKTIF\n\n84\n\nTOTAL REALM\n\n1\n\nEVENT KEAMANAN HARI INI\n\n82\n\nLOGIN GAGAL\n\n0\n\nMenu Utama\n\nAplikasi\n\nAkses layanan\n\nProfil\n\nData pegawai\n\nPengaturan\n\nPreferensi akun\n\nNotifikasi\n\nPemberitahuan"
+      "textPreview": "Selamat Pagi\n\nE2E Admin Pusat\nAdministrator Global\nNIP: 200000000000000005\nAdministrator\nRingkasan Akun\n\nEmail\n\n200000000000000005@kejaksaan.go.id\n\nMFA\n\nBelum Aktif\n\nEmail Verifikasi\n\nTerverifikasi\n\nStatistik Sistem\n\nTOTAL PENGGUNA\n\n9\n\nPENGGUNA AKTIF\n\n9\n\nSESI AKTIF\n\n95\n\nTOTAL REALM\n\n1\n\nEVENT KEAMANAN HARI INI\n\n95\n\nLOGIN GAGAL\n\n0\n\nMenu Utama\n\nAplikasi\n\nAkses layanan\n\nProfil\n\nData pegawai\n\nPengaturan\n\nPreferensi akun\n\nNotifikasi\n\nPemberitahuan"
     },
     {
       "file": "portal__portal__apps.png",
@@ -567,7 +569,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Sesi Aktif\n\nKelola perangkat dan sesi login yang aktif.\n\n💻\nChrome di Linux\nSesi ini\n\nIP: 172.18.0.1\n\nLogin: 25 Sep 2026, 01:06\n\nAktif terakhir: 25 Sep 2026, 01:06\n\n💻\nChrome di Linux\n\nIP: 172.18.0.1\n\nLogin: 25 Sep 2026, 00:26\n\nAktif terakhir: 25 Sep 2026, 00:26\n\nHentikan\n💻\nChrome di Linux\n\nIP: 172.18.0.1\n\nLogin: 25 Sep 2026, 00:20\n\nAktif terakhir: 25 Sep 2026, 00:20\n\nHentikan\n💻\nChrome di Linux\n\nIP: 172.18.0.1\n\nLogin: 25 Sep 2026, 00:08\n\nAktif terakhir: 25 Sep 2026, 00:08\n\nHentikan\n💻\nChrome d"
+      "textPreview": "Sesi Aktif\n\nKelola perangkat dan sesi login yang aktif.\n\n💻\nChrome di Linux\nSesi ini\n\nIP: 172.18.0.1\n\nLogin: 25 Sep 2026, 04:51\n\nAktif terakhir: 25 Sep 2026, 04:51\n\nℹ️ Tentang Sesi\n\nJika Anda melihat sesi yang tidak Anda kenali, segera hentikan sesi tersebut dan ubah kata sandi Anda."
     },
     {
       "file": "portal__portal__admin.png",
@@ -576,7 +578,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Dasbor Administrasi\n\nAdministrasi Identitas dan Manajemen Akses\n\n👥\nManajemen Pengguna\n\nKelola pengguna, buat akun baru, atur peran\n\n🛡️\nPeran & Hak Akses\n\nKelola peran dan izin\n\n🔑\nKlien OAuth2\n\nLihat aplikasi klien terdaftar\n\n📋\nAudit Log\n\nLihat log aktivitas dan keamanan\n\nStatistik Sistem\n👤\nTotal Pengguna\n\n9\n\n✅\nPengguna Aktif\n\n9\n\n📱\nSesi Aktif\n\n84\n\n🔑\nKlien OAuth2\n\n1"
+      "textPreview": "Dasbor Administrasi\n\nAdministrasi Identitas dan Manajemen Akses\n\n👥\nManajemen Pengguna\n\nKelola pengguna, buat akun baru, atur peran\n\n🛡️\nPeran & Hak Akses\n\nKelola peran dan izin\n\n🔑\nKlien OAuth2\n\nLihat aplikasi klien terdaftar\n\n📋\nAudit Log\n\nLihat log aktivitas dan keamanan\n\nStatistik Sistem\n👤\nTotal Pengguna\n\n9\n\n✅\nPengguna Aktif\n\n9\n\n📱\nSesi Aktif\n\n95\n\n🔑\nKlien OAuth2\n\n1"
     },
     {
       "file": "portal__portal__admin__users.png",
@@ -594,7 +596,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Admin / Pengguna / Detail\n2\n200000000000000001\n\n200000000000000001 · 200000000000000001@kejaksaan.go.id\n\nAktif\n\nID Internal\n\n11111111-1111-4111-8111-111111111111\n\nPeran\n\n1\n\nDibuat\n\n24 Sep 2026, 23:42\n\nLogin Terakhir\n\n—\n\n👤\nDetail\n🏷\nAtribut\n🔑\nKredensial\n🛡\nPemetaan Peran\nEmail\nUsername\nNama Depan\nNama Belakang\nAkun Aktif\nSimpan"
+      "textPreview": "Admin / Pengguna / Detail\n2\n200000000000000001\n\n200000000000000001 · 200000000000000001@kejaksaan.go.id\n\nAktif\n\nID Internal\n\n11111111-1111-4111-8111-111111111111\n\nPeran\n\n1\n\nDibuat\n\n25 Sep 2026, 03:35\n\nLogin Terakhir\n\n—\n\n👤\nDetail\n🏷\nAtribut\n🔑\nKredensial\n🛡\nPemetaan Peran\nEmail\nUsername\nNama Depan\nNama Belakang\nAkun Aktif\nSimpan"
     },
     {
       "file": "portal__portal__admin__clients.png",
@@ -630,7 +632,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Admin / Audit Log\nAudit Log\nSemua Event\nLogin\nLogout\nLogin Gagal\nToken Refresh\nUbah Password\nMFA Enable\nMFA Disable\nUser Create\nUser Update\nUser Delete\nWebAuthn Register\n🔍 Filter\nWAKTU\tEVENT\tUSER\tIP\tDETAIL\n25 Sep 2026, 01:06\tLogin berhasil\t200000000000000005\t172.18.0.1\tduration_ms: 130 · method: POST · path: /api/v1/auth/login · status_code: 200\n25 Sep 2026, 01:01\tLogin berhasil\t200000000000000003\t172.18.0.1\tduration_ms: 129 · method: POST · path: /api/v1/auth/login · status_code: 200\n25 Sep 20"
+      "textPreview": "Admin / Audit Log\nAudit Log\nSemua Event\nLogin\nLogout\nLogin Gagal\nToken Refresh\nUbah Password\nMFA Enable\nMFA Disable\nUser Create\nUser Update\nUser Delete\nWebAuthn Register\n🔍 Filter\nWAKTU\tEVENT\tUSER\tIP\tDETAIL\n25 Sep 2026, 04:51\tLogin berhasil\t200000000000000005\t172.18.0.1\tduration_ms: 131 · method: POST · path: /api/v1/auth/login · status_code: 200\n25 Sep 2026, 03:42\tLogin berhasil\t200000000000000007\t172.18.0.1\tduration_ms: 124 · method: POST · path: /api/v1/auth/login · status_code: 200\n25 Sep 20"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__login.png",
@@ -639,7 +641,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Perlengkapan · Kejaksaan RI\nRingkasan Nasional\n\nAset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI.\n\nRole: Administrator\nTahun Anggaran 2026\nCakupan:\n3\nsatuan kerja\nDiperbarui\n01:06:55\nMuat ulang\nWILAYAH\nSeluruh wilayah\nKEJAKSAAN TINGGI DKI JAKARTA (4)\nKEJAKSAAN TINGGI JAWA BARAT (1)\nSATUAN KERJA\nSeluruh satuan kerja\nKEJAKSAAN NEGERI JAKARTA PUSAT (2)\nKEJAKSAAN NEGERI JAKARTA SELATAN (2)\nKEJAKSAAN NEGERI BANDUNG (1)\nJENIS ASET\nSeluruh jenis\nAlat Angkutan Bermotor (2)\nPe"
+      "textPreview": "Perlengkapan · Kejaksaan RI\nRingkasan Nasional\n\nAset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI.\n\nRole: Administrator\nTahun Anggaran 2026\nCakupan:\n3\nsatuan kerja\nDiperbarui\n04:51:54\nMuat ulang\nWILAYAH\nSeluruh wilayah\nKEJAKSAAN TINGGI DKI JAKARTA (4)\nKEJAKSAAN TINGGI JAWA BARAT (1)\nSATUAN KERJA\nSeluruh satuan kerja\nKEJAKSAAN NEGERI JAKARTA PUSAT (2)\nKEJAKSAAN NEGERI JAKARTA SELATAN (2)\nKEJAKSAAN NEGERI BANDUNG (1)\nJENIS ASET\nSeluruh jenis\nAlat Angkutan Bermotor (2)\nPe"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__.png",
@@ -648,7 +650,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Perlengkapan · Kejaksaan RI\nRingkasan Nasional\n\nAset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI.\n\nRole: Administrator\nTahun Anggaran 2026\nCakupan:\n3\nsatuan kerja\nDiperbarui\n01:06:57\nMuat ulang\nWILAYAH\nSeluruh wilayah\nKEJAKSAAN TINGGI DKI JAKARTA (4)\nKEJAKSAAN TINGGI JAWA BARAT (1)\nSATUAN KERJA\nSeluruh satuan kerja\nKEJAKSAAN NEGERI JAKARTA PUSAT (2)\nKEJAKSAAN NEGERI JAKARTA SELATAN (2)\nKEJAKSAAN NEGERI BANDUNG (1)\nJENIS ASET\nSeluruh jenis\nAlat Angkutan Bermotor (2)\nPe"
+      "textPreview": "Perlengkapan · Kejaksaan RI\nRingkasan Nasional\n\nAset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI.\n\nRole: Administrator\nTahun Anggaran 2026\nCakupan:\n3\nsatuan kerja\nDiperbarui\n04:51:56\nMuat ulang\nWILAYAH\nSeluruh wilayah\nKEJAKSAAN TINGGI DKI JAKARTA (4)\nKEJAKSAAN TINGGI JAWA BARAT (1)\nSATUAN KERJA\nSeluruh satuan kerja\nKEJAKSAAN NEGERI JAKARTA PUSAT (2)\nKEJAKSAAN NEGERI JAKARTA SELATAN (2)\nKEJAKSAAN NEGERI BANDUNG (1)\nJENIS ASET\nSeluruh jenis\nAlat Angkutan Bermotor (2)\nPe"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__dashboard.png",
@@ -657,7 +659,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Perlengkapan · Kejaksaan RI\nRingkasan Nasional\n\nAset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI.\n\nRole: Administrator\nTahun Anggaran 2026\nCakupan:\n3\nsatuan kerja\nDiperbarui\n01:06:59\nMuat ulang\nWILAYAH\nSeluruh wilayah\nKEJAKSAAN TINGGI DKI JAKARTA (4)\nKEJAKSAAN TINGGI JAWA BARAT (1)\nSATUAN KERJA\nSeluruh satuan kerja\nKEJAKSAAN NEGERI JAKARTA PUSAT (2)\nKEJAKSAAN NEGERI JAKARTA SELATAN (2)\nKEJAKSAAN NEGERI BANDUNG (1)\nJENIS ASET\nSeluruh jenis\nAlat Angkutan Bermotor (2)\nPe"
+      "textPreview": "Perlengkapan · Kejaksaan RI\nRingkasan Nasional\n\nAset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI.\n\nRole: Administrator\nTahun Anggaran 2026\nCakupan:\n3\nsatuan kerja\nDiperbarui\n04:51:58\nMuat ulang\nWILAYAH\nSeluruh wilayah\nKEJAKSAAN TINGGI DKI JAKARTA (4)\nKEJAKSAAN TINGGI JAWA BARAT (1)\nSATUAN KERJA\nSeluruh satuan kerja\nKEJAKSAAN NEGERI JAKARTA PUSAT (2)\nKEJAKSAAN NEGERI JAKARTA SELATAN (2)\nKEJAKSAAN NEGERI BANDUNG (1)\nJENIS ASET\nSeluruh jenis\nAlat Angkutan Bermotor (2)\nPe"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__dashboard.png",
@@ -666,7 +668,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Dashboard\nBank Aset\nDashboard Bank Aset\n\nRingkasan data BMN dari hasil sinkronisasi SIMAN.\n\nDaftar Aset\nSebaran\nRingkasan\n\nAgregat BMN lintas kategori dan satuan kerja.\n\nTOTAL ASET\n\n5\n\nunit tercatat\n\nNILAI PEROLEHAN\n\nRp 5.291.000.000\n\nakumulasi rupiah\n\nSATUAN KERJA\n\n3\n\nsatker dengan aset\n\nKATEGORI\n\n3\n\nklasifikasi SIMAN\n\nSumber data: SIMAN — sinkron terakhir: 24 Sep 2026, 23:42\n\nKondisi Aset\n\nDistribusi aset berdasarkan kondisi.\n\nBaik\n4 (80.0%)\nRusak Ringan\n1 (20.0%)\nKategori Aset\n\n10 kategori te"
+      "textPreview": "Dashboard\nBank Aset\nDashboard Bank Aset\n\nRingkasan data BMN dari hasil sinkronisasi SIMAN.\n\nDaftar Aset\nSebaran\nRingkasan\n\nAgregat BMN lintas kategori dan satuan kerja.\n\nTOTAL ASET\n\n5\n\nunit tercatat\n\nNILAI PEROLEHAN\n\nRp 5.291.000.000\n\nakumulasi rupiah\n\nSATUAN KERJA\n\n3\n\nsatker dengan aset\n\nKATEGORI\n\n3\n\nklasifikasi SIMAN\n\nSumber data: SIMAN — sinkron terakhir: 25 Sep 2026, 03:35\n\nKondisi Aset\n\nDistribusi aset berdasarkan kondisi.\n\nBaik\n4 (80.0%)\nRusak Ringan\n1 (20.0%)\nKategori Aset\n\n10 kategori te"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__daftar.png",
@@ -684,7 +686,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Dashboard\nBank Aset\nDaftar\nDetail\nDetail Aset\n\nInformasi lengkap aset beserta riwayat pemakaian, penghapusan, dan kebutuhan.\n\nKembali ke Daftar\nStation Wagon\n\nAlat Angkutan Bermotor · No. Aset E2E-A-1\n\nKODE BARANG\n3020101003\nNUP\nE2E-A-1\nMERK\nToyota\nTIPE\nAvanza 1.3\nKONDISI\nBaik\nTANGGAL PEROLEHAN\n2020-01-15\nNILAI PEROLEHAN\nRp 250.000.000\nSATKER\nKEJAKSAAN NEGERI JAKARTA PUSAT\nKODE SATKER\n006019999010001KD\nLOKASI\nJl. Sunda Kelapa No.1\nDIPERBARUI\n24 Sep 2026, 23:42\nRiwayat\n\nHubungan aset dengan modul"
+      "textPreview": "Dashboard\nBank Aset\nDaftar\nDetail\nDetail Aset\n\nInformasi lengkap aset beserta riwayat pemakaian, penghapusan, dan kebutuhan.\n\nKembali ke Daftar\nStation Wagon\n\nAlat Angkutan Bermotor · No. Aset E2E-A-1\n\nKODE BARANG\n3020101003\nNUP\nE2E-A-1\nMERK\nToyota\nTIPE\nAvanza 1.3\nKONDISI\nBaik\nTANGGAL PEROLEHAN\n2020-01-15\nNILAI PEROLEHAN\nRp 250.000.000\nSATKER\nKEJAKSAAN NEGERI JAKARTA PUSAT\nKODE SATKER\n006019999010001KD\nLOKASI\nJl. Sunda Kelapa No.1\nDIPERBARUI\n25 Sep 2026, 03:35\nRiwayat\n\nHubungan aset dengan modul"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__sebaran.png",
@@ -711,7 +713,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Periode Kebutuhan BMN\n\nKelola periode pengumpulan kebutuhan BMN dari satker\n\nBuat Periode Baru\nDaftar Periode\nRefresh\nE2E Kampanye Kebutuhan 1790297803914\nTahun: 2026\nSatker: 0\nBarang: 0\nDraft\nEdit\nE2E Periode Kebutuhan BMN 2026\nTahun: 2026\nSatker: 3\nBarang: 4\nDraft\nEdit"
+      "textPreview": "Periode Kebutuhan BMN\n\nKelola periode pengumpulan kebutuhan BMN dari satker\n\nBuat Periode Baru\nDaftar Periode\nRefresh\nE2E Kampanye Kebutuhan 1790307457069\nTahun: 2026\nSatker: 0\nBarang: 0\nDraft\nEdit\nE2E Periode Kebutuhan BMN 2026\nTahun: 2026\nSatker: 3\nBarang: 4\nDraft\nEdit"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__daftar.png",
@@ -720,7 +722,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Analisis Kebutuhan BMN\n\nKelola pengajuan kebutuhan barang milik negara\n\nBuat Pengajuan\nFilter\nSemua Tahun\n2027\n2026\n2025\n2024\n2023\n2022\n2021\n2020\nSemua Status\nDraft\nInput Barang\nDiajukan ke Validator\nRevisi Satker\nAnalisis Kelayakan\nPenyusunan Prioritas\nDisetujui\nDitolak\nSelesai\nDibatalkan\n\tNAMA PENGAJUAN\tTAHUN\tSATKER\tBARANG\tDIMINTA\tDISETUJUI\tSTATUS\tAKSI\n\tE2E Kampanye Kebutuhan 1790297803914\t2026\t0\t0\t0\t0\tDraft\t\n\n\tE2E Periode Kebutuhan BMN 2026\t2026\t3\t4\t10\t0\tDraft\t\n\nMenampilkan 2 dari 2 data\n\nSeb"
+      "textPreview": "Analisis Kebutuhan BMN\n\nKelola pengajuan kebutuhan barang milik negara\n\nBuat Pengajuan\nFilter\nSemua Tahun\n2027\n2026\n2025\n2024\n2023\n2022\n2021\n2020\nSemua Status\nDraft\nInput Barang\nDiajukan ke Validator\nRevisi Satker\nAnalisis Kelayakan\nPenyusunan Prioritas\nDisetujui\nDitolak\nSelesai\nDibatalkan\n\tNAMA PENGAJUAN\tTAHUN\tSATKER\tBARANG\tDIMINTA\tDISETUJUI\tSTATUS\tAKSI\n\tE2E Kampanye Kebutuhan 1790307457069\t2026\t0\t0\t0\t0\tDraft\t\n\n\tE2E Periode Kebutuhan BMN 2026\t2026\t3\t4\t10\t0\tDraft\t\n\nMenampilkan 2 dari 2 data\n\nSeb"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__buat.png",
@@ -733,7 +735,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__id__edit.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/ac86b420-0896-4e1a-96c0-b194bbbda8d9/edit",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/1fb98964-b196-4b18-8e9c-24cef3243233/edit",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -742,12 +744,12 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__detail__id.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/detail/ac86b420-0896-4e1a-96c0-b194bbbda8d9",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/detail/1fb98964-b196-4b18-8e9c-24cef3243233",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Detail Pengajuan Kebutuhan BMN\n\nDetail dan status pengajuan analisis kebutuhan BMN\n\nKembali ke Daftar\nE2E Kampanye Kebutuhan 1790297803914\n\nTahun Anggaran: 2026\n\nDraft\nEdit\nPeriode\n2026-08-01 s.d. 2026-12-31\nTotal Satker\n0\nPersetujuan DASKRIMTI\nBelum\nVersi\n1\nAksi Workflow\nInput Barang\nDibatalkan\nDaftar Satker\n\nBelum ada satker yang terdaftar"
+      "textPreview": "Detail Pengajuan Kebutuhan BMN\n\nDetail dan status pengajuan analisis kebutuhan BMN\n\nKembali ke Daftar\nE2E Kampanye Kebutuhan 1790307457069\n\nTahun Anggaran: 2026\n\nDraft\nEdit\nPeriode\n2026-08-01 s.d. 2026-12-31\nTotal Satker\n0\nPersetujuan DASKRIMTI\nBelum\nVersi\n1\nAksi Workflow\nInput Barang\nDibatalkan\nDaftar Satker\n\nBelum ada satker yang terdaftar"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__satker__satker_id.png",
@@ -756,7 +758,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Detail Satker — Kebutuhan BMN\n\nDetail pengajuan kebutuhan BMN per satker\n\nKembali\nKEJAKSAAN NEGERI BANDUNG\n\nKode Satker: 0300010\n\nDisetujui\nTotal Barang\n1\nTotal Jumlah Diminta\n1\nPrioritas\n0\nRiwayat Proses\n\nPengajuan Dibuat\n\n24 Sep 2026, 23:42\n\nDiteruskan ke Validator Pusat\n\n25 Sep 2026, 00:51\n\nDisetujui\n\nPengajuan Disetujui\n\nPengajuan kebutuhan BMN telah disetujui oleh Validator Pusat.\n\nDaftar Barang\nAnalisis Kelayakan\nRiwayat Aktivitas\nDaftar Barang\nTambah Barang\nNAMA BARANG\tKODE\tJUMLAH\tDISETUJ"
+      "textPreview": "Detail Satker — Kebutuhan BMN\n\nDetail pengajuan kebutuhan BMN per satker\n\nKembali\nKEJAKSAAN NEGERI BANDUNG\n\nKode Satker: 0300010\n\nDisetujui\nTotal Barang\n1\nTotal Jumlah Diminta\n1\nPrioritas\n0\nRiwayat Proses\n\nPengajuan Dibuat\n\n25 Sep 2026, 03:35\n\nDiteruskan ke Validator Pusat\n\n25 Sep 2026, 03:36\n\nDisetujui\n\nPengajuan Disetujui\n\nPengajuan kebutuhan BMN telah disetujui oleh Validator Pusat.\n\nDaftar Barang\nAnalisis Kelayakan\nRiwayat Aktivitas\nDaftar Barang\nTambah Barang\nNAMA BARANG\tKODE\tJUMLAH\tDISETUJ"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__laporan.png",
@@ -774,7 +776,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Jenis Pakaian Dinas\n\nKelola master data jenis pakaian dinas\n\nTambah Jenis\nDaftar Jenis\nNO\tNAMA JENIS\tKETERANGAN\tDIBUAT\tAKSI\n1\tBatik\tPakaian Batik Dinas\t2026-06-09\t\n\n2\tJas Almamater\tJas Almamater Kejaksaan\t2026-06-09\t\n\n3\tPDH\tPakaian Dinas Harian\t2026-06-09\t\n\n4\tPDH E2E\tSeed F-E2E pakaian dinas\t2026-09-24\t\n\n5\tPDL\tPakaian Dinas Lapangan\t2026-06-09\t\n\n6\tPDL E2E\tSeed F-E2E pakaian dinas (jenis kedua)\t2026-09-24\t\n\n7\tPDU-I 2023\tPakaian Dinas Upacara I (2023)\t2026-09-24\t\n\n8\tToga Jaksa\tToga untuk Jaksa\t202"
+      "textPreview": "Jenis Pakaian Dinas\n\nKelola master data jenis pakaian dinas\n\nTambah Jenis\nDaftar Jenis\nNO\tNAMA JENIS\tKETERANGAN\tDIBUAT\tAKSI\n1\tBatik\tPakaian Batik Dinas\t2026-06-09\t\n\n2\tJas Almamater\tJas Almamater Kejaksaan\t2026-06-09\t\n\n3\tPDH\tPakaian Dinas Harian\t2026-06-09\t\n\n4\tPDH E2E\tSeed F-E2E pakaian dinas\t2026-09-25\t\n\n5\tPDL\tPakaian Dinas Lapangan\t2026-06-09\t\n\n6\tPDL E2E\tSeed F-E2E pakaian dinas (jenis kedua)\t2026-09-25\t\n\n7\tPDU-I 2023\tPakaian Dinas Upacara I (2023)\t2026-09-25\t\n\n8\tToga Jaksa\tToga untuk Jaksa\t202"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__jenis__id__spesifikasi.png",
@@ -900,7 +902,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Analisis Kebutuhan\nBuat Analisis Baru\nJUDUL\tKATEGORI\tPRIORITAS\tESTIMASI BIAYA\tSTATUS\tAKSI\nE2E Roadmap 1790297794517\tTIK\tTinggi\tRp 125000000.00\tDraft\t\n\nE2E Analisis Kebutuhan TIK 2026\tTIK\tTinggi\tRp 1250000000.00\tDisetujui\t\n\nE2E Analisis Kebutuhan Kendaraan 2026\tKendaraan\tSedang\tRp 750000000.00\tDraft\t\n\nE2E Analisis Kebutuhan Gedung 2026\tGedung\tRendah\tRp 3400000000.00\tDisetujui\t\nMenampilkan halaman 1 dari 1\nSebelumnya\nSelanjutnya"
+      "textPreview": "Analisis Kebutuhan\nBuat Analisis Baru\nJUDUL\tKATEGORI\tPRIORITAS\tESTIMASI BIAYA\tSTATUS\tAKSI\nE2E Roadmap 1790307439113\tTIK\tTinggi\tRp 125000000.00\tDraft\t\n\nE2E Analisis Kebutuhan TIK 2026\tTIK\tTinggi\tRp 1250000000.00\tDisetujui\t\n\nE2E Analisis Kebutuhan Kendaraan 2026\tKendaraan\tSedang\tRp 750000000.00\tDraft\t\n\nE2E Analisis Kebutuhan Gedung 2026\tGedung\tRendah\tRp 3400000000.00\tDisetujui\t\nMenampilkan halaman 1 dari 1\nSebelumnya\nSelanjutnya"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__analitik__roadmap__buat.png",
@@ -945,7 +947,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Helpdesk\n\nHubungi tim dukungan teknis SIMPEL\n\nEmail\nhelpdesk-simpel@kejaksaan.go.id\nTelepon\n(021) 123-4567 ext. 890\nJam Kerja\nSenin - Jumat, 08:00 - 16:00\nKirim Pesan\nSUBJEK\n*\nPRIORITAS\nRendah\nNormal\nTinggi\nMendesak\nPESAN\n*\nKirim Pesan\nTiket Saya\n\nTiket bantuan yang pernah Anda kirim beserta statusnya. Staf helpdesk melihat semua tiket dan dapat mengubah statusnya.\n\nMuat Ulang\nSUBJEK\tPRIORITAS\tSTATUS\tSATKER\tDIBUAT\tAKSI\nE2E tiket operator 1790297799855\tTinggi\tTerbuka\t0200010\t25 Sep 2026, 00:56\t\nK"
+      "textPreview": "Helpdesk\n\nHubungi tim dukungan teknis SIMPEL\n\nEmail\nhelpdesk-simpel@kejaksaan.go.id\nTelepon\n(021) 123-4567 ext. 890\nJam Kerja\nSenin - Jumat, 08:00 - 16:00\nKirim Pesan\nSUBJEK\n*\nPRIORITAS\nRendah\nNormal\nTinggi\nMendesak\nPESAN\n*\nKirim Pesan\nTiket Saya\n\nTiket bantuan yang pernah Anda kirim beserta statusnya. Staf helpdesk melihat semua tiket dan dapat mengubah statusnya.\n\nMuat Ulang\nSUBJEK\tPRIORITAS\tSTATUS\tSATKER\tDIBUAT\tAKSI\nE2E tiket staf 1790307452453\tMendesak\tSedang Ditangani\t0200020\t25 Sep 2026, 0"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__admin__roles.png",
@@ -972,7 +974,7 @@
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Dashboard\nAdmin\nMaster Data\nMaster Data\n\nKelola data referensi sistem: aktivitas BMN, jenis pakaian, spesifikasi, ukuran standar, kode barang.\n\nSumber Data\n43 record\nAktivitas BMN\n\nStatus workflow untuk pengajuan BMN dan pakaian dinas\n\nDiperbarui: 9 Jun 2026, 12:10\nKelola\n9 record\nJenis Pakaian Dinas\n\nKategori pakaian dinas (PDH, PDL, Toga, dll)\n\nDiperbarui: 24 Sep 2026, 23:42\nKelola\n7 record\nSpesifikasi Pakaian\n\nSpesifikasi per jenis pakaian dengan kategori ukuran\n\nDiperbarui: 24 Sep 2026, 23:3"
+      "textPreview": "Dashboard\nAdmin\nMaster Data\nMaster Data\n\nKelola data referensi sistem: aktivitas BMN, jenis pakaian, spesifikasi, ukuran standar, kode barang.\n\nSumber Data\n43 record\nAktivitas BMN\n\nStatus workflow untuk pengajuan BMN dan pakaian dinas\n\nDiperbarui: 9 Jun 2026, 12:10\nKelola\n9 record\nJenis Pakaian Dinas\n\nKategori pakaian dinas (PDH, PDL, Toga, dll)\n\nDiperbarui: 25 Sep 2026, 03:35\nKelola\n7 record\nSpesifikasi Pakaian\n\nSpesifikasi per jenis pakaian dengan kategori ukuran\n\nDiperbarui: 25 Sep 2026, 03:3"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__admin__templates.png",

@@ -136,7 +136,7 @@ Identitas dan pengaturan akun pengguna.
 
 ![/portal/sessions](docs/assets/screenshots/portal__portal__sessions.png)
 
-<sub>1600×1095 piksel</sub>
+<sub>1600×1089 piksel</sub>
 
 **`/portal/settings`**
 
