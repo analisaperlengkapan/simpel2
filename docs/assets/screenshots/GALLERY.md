@@ -132,13 +132,13 @@ Identitas dan pengaturan akun pengguna.
 
 ![/portal/profile](docs/assets/screenshots/portal__portal__profile.png)
 
-<sub>1600×1107 piksel</sub>
+<sub>1600×1089 piksel</sub>
 
 **`/portal/sessions`**
 
 ![/portal/sessions](docs/assets/screenshots/portal__portal__sessions.png)
 
-<sub>1600×1089 piksel</sub>
+<sub>1600×1095 piksel</sub>
 
 **`/portal/settings`**
 
@@ -458,7 +458,7 @@ Peran dan hak akses.
 
 ![/perlengkapan/simpel/v2/admin/roles](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__admin__roles.png)
 
-<sub>1600×1000 piksel</sub>
+<sub>1600×1153 piksel</sub>
 
 **`/perlengkapan/simpel/v2/admin/roles (operator)` — ditolak oleh guard**
 
