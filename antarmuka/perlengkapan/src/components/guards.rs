@@ -22,6 +22,7 @@ use crate::features::auth::{AuthService, UserSession};
 use crate::routes;
 use leptos::prelude::*;
 use leptos_router::components::A;
+use lib_core::authz::Capability;
 use lib_ui::components::guards::AuthGate;
 
 /// Resolve the active session: prefer the reactive context signal (so logout /
@@ -60,17 +61,25 @@ pub fn AuthenticatedLayout() -> impl IntoView {
 
 /// Admin layout guard. Non-admins see a forbidden page; unauthenticated visitors
 /// are redirected to login.
+///
+/// The predicate is [`Capability::Administer`] rather than the role name
+/// "admin", so adding an administrative role is a one-line change in
+/// `lib_core::authz` instead of an edit here. It also means the guard agrees
+/// with the backend by construction: both consult the same allowlist.
 #[component]
 pub fn AdminLayout() -> impl IntoView {
     let ctx = use_context::<ReadSignal<Option<UserSession>>>();
     let authed = Signal::derive(move || current_session(ctx).is_some());
-    let is_admin =
-        Signal::derive(move || current_session(ctx).map(|s| s.is_admin()).unwrap_or(false));
+    let authorized = Signal::derive(move || {
+        current_session(ctx)
+            .map(|s| s.can(Capability::Administer))
+            .unwrap_or(false)
+    });
 
     view! {
         <AuthGate
             authenticated=authed
-            authorized=is_admin
+            authorized=authorized
             unauthenticated=redirect_view()
             forbidden=forbidden_view()
         >

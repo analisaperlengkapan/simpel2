@@ -17,6 +17,11 @@ authenc-federation = { path = "../federation" }
 authenc-iam-api = { path = "../iam-api" }
 authenc-grpc = { path = "../grpc" }
 
+# Shared authorization model (role allowlists, capabilities). The REST admin
+# guards must consult the same source of truth as the IAM middleware and both
+# microfrontends, rather than each spelling out "admin".
+lib-core = { workspace = true }
+
 # External dependencies (from workspace)
 tokio = { workspace = true }
 axum = { workspace = true }

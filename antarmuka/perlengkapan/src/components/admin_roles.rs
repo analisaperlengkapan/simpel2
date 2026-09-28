@@ -15,7 +15,7 @@ use leptos::prelude::*;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
 use phosphor_leptos::{CHECK, USER_CHECK};
 
-use crate::components::role_switcher::PerlengkapanRole;
+use crate::components::role_catalog::PerlengkapanRole;
 
 /// Admin Roles Configuration Page
 #[component]
@@ -161,7 +161,7 @@ pub fn AdminRolesPage() -> impl IntoView {
                                                 }
                                                     .into_any()
                                             }
-                                            "admin" => {
+                                            "admin" | "admin_pusat" | "superadmin" => {
                                                 view! {
                                                     <div>
                                                         <span class="text-success-400 mr-2">

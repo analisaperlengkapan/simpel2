@@ -69,6 +69,10 @@ pub fn MfaVerificationPage() -> impl IntoView {
     let (is_locked, set_is_locked) = signal(false);
 
     let navigate = leptos_router::hooks::use_navigate();
+    // Resolved at render time: `app_state_login` runs inside `spawn_local`,
+    // after an `.await`, when the reactive Owner is gone — resolving context
+    // there panics and blanks the page.
+    let app_state = crate::utils::app_state::use_app_state();
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.
@@ -239,6 +243,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                         let nav = navigate.clone();
                                         let is_mounted = is_mounted.clone();
                                         let set_user_session = set_user_session;
+                                        let app_state = app_state;
                                         spawn_local(async move {
                                             match verify_mfa_code(&temp_token, &code).await {
                                                 Ok(response) => {
@@ -262,7 +267,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                                                 session.access_token = Some(response.access_token);
                                                                 session.refresh_token = response.refresh_token.clone();
                                                                 AuthService::save_session(&session);
-                                                                crate::utils::app_state::app_state_login(session.clone());
+                                                                crate::utils::app_state::app_state_login(app_state, session.clone());
                                                                 if let Some(setter) = set_user_session {
                                                                     setter.set(Some(session.clone()));
                                                                 }

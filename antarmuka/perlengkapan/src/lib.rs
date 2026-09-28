@@ -114,10 +114,11 @@ pub fn App() -> impl IntoView {
     provide_context(user_session);
     provide_context(set_user_session);
 
-    // Reactive UI preview role. Must be provided before any role-aware view
-    // mounts: readers call `use_active_role()` (expect_context) so that
-    // switching role re-renders them instead of needing a browser refresh.
-    crate::components::role_switcher::provide_active_role();
+    // Authorization is derived from the session signal by
+    // `components::session_authz::use_authz()` — no role is ever *chosen* in
+    // the UI. The previous `provide_active_role()` installed a writable
+    // localStorage-backed role that the sidebar, helpdesk and dashboard gated
+    // on, which let the UI assert a role the token did not grant.
 
     // is_login_page + main_class dipindah ke <AppRouterShell> component
     // di bawah supaya bisa pakai use_location() (HOOK) yang reactive ke

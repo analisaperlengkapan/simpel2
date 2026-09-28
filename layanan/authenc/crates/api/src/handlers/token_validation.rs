@@ -329,8 +329,8 @@ pub async fn revoke_handler(
     Ok(Json(RevokeResponse { revoked: true }))
 }
 
-/// Require that the Authorization bearer is a valid token carrying the `admin`
-/// realm role. Returns 401 if missing/invalid, 403 if not an admin.
+/// Require that the Authorization bearer is a valid token carrying an
+/// administrative realm role. Returns 401 if missing/invalid, 403 if not an admin.
 fn require_admin(
     state: &Arc<ApiState>,
     headers: &axum::http::HeaderMap,
@@ -351,12 +351,23 @@ fn require_admin(
             message: "Invalid or expired token".to_string(),
         })?;
 
+    // The allowlist is `lib_core::authz::ADMIN_ROLES` — the same constant the
+    // IAM middleware, the perlengkapan backend and both microfrontends gate
+    // their admin surfaces on. This used to accept only the exact string
+    // "admin", so `admin_pusat` and `superadmin` could revoke their own token
+    // (the RFC 7009 path above needs no role) but were refused the admin-scoped
+    // `user_id`/`session_id` revocation they are the intended callers of.
     let is_admin = claims
         .custom
         .get("realm_access")
         .and_then(|v| v.get("roles"))
         .and_then(|v| v.as_array())
-        .is_some_and(|roles| roles.iter().any(|r| r.as_str() == Some("admin")));
+        .is_some_and(|roles| {
+            roles
+                .iter()
+                .filter_map(|r| r.as_str())
+                .any(lib_core::authz::is_admin_role)
+        });
 
     if is_admin {
         Ok(())
@@ -546,5 +557,62 @@ mod tests {
         // Verifying with different key should fail
         let result = jwt_service2.verify_token(&token);
         assert!(result.is_err());
+    }
+
+    /// The admin predicate behind `/api/v1/auth/revoke`'s `user_id`/`session_id`
+    /// path must accept every role `ADMIN_ROLES` lists, not just the literal
+    /// `"admin"`.
+    ///
+    /// The regression: the guard read `r.as_str() == Some("admin")`, so
+    /// `admin_pusat` and `superadmin` — administrators everywhere else in the
+    /// system — were refused the cross-user revocation they exist to perform.
+    /// The assertion is over the shared allowlist, so adding a role there
+    /// cannot silently leave this guard behind.
+    #[test]
+    fn admin_predicate_accepts_every_shared_admin_role() {
+        let accepts = |roles: &[&str]| roles.iter().any(|r| lib_core::authz::is_admin_role(r));
+
+        for admin in lib_core::authz::ADMIN_ROLES {
+            assert!(
+                accepts(&[admin]),
+                "'{admin}' is an admin role and must be accepted"
+            );
+        }
+    }
+
+    /// Non-administrative roles must still be refused — the widened allowlist
+    /// must not have widened the *boundary*.
+    #[test]
+    fn admin_predicate_refuses_non_admin_roles() {
+        let accepts = |roles: &[&str]| roles.iter().any(|r| lib_core::authz::is_admin_role(r));
+
+        for role in [
+            "operator_satker",
+            "validator_wilayah",
+            "validator_pusat",
+            "validator_satker",
+            "approver_satker",
+            "user",
+            // Lookalikes: a prefix check would admit all of these.
+            "admin_master_read_only",
+            "administrator",
+            "super_admin",
+            "superuser",
+        ] {
+            assert!(
+                !accepts(&[role]),
+                "'{role}' must not be treated as an admin"
+            );
+        }
+    }
+
+    /// A satker-bound principal that also holds an unrelated role must not be
+    /// promoted by the presence of extra roles.
+    #[test]
+    fn admin_predicate_requires_an_actual_admin_among_roles() {
+        let accepts = |roles: &[&str]| roles.iter().any(|r| lib_core::authz::is_admin_role(r));
+
+        assert!(!accepts(&["operator_satker", "validator_wilayah"]));
+        assert!(accepts(&["operator_satker", "admin_pusat"]));
     }
 }

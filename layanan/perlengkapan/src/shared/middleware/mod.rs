@@ -88,11 +88,14 @@ pub struct Claims {
 impl Claims {
     /// Roles allowed to read/write data across satker boundaries. Anything
     /// else is treated as satker-scoped.
+    ///
+    /// Delegates to [`lib_core::authz::CROSS_SATKER_ROLES`] rather than
+    /// restating the list. This predicate decides whether the satker boundary
+    /// is enforced at all ([`can_access_satker`]), so a second copy here is a
+    /// boundary that widens or narrows the moment the shared list moves —
+    /// silently, because both sides still compile.
     pub fn is_cross_satker_role(&self) -> bool {
-        matches!(
-            self.role.as_str(),
-            "admin" | "admin_pusat" | "superadmin" | "validator_pusat" | "pusat" | "analis_pusat"
-        )
+        lib_core::authz::RoleSet::from_slice(std::slice::from_ref(&self.role)).is_cross_satker()
     }
 
     /// Returns true when the caller may access data belonging to the given
@@ -136,7 +139,12 @@ impl Claims {
     /// ```
     pub fn require_any_role(&self, allowed: &[&str]) -> Result<(), AppError> {
         // Admin/superadmin: bypass (sudah cross-satker juga).
-        if matches!(self.role.as_str(), "admin" | "admin_pusat" | "superadmin") {
+        //
+        // The allowlist is `lib_core::authz::ADMIN_ROLES`, not a local literal:
+        // the frontends gate the same surfaces on the same constant, so a
+        // second copy here is a copy that can drift and show an admin a button
+        // the API then refuses (or worse, hide one it would have allowed).
+        if lib_core::authz::is_admin_role(&self.role) {
             return Ok(());
         }
         let me = self.role.to_ascii_lowercase();
@@ -173,7 +181,7 @@ impl Claims {
     /// Assert caller adalah admin (atau superadmin). Dipakai utk
     /// endpoint master/referensi yg hanya boleh diubah admin.
     pub fn require_admin(&self) -> Result<(), AppError> {
-        if matches!(self.role.as_str(), "admin" | "admin_pusat" | "superadmin") {
+        if lib_core::authz::is_admin_role(&self.role) {
             Ok(())
         } else {
             Err(AppError::Authorization(format!(
@@ -382,5 +390,26 @@ mod policy_tests {
     fn require_admin_rejects_non_admin() {
         let c = claims_with_role("validator_pusat");
         assert!(c.require_admin().is_err());
+    }
+
+    /// The satker boundary is enforced by `is_cross_satker_role`, so this pins
+    /// that it answers from the shared allowlist and not a private copy. Every
+    /// role in `CROSS_SATKER_ROLES` must unlock cross-satker access, and a
+    /// satker-bound role must not.
+    #[test]
+    fn cross_satker_roles_follow_the_shared_allowlist() {
+        for role in lib_core::authz::CROSS_SATKER_ROLES {
+            let c = claims_with_role(role);
+            assert!(
+                c.is_cross_satker_role(),
+                "{role} is cross-satker but the boundary was enforced"
+            );
+            assert!(c.can_access_satker("99.99"));
+        }
+
+        for role in ["operator_satker", "validator_satker", "validator_wilayah"] {
+            let c = claims_with_role(role);
+            assert!(!c.is_cross_satker_role(), "{role} must stay satker-bound");
+        }
     }
 }

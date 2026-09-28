@@ -44,13 +44,23 @@ impl AppState {
             .unwrap_or_else(|| "Pengguna".to_string())
     }
 
-    /// Check if user has a specific permission
-    pub fn has_permission(&self, permission: &str) -> bool {
+    /// True when the current user holds the given realm role.
+    ///
+    /// Renamed from `has_permission`: the value tested here is a topic role
+    /// name, and there is no permission vocabulary to check it against.
+    pub fn has_role(&self, role: &str) -> bool {
         self.user.as_ref().is_some_and(|u| {
-            u.permissions
-                .iter()
-                .any(|p| p == permission || p == "admin:*")
+            lib_core::authz::Authorization::from_slice(&u.roles)
+                .roles()
+                .has(role)
         })
+    }
+
+    /// Capability test against the shared authorization model.
+    pub fn can(&self, capability: lib_core::authz::Capability) -> bool {
+        self.user
+            .as_ref()
+            .is_some_and(|u| lib_core::authz::Authorization::from_slice(&u.roles).can(capability))
     }
 }
 
@@ -102,15 +112,21 @@ pub fn use_current_user() -> Signal<Option<UserSession>> {
     Signal::derive(move || state.get().user)
 }
 
-/// Login: update the AppState with a new session
-pub fn app_state_login(session: UserSession) {
-    let state = use_app_state();
+/// Login: update the AppState with a new session.
+///
+/// The signal is passed in rather than resolved from context because every
+/// caller runs inside `spawn_local`, after an `.await`. The reactive Owner that
+/// held the context is disposed by then, so `expect_context` panics
+/// (`expected context of type RwSignal<AppState> to be present`) and the page
+/// renders blank. Callers must call [`use_app_state`] at render time and move
+/// the (Copy) signal into the task.
+pub fn app_state_login(state: RwSignal<AppState>, session: UserSession) {
     state.set(AppState::from_session(session));
 }
 
-/// Logout: clear the AppState
-pub fn app_state_logout() {
-    let state = use_app_state();
+/// Logout: clear the AppState. See [`app_state_login`] for why the signal is a
+/// parameter.
+pub fn app_state_logout(state: RwSignal<AppState>) {
     state.set(AppState::default());
 }
 

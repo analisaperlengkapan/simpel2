@@ -55,8 +55,17 @@ pub struct UserSession {
     pub refresh_token: Option<String>,
     /// Token expiration timestamp (Unix timestamp)
     pub expires_at: Option<i64>,
-    /// User permissions
-    pub permissions: Vec<String>,
+    /// Realm roles from the token (`realm_access.roles`).
+    ///
+    /// Named `roles`, not `permissions`: this list holds Keycloak-style role
+    /// names (`admin`, `validator_pusat`, …), never permission strings. The
+    /// old name invited callers to test it against a permission vocabulary
+    /// that does not exist in this system, which is why `has_permission`
+    /// could never match anything and `MenuVisibility::AnyPermission` never
+    /// fired. The `alias` keeps a session persisted before the rename
+    /// loadable, so no user is silently logged out by the upgrade.
+    #[serde(default, alias = "permissions")]
+    pub roles: Vec<String>,
 }
 
 pub use lib_core::auth::UserRole;
@@ -315,19 +324,19 @@ impl AuthService {
             UserRole::User
         };
 
-        // Determine permissions based on role's capabilities (not hardcoded variants)
-        let permissions = if role.is_admin() {
-            vec![
-                "admin:*".to_string(),
-                "user:read".to_string(),
-                "user:write".to_string(),
-            ]
-        } else if matches!(role, UserRole::Supervisor) {
-            vec!["user:read".to_string(), "user:write".to_string()]
-        } else if matches!(role, UserRole::Guest) {
-            vec![]
-        } else {
-            vec!["user:read".to_string()]
+        // Roles are the token's realm roles. The mock path has no token, so
+        // synthesize the equivalent realm role names rather than inventing a
+        // separate permission vocabulary that the real path never produces.
+        let roles: Vec<String> = match role {
+            UserRole::Admin => lib_core::authz::ADMIN_ROLES
+                .iter()
+                .take(1)
+                .map(|r| r.to_string())
+                .collect(),
+            UserRole::Supervisor => vec!["validator_wilayah".to_string()],
+            UserRole::User => vec!["operator_satker".to_string()],
+            UserRole::Guest => vec![],
+            UserRole::Custom(ref name) => vec![name.clone()],
         };
 
         let now = chrono::Utc::now();
@@ -352,7 +361,7 @@ impl AuthService {
             access_token: Some("mock_access_token".to_string()),
             refresh_token: Some("mock_refresh_token".to_string()),
             expires_at: Some(expires_at.timestamp()),
-            permissions,
+            roles,
         };
 
         LoginResult::Success(Box::new(session))
@@ -382,7 +391,7 @@ impl AuthService {
         // Map roles
         let role = claims.get_primary_role();
         let username = claims.preferred_username.unwrap_or(claims.sub.clone());
-        let permissions = claims.realm_access.map(|ra| ra.roles).unwrap_or_default();
+        let roles = claims.realm_access.map(|ra| ra.roles).unwrap_or_default();
 
         // Use the raw satker code as the satuan_kerja fallback.  The profile
         // page resolves the human-readable name via the API's
@@ -415,7 +424,7 @@ impl AuthService {
             access_token: Some(token.to_string()),
             refresh_token: None,
             expires_at: Some(claims.exp as i64),
-            permissions,
+            roles,
         })
     }
 
@@ -780,7 +789,7 @@ impl AuthService {
                 session.mfa_enabled = decoded.mfa_enabled;
                 session.mfa_setup_required = decoded.mfa_setup_required;
                 session.require_password_change = decoded.require_password_change;
-                session.permissions = decoded.permissions;
+                session.roles = decoded.roles;
             }
 
             Self::save_session(&session);
@@ -796,11 +805,15 @@ impl AuthService {
         parts.len() == 3
     }
 
-    /// Check if user has specific permission
-    pub fn has_permission(session: &UserSession, permission: &str) -> bool {
-        session.permissions.iter().any(|p| {
-            p == permission || p.ends_with(":*") && permission.starts_with(&p[..p.len() - 1])
-        })
+    /// Resolve this session's roles into the shared authorization model.
+    ///
+    /// Portal's admin surfaces should ask the returned [`Authorization`] for a
+    /// [`lib_core::authz::Capability`]. The previous `has_permission` compared
+    /// role names against a permission string vocabulary (`"user:read"`) that
+    /// nothing in this system ever issues, so it was guaranteed to return
+    /// false for every real caller.
+    pub fn authz(session: &UserSession) -> lib_core::authz::Authorization {
+        lib_core::authz::Authorization::from_slice(&session.roles)
     }
 
     /// Broadcast logout event to all tabs/windows

@@ -4,7 +4,7 @@
 //! REQ-PORTAL-006
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::use_api_client;
+use crate::utils::app_state::{use_api_client, use_app_state};
 use crate::utils::authenc_api::ChangePasswordRequest;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -83,6 +83,9 @@ fn calculate_strength(password: &str) -> PasswordStrength {
 #[component]
 pub fn PasswordChangePage() -> impl IntoView {
     let api = use_api_client();
+    // Resolved here, at render time, so the async submit handler can move it
+    // into its task: the reactive Owner is gone after the first `.await`.
+    let app_state = use_app_state();
 
     // Obtain the top-level user_session writer so we can update the reactive
     // signal after a successful password change.  Without this, route guards
@@ -136,6 +139,9 @@ pub fn PasswordChangePage() -> impl IntoView {
         let api = api.clone();
         let nav = navigate.clone();
         let is_mounted = mounted.clone();
+        // `RwSignal` is `Copy`, so the render-time handle travels into the
+        // async task without dragging the (already disposed) Owner along.
+        let app_state = app_state;
         set_loading.set(true);
         set_error.set(None);
         set_success.set(None);
@@ -207,7 +213,7 @@ pub fn PasswordChangePage() -> impl IntoView {
                         if let Some(setter) = set_user_session {
                             setter.set(Some(session.clone()));
                         }
-                        crate::utils::app_state::app_state_login(session);
+                        crate::utils::app_state::app_state_login(app_state, session);
                     }
 
                     // Navigate to dashboard after a short delay so the user

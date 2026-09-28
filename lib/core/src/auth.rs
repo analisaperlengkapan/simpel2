@@ -56,11 +56,18 @@ impl UserRole {
     }
 
     /// Check if role has admin privileges.
-    /// Returns true for Admin or any Custom role starting with "admin".
+    ///
+    /// Exact match against [`crate::authz::ADMIN_ROLES`], **not** a prefix
+    /// test. The previous `starts_with("admin")` admitted `admin_audit_log`,
+    /// `admin_master_read_only` and `administrative` as administrators, while
+    /// the backend (`authenc`'s `admin_auth_middleware`) accepts only the exact
+    /// string `admin`. Since roles are database rows that operators can create,
+    /// a prefix rule guarantees the UI eventually grants a surface the API
+    /// refuses — or worse, treats a read-only role as a full administrator.
     pub fn is_admin(&self) -> bool {
         match self {
             Self::Admin => true,
-            Self::Custom(name) => name.to_lowercase().starts_with("admin"),
+            Self::Custom(name) => crate::authz::ADMIN_ROLES.contains(&name.to_lowercase().as_str()),
             _ => false,
         }
     }
@@ -169,5 +176,78 @@ impl SsoSession {
         serde_json::from_str(json).map_err(|e| {
             crate::error::CommonError::Internal(format!("Failed to deserialize SSO session: {}", e))
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::authz::ADMIN_ROLES;
+
+    /// The regression this module exists to prevent: a role whose name merely
+    /// *starts with* `admin` is not an administrator. The backend's
+    /// `admin_auth_middleware` matches the exact string `admin`, so a prefix
+    /// rule here would let the UI open admin surfaces the API then refuses.
+    #[test]
+    fn admin_prefix_is_not_admin() {
+        for bogus in [
+            "admin_audit_log",
+            "administrative",
+            "admin_master_read_only",
+            "administrator",
+            "admin_read_only",
+        ] {
+            let role = UserRole::from_string(bogus);
+            assert!(
+                !role.is_admin(),
+                "'{bogus}' must not be treated as an admin role"
+            );
+            assert!(
+                !role.can_manage_users(),
+                "'{bogus}' must not be able to manage users"
+            );
+        }
+    }
+
+    #[test]
+    fn allowlisted_admin_roles_are_admins() {
+        for role in ADMIN_ROLES {
+            assert!(
+                UserRole::from_string(role).is_admin(),
+                "'{role}' is an allowlisted admin role"
+            );
+        }
+    }
+
+    #[test]
+    fn domain_roles_are_not_admins() {
+        for role in [
+            "operator_satker",
+            "validator_satker",
+            "validator_wilayah",
+            "validator_pusat",
+            "user",
+            "supervisor",
+            "guest",
+        ] {
+            assert!(
+                !UserRole::from_string(role).is_admin(),
+                "'{role}' must not be an admin"
+            );
+        }
+    }
+
+    #[test]
+    fn plain_admin_variants_keep_their_meaning() {
+        assert!(UserRole::Admin.is_admin());
+        assert!(!UserRole::User.is_admin());
+        assert!(!UserRole::Supervisor.is_admin());
+        assert!(!UserRole::Guest.is_admin());
+    }
+
+    #[test]
+    fn admin_role_matching_is_case_insensitive() {
+        assert!(UserRole::from_string("ADMIN_PUSAT").is_admin());
+        assert!(!UserRole::from_string("ADMINISTRATIVE").is_admin());
     }
 }

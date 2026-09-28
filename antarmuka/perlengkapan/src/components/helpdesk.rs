@@ -15,9 +15,10 @@ use crate::api::bantuan::{
     list_comments, list_tickets, priority_label, status_label, update_status,
 };
 use crate::components::layout::{FormField, PageLayout, SectionCard};
-use crate::components::role_switcher::use_active_role;
+use crate::components::session_authz::use_authz;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use lib_core::authz::Capability;
 use lib_ui::components::icon::AppIcon;
 use lib_ui::utils::formatters::format_iso_local;
 use phosphor_leptos::{
@@ -64,10 +65,12 @@ pub fn HelpdeskPage() -> impl IntoView {
     let expanded = RwSignal::new(None::<String>);
     // Error from a staff status transition, shown above the table.
     let action_error = RwSignal::new(None::<String>);
-    // Staff controls follow the active role; the server independently derives
-    // staff-ness from the JWT, so this only shows/hides UI.
-    let active_role = use_active_role();
-    let is_staff = move || active_role.get() == "admin";
+    // Staff controls follow the caller's token-derived capability. The server
+    // independently derives the same thing from the JWT, so this only
+    // shows/hides UI — but it must *agree* with the server, which is why it
+    // asks for a capability rather than comparing role strings.
+    let authz = use_authz();
+    let is_staff = move || authz.get().can(Capability::ManageTickets);
 
     let reload = move || {
         spawn_local(async move {

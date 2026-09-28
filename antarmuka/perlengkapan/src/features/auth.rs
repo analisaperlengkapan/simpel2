@@ -8,6 +8,7 @@
 //! produced the "ghost session" class of bugs. If the JWT is missing or
 //! expired, the user is simply logged out.
 
+use lib_core::authz::{Authorization, Capability};
 use lib_core::encoding::base64_decode_url;
 use lib_core::jwt_claims::Claims;
 use serde::{Deserialize, Serialize};
@@ -50,22 +51,26 @@ impl UserSession {
         self.roles.iter().any(|r| r == role)
     }
 
-    pub fn has_any_role(&self, roles: &[&str]) -> bool {
-        roles.iter().any(|r| self.has_role(r))
+    /// Resolve this session's roles into the shared authorization model.
+    ///
+    /// Every role predicate on `UserSession` now routes through this, so the
+    /// frontend and the backend agree on what each role means. Prefer asking
+    /// the returned [`Authorization`] for a [`Capability`] over asking for a
+    /// role name — a surface that names a role is a surface that has to be
+    /// re-checked every time the role table changes.
+    pub fn authz(&self) -> Authorization {
+        Authorization::from_slice(&self.roles)
     }
 
-    /// An admin is anyone holding an explicit admin realm role. No more
-    /// `starts_with("admin_")` string matching — that was a frequent source
-    /// of false positives for roles like `admin_master_read_only`.
+    /// An admin is anyone holding an allowlisted administrative realm role
+    /// (see [`lib_core::authz::ADMIN_ROLES`]).
+    ///
+    /// The list previously read `super_admin` / `admin_wilayah` / `admin_satker`
+    /// and omitted `superadmin`, none of which the backend's `require_admin`
+    /// accepts. The result was an admin menu whose every request returned 403.
+    /// It now delegates, so the two sides cannot drift independently.
     pub fn is_admin(&self) -> bool {
-        const ADMIN_ROLES: &[&str] = &[
-            "admin",
-            "super_admin",
-            "admin_pusat",
-            "admin_wilayah",
-            "admin_satker",
-        ];
-        self.has_any_role(ADMIN_ROLES)
+        self.authz().is_admin()
     }
 
     pub fn is_validator_pusat(&self) -> bool {
@@ -74,6 +79,16 @@ impl UserSession {
 
     pub fn is_validator_wilayah(&self) -> bool {
         self.has_role("validator_wilayah")
+    }
+
+    /// True when the caller may read records across satker boundaries.
+    pub fn is_cross_satker(&self) -> bool {
+        self.authz().is_cross_satker()
+    }
+
+    /// Capability test. Prefer this over the role predicates above.
+    pub fn can(&self, capability: Capability) -> bool {
+        self.authz().can(capability)
     }
 
     /// Whether the JWT is still within its expiry window. A missing `exp`
@@ -102,26 +117,17 @@ fn current_unix_seconds() -> f64 {
     js_sys::Date::now() / 1000.0
 }
 
+/// Pick the role to show when the token carries several.
+///
+/// Delegates to [`lib_core::authz::RoleSet::primary`]. This function used to
+/// own a private copy of the priority list that named `super_admin` — a
+/// spelling no issuer mints — and omitted the real `superadmin`, so a
+/// superadmin fell through to the fallback and rendered as an operator.
 fn pick_primary_role(roles: &[String]) -> String {
-    const PRIORITY: &[&str] = &[
-        "super_admin",
-        "admin",
-        "admin_pusat",
-        "admin_wilayah",
-        "admin_satker",
-        "validator_pusat",
-        "validator_wilayah",
-        "operator_satker",
-    ];
-    for candidate in PRIORITY {
-        if roles.iter().any(|r| r == candidate) {
-            return (*candidate).to_string();
-        }
-    }
-    roles
-        .first()
-        .cloned()
-        .unwrap_or_else(|| "operator_satker".to_string())
+    lib_core::authz::RoleSet::from_slice(roles)
+        .primary()
+        .unwrap_or("operator_satker")
+        .to_string()
 }
 
 pub struct AuthService;
@@ -224,10 +230,13 @@ impl AuthService {
             let _ = storage.remove_item(AUTH_TOKEN_KEY);
             let _ = storage.remove_item(REFRESH_TOKEN_KEY);
             // Best-effort cleanup of legacy keys so stale data from older
-            // builds doesn't confuse diagnostics.
+            // builds doesn't confuse diagnostics. `ui_active_role` was written
+            // by the removed role switcher; clearing it stops a stale value
+            // from resurfacing if a downgrade ever reinstalls that component.
             let _ = storage.remove_item("perlengkapan_user_session");
             let _ = storage.remove_item("user_session");
             let _ = storage.remove_item("active_role");
+            let _ = storage.remove_item("ui_active_role");
         }
     }
 

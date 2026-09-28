@@ -1,16 +1,18 @@
-//! Profile Menu — avatar dropdown with role switcher + logout.
+//! Profile Menu — avatar dropdown with identity, admin link, and logout.
 
-use super::role_switcher::RoleSwitcher;
+use super::role_identity::RoleIdentity;
+use crate::components::session_authz::use_authz;
 use crate::features::auth::{AuthService, UserSession};
 use crate::routes;
 use leptos::prelude::*;
 use leptos_node_ref::AnyNodeRef;
 use leptos_router::components::A;
+use lib_core::authz::Capability;
 use lib_ui::components::floating::Popover;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{GEAR, SIGN_OUT, USER};
 
-/// Profile avatar button + dropdown with role switcher and logout.
+/// Profile avatar button + dropdown showing identity, roles, and logout.
 ///
 /// Positioning, outside-click dismiss, and Escape-key dismiss come from
 /// [`Popover`] (backed by `floating-ui-leptos`). The avatar trigger and
@@ -81,16 +83,20 @@ pub fn ProfileMenu() -> impl IntoView {
                 </div>
             </div>
 
-            // ── Role switcher section ────────────────────────
+            // ── Identity: roles as granted by the token ──────
+            // Read-only. There is no role to choose here: the server
+            // re-derives every scope from the bearer token, so a selectable
+            // role could only ever misrepresent authority.
             <div style="padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06);">
                 <div style="font-size: 0.68rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 8px; margin-bottom: 4px;">
-                    "Ganti Role"
+                    "Role Anda"
                 </div>
-                <RoleSwitcher />
+                <RoleIdentity />
             </div>
 
             // ── Actions ──────────────────────────────────────
             <div style="padding: 8px;">
+                <Show when=move || use_authz().get().can(Capability::Administer)>
                 <A
                     href=routes::path::ADMIN_MASTER
                     attr:style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; text-decoration: none; color: #94a3b8; font-size: 0.82rem; transition: all 0.15s;"
@@ -101,6 +107,7 @@ pub fn ProfileMenu() -> impl IntoView {
                     </span>
                     <span>"Pengaturan"</span>
                 </A>
+                </Show>
                 <button
                     style="width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: none; background: none; color: #f87171; font-size: 0.82rem; cursor: pointer; transition: all 0.15s; text-align: left;"
                     class="hover:bg-red-500/[0.1]"
