@@ -431,6 +431,38 @@ impl IntegrasiClient {
         .map_err(|e| anyhow::anyhow!(e.to_string()))
     }
 
+    /// Fetch one employee's photo bytes.
+    ///
+    /// perlengkapan cannot fetch this itself: `layanan-integrasi-egress` is
+    /// the only NetworkPolicy opening `0.0.0.0/0:443`, and the SK izin PDF is
+    /// rendered server-side, so there is no browser to hand a URL to.
+    ///
+    /// `Ok(None)` means the employee has no photo on record — an ordinary
+    /// answer. A transport or media-host failure is an `Err`, and the SK falls
+    /// back to its placeholder box rather than failing the whole download.
+    pub async fn get_pegawai_foto(&self, nip: &str) -> Result<Option<(Vec<u8>, String)>> {
+        let nip = nip.to_string();
+        let response = guarded(&self.breakers.mysimkari, &self.policy, || {
+            let mut client = self.client.clone();
+            let request = integrasi::v1::GetPegawaiFotoRequest { nip: nip.clone() };
+            async move {
+                client
+                    .get_pegawai_foto(tonic::Request::new(request))
+                    .await
+                    .map(|r| r.into_inner())
+            }
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+
+        // `found` is the authority, not `data.is_empty()`: a zero-byte body
+        // that somehow arrived with `found: true` is a broken photo, and
+        // treating it as "no photo" would hide that.
+        Ok(response
+            .found
+            .then_some((response.data, response.content_type)))
+    }
+
     /// Get SIMAN assets by category
     pub async fn get_siman_assets(
         &self,

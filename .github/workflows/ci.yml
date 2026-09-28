@@ -336,6 +336,14 @@ jobs:
       - name: Duplicated .proto copies agree
         shell: bash
         run: python3 ./infra/scripts/check-proto-copies-agree.py
+
+      # The guard's own comment stripper read a quote inside a comment as the
+      # start of a string literal and leaked the comment text into the
+      # comparison, so two correct copies reported as disagreeing. The canaries
+      # pin that, and assert the committed copies still PASS.
+      - name: Duplicated .proto guard canaries
+        shell: bash
+        run: python3 ./infra/scripts/check-proto-copies-agree.py --self-test
       # `view!` tokenises `>` as the end of the opening tag — inside an
       # attribute value too. So `prop:disabled=move || page.get() >= total`
       # ends the tag at the `>`, and every attribute after it becomes a text

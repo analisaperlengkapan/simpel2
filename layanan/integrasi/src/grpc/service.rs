@@ -28,11 +28,31 @@ use crate::grpc::proto::{
     TriggerSyncRequest, TriggerSyncResponse, integrasi_service_server::IntegrasiService,
 };
 
+/// How long `GetPegawaiFoto` will wait on the MySIMKARI media host.
+///
+/// The caller is rendering a PDF for someone who is waiting, and the gateway
+/// gives up at 30 s. A pasfoto that has not arrived in ten seconds is not
+/// going to make that deadline useful, so the SK prints the placeholder box
+/// instead of the whole request timing out.
+const FOTO_FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// Upper bound on a photo, in bytes.
+///
+/// These are pasfoto — the largest observed on the host is under 2 MB. The cap
+/// is not a guess at what is normal but a bound on what an untrusted host can
+/// make this service allocate, since the body lands in memory and then crosses
+/// gRPC in one message.
+const FOTO_MAX_BYTES: u64 = 8 * 1024 * 1024;
+
 /// Shared state for the gRPC service
 #[derive(Clone)]
 pub struct ServiceState {
     pub db_client: Arc<Client>,
     pub sync_status: Arc<RwLock<HashMap<DataSource, SyncStatus>>>,
+    /// One client, not one per request: `reqwest::Client` owns the connection
+    /// pool, and building a new one per call means a fresh TLS handshake to
+    /// the media host for every page of every SK.
+    pub http_client: reqwest::Client,
 }
 
 /// Sync status for a data source
@@ -73,6 +93,11 @@ impl IntegrasiServiceImpl {
             state: ServiceState {
                 db_client,
                 sync_status: Arc::new(RwLock::new(sync_status)),
+                http_client: reqwest::Client::builder()
+                    .timeout(FOTO_FETCH_TIMEOUT)
+                    .user_agent("simpelv2-integrasi")
+                    .build()
+                    .unwrap_or_default(),
             },
         }
     }
@@ -770,6 +795,125 @@ impl IntegrasiService for IntegrasiServiceImpl {
         Ok(Response::new(GetMysimkariPegawaiResponse {
             items,
             pagination: Some(Self::create_pagination_info(page, per_page, total_items)),
+        }))
+    }
+
+    /// Fetch one employee's photo bytes from the MySIMKARI media host.
+    ///
+    /// This RPC is here because of a NETWORK boundary. The photo is a public
+    /// HTTPS object and any consumer could build its URL, but
+    /// `layanan-integrasi-egress` is the only NetworkPolicy in the namespace
+    /// that opens `0.0.0.0/0:443`. perlengkapan renders the SK izin PDF
+    /// server-side and has to embed the image into it, so unlike the two
+    /// frontends it cannot hand a URL to a browser.
+    async fn get_pegawai_foto(
+        &self,
+        request: Request<proto::GetPegawaiFotoRequest>,
+    ) -> Result<Response<proto::GetPegawaiFotoResponse>, Status> {
+        let nip = request.into_inner().nip;
+        if nip.trim().is_empty() {
+            return Err(Status::invalid_argument("nip is required"));
+        }
+
+        let row = self
+            .state
+            .db_client
+            .query_opt(
+                "SELECT COALESCE(foto, '') AS foto FROM integrasi.mysimkari_pegawai WHERE nip = $1",
+                &[&nip],
+            )
+            .await
+            .map_err(|e| {
+                error!("GetPegawaiFoto: query mysimkari_pegawai failed: {e}");
+                Status::internal("failed to look up the employee")
+            })?;
+
+        // No such employee and an employee with no photo are answered the same
+        // way on purpose. Distinguishing them would turn this RPC into an
+        // existence oracle for the national pegawai roster, and the caller has
+        // no use for the difference: both mean "print the placeholder box".
+        let Some(nama_berkas) = row.and_then(|r| r.try_get::<_, String>("foto").ok()) else {
+            return Ok(Response::new(proto::GetPegawaiFotoResponse::default()));
+        };
+        let Some(url) = lib_core::foto_pegawai::foto_pegawai_url(Some(&nama_berkas)) else {
+            return Ok(Response::new(proto::GetPegawaiFotoResponse::default()));
+        };
+
+        let response = self
+            .state
+            .http_client
+            .get(&url)
+            .timeout(FOTO_FETCH_TIMEOUT)
+            .send()
+            .await
+            .map_err(|e| {
+                // Deliberately NOT degraded to `found: false`. A media host
+                // that is down would then be indistinguishable from an
+                // employee who never uploaded a photo, and every SK would
+                // quietly print the empty box with nothing anywhere saying
+                // why.
+                warn!("GetPegawaiFoto: fetching {url} failed: {e}");
+                Status::unavailable("the media host could not be reached")
+            })?;
+
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            // The row names a file the host does not have. That is a stale
+            // record, not an outage, and it behaves like "no photo".
+            warn!("GetPegawaiFoto: {url} is 404 — the recorded file name is stale");
+            return Ok(Response::new(proto::GetPegawaiFotoResponse::default()));
+        }
+        if !response.status().is_success() {
+            warn!("GetPegawaiFoto: {url} answered {}", response.status());
+            return Err(Status::unavailable("the media host answered with an error"));
+        }
+
+        let content_type = response
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .split(';')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_string();
+
+        // The host serves an HTML error page with 200 for some malformed
+        // paths, so the body being an image is checked rather than assumed —
+        // otherwise perlengkapan receives HTML, fails to decode it, and the
+        // failure surfaces two services away from its cause.
+        if !content_type.starts_with("image/") {
+            warn!("GetPegawaiFoto: {url} returned content-type {content_type:?}, not an image");
+            return Err(Status::unavailable(
+                "the media host did not return an image",
+            ));
+        }
+
+        // Declared length first so an oversized object is refused before it is
+        // downloaded, then the real length after, because the header is a
+        // claim and not all responses carry one.
+        if response
+            .content_length()
+            .is_some_and(|n| n > FOTO_MAX_BYTES)
+        {
+            return Err(Status::out_of_range("the photo is larger than the limit"));
+        }
+        let data = response.bytes().await.map_err(|e| {
+            warn!("GetPegawaiFoto: reading the body of {url} failed: {e}");
+            Status::unavailable("the photo could not be read")
+        })?;
+        if data.len() as u64 > FOTO_MAX_BYTES {
+            return Err(Status::out_of_range("the photo is larger than the limit"));
+        }
+
+        info!(
+            "GetPegawaiFoto: {} bytes {content_type} for NIP {nip}",
+            data.len()
+        );
+        Ok(Response::new(proto::GetPegawaiFotoResponse {
+            found: true,
+            data: data.to_vec(),
+            content_type,
         }))
     }
 

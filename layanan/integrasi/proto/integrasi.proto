@@ -58,6 +58,16 @@ service IntegrasiService {
   // Get pegawai (employees) from MySIMKARI
   rpc GetMysimkariPegawai(GetMysimkariPegawaiRequest) returns (GetMysimkariPegawaiResponse);
 
+  // Fetch one employee's photo BYTES from the MySIMKARI media host.
+  //
+  // This RPC exists because of a network boundary, not a data one. The photo
+  // is a plain public HTTPS object, and every consumer could build its URL —
+  // but `layanan-integrasi` is the only pod in the namespace with egress to
+  // 0.0.0.0/0:443 (`layanan-integrasi-egress`). perlengkapan has to embed the
+  // image INTO the SK izin PDF it renders server-side, so it cannot hand the
+  // URL to a browser the way the two frontends do. It asks here instead.
+  rpc GetPegawaiFoto(GetPegawaiFotoRequest) returns (GetPegawaiFotoResponse);
+
   // =========================================================================
   // SIMAN v2.0 Data Access (Asset Management)
   // =========================================================================
@@ -399,9 +409,25 @@ message MysimkariPegawai {
   // MySIMKARI's photo FILE NAME, not a URL. `integrasi.mysimkari_pegawai.foto`
   // has carried it since 001_init_schema; nothing ever read it out, so the
   // photo existed in the database and reached no screen. Consumers build the
-  // URL from it (`lib_ui::foto_pegawai_url`), which keeps the media host in
+  // URL from it (`lib_core::foto_pegawai::foto_pegawai_url`), which keeps the host in
   // one place for the CSP guard to derive.
   string foto = 12;
+}
+
+message GetPegawaiFotoRequest {
+  string nip = 1;  // required
+}
+
+message GetPegawaiFotoResponse {
+  // False means "this employee has no photo on record", which is an ordinary
+  // answer and not an error: the SK then prints the placeholder box. A genuine
+  // failure (media host down, timeout, undecodable body) is returned as a gRPC
+  // status so the caller can tell the two apart — silently degrading a fetch
+  // failure into "no photo" is how a broken media host would look identical to
+  // an employee who never uploaded one.
+  bool found = 1;
+  bytes data = 2;
+  string content_type = 3;
 }
 
 // ===========================================================================

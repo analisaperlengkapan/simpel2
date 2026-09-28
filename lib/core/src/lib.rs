@@ -10,6 +10,7 @@ pub mod context;
 pub mod correlation;
 pub mod encoding;
 pub mod error;
+pub mod foto_pegawai;
 pub mod health;
 pub mod jwt_claims;
 pub mod models;

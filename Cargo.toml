@@ -323,8 +323,15 @@ bigdecimal = { version = "0.4.10", features = ["serde"] }
 # Template engines
 handlebars = "6.4.1"
 
-# PDF generation
-printpdf = "0.12"
+# PDF generation.
+#
+# `jpeg` and `png` are NOT default features — printpdf's default is `["html"]`
+# alone, and without an image feature `RawImage::decode_from_bytes` compiles to
+# a stub that always returns Err. The SK izin pemakaian BMN embeds the
+# employee's pasfoto (JPEG on the MySIMKARI host), so dropping these turns
+# every SK's photo into the placeholder box with nothing failing to build.
+# `pdf::tests::jpeg_dan_png_benar_benar_ter_decode` is the tripwire.
+printpdf = { version = "0.12", features = ["jpeg", "png"] }
 
 # Additional utilities
 captcha = "1.0.0"
