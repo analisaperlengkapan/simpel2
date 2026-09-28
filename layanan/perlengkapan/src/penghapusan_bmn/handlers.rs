@@ -30,7 +30,7 @@ use axum::{
     extract::{Multipart, Path, Query, State},
     http::StatusCode,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::sync::Arc;
 use std::time::Duration;
 use uuid::Uuid;
@@ -67,46 +67,17 @@ pub struct PaginationQuery {
 }
 
 /// API response wrapper
-#[derive(Debug, Serialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub data: T,
-    pub message: String,
-}
-
-impl<T> ApiResponse<T> {
-    pub fn success(data: T, message: String) -> Self {
-        Self {
-            success: true,
-            data,
-            message,
-        }
-    }
-}
+///
+/// Re-exported from `lib_perlengkapan` rather than redeclared. A local copy
+/// lived here and in `workflow::handlers` / `workflow::definition_handlers`;
+/// the `PaginatedResponse` sibling below had already drifted from the shared
+/// one by dropping `total_pages`, which made serde reject the whole
+/// `/penghapusan-bmn` list response — the page rendered "Gagal memuat data"
+/// over a perfectly healthy 200. One type, one shape.
+pub use lib_perlengkapan::response::ApiResponse;
 
 /// Paginated response
-#[derive(Debug, Serialize)]
-pub struct PaginatedResponse<T> {
-    pub success: bool,
-    pub data: Vec<T>,
-    pub total: i64,
-    pub page: i32,
-    pub per_page: i32,
-    pub message: String,
-}
-
-impl<T> PaginatedResponse<T> {
-    pub fn new(data: Vec<T>, total: i64, page: i32, per_page: i32, message: String) -> Self {
-        Self {
-            success: true,
-            data,
-            total,
-            page,
-            per_page,
-            message,
-        }
-    }
-}
+pub use lib_perlengkapan::response::PaginatedResponse;
 
 /// Create penghapusan BMN
 pub async fn create_penghapusan_bmn(

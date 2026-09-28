@@ -79,7 +79,7 @@ pub async fn create_delegation_handler(
     let delegation = manager.create_delegation(req).await?;
     Ok((
         StatusCode::CREATED,
-        Json(ApiResponse::success_with_message(
+        Json(ApiResponse::success(
             delegation,
             "Delegasi berhasil dibuat".to_string(),
         )),
@@ -102,7 +102,7 @@ pub async fn list_delegations_handler(
         manager.get_delegations_by_delegator(claims.user_id).await?
     };
 
-    Ok(Json(ApiResponse::success(delegations)))
+    Ok(Json(ApiResponse::success(delegations, "Success")))
 }
 
 /// `POST /workflow/delegations/{id}/revoke` — caller (must be the
@@ -116,7 +116,7 @@ pub async fn revoke_delegation_handler(
     manager
         .revoke_delegation(delegation_id, claims.user_id)
         .await?;
-    Ok(Json(ApiResponse::<()>::success_with_message(
+    Ok(Json(ApiResponse::<()>::success(
         (),
         "Delegasi berhasil dicabut".to_string(),
     )))

@@ -57,7 +57,17 @@ ROOT = Path(__file__).resolve().parents[2]
 FE_GLOB = "antarmuka/*/src/api/*.rs"
 # Enums are mirrored in the same api modules, but the backend keeps its
 # status enums under `models/`, which BE_GLOBS already covers.
-BE_GLOBS = ("layanan/*/src/**/*.rs", "layanan/*/crates/*/src/**/*.rs")
+#
+# The canonical envelope file is named explicitly rather than globbing all of
+# `lib/`. `lib/*/src/**` would also pair the frontend's wire *requests* with
+# lib-perlengkapan's same-named *domain* models — `CreateKebutuhanBmnRequest`
+# exists in both, deliberately with different fields — and every such pair
+# reports as drift. Only the envelope is genuinely shared across the boundary.
+BE_GLOBS = (
+    "layanan/*/src/**/*.rs",
+    "layanan/*/crates/*/src/**/*.rs",
+    "lib/perlengkapan/src/response.rs",
+)
 
 SKIP_DIRS = {"target", "node_modules", "dist", ".git"}
 
@@ -185,7 +195,257 @@ def collect(globs, derive: str) -> dict[str, list[dict]]:
     return out
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Duplicate wire envelopes.
+#
+# The field-level pass above UNIONS every backend struct sharing a name, on the
+# assumption that two same-named definitions are an entity and a response view
+# of it. That assumption is right for those, and it is exactly what makes it
+# blind here: when a service copies the wire envelope locally and the copy
+# drifts, the union quietly absorbs the difference. Every field the frontend
+# asks for is present in *some* declaration, so nothing is reported.
+#
+# `penghapusan_bmn` shipped that way. Its local `PaginatedResponse` omitted
+# `total_pages`, so serde rejected the entire response while the API answered
+# 200 — the page rendered its error arm, and this guard passed. The union
+# looked at the shared `lib_perlengkapan` twin (which has `total_pages`) and
+# concluded all was well.
+#
+# So envelopes are checked for EXACT parity instead: same name, same fields,
+# no union. A shared envelope exists precisely so its shape is defined once;
+# a second declaration of it is the bug, whatever it currently contains.
+ENVELOPE_NAMES = {"ApiResponse", "PaginatedResponse", "ListResponse", "ErrorBody"}
+
+
+def _service_of(path: Path) -> str:
+    """Which deployable owns this file: a service name, or the shared `lib`.
+
+    Sub-crates are folded into their service: `layanan/authenc/crates/api` and
+    `layanan/authenc/crates/core` are one deployable, so an envelope declared
+    in both is the duplicate this check exists to find.
+    """
+    try:
+        rel = path.relative_to(ROOT)
+    except ValueError:
+        return "?"
+    parts = rel.parts
+    if parts and parts[0] == "layanan" and len(parts) > 1:
+        return f"layanan/{parts[1]}"
+    if parts and parts[0] == "lib" and len(parts) > 1:
+        return f"lib/{parts[1]}"
+    return parts[0] if parts else "?"
+
+
+def lib_deps_of_service(service: str) -> set[str]:
+    """Shared `lib` crates the service actually depends on, from its Cargo.toml.
+
+    This is what makes the comparison honest. Every service declaring its own
+    envelope is not a defect — secreton's `ApiResponse` carries
+    `error`/`metadata` where perlengkapan's carries `message`, and the two are
+    unrelated types in unrelated domains. What IS a defect is a service that
+    depends on a shared crate defining the envelope and declares a second copy
+    anyway, because then two definitions of the same wire type exist in one
+    deployable and only one compiler ever sees both.
+    """
+    manifest = ROOT / service / "Cargo.toml"
+    if not manifest.exists():
+        return set()
+    try:
+        text = manifest.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return set()
+    return set(re.findall(r"^\s*(lib-\w+)\s*=", text, re.M))
+
+
+def _lib_crate_of(service: str) -> str | None:
+    """`lib/perlengkapan` -> `lib-perlengkapan` (the Cargo package name)."""
+    if not service.startswith("lib/"):
+        return None
+    return "lib-" + service.split("/", 1)[1]
+
+
+def envelope_field_sets(backend: dict[str, list[dict]]) -> dict[str, list[set[str]]]:
+    """Field sets of every envelope declaration that has a duplicate to answer for.
+
+    Two ways a declaration qualifies:
+
+    * **same service** — a service has one wire envelope; a second declaration
+      inside it is necessarily a stale copy, whatever it currently contains.
+    * **shadowing its own shared crate** — the service depends on a `lib` crate
+      that defines this envelope, so the shared definition is the authority and
+      the local one must match it exactly.
+
+    The second is the `penghapusan_bmn` case: it re-exported the shared
+    `PaginatedResponse` but kept a local `ApiResponse`, and the local one was
+    the shape that drifted.
+    """
+    out: dict[str, list[set[str]]] = {}
+
+    for name, entries in backend.items():
+        shaped: list[tuple[str, set[str]]] = []
+        for e in entries:
+            fields = set(e["fields"])
+            # Shape-based too, so a locally-invented envelope name is caught:
+            # `success` + `data` is the wire envelope, whatever it is called.
+            if name in ENVELOPE_NAMES or {"success", "data"} <= fields:
+                shaped.append((_service_of(e["path"]), fields))
+        if not shaped:
+            continue
+
+        by_service: dict[str, list[set[str]]] = {}
+        for service, fields in shaped:
+            by_service.setdefault(service, []).append(fields)
+
+        # (a) Duplicates inside one service.
+        for service, variants in by_service.items():
+            if len(variants) > 1:
+                out.setdefault(f"{name} [{service}]", []).extend(variants)
+
+        # (b) A local declaration shadowing a shared crate the service depends
+        #     on. Compare against that crate's declared shape, not a union, so
+        #     a local copy that GROWS a field is reported too.
+        for service, variants in by_service.items():
+            if service.startswith("lib/"):
+                continue
+            for dep in lib_deps_of_service(service):
+                canonical = by_service.get(f"lib/{dep.removeprefix('lib-')}")
+                if canonical:
+                    # The canonical declaration is the one the crate exports;
+                    # `lib` crates keep a single envelope per name.
+                    out.setdefault(
+                        f"{name} [{service} shadows {dep}]", []
+                    ).extend([canonical[0], *variants])
+                    break
+
+    return out
+
+
+def check_duplicate_envelopes(backend: dict[str, list[dict]]) -> list[str]:
+    """Report every envelope declared more than once for the same authority.
+
+    A duplicate is reported whether or not the copies currently agree. Two
+    identical declarations are not a benign redundancy — they are the setup for
+    the drift, and this repository's own record is that a rule or shape living
+    in two places eventually holds in only one of them (`secreton/AGENTS.md`,
+    the two-authorizer note). The drift is the symptom; the copy is the cause,
+    so the fix is always the same: delete it and re-export the shared type.
+
+    When the copies have already diverged, the differing fields are named so
+    the report says which side is wrong. For a shadowed shared crate the
+    authority is that crate; for same-service duplicates it is the union.
+    """
+    drift: list[str] = []
+    for label, variants in sorted(envelope_field_sets(backend).items()):
+        if len(variants) < 2:
+            continue
+
+        shadow = "shadows" in label
+        if shadow:
+            authority, candidates = variants[0], variants[1:]
+        else:
+            authority, candidates = set().union(*variants), variants
+
+        labels = ", ".join(f"#{i}" for i in range(1, len(candidates) + 1))
+        for i, fields in enumerate(candidates, 1):
+            missing = sorted(authority - fields)
+            extra = sorted(fields - authority)
+            detail = []
+            if missing:
+                detail.append(f"omits {', '.join(missing)}")
+            if extra:
+                detail.append(f"adds {', '.join(extra)}")
+            what = " and ".join(detail) if detail else "matches the authority"
+            drift.append(
+                f"  DUPLICATE-ENVELOPE {label} — {len(candidates)} local "
+                f"declaration(s) ({labels}); #{i} {what}"
+            )
+    return drift
+
+
+def selftest() -> int:
+    """Prove the duplicate-envelope check fires on the bug it exists for.
+
+    Reproduces the `penghapusan_bmn` shape: a shared crate defines the
+    envelope with `total_pages`, and a service that depends on that crate
+    declares its own copy without the field. The field-level union pass sees
+    nothing wrong — it merges same-named declarations and so absorbs the
+    difference, which is precisely why the original bug shipped.
+    """
+    def entry(path: str, fields: tuple[str, ...]) -> dict:
+        return {
+            "path": ROOT / path,
+            "attrs": "Serialize",
+            "fields": {k: {} for k in fields},
+            "flattened": False,
+            "line": 1,
+        }
+
+    shared = entry(
+        "lib/perlengkapan/src/response.rs",
+        ("success", "data", "message", "total", "page", "per_page", "total_pages"),
+    )
+    local = entry(
+        "layanan/perlengkapan/src/penghapusan_bmn/handlers.rs",
+        ("success", "data", "message", "total", "page", "per_page"),
+    )
+    fake = {"PaginatedResponse": [shared, local]}
+
+    drift = check_duplicate_envelopes(fake)
+    if not drift:
+        print("check-fe-be-dto-drift: SELFTEST FAILED — the duplicate-envelope "
+              "check did not fire on the penghapusan_bmn shape.", file=sys.stderr)
+        return 1
+    if "total_pages" not in drift[0]:
+        print("check-fe-be-dto-drift: SELFTEST FAILED — fired, but did not name "
+              "the omitted field.", file=sys.stderr)
+        return 1
+
+    # A local copy that INVENTS a field is drift too: the frontend would be
+    # written against a key the authority never sends.
+    grown = dict(local)
+    grown["fields"] = {**local["fields"], "invented": {}}
+    if not check_duplicate_envelopes({"PaginatedResponse": [shared, grown]}):
+        print("check-fe-be-dto-drift: SELFTEST FAILED — did not fire on a local "
+              "copy that adds a field.", file=sys.stderr)
+        return 1
+
+    # Two identical declarations are still reported: the copy is the setup for
+    # the next drift, and the fix (delete it) is the same either way.
+    if not check_duplicate_envelopes({"PaginatedResponse": [shared, dict(shared)]}):
+        print("check-fe-be-dto-drift: SELFTEST FAILED — did not fire on identical "
+              "duplicate declarations.", file=sys.stderr)
+        return 1
+
+    # A service with its own unrelated envelope and no shared dependency is
+    # NOT drift — that is secreton today, and flagging it would be the
+    # false positive that gets a guard deleted.
+    if check_duplicate_envelopes(
+        {"ApiResponse": [entry("layanan/secreton/crates/api/src/response.rs",
+                               ("success", "data", "error", "metadata"))]}
+    ):
+        print("check-fe-be-dto-drift: SELFTEST FAILED — flagged a standalone "
+              "service envelope.", file=sys.stderr)
+        return 1
+
+    print("check-fe-be-dto-drift: selftest ok (duplicate-envelope drift detected)")
+    return 0
+
+
+def count_envelope_declarations(backend: dict[str, list[dict]]) -> int:
+    """How many envelope-shaped declarations exist across all services."""
+    n = 0
+    for name, entries in backend.items():
+        for e in entries:
+            fields = set(e["fields"])
+            if name in ENVELOPE_NAMES or {"success", "data"} <= fields:
+                n += 1
+    return n
+
+
 def main() -> int:
+    if "--selftest" in sys.argv:
+        return selftest()
+
     frontend = collect((FE_GLOB,), "Deserialize")
     backend = collect(BE_GLOBS, "Serialize")
 
@@ -252,12 +512,32 @@ def main() -> int:
                     f"  RENUMBERED       {name}::{variant} = {value} — upstream {value} is {name}::{upstream}"
                 )
 
-    if not required and not empty and not enum_drift:
+    env_drift = check_duplicate_envelopes(backend)
+
+    if not required and not empty and not enum_drift and not env_drift:
         print(
-            f"check-fe-be-dto-drift: {compared} frontend DTOs and "
-            f"{enums_compared} mirrored enums match their backend twin."
+            f"check-fe-be-dto-drift: {compared} frontend DTOs, "
+            f"{enums_compared} mirrored enums and "
+            f"{count_envelope_declarations(backend)} envelope declaration(s) "
+            f"({len(envelope_field_sets(backend))} duplicated) match their backend twin."
         )
         return 0
+
+    if env_drift:
+        print("Backend envelopes declared more than once, with drift:\n", file=sys.stderr)
+        for line in env_drift:
+            print(line, file=sys.stderr)
+        print(
+            "\nThe shared envelope exists so its shape is defined once. A local\n"
+            "copy is not compared field-by-field against the original by any\n"
+            "compiler — the two live in different crates and never meet at a\n"
+            "type boundary. The union pass above cannot see it either, because\n"
+            "it merges same-named declarations and so absorbs the difference.\n"
+            "Delete the copy and re-export the shared type.\n",
+            file=sys.stderr,
+        )
+        if not required and not empty and not enum_drift:
+            return 1
 
     if enum_drift:
         print("Frontend enum values that mean something else upstream:\n", file=sys.stderr)

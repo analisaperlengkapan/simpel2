@@ -310,6 +310,18 @@ jobs:
       - name: Frontend DTOs name only fields the backend sends
         shell: bash
         run: python3 ./infra/scripts/check-fe-be-dto-drift.py
+      # Guard the guard. The envelope half of the check above was written
+      # because the field-level pass could not see the bug it now covers: it
+      # UNIONS same-named backend structs, so a service that copied the shared
+      # envelope and drifted was absorbed rather than reported. That is what
+      # `penghapusan_bmn` did — its local `ApiResponse`/`PaginatedResponse`
+      # omitted `total_pages`, serde rejected every response, and the page
+      # rendered its error arm while the API answered 200. A check that exists
+      # to catch a blind spot must be shown to catch it, so the selftest feeds
+      # it that exact shape and asserts it goes red.
+      - name: Frontend/backend DTO drift guard self-test
+        shell: bash
+        run: python3 ./infra/scripts/check-fe-be-dto-drift.py --selftest
       # The other half of the same wire contract: query parameters. serde DROPS
       # unknown query keys, so a frontend filter the backend never reads is a
       # 200 with the filter silently ignored. `GET /pakaian-dinas/spesifikasi`
