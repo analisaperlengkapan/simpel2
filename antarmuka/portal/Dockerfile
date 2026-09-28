@@ -106,9 +106,13 @@ RUN ln -sn . /usr/share/nginx/html/portal
 # Copy entrypoint script
 COPY antarmuka/portal/entrypoint.sh /docker-entrypoint.sh
 
-# Make the web root writable (entrypoint writes config.json at runtime) and the
-# entrypoint executable, then drop back to the non-root nginx user.
-RUN chown -R nginx:nginx /usr/share/nginx/html && chmod +x /docker-entrypoint.sh
+# Make the web root writable (entrypoint writes config.json), hand nginx.conf
+# to the entrypoint so it can substitute the upstream placeholders in place
+# (it runs as uid 101), and make the entrypoint executable — then drop back to
+# the non-root nginx user.
+RUN chown -R nginx:nginx /usr/share/nginx/html \
+    && chown nginx:nginx /etc/nginx/nginx.conf \
+    && chmod +x /docker-entrypoint.sh
 USER nginx
 
 # Expose port 8080 (match K8s deployment)

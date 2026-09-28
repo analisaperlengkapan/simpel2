@@ -1,5 +1,34 @@
 #!/bin/sh
 
+# Substitute the nginx upstream host:port placeholders from env.
+#
+# Same shape as perlengkapan's entrypoint, and for the same reason: the image
+# ships nginx.conf with placeholders, and docker-compose overrides them via env
+# (K8s Services are 8093/8091; compose binds 3020/8088).
+#
+# Under Helm the chart mounts its own rendered nginx.conf over this path. A
+# ConfigMap mount is read-only regardless of file ownership and the rendered
+# config carries no placeholders, so substitution is skipped there — and, as in
+# perlengkapan, `sed -i` must not run unconditionally under `set -e` (it writes
+# its temp file into the target's directory and would CrashLoop the container).
+PORTAL_PERLENGKAPAN_API_UPSTREAM="${PERLENGKAPAN_API_UPSTREAM:-layanan-perlengkapan:8093}"
+PORTAL_AUTHENC_API_UPSTREAM="${AUTHENC_API_UPSTREAM:-authenc:8091}"
+if grep -q '__PERLENGKAPAN_API_UPSTREAM__\|__AUTHENC_API_UPSTREAM__' /etc/nginx/nginx.conf 2>/dev/null; then
+  if sed -i \
+      -e "s|__PERLENGKAPAN_API_UPSTREAM__|${PORTAL_PERLENGKAPAN_API_UPSTREAM}|g" \
+      -e "s|__AUTHENC_API_UPSTREAM__|${PORTAL_AUTHENC_API_UPSTREAM}|g" \
+      /etc/nginx/nginx.conf 2>/dev/null; then
+    echo "entrypoint: nginx.conf upstream placeholders substituted"
+  else
+    # Placeholders present but unwritable: nginx would proxy to a literal
+    # `__..__` host. Fail loudly rather than serve a config that cannot work.
+    echo "entrypoint: FATAL - nginx.conf has upstream placeholders but is not writable" >&2
+    exit 1
+  fi
+else
+  echo "entrypoint: no upstream placeholders in nginx.conf (Helm ConfigMap already rendered) - skipping substitution"
+fi
+
 # Generate config.json from environment variables before starting nginx.
 #
 # Under Helm this NEVER succeeds: the chart sets `readOnlyRootFilesystem: true`,
