@@ -70,6 +70,26 @@ pub struct UserSession {
 
 pub use lib_core::auth::UserRole;
 
+impl UserSession {
+    /// May this session use the identity-provider console (users, roles, MFA
+    /// resets, OAuth clients, the IAM audit trail)?
+    ///
+    /// **Exact `admin`** — `lib_core::authz::Capability::AdministerIam`, the same
+    /// rule the IAM API enforces. The gate used to be `UserRole::is_admin()`, i.e.
+    /// the *application* admin list (`admin_pusat`, `superadmin`), so the console
+    /// opened for roles whose every request it then answered 403.
+    ///
+    /// A session persisted before `roles` existed has an empty list; fall back to
+    /// the single `role` it did carry, which is `UserRole::Admin` only for the
+    /// exact string `admin`.
+    pub fn can_administer_iam(&self) -> bool {
+        if self.roles.is_empty() {
+            return matches!(self.role, UserRole::Admin);
+        }
+        lib_core::authz::Authorization::from_slice(&self.roles).is_iam_admin()
+    }
+}
+
 /// Login credentials
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LoginCredentials {

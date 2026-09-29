@@ -33,7 +33,7 @@ impl AppState {
 
     /// Check if current user is an admin
     pub fn is_admin(&self) -> bool {
-        self.user.as_ref().is_some_and(|u| u.role.is_admin())
+        self.user.as_ref().is_some_and(|u| u.can_administer_iam())
     }
 
     /// Get user's display name

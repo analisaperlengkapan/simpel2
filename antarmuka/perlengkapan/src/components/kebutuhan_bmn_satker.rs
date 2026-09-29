@@ -296,9 +296,13 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
             .unwrap_or(false)
     };
 
+    // The sync-failure lock is a data-quality guard on the Validator Pusat's own
+    // decision, so waiving it is theirs (with a written reason). It used to be
+    // `admin`, whom the workflow engine no longer lets take that decision — the
+    // override could never complete.
     let is_override_allowed = move || {
         AuthService::load_session()
-            .map(|session| session.is_admin())
+            .map(|session| session.is_validator_pusat())
             .unwrap_or(false)
     };
 

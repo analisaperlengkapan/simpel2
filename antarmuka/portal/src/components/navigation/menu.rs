@@ -205,15 +205,17 @@ fn is_visible(visibility: &MenuVisibility, session: Option<&UserSession>) -> boo
     match visibility {
         MenuVisibility::Public => true,
         MenuVisibility::Authenticated => session.is_some(),
-        MenuVisibility::AdminOnly => session.is_some_and(|s| s.role.is_admin()),
+        // The admin menu is the IAM console: exact `admin`, like its guard.
+        MenuVisibility::AdminOnly => session.is_some_and(|s| s.can_administer_iam()),
         // `AnyPermission` tests realm roles, not permission strings — this
         // system has no separate permission vocabulary, and the old
         // implementation compared against `"user:read"`/`"admin:*"` strings
-        // that no issuer ever minted. Admin remains an implicit superset,
-        // matching the backend and the other two frontend guards.
+        // that no issuer ever minted. Admin is NOT an implicit superset any more:
+        // the backend dropped that bypass, and the menu must not offer what the API
+        // would refuse.
         MenuVisibility::AnyPermission(required) => session.is_some_and(|s| {
             let authz = lib_core::authz::Authorization::from_slice(&s.roles);
-            authz.is_admin() || required.iter().any(|target| authz.roles().has(target))
+            required.iter().any(|target| authz.roles().has(target))
         }),
     }
 }

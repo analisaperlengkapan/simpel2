@@ -38,6 +38,16 @@ fn event_label(event_type: &str) -> String {
         "CLIENT_UPDATE" => "Klien diubah",
         "CLIENT_DELETE" => "Klien dihapus",
         "SESSION_TERMINATE" => "Sesi diakhiri",
+        // Events added with the IAM audit trail and the security monitor. Without
+        // labels these read as raw wire tags — and they are the ones an incident
+        // reviewer most needs to read at a glance.
+        "AUTHZ_FAILURE" => "Akses ditolak",
+        "SUSPICIOUS_ACTIVITY" => "Aktivitas mencurigakan",
+        "MFA_SETUP" => "MFA disiapkan",
+        "MFA_DISABLE" => "MFA dinonaktifkan",
+        "MFA_BACKUP_CODES" => "Kode pemulihan MFA dibuat ulang",
+        "ROLE_SWITCH" => "Peran aktif diganti",
+        "MFA_ENABLE" => "MFA pengguna diaktifkan admin",
         other => return other.to_string(),
     };
     label.to_string()
@@ -255,7 +265,8 @@ pub fn AuditLogsPage() -> impl IntoView {
                                         children=move |log_entry| {
                                             let event_class = match log_entry.event_type.as_str() {
                                                 "AUTH_FAILURE" | "LOGIN_FAILURE" | "login_failure"
-                                                | "USER_DELETE" | "user_delete" => {
+                                                | "USER_DELETE" | "user_delete" | "AUTHZ_FAILURE"
+                                                | "SUSPICIOUS_ACTIVITY" | "MFA_DISABLE" => {
                                                     "bg-red-100 text-red-700"
                                                 }
                                                 "AUTH_SUCCESS" | "LOGIN_SUCCESS" | "login"

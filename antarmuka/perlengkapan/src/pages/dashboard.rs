@@ -539,7 +539,7 @@ pub fn DashboardHome() -> impl IntoView {
     let is_pusat = move || {
         session
             .and_then(|s| s.get())
-            .map(|s| s.is_validator_pusat() || s.is_admin())
+            .map(|s| s.can(lib_core::authz::Capability::ViewAllSatker))
             .unwrap_or(false)
     };
     // Anyone whose claims let them see beyond a single satker. Derived from the

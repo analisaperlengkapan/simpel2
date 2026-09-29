@@ -60,6 +60,23 @@ impl PerlengkapanRole {
                 "blue",
                 "fas fa-keyboard",
             ),
+            // The satker-internal approval chain (Pemakaian BMN): the validator
+            // forwards or returns, the approver — the Kuasa Pengguna Barang —
+            // approves, returns or revokes. Both are seeded and gated by the
+            // backend policy, and were missing from this reference page, so an
+            // operator reading it could not learn they exist.
+            Self::new(
+                "validator_satker",
+                "Memverifikasi usulan pemakaian BMN di dalam Satuan Kerja",
+                "blue",
+                "fas fa-user-check",
+            ),
+            Self::new(
+                "approver_satker",
+                "Kuasa Pengguna Barang: menyetujui, mengembalikan atau mencabut izin pemakaian BMN",
+                "emerald",
+                "fas fa-signature",
+            ),
             Self::new(
                 "validator_wilayah",
                 "Verifikator di tingkat Kejaksaan Tinggi",
@@ -80,9 +97,15 @@ impl PerlengkapanRole {
         // cannot call a role something the portal calls something else.
         for key in lib_core::authz::ADMIN_ROLES {
             let description = match *key {
-                "admin" => "Administrator sistem perlengkapan",
-                "admin_pusat" => "Administrator tingkat Kejaksaan Agung",
-                "superadmin" => "Administrator dengan akses tertinggi",
+                // Administering the application is not deciding its business: none of
+                // these approves, rejects or revokes (segregation of duties). They
+                // manage master data, templates, audit and monitoring; emergencies
+                // go through the audited break-glass path.
+                "admin" => "Administrator sistem: data master, template, audit, pengguna & role",
+                "admin_pusat" => {
+                    "Administrator aplikasi tingkat Kejaksaan Agung (tanpa wewenang persetujuan)"
+                }
+                "superadmin" => "Administrator aplikasi (tanpa wewenang persetujuan)",
                 // A role added to the allowlist without a scope line here still
                 // renders; `role_label` gives it a readable name.
                 _ => "Administrator sistem",
@@ -115,6 +138,23 @@ mod tests {
                 keys.iter().any(|k| k == admin),
                 "administrative role '{admin}' is missing from the role reference page"
             );
+        }
+    }
+
+    /// The seeded satker-internal roles are part of the workflow; the reference
+    /// page must describe them.
+    #[test]
+    fn catalog_documents_the_satker_approval_chain() {
+        let keys: Vec<String> = PerlengkapanRole::all_roles()
+            .into_iter()
+            .map(|r| r.key)
+            .collect();
+        for role in lib_core::authz::SATKER_VALIDATOR_ROLES
+            .iter()
+            .chain(lib_core::authz::SATKER_APPROVER_ROLES)
+            .chain(lib_core::authz::OPERATOR_ROLES)
+        {
+            assert!(keys.iter().any(|k| k == role), "'{role}' is not documented");
         }
     }
 

@@ -160,12 +160,12 @@ pub const ROLE_CATALOG: &[RoleInfo] = &[
     RoleInfo {
         key: "admin",
         label: "Administrator",
-        description: "Administrator sistem dengan akses penuh",
+        description: "Administrator sistem: data master, template, audit, pengguna dan role (tanpa wewenang persetujuan bisnis)",
     },
     RoleInfo {
         key: "superadmin",
         label: "Super Administrator",
-        description: "Administrator dengan akses tertinggi",
+        description: "Administrator aplikasi (tanpa wewenang persetujuan bisnis)",
     },
     RoleInfo {
         key: "admin_pusat",
