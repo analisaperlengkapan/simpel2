@@ -465,7 +465,7 @@ mod tests {
 
         let plain = service.generate_refresh_token("user-1", "sid-1").unwrap();
         let plain = service.verify_token(&plain).unwrap();
-        assert!(plain.custom.get("active_role").is_none());
+        assert!(!plain.custom.contains_key("active_role"));
         assert_eq!(plain.scope.as_deref(), Some("refresh_token"));
 
         let chosen = service
