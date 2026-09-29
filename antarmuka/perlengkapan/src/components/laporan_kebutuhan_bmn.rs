@@ -153,7 +153,7 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
                     <h1 style="font-size: 1.4rem; font-weight: 800; color: #e2e8f0; margin: 0;">
                         "Laporan Kebutuhan BMN"
                     </h1>
-                    <p style="font-size: 0.82rem; color: #64748b; margin: 4px 0 0;">
+                    <p style="font-size: 0.82rem; color: #7b8ba1; margin: 4px 0 0;">
                         "Rekap dan laporan analisis kebutuhan barang milik negara"
                     </p>
                 </div>
@@ -219,7 +219,7 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
             </div>
 
             <Suspense fallback=move || {
-                view! { <div style="color: #64748b; padding: 20px;">"Memuat data..."</div> }
+                view! { <div style="color: #7b8ba1; padding: 20px;">"Memuat data..."</div> }
             }>
                 {move || {
                     let items = data.get().and_then(|r| r.ok()).unwrap_or_default();
@@ -232,7 +232,7 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
                         // Summary row — totals over the rows actually returned.
                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px;">
                             <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 18px;">
-                                <div style="font-size: 0.72rem; color: #64748b; font-weight: 500;">
+                                <div style="font-size: 0.72rem; color: #7b8ba1; font-weight: 500;">
                                     "Total Baris"
                                 </div>
                                 <div style="font-size: 1.5rem; font-weight: 800; color: #e2e8f0; margin-top: 4px;">
@@ -240,7 +240,7 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
                                 </div>
                             </div>
                             <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 18px;">
-                                <div style="font-size: 0.72rem; color: #64748b; font-weight: 500;">
+                                <div style="font-size: 0.72rem; color: #7b8ba1; font-weight: 500;">
                                     "Jumlah Diusulkan"
                                 </div>
                                 <div style="font-size: 1.5rem; font-weight: 800; color: #fbbf24; margin-top: 4px;">
@@ -248,7 +248,7 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
                                 </div>
                             </div>
                             <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 18px;">
-                                <div style="font-size: 0.72rem; color: #64748b; font-weight: 500;">
+                                <div style="font-size: 0.72rem; color: #7b8ba1; font-weight: 500;">
                                     "Jumlah Disetujui"
                                 </div>
                                 <div style="font-size: 1.5rem; font-weight: 800; color: #34d399; margin-top: 4px;">
@@ -262,19 +262,19 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
                             <table style="width: 100%; border-collapse: collapse;">
                                 <thead>
                                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
-                                        <th style="padding: 12px 16px; text-align: left; font-size: 0.72rem; font-weight: 600; color: #64748b; text-transform: uppercase;">
+                                        <th style="padding: 12px 16px; text-align: left; font-size: 0.72rem; font-weight: 600; color: #7b8ba1; text-transform: uppercase;">
                                             "No"
                                         </th>
-                                        <th style="padding: 12px 8px; text-align: left; font-size: 0.72rem; font-weight: 600; color: #64748b; text-transform: uppercase;">
+                                        <th style="padding: 12px 8px; text-align: left; font-size: 0.72rem; font-weight: 600; color: #7b8ba1; text-transform: uppercase;">
                                             "Nama Barang"
                                         </th>
-                                        <th style="padding: 12px 8px; text-align: left; font-size: 0.72rem; font-weight: 600; color: #64748b; text-transform: uppercase;">
+                                        <th style="padding: 12px 8px; text-align: left; font-size: 0.72rem; font-weight: 600; color: #7b8ba1; text-transform: uppercase;">
                                             "Satker"
                                         </th>
-                                        <th style="padding: 12px 8px; text-align: left; font-size: 0.72rem; font-weight: 600; color: #64748b; text-transform: uppercase;">
+                                        <th style="padding: 12px 8px; text-align: left; font-size: 0.72rem; font-weight: 600; color: #7b8ba1; text-transform: uppercase;">
                                             "Status"
                                         </th>
-                                        <th style="padding: 12px 8px; text-align: right; font-size: 0.72rem; font-weight: 600; color: #64748b; text-transform: uppercase;">
+                                        <th style="padding: 12px 8px; text-align: right; font-size: 0.72rem; font-weight: 600; color: #7b8ba1; text-transform: uppercase;">
                                             "Jumlah"
                                         </th>
                                     </tr>
@@ -285,7 +285,7 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
                                             <tr>
                                                 <td
                                                     colspan="5"
-                                                    style="padding: 24px 16px; text-align: center; font-size: 0.82rem; color: #64748b;"
+                                                    style="padding: 24px 16px; text-align: center; font-size: 0.82rem; color: #7b8ba1;"
                                                 >
                                                     "Tidak ada data untuk filter ini."
                                                 </td>

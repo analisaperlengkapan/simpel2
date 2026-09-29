@@ -76,7 +76,7 @@ pub fn ProfileMenu() -> impl IntoView {
                         <div style="font-size: 0.9rem; font-weight: 700; color: #e2e8f0;">
                             {display_name}
                         </div>
-                        <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">
+                        <div style="font-size: 0.72rem; color: #7b8ba1; margin-top: 2px;">
                             {display_email}
                         </div>
                     </div>
@@ -88,7 +88,7 @@ pub fn ProfileMenu() -> impl IntoView {
             // re-derives every scope from the bearer token, so a selectable
             // role could only ever misrepresent authority.
             <div style="padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06);">
-                <div style="font-size: 0.68rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 8px; margin-bottom: 4px;">
+                <div style="font-size: 0.68rem; font-weight: 600; color: #7b8ba1; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 8px; margin-bottom: 4px;">
                     "Role Anda"
                 </div>
                 <RoleIdentity />

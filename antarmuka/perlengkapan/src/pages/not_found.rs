@@ -19,7 +19,7 @@ pub fn NotFound() -> impl IntoView {
                 <h1 style="font-size: 1.3rem; font-weight: 700; color: #e2e8f0; margin: 16px 0 8px;">
                     "Halaman Tidak Ditemukan"
                 </h1>
-                <p style="font-size: 0.88rem; color: #64748b; margin: 0 0 24px;">
+                <p style="font-size: 0.88rem; color: #7b8ba1; margin: 0 0 24px;">
                     "Halaman yang Anda cari tidak ada atau telah dipindahkan."
                 </p>
                 <a

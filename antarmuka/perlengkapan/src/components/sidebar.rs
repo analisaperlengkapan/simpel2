@@ -145,7 +145,7 @@ pub fn Sidebar(sidebar_open: RwSignal<bool>) -> impl IntoView {
                         <div style="font-size: 1rem; font-weight: 800; color: #ffffff; letter-spacing: 0.03em; line-height: 1;">
                             "SIMPEL"
                         </div>
-                        <div style="font-size: 0.6rem; color: #64748b; margin-top: 2px; letter-spacing: 0.05em; text-transform: uppercase;">
+                        <div style="font-size: 0.6rem; color: #7b8ba1; margin-top: 2px; letter-spacing: 0.05em; text-transform: uppercase;">
                             "Manajemen Perlengkapan"
                         </div>
                     </div>

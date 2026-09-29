@@ -40,6 +40,16 @@ ROOT = Path(__file__).resolve().parents[2]
 CONFIG_GLOB = "antarmuka/*/tailwind.config.js"
 SKIP_DIRS = {"target", "node_modules", ".git", "dist"}
 
+# Tailwind's own palette. A token outside this set that the config does not
+# define is not "someone else's scale" — it is a colour that does not exist.
+TAILWIND_PALETTE = {
+    "slate", "gray", "zinc", "neutral", "stone", "red", "orange", "amber",
+    "yellow", "lime", "green", "emerald", "teal", "cyan", "sky", "blue",
+    "indigo", "violet", "purple", "fuchsia", "pink", "rose",
+}
+# `bg-opacity-50`, `ring-offset-…` and friends share the shape but are not colours.
+NOT_A_COLOUR = {"opacity", "offset", "inset", "width", "current", "spacing"}
+
 # `text-warning-300`, `bg-danger-500/10`, `ring-info-400` …
 USE_RE = re.compile(
     r"\b(?:text|bg|border|ring|from|to|via|divide|outline|shadow|accent|caret"
@@ -119,9 +129,20 @@ def main() -> int:
         for token, shades in sorted(used.items()):
             defined = scale_shades(src, token)
             if defined is None:
-                # Not a custom scale: Tailwind's own palette (slate, amber …)
-                # or a DEFAULT-only token. Out of scope — this guard is about
-                # gaps inside scales the repo defines itself.
+                if token in TAILWIND_PALETTE or token in NOT_A_COLOUR:
+                    continue
+                # Neither a scale this config defines nor one Tailwind ships:
+                # `bg-primary-600` with no `primary` scale. Tailwind emits
+                # nothing for it, exactly as for a gap inside a scale, and the
+                # element renders with no colour at all.
+                for shade, example in sorted(shades.items()):
+                    checked_pairs += 1
+                    problems.append(
+                        f"  {config.relative_to(ROOT)}: `{token}-{shade}` is used "
+                        f"but no `{token}` scale is defined (and it is not a "
+                        f"Tailwind palette name)\n"
+                        f"      e.g. {example.relative_to(ROOT)}"
+                    )
                 continue
             for shade, example in sorted(shades.items()):
                 checked_pairs += 1

@@ -8,9 +8,14 @@
  */
 
 /* Focus & Accessibility */
+/* Two-tone indicator (WCAG 2.2 SC 1.4.11, >= 3:1 against what it is drawn on):
+ * the navy outline carries the contrast on the light page (11.5:1 on white — the
+ * old gold-only ring was 2.2:1 there), the gold band carries it on navy surfaces
+ * (sidebar, dark mode). `check-color-contrast.py` reads the outline colour. */
 *:focus-visible {
-  outline: 2px solid #d4a843;
+  outline: 2px solid #1e3a5f;
   outline-offset: 2px;
+  box-shadow: 0 0 0 4px #d4a843;
   border-radius: 0.25rem;
 }
 

@@ -74,7 +74,7 @@ pub fn RoleIdentity() -> impl IntoView {
                 };
                 if s.roles.is_empty() {
                     return view! {
-                        <div style="padding: 6px 10px; font-size: 0.72rem; color: #64748b;">
+                        <div style="padding: 6px 10px; font-size: 0.72rem; color: #7b8ba1;">
                             "Tidak ada role pada token."
                         </div>
                     }
