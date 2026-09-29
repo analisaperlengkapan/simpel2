@@ -76,10 +76,16 @@ pub fn RolesManagementPage() -> impl IntoView {
                                         class="bg-white rounded-xl border border-gray-200 p-5"
                                         data-role-name=role.name.clone()
                                     >
-                                        <h3 class="font-semibold text-gray-900 mb-2">
-                                            {role.name.clone()}
+                                        // The label is what a person reads; the identifier is
+                                        // what a token carries and a policy names, so both stay
+                                        // on screen (it is also the `data-role-name` hook).
+                                        <h3 class="font-semibold text-gray-900">
+                                            {lib_core::authz::role_label(&role.name)}
                                         </h3>
-                                        <p class="text-sm text-gray-500 mb-3">
+                                        <p class="font-mono text-xs text-gray-500 mb-2">
+                                            {role.name.clone()}
+                                        </p>
+                                        <p class="text-sm text-gray-600 mb-3">
                                             {role
                                                 .description
                                                 .clone()

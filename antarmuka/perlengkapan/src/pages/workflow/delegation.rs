@@ -19,6 +19,25 @@ use crate::components::layout::{EmptyState, ErrorState, LoadingState, PageLayout
 
 /// Truncate the first chunk of a UUID for display so the table stays
 /// scannable; full IDs go in a `title=` tooltip via the cell title attr.
+/// Shown until the server reports delegations as effective.
+const NOT_EFFECTIVE_FALLBACK: &str = "Delegasi tercatat tetapi belum berlaku sebagai kewenangan: \
+     penerima belum dapat bertindak atas nama pemberi.";
+
+/// The notice to put above the list, or `None` when every listed delegation is
+/// effective. An empty list still warns: it is the moment before someone creates
+/// one, expecting it to work.
+fn not_effective_notice(rows: &[Delegation]) -> Option<String> {
+    if !rows.is_empty() && rows.iter().all(|d| d.berlaku) {
+        return None;
+    }
+    Some(
+        rows.iter()
+            .find(|d| !d.berlaku)
+            .and_then(|d| d.catatan_berlaku.clone())
+            .unwrap_or_else(|| NOT_EFFECTIVE_FALLBACK.to_string()),
+    )
+}
+
 fn short_id(uuid: &str) -> String {
     uuid.split('-').next().unwrap_or(uuid).to_string()
 }
@@ -105,6 +124,20 @@ pub fn WorkflowDelegationPage() -> impl IntoView {
                     .into_any()
             })
         >
+            {move || {
+                not_effective_notice(&rows.get())
+                    .map(|message| {
+                        view! {
+                            <div
+                                role="status"
+                                class="mb-4 rounded-lg border border-warning-500/30 bg-warning-500/10 px-4 py-3 text-sm text-warning-300"
+                            >
+                                <strong class="font-semibold">"Belum berlaku. "</strong>
+                                {message}
+                            </div>
+                        }
+                    })
+            }}
             // Tab switcher between "saya delegasikan" vs "untuk saya"
             <div class="mb-4 inline-flex gap-1 rounded-lg border border-white/[0.06] bg-white/[0.02] p-1">
                 <button
@@ -498,5 +531,55 @@ fn CreateDelegationModal(
                 </div>
             </form>
         </div>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn row(berlaku: bool, note: Option<&str>) -> Delegation {
+        Delegation {
+            id: "d".into(),
+            delegator_user_id: "a".into(),
+            delegate_user_id: "b".into(),
+            role: "validator_satker".into(),
+            valid_from: String::new(),
+            valid_until: String::new(),
+            reason: None,
+            status: DelegationStatus::Active,
+            created_at: String::new(),
+            updated_at: String::new(),
+            berlaku,
+            catatan_berlaku: note.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn an_empty_list_still_warns_before_anyone_creates_one() {
+        assert_eq!(
+            not_effective_notice(&[]).as_deref(),
+            Some(NOT_EFFECTIVE_FALLBACK)
+        );
+    }
+
+    #[test]
+    fn the_servers_own_words_win_over_the_fallback() {
+        let rows = [row(false, Some("dari server"))];
+        assert_eq!(not_effective_notice(&rows).as_deref(), Some("dari server"));
+    }
+
+    #[test]
+    fn no_notice_once_every_listed_delegation_is_effective() {
+        assert!(not_effective_notice(&[row(true, None), row(true, None)]).is_none());
+        assert!(not_effective_notice(&[row(true, None), row(false, None)]).is_some());
+    }
+
+    #[test]
+    fn a_response_without_the_flag_reads_as_not_effective() {
+        let json = r#"{"id":"d","delegator_user_id":"a","delegate_user_id":"b","role":"r",
+            "valid_from":"","valid_until":"","status":"ACTIVE","created_at":"","updated_at":""}"#;
+        let d: Delegation = serde_json::from_str(json).expect("older payload still parses");
+        assert!(!d.berlaku);
     }
 }

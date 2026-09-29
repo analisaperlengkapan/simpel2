@@ -66,11 +66,33 @@ pub struct UserSession {
     /// loadable, so no user is silently logged out by the upgrade.
     #[serde(default, alias = "permissions")]
     pub roles: Vec<String>,
+    /// Every role the user is *assigned* (`assigned_roles` claim). Display and
+    /// role-switcher input only — authority is `roles`, which the server derives.
+    #[serde(default)]
+    pub assigned_roles: Vec<String>,
+    /// The role this session currently acts as (`active_role` claim).
+    #[serde(default)]
+    pub active_role: Option<String>,
 }
 
 pub use lib_core::auth::UserRole;
 
 impl UserSession {
+    /// The roles this session can switch between, or `None` when there is
+    /// nothing to offer.
+    ///
+    /// NIST INCITS 359 separates roles *assigned* from roles *active*. The
+    /// issuer only honours a switch when single-active-role enforcement is on,
+    /// and that state is visible in the token itself: with it on,
+    /// `realm_access.roles` is exactly `[active_role]` although the user holds
+    /// several. With it off every assigned role is in every token — there is
+    /// nothing to switch, and offering a control that the server would refuse
+    /// (`403 active_role_disabled`) is worse than offering none.
+    pub fn switchable_roles(&self) -> Option<&[String]> {
+        (self.assigned_roles.len() > 1 && self.roles.len() == 1)
+            .then_some(self.assigned_roles.as_slice())
+    }
+
     /// May this session use the identity-provider console (users, roles, MFA
     /// resets, OAuth clients, the IAM audit trail)?
     ///
@@ -382,6 +404,8 @@ impl AuthService {
             refresh_token: Some("mock_refresh_token".to_string()),
             expires_at: Some(expires_at.timestamp()),
             roles,
+            assigned_roles: Vec::new(),
+            active_role: None,
         };
 
         LoginResult::Success(Box::new(session))
@@ -445,6 +469,8 @@ impl AuthService {
             refresh_token: None,
             expires_at: Some(claims.exp as i64),
             roles,
+            assigned_roles: claims.assigned_roles,
+            active_role: claims.active_role,
         })
     }
 
@@ -776,6 +802,47 @@ impl AuthService {
         }
     }
 
+    /// Act as another of the user's assigned roles
+    /// (`POST /api/v1/auth/session/active-role`).
+    ///
+    /// The server needs the current access token (Bearer) *and* the session's
+    /// refresh token, replaces both, and revokes the access token it replaces.
+    /// The caller stores the result with [`Self::update_session_token`] and must
+    /// reload: menus, guards and every page's data were resolved for the old role.
+    pub async fn switch_active_role(_role: &str) -> Result<TokenResponse, String> {
+        #[cfg(target_arch = "wasm32")]
+        {
+            use gloo_net::http::Request;
+
+            let session = Self::load_session().ok_or("Sesi tidak ditemukan")?;
+            let access = session.access_token.ok_or("Token akses tidak ada")?;
+            let refresh = session.refresh_token.ok_or("Token pembaruan tidak ada")?;
+
+            let response = Request::post(&format!("{}/session/active-role", Self::get_api_url()))
+                .header("Authorization", &format!("Bearer {access}"))
+                .json(&serde_json::json!({ "role": _role, "refresh_token": refresh }))
+                .map_err(|e| format!("Failed to build request: {e}"))?
+                .send()
+                .await
+                .map_err(|e| format!("Network error: {e}"))?;
+
+            match response.status() {
+                200 => response
+                    .json::<TokenResponse>()
+                    .await
+                    .map_err(|e| format!("Failed to parse response: {e}")),
+                403 => Err("Peran ini tidak dapat diaktifkan untuk akun Anda.".to_string()),
+                401 => Err("Sesi berakhir. Silakan masuk kembali.".to_string()),
+                other => Err(format!("Gagal mengganti peran (HTTP {other}).")),
+            }
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            Err("Role switching is not available in non-WASM environment".to_string())
+        }
+    }
+
     /// Update session with new token
     ///
     /// Re-decodes the JWT to refresh claim-derived fields (e.g.
@@ -810,6 +877,8 @@ impl AuthService {
                 session.mfa_setup_required = decoded.mfa_setup_required;
                 session.require_password_change = decoded.require_password_change;
                 session.roles = decoded.roles;
+                session.assigned_roles = decoded.assigned_roles;
+                session.active_role = decoded.active_role;
             }
 
             Self::save_session(&session);
