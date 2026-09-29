@@ -131,6 +131,12 @@ fn create_base_router(state: Arc<ApiState>) -> Router {
             "/api/v1/auth/sessions",
             get(handlers::list_sessions_handler),
         )
+        // Act as another of your ASSIGNED roles (dynamic separation of duty,
+        // NIST INCITS 359). Refused unless AUTHENC_ACTIVE_ROLE_ENFORCEMENT is on.
+        .route(
+            "/api/v1/auth/session/active-role",
+            post(handlers::switch_active_role_handler),
+        )
         .route(
             "/api/v1/auth/sessions/{id}",
             axum::routing::delete(handlers::terminate_session_handler),

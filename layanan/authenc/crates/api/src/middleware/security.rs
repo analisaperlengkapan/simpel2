@@ -58,6 +58,7 @@ impl Default for SecurityMonitoringConfig {
                 "/api/v1/auth/totp/enable".to_string(),
                 "/api/v1/auth/totp/disable".to_string(),
                 "/api/v1/auth/me/password".to_string(),
+                "/api/v1/auth/session/active-role".to_string(),
             ],
             log_auth_attempts: true,
             log_authz_failures: true,
@@ -301,6 +302,7 @@ fn auth_event(path: &str, status: StatusCode) -> (&'static str, &'static str) {
         "/api/v1/auth/mfa/setup" | "/api/v1/auth/totp/enable" => Some("MFA_SETUP"),
         "/api/v1/auth/totp/disable" => Some("MFA_DISABLE"),
         "/api/v1/auth/me/password" => Some("PASSWORD_CHANGE"),
+        "/api/v1/auth/session/active-role" => Some("ROLE_SWITCH"),
         _ => None,
     };
     match (lifecycle, status) {
@@ -662,6 +664,7 @@ mod tests {
             ("/api/v1/auth/totp/enable", "MFA_SETUP"),
             ("/api/v1/auth/totp/disable", "MFA_DISABLE"),
             ("/api/v1/auth/me/password", "PASSWORD_CHANGE"),
+            ("/api/v1/auth/session/active-role", "ROLE_SWITCH"),
         ] {
             assert!(
                 config

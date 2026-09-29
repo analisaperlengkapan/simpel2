@@ -27,7 +27,8 @@ pub struct AuthorizeRequest {
     pub state: Option<String>,
     /// PKCE code challenge
     pub code_challenge: Option<String>,
-    /// PKCE code challenge method (S256 or plain)
+    /// PKCE code challenge method. Only `S256` is accepted (see
+    /// [`validate_code_challenge_method`]).
     pub code_challenge_method: Option<String>,
     /// Nonce for OIDC
     pub nonce: Option<String>,
@@ -170,6 +171,23 @@ fn redirect_found(uri: &str) -> Response {
         [(axum::http::header::LOCATION, uri)],
     )
         .into_response()
+}
+
+/// The only PKCE method this server accepts.
+const PKCE_METHOD: &str = "S256";
+
+/// Validate a requested `code_challenge_method`.
+///
+/// `Ok` carries the method to store; `Err` carries the `error_description` for
+/// the `invalid_request` redirect. Pure so the refusal of `plain` and of an
+/// absent method is unit-testable without a database.
+fn validate_code_challenge_method(method: Option<&str>) -> Result<&'static str, &'static str> {
+    match method {
+        Some(m) if m == PKCE_METHOD => Ok(PKCE_METHOD),
+        Some("plain") => Err("code_challenge_method 'plain' is not supported; use S256"),
+        Some(_) => Err("Unsupported code_challenge_method; use S256"),
+        None => Err("code_challenge_method is required and must be S256"),
+    }
 }
 
 pub async fn authorize_handler(
@@ -322,33 +340,33 @@ pub async fn authorize_handler(
             return Ok(redirect_found(&target));
         }
     };
-    let code_challenge_method = match request.code_challenge_method {
-        Some(ccm) if ccm == "S256" || ccm == "plain" => ccm,
-        Some(ccm) => {
-            // Unrecognized method — redirect error to client
-            let separator = if request.redirect_uri.contains('?') {
-                '&'
-            } else {
-                '?'
-            };
-            let mut target = format!(
-                "{}{}error=invalid_request&error_description={}",
-                request.redirect_uri,
-                separator,
-                urlencoding::encode(&format!(
-                    "Unsupported code_challenge_method '{}', must be S256 or plain",
-                    ccm
-                ))
-            );
-            if let Some(ref state_param) = request.state {
-                target.push_str(&format!("&state={}", urlencoding::encode(state_param)));
+    // S256 only (OAuth 2.1 §4.1.1, RFC 9700 §2.1.1). `plain` sends the verifier
+    // itself as the challenge, so anyone who can see the authorization request —
+    // a browser history entry, a proxy log, a referrer — can redeem the code:
+    // the very interception PKCE exists to defeat. RFC 7636 §4.3 defaults an
+    // absent method to `plain`, which is exactly why absence is refused too
+    // rather than defaulted.
+    let code_challenge_method =
+        match validate_code_challenge_method(request.code_challenge_method.as_deref()) {
+            Ok(method) => method.to_string(),
+            Err(description) => {
+                let separator = if request.redirect_uri.contains('?') {
+                    '&'
+                } else {
+                    '?'
+                };
+                let mut target = format!(
+                    "{}{}error=invalid_request&error_description={}",
+                    request.redirect_uri,
+                    separator,
+                    urlencoding::encode(description)
+                );
+                if let Some(ref state_param) = request.state {
+                    target.push_str(&format!("&state={}", urlencoding::encode(state_param)));
+                }
+                return Ok(redirect_found(&target));
             }
-            return Ok(redirect_found(&target));
-        }
-        // Per RFC 7636 §4.3, the default when code_challenge_method is absent
-        // is "plain".
-        None => "plain".to_string(),
-    };
+        };
 
     // 6. Generate and persist authorization code via OAuth2 service
     // Save state and redirect_uri before they are moved into domain_request,
@@ -674,7 +692,7 @@ pub async fn discovery_handler(
             "name".to_string(),
             "preferred_username".to_string(),
         ],
-        code_challenge_methods_supported: vec!["S256".to_string(), "plain".to_string()],
+        code_challenge_methods_supported: vec!["S256".to_string()],
     };
 
     Ok(Json(discovery))
@@ -814,6 +832,33 @@ mod tests {
         let json = serde_json::to_string(&discovery).unwrap();
         assert!(json.contains("issuer"));
         assert!(json.contains("authorization_endpoint"));
+    }
+
+    #[test]
+    fn pkce_accepts_only_s256() {
+        assert_eq!(validate_code_challenge_method(Some("S256")), Ok("S256"));
+        // `plain` puts the verifier on the wire; and RFC 7636 defaults an absent
+        // method to `plain`, so absence is refused rather than defaulted.
+        assert!(validate_code_challenge_method(Some("plain")).is_err());
+        assert!(validate_code_challenge_method(None).is_err());
+        assert!(validate_code_challenge_method(Some("")).is_err());
+        assert!(
+            validate_code_challenge_method(Some("s256")).is_err(),
+            "case-sensitive per RFC 7636"
+        );
+        assert!(validate_code_challenge_method(Some("S512")).is_err());
+    }
+
+    #[test]
+    fn discovery_advertises_only_s256() {
+        // The advertised set must not promise what the endpoint refuses.
+        let src = include_str!("oauth2.rs");
+        let needle = "code_challenge_methods_supported: vec![\"S256\".to_string()]";
+        assert!(
+            src.matches(needle).count() >= 1,
+            "discovery must list S256 only"
+        );
+        assert!(!src.contains("vec![\"S256\".to_string(), \"plain\".to_string()]"));
     }
 
     #[test]

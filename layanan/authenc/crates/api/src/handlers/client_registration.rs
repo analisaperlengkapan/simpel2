@@ -71,52 +71,80 @@ pub struct DcrErrorResponse {
 }
 
 // ===== Handlers =====
+//
+// RFC 7591/7592 Dynamic Client Registration is NOT implemented. These routes used
+// to answer with success-shaped responses — `201 Created` carrying an error body,
+// `200` with "stub", and `204 No Content` for a DELETE that deleted nothing — so a
+// client (or an operator's script) could conclude it had registered or removed a
+// client when the server had done neither. They now say what is true: 501.
+//
+// Registering a client is an administrative act (`/api/v1/clients`, admin-only);
+// opening it to unauthenticated callers would be a design decision needing an
+// initial-access-token model, not a stub to be filled in.
 
-/// Register a new client dynamically (RFC 7591)
-pub async fn register_client_handler(
-    State(_state): State<Arc<ApiState>>,
-    Json(_req): Json<ClientRegistrationRequest>,
-) -> impl IntoResponse {
-    // TODO: Validate request, create client, return registration response
+fn not_implemented() -> (StatusCode, Json<serde_json::Value>) {
     (
-        StatusCode::CREATED,
+        StatusCode::NOT_IMPLEMENTED,
         Json(serde_json::json!({
             "error": "not_implemented",
-            "error_description": "Dynamic client registration (stub)"
+            "error_description":
+                "Dynamic client registration (RFC 7591/7592) is not supported; \
+                 clients are registered by an administrator via /api/v1/clients"
         })),
     )
 }
 
-/// Get client configuration (RFC 7592)
+/// Register a new client dynamically (RFC 7591) — not implemented.
+pub async fn register_client_handler(
+    State(_state): State<Arc<ApiState>>,
+    Json(_req): Json<ClientRegistrationRequest>,
+) -> impl IntoResponse {
+    not_implemented()
+}
+
+/// Get client configuration (RFC 7592) — not implemented.
 pub async fn get_client_configuration_handler(
     State(_state): State<Arc<ApiState>>,
     Path(_client_id): Path<String>,
 ) -> impl IntoResponse {
-    // TODO: Return client configuration
-    Json(serde_json::json!({
-        "error": "not_found",
-        "error_description": "Client not found (stub)"
-    }))
+    not_implemented()
 }
 
-/// Update client configuration (RFC 7592)
+/// Update client configuration (RFC 7592) — not implemented.
 pub async fn update_client_configuration_handler(
     State(_state): State<Arc<ApiState>>,
     Path(_client_id): Path<String>,
     Json(_req): Json<ClientUpdateRequest>,
 ) -> impl IntoResponse {
-    // TODO: Update client configuration
-    Json(serde_json::json!({
-        "status": "not_implemented",
-        "message": "Client configuration update (stub)"
-    }))
+    not_implemented()
 }
 
-/// Delete client configuration (RFC 7592)
+/// Delete client configuration (RFC 7592) — not implemented.
 pub async fn delete_client_configuration_handler(
     State(_state): State<Arc<ApiState>>,
     Path(_client_id): Path<String>,
 ) -> impl IntoResponse {
-    // TODO: Delete client registration
-    StatusCode::NO_CONTENT
+    not_implemented()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A stub that answers success-shaped responses is worse than a missing
+    /// endpoint: `201`/`204` tell a caller it registered/removed a client when
+    /// the server did nothing.
+    #[test]
+    fn every_dcr_route_says_it_is_not_implemented() {
+        let (status, Json(body)) = not_implemented();
+        assert_eq!(status, StatusCode::NOT_IMPLEMENTED);
+        assert_eq!(body["error"], "not_implemented");
+        assert!(
+            body["error_description"]
+                .as_str()
+                .unwrap()
+                .contains("/api/v1/clients"),
+            "the response should point at the real (admin) route"
+        );
+    }
 }

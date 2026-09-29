@@ -51,8 +51,8 @@ quantum = ["dep:pqcrypto-mldsa", "dep:pqcrypto-mlkem", "dep:pqcrypto-falcon"]
 | JWT bearer + refresh | ✅ Production | HS256 with rotation; `lib_core::jwt_claims::Claims` |
 | WebAuthn / Passkeys | ✅ Production | `crates/webauthn` — primary 2FA |
 | MFA TOTP + backup codes | ✅ Production (Phase 1.3) | Backed by `services::LocalMfaApi` + Postgres stores (migration 049). TOTP secrets are base32 plaintext — encryption-at-rest is a follow-up. |
-| OAuth2 Authorization Code + PKCE | ✅ Production | Standard authz code with optional PKCE |
-| Dynamic Client Registration (DCR) | ✅ Production | RFC 7591 |
+| OAuth2 Authorization Code + PKCE | ✅ Production | PKCE **wajib** dan **hanya `S256`** (`plain` & metode kosong ditolak; OAuth 2.1 / RFC 9700 §2.1.1) |
+| Dynamic Client Registration (DCR) | 🔴 Tidak diimplementasi | `/register*` menjawab **501** (dulu `201`/`204` palsu). Klien didaftarkan admin via `/api/v1/clients` |
 | Device Authorization Grant | 🔴 Deferred | Handler skeleton only |
 | SAML 2.0 federation | 🔴 Deferred | No demand yet |
 | Social login (Google, etc.) | 🔴 Deferred | Identity Providers crate exists; surface UI not wired |
@@ -170,6 +170,28 @@ Browser → Portal MFE → REST API (layanan) → gRPC → Authenc
   tak bisa di-replay; freshness dibatasi `expires_at` ≤5 mnt). Token captcha
   cosmetic lama (tak tervalidasi) sudah dibuang. FE captcha widget (`lib-ui`)
   punya prop `reset` untuk menarik challenge baru tiap login gagal.
+
+- **Semua penerbit token memakai satu pembangun klaim** — `handlers::active_role::
+  build_claims_for_user` (login, refresh, MFA ×2, WebAuthn, ganti role). Jangan memanggil
+  `build_user_custom_claims` langsung dari jalur penerbitan baru: flag di bawah tak akan berlaku.
+- **Role sesi (DSD, NIST INCITS 359)** — token selalu memuat `assigned_roles` (dimiliki) +
+  `active_role`. Dengan `AUTHENC_ACTIVE_ROLE_ENFORCEMENT=true`, `realm_access.roles` =
+  **tepat** `[active_role]` (semua layanan hilir sudah membaca klaim itu, jadi satu-peran-aktif
+  berlaku di mana-mana). Mati (default) = perilaku lama. Ganti peran:
+  `POST /api/v1/auth/session/active-role {role, refresh_token}` (butuh access token; role harus
+  DIMILIKI; mengganti kedua token dan me-*revoke* access token yang digantikan; dicatat sebagai
+  `ROLE_SWITCH`). Pilihan disimpan di **refresh token** (klaim `active_role`, bertanda tangan)
+  agar bertahan melewati umur access token.
+- **`groups`** (RFC 9068 §2.2.3.1) — `AUTHENC_GROUPS_CLAIM=true` menambah
+  `/kejaksaan/<kejati>/<satker>` dari `integrasi.v_satker_wilayah` (satu query per penerbitan
+  token; kegagalan query hanya menurunkannya ke grup datar). Informasional: belum ada yang
+  mengotorisasi dari `groups`.
+- **Kode cadangan MFA** — `POST /api/v1/auth/mfa/backup-codes {action:"generate", code}` butuh
+  kode TOTP saat ini (step-up); `list` hanya jumlah. Dicatat sebagai `MFA_BACKUP_CODES`.
+- **Konsol IAM** (`iam-api`) = role `admin` PERSIS (`IAM_ADMIN_ROLES`), dicek dari klaim token
+  (bukan DB), menolak `mfa_pending` & token yang sudah di-revoke; aksi user/role dicatat dgn
+  aktor + IP (`audit_logs`), admin terakhir tak bisa dicabut/dinonaktifkan. `TRUSTED_PROXY_CIDRS`
+  menentukan header IP klien mana yang dipercaya.
 
 ### 5. gRPC Service
 

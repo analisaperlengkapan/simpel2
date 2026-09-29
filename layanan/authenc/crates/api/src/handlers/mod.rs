@@ -7,6 +7,7 @@
 //! intra-crate consumer, or a frontend/simpelv1 caller.
 
 // Authentication handlers
+pub mod active_role;
 pub mod auth;
 pub mod auth_helpers;
 pub mod mfa;
@@ -29,6 +30,7 @@ pub mod health;
 pub mod metrics;
 
 // Re-export handlers
+pub use active_role::switch_active_role_handler;
 pub use auth::{
     ChangePasswordRequest, ErrorResponse, LoginRequest, LoginResponse, LogoutRequest,
     PasswordResetConfirmRequest, PasswordResetRequest, RefreshTokenRequest, RefreshTokenResponse,
