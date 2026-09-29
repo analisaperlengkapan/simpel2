@@ -53,6 +53,18 @@ use lib_backend::jwt::decode_jwt;
 let claims = decode_jwt(token, secret)?;
 ```
 
+### Client IP (`client_ip`)
+
+```rust
+use lib_backend::client_ip::{client_ip_string, resolve_client_ip, TrustedProxies};
+let ip = client_ip_string(peer.ip(), xff_header, x_real_ip_header);
+```
+
+`X-Forwarded-For`/`X-Real-IP` dipercaya **hanya** bila peer TCP ada di `TRUSTED_PROXY_CIDRS`
+(env, daftar CIDR dipisah koma); XFF dibaca dari KANAN (entri kiri = ketikan penyerang).
+Hasilnya selalu alamat IP valid — kolom `inet` di audit log tak lagi gagal cast dan baris
+audit tak bisa memuat alamat karangan. Tanpa konfigurasi = tak ada proxy tepercaya (aman).
+
 ### Request Context
 
 ```rust

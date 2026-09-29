@@ -257,32 +257,81 @@ flowchart TB
 
 ### 5. Authentication & Authorization
 
-> ⚠️ **Tidak ada lapisan middleware auth di service ini.** `main.rs` hanya memasang
-> `size_limit`, `metrics`, `rate_limit`, `TraceLayer`, dan `cors`. **Ekstraktor
-> `Claims` ITULAH gerbangnya** — satu-satunya. Handler yang tak menerima `Claims`
-> berarti **PUBLIK**, dan karena Istio gateway (`hosts: ["*"]`) merutekan
-> `/api/v1/perlengkapan` langsung ke `layanan-perlengkapan:3020`, "publik" berarti
-> **terjangkau dari internet**, bukan sekadar dari dalam cluster.
->
-> Ini bukan hipotetis: 15 route pernah lolos tanpa gerbang persis karena dokumen ini
-> dulu menulis "use middleware for authentication checks" (lihat commit
-> `fix(perlengkapan): 15 API routes answered anyone who asked`).
+**Otentikasi = lapisan router deny-by-default.** `main.rs::build_router` memasang
+`shared::middleware::require_authentication` di atas SELURUH `/api/v1/perlengkapan`:
+tanpa bearer token yang valid → `401` sebelum handler (juga untuk path yang tak ada —
+tak ada oracle 404-vs-401). Satu-satunya pengecualian: handshake WebSocket
+`/dashboard/ws` (peramban tak bisa memasang header; handlernya memvalidasi token query
+sendiri) dan probe kubelet `/health*` (di luar `api_routes`). Ekstraktor `Claims` membaca klaim yang
+sudah divalidasi middleware (tanpa panggilan gRPC kedua) dan tetap mengotentikasi
+sendiri bila dipasang tanpa middleware (tes).
 
-- **Setiap handler WAJIB menerima `Claims`** (`crate::shared::middleware::Claims`).
-  Bila klaimnya tak dipakai di badan fungsi, tetap tulis sebagai `_claims: Claims` —
-  efek sampingnya (validasi token) itulah gerbangnya. Konvensi ini sudah dipakai
-  ~59 tempat; ikuti, jangan bikin pola baru.
-- **Satu-satunya pengecualian sah** = probe kubelet di `shared/health.rs`
-  (`liveness_check`, `readiness_check`, `health_check`). Selain itu, tidak ada.
+> Otentikasi **bukan** otorisasi. Sebelum lapisan ini, "publik" = handler tanpa `Claims`,
+> dan 18 handler tulis hanya memakai `Claims` untuk user id. Sekarang dua hal dijaga
+> terpisah: middleware (siapa kamu) dan gerbang di handler (boleh apa).
+
+- **Setiap handler menerima `Claims`** dan **setiap handler TULIS memuat gerbang**
+  (`claims.require_*`, `Policy.authorize(_as)`, `enforce_*`). Handler BACA memakai scope
+  (`SatkerScope`/`AsetScope::from_claims`) atau gerbang. Ini DIPAKSA CI:
+  `infra/scripts/check-authz-guards.py` (matriks rute + `--self-test`). Allowlist di skrip
+  itu hanya untuk endpoint swalayan/referensi dan **wajib beralasan**; entri basi = merah.
+- **`Claims` membawa SEMUA role** (`claims.roles`, terurut, huruf kecil) + `claims.role` =
+  role primer deterministik (`RoleSet::primary`, urutan `PRIMARY_ROLE_PRIORITY`), bukan
+  "role pertama yang dicantumkan token". Guard mencocokkan **persis** ke semua role:
+  `require_any_role`, `require_role`, `holds_role`, `require_capability(Capability::…)`.
+  Role `system` (aktor internal engine) **tidak bisa** diklaim token.
+- **TIDAK ADA bypass admin.** `admin`/`admin_pusat`/`superadmin` mengurus aplikasi
+  (data master, template, audit, pemantauan, auto-expire: `Capability::Administer`/
+  `ViewAudit`) — mereka **tidak** menyetujui, menolak, mencabut, atau menyelesaikan
+  keputusan bisnis (segregation of duties). `WorkflowPolicy::authorize`, `require_any_role`
+  dan `WorkflowEngine::validate_approver_role` tidak lagi punya jalan pintas admin.
+  Endpoint yang memang boleh dilayani admin memakai `require_any_role_or_admin` /
+  `require_capability`, bukan literal.
+- **Peran aktor diteruskan ke engine = role yang MENGOTORISASI aksi**
+  (`authorize_as` / `Claims::acting_role` / `role_for_transition`), bukan role primer —
+  pengguna ber-banyak-role tidak boleh lolos policy sebagai operator lalu ditolak engine
+  sebagai validator.
+- **Maker-checker** (`shared::policy::enforce_maker_checker`): pengusul izin pemakaian tak
+  boleh memvalidasi usulannya; approver bukan pengusul maupun validator.
+- **Transisi generik Pemakaian** hanya untuk `Submit` & `Cancel`; forward/return/approve/
+  revoke wajib lewat endpoint khususnya (kunci versi + stempel validator/approver).
+- **Break-glass** = satu-satunya override admin atas alur bisnis:
+  `POST /admin/break-glass/{modul}/{id}/transition` (khusus `ADMIN_ROLES`, alasan ≥ 20
+  karakter, baris `perlengkapan.break_glass_log` ditulis **sebelum** aksi [V012], dijalankan
+  sebagai aktor internal dengan user id admin, catatan diberi tag `[BREAK-GLASS]`).
+  `GET /admin/break-glass` terbuka bagi admin **dan** validator_pusat (pihak yang keputusannya
+  ditimpa). Break-glass bergerak sepanjang edge yang didefinisikan alur; ia tak menciptakan edge.
+- **Delegasi** (`/workflow/delegations`) divalidasi (hanya role yang dipegang, bukan admin,
+  maks 30 hari, alasan, penerima ada) tetapi **belum berlaku sebagai hak akses** — setiap
+  respons memuat `berlaku: false`. Menjadikannya efektif butuh keputusan desain (token vs
+  lookup per-request + jejak audit "bertindak atas nama").
+- **Ekspor**: `ExportQuery.scope` (`#[serde(skip)]`, default `Denied`) diisi dari klaim;
+  ekspor pakaian dinas (NIP+nama) & kebutuhan dibatasi satker pemanggil; roadmap/riwayat
+  (kunci uuid legacy) hanya lintas-satker. Job ekspor milik pembuatnya (`created_by`).
+- **Unggahan** (`shared::upload`): allowlist ekstensi (pdf/png/jpg/jpeg/docx/xlsx), magic bytes
+  wajib cocok, `Content-Type` diturunkan server, ≤ 10 MiB & ≤ 20 file/permintaan. Tautan dokumen
+  yang dikirim klien hanya `http(s)://` atau path situs (`validate_document_url`).
+- **CORS deny-by-default** di luar dev (`CORS_ALLOWED_ORIGINS` tak diset ⇒ same-origin saja);
+  `SKIP_AUTHENC=true` hanya bila `APP_ENV` ∈ dev/development/local/test.
+- **IP klien** (`ClientIp`) dari `lib_backend::client_ip`: header `X-Forwarded-For`/`X-Real-IP`
+  hanya dipercaya dari peer di `TRUSTED_PROXY_CIDRS` (dibaca dari kanan). Server harus jalan
+  dgn `into_make_service_with_connect_info` (sudah).
+- **Rate limiter** per-user berjalan SETELAH otentikasi (kunci = user id dari klaim).
 - **Jangan ambil `satker_id` dari query string** untuk menentukan data siapa yang
-  dibaca — itu melewati scoping. Turunkan dari token via `AsetScope::from_claims`
-  (pola di `bank_aset/scope.rs`, fail-closed bila token tak punya satker).
+  dibaca — itu melewati scoping. Turunkan dari token via `SatkerScope`/`AsetScope::from_claims`
+  (fail-closed bila token tak punya satker). Objek yang dijangkau lewat id-nya sendiri
+  (barang, job, analisis) wajib diperiksa terhadap scope pemiliknya (404 bila di luar scope).
+- Daftar peran-literal (`"admin" | "superadmin"`, `== "admin"`) **dilarang** di luar
+  `lib/core/src/authz.rs` (dipaksa `check-authz-guards.py`, aturan R5).
 - Menutup gerbang di BE **hampir selalu menuntut perubahan FE**: pemanggil yang pakai
   `gloo_net::http::Request` mentah atau `window.open` tak membawa header
   `Authorization` dan akan 401. Pakai `api_get`/`auth_get_binary`; untuk unduhan
   bergerbang pakai pola fetch → blob → anchor sintetis.
 - RBAC per-peran & lintas-satker ditegakkan **di server**, bukan dgn menyembunyikan
   tombol di FE.
+- Env baru: `TRUSTED_PROXY_CIDRS`, `PENGHAPUSAN_WILAYAH_MAX_NILAI` (rupiah; plafon kewenangan
+  Wilayah, kosong = tak ditegakkan — angka regulasi PMK 83/2016 dan perubahannya **harus
+  dikonfirmasi** sebelum diisi).
 
 ---
 

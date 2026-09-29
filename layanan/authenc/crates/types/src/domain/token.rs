@@ -641,6 +641,7 @@ impl AdminOperationRequest {
 
         // For admin operations, check admin level
         if self.operation == "admin" {
+            // guard:allow-role-literal: an operation kind of the token model, not a role
             // Simplified dynamic check: assumes admin level is just "satker" for target satker op
             // In real scenario, we might want "pusat" to be able to admin "satker"
             if !token.allows_admin_operation("satker") {

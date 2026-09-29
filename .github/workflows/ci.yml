@@ -462,6 +462,20 @@ jobs:
       - name: Dependency-check retry wrapper self-test
         shell: bash
         run: python3 ./infra/scripts/retry-dependency-check.py --selftest
+      # Otentikasi deny-by-default di router BUKAN otorisasi: 18 handler tulis
+      # perlengkapan hanya membaca `Claims` untuk user id, jadi siapa pun yang
+      # punya token bisa menghapus periode, menyetel `jml_setuju`, mengaktifkan
+      # izin, atau memicu auto-expire. Dan "siapa admin" pernah punya empat
+      # definisi yang menyimpang diam-diam. Penjaga ini menjadikan kedua hal itu
+      # MERAH: handler tulis/baca baru tanpa gerbang/scope, dan daftar peran
+      # literal di luar `lib_core::authz`. Self-test membuktikan tiap aturan bisa
+      # merah dan bisa hijau — penjaga yang tak pernah terlihat merah tak
+      # membuktikan apa pun.
+      - name: Route authorization matrix + no role-literal lists
+        shell: bash
+        run: |
+          python3 ./infra/scripts/check-authz-guards.py
+          python3 ./infra/scripts/check-authz-guards.py --self-test
       # Kodefikasi SIMAN adalah FUNGSI: 2.033 kode barang, 2.033 nama, nol kode
       # bermakna ganda di 624.533 baris. Fixture e2e melanggarnya tanpa
       # ketahuan — tiap kode yang dipakainya nyata, hanya namanya milik barang

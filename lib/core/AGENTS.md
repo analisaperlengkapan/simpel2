@@ -19,6 +19,7 @@ Backend (Axum) ──uses──► lib-core
 |-------|-----|----------|
 | `auth` | `UserRole`, `SsoSession` | Frontend + Backend |
 | `jwt_claims` | `Claims`, `RealmAccess` (struct only, tanpa decode) | Frontend + Backend |
+| `authz` | Kosakata otorisasi bersama: `ADMIN_ROLES`, `IAM_ADMIN_ROLES`, `CROSS_SATKER_ROLES`, `RoleSet`, `Capability`, `Authorization`, `ROLE_CATALOG` | Frontend + Backend |
 | `validation` | Pure validators (email, NIP, password, satker) | Frontend + Backend |
 | `error` | `CommonError`, `Result` | Semua |
 | `config` | `ServerConfig`, `DatabaseConfig`, `BaseServiceConfig` (struct only) | Backend |
@@ -39,6 +40,16 @@ Backend (Axum) ──uses──► lib-core
 5. Fungsi `default_*` di `config.rs` harus `pub` agar bisa diakses dari `lib-backend`.
 
 ## ⚠️ Pitfall
+
+- **`authz` = SATU-SATUNYA definisi "siapa admin/pusat/…"**. Semua predikat **persis** (bukan
+  prefix). Kapabilitas **aditif**: `admin` bukan superset peran bisnis (tak ada `is_admin_implied`);
+  `Capability::View` = punya ≥ 1 role; `AdministerIam` = `admin` persis (`IAM_ADMIN_ROLES`,
+  sengaja lebih sempit dari `ADMIN_ROLES`); `ValidateSatker`/`ApproveSatker` melayani
+  `validator_satker`/`approver_satker`. Menambah role = ubah tabel `Capability::roles` +
+  `ROLE_CATALOG`, bukan `has_role("admin")` di mana-mana. Daftar peran-literal di luar file ini
+  dilarang (CI: `infra/scripts/check-authz-guards.py`, aturan R5).
+- `Claims` membawa `assigned_roles` (dimiliki), `active_role` (peran sesi aktif, DSD) dan
+  `groups` (hierarki satker) — semuanya `#[serde(default)]`: token lama tetap terurai.
 
 - `RequestContext` dan `CorrelationId` hanya struct di sini. Method `from_headers()` ada di `lib-backend`.
 - `Claims` hanya struct. `decode_jwt()` dan `AuthClaims` extractor ada di `lib-backend::jwt`.

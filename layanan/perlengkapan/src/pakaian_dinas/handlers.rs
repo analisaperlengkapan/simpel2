@@ -509,6 +509,12 @@ pub async fn process_validator_action(
     claims: Claims,
     Json(request): Json<ValidatorActionRequest>,
 ) -> Result<Json<ApiResponse<PengajuanSatker>>, AppError> {
+    // Coarse gate: only the roles that take part in this workflow. Which of them
+    // may make WHICH move from the current state is decided by
+    // `determine_next_status` in the service; this refuses everyone else up front
+    // (an approver of another workflow, an administrator) instead of leaving the
+    // decision to the "no valid (status, action, role)" fall-through.
+    claims.require_any_role(&["operator_satker", "validator_wilayah", "validator_pusat"])?;
     let user_nip = claims.nip.as_deref().unwrap_or("unknown");
     let user_nama = claims.name.as_deref().unwrap_or("unknown");
     // Every role the caller holds, sorted (`RoleSet` order); the service acts

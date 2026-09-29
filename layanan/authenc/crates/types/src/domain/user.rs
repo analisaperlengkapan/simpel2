@@ -492,7 +492,8 @@ impl Permission {
 
     /// Check if this permission allows the given action
     pub fn allows_action(&self, action: &str) -> bool {
-        self.action == action || self.action == "admin" || self.action == "*"
+        // guard:allow-role-literal: "admin" here is a permission ACTION verb, not a role name
+        self.action == action || self.action == "admin" || self.action == "*" // guard:allow-role-literal
     }
 }
 
