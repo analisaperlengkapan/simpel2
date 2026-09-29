@@ -7,9 +7,10 @@
 1. 🗺️ Domain Routing
 2. 🌍 Strategi Infrastruktur Global
 3. 🔐 Secret Management Zero-Trust (Secreton + Kubernetes Auth)
-4. 🔒 TLS Certificate (DigiCert)
-5. ⏰ CronJob Schedule (layanan-integrasi)
-6. ⚠️ Aturan AI untuk Operasi Infrastruktur
+4. 🛡️ Hardening Opt-in (default OFF)
+5. 🔒 TLS Certificate (DigiCert)
+6. ⏰ CronJob Schedule (layanan-integrasi)
+7. ⚠️ Aturan AI untuk Operasi Infrastruktur
 
 ## 🗺️ Domain Routing
 
@@ -328,6 +329,60 @@ tidak mematikan layanan.
   sesi Redis terenkripsi** (semua user ter-logout) — beda dgn DB/SMTP yang rotasi-nya
   transparan. Jadwalkan saat maintenance, atau pakai strategi dua-kunci
   (`APP_PREVIOUS_KEYS`) bila perlu zero-logout.
+
+## 🛡️ Hardening Opt-in (default OFF)
+
+Tiga kontrol berikut **sengaja mati secara default**: menyalakannya mengubah perilaku
+runtime (CSP browser, mount volume, akses jaringan), jadi harus melewati alur
+**staging → promote → production** seperti perubahan lain — nyalakan di
+`values-staging.yaml`, verifikasi, baru `values-production.yaml`. Semuanya lewat
+Helm; jangan `kubectl edit`.
+
+### CSP `script-src` berbasis hash (`CSP_HASH_MODE`)
+
+- **Masalah**: `script-src 'unsafe-inline'` membiarkan `<script>` sisipan apa pun
+  berjalan. Trunk memang butuh skrip inline untuk boot WASM, tetapi yang dibutuhkan
+  hanya skrip itu — bukan semua skrip.
+- **Cara kerja**: saat build image, `infra/scripts/csp-script-hashes.py` menghitung
+  SHA-256 tiap `<script>` inline di `dist/index.html` (nama berkas Trunk berhash
+  konten, jadi hash berubah tiap build) → `/usr/share/nginx/csp-script-hashes.txt`.
+  Bila `CSP_HASH_MODE=true`, entrypoint menulis `/tmp/csp-script-hashes.conf` dan
+  nginx memakai hash itu menggantikan `'unsafe-inline'` (map `$csp_script_inline`).
+  Tanpa berkas itu, CSP jatuh kembali ke `'unsafe-inline'`.
+- **Nyalakan**: set env `CSP_HASH_MODE` = `"true"` pada `portal` dan/atau
+  `perlengkapan` (`values.yaml`). Entrypoint **gagal keras** bila mode ini aktif
+  tetapi berkas hash tak ada / `/tmp` tak bisa ditulis — bukan diam-diam kembali ke
+  kebijakan longgar.
+- **Verifikasi di staging**: buka portal dan perlengkapan, pastikan splash hilang
+  dan WASM ter-mount; cek konsol browser bebas pelanggaran CSP; `curl -sI` harus
+  menampilkan `script-src 'self' 'sha256-…' 'wasm-unsafe-eval'`.
+- **Belum dicakup**: `style-src 'unsafe-inline'` tetap (atribut `style=` dipakai luas
+  di komponen); `connect-src` tetap longgar (`ws: wss: https:`) pada nginx in-image.
+
+### Penyimpanan dokumen (`layananPerlengkapan.persistence`)
+
+- **Masalah**: tanpa `DOCUMENT_STORAGE_PATH`, dokumen unggahan (konsep SK, surat,
+  lampiran) ditulis ke `/tmp/perlengkapan/docs` — emptyDir yang **hilang saat pod
+  restart**, sementara tautannya sudah tersimpan di database.
+- **Nyalakan**: `layananPerlengkapan.persistence.enabled: true`. Membuat PVC
+  `perlengkapan-documents-pvc` (`helm.sh/resource-policy: keep`, kelas dari
+  `global.storageClass`), me-mount-nya, dan mengarahkan `DOCUMENT_STORAGE_PATH`.
+- **Batas**: `ReadWriteOnce` ⇒ tetap `replicas: 1`. Untuk `replicas > 1` butuh kelas
+  RWX atau object storage. PVC ikut Velero FS backup (bukan scratch).
+
+### Allowlist API IAM (`istio.iamAllowlist`)
+
+- **Masalah**: `/api/v1/iam/*` (kelola pengguna, peran, reset MFA, klien OAuth)
+  terjangkau dari seluruh jaringan yang bisa mencapai gateway; satu-satunya pagar
+  adalah kredensial `admin`.
+- **Nyalakan**: `istio.iamAllowlist.enabled: true` + `cidrs: [...]` (jaringan
+  admin/VPN). Merender `AuthorizationPolicy` DENY di ingress gateway untuk path IAM
+  saja; `cidrs` kosong saat enabled ⇒ render **gagal** (mencegah mengunci semua orang).
+- **Wajib diverifikasi**: `remoteIpBlocks` memakai IP klien asli, benar hanya bila
+  gateway dipasang dengan `externalTrafficPolicy: Local` atau `numTrustedProxies`
+  yang sesuai. Uji dari luar CIDR di staging — harus `403`.
+- mTLS: `mtls.mode` sudah berupa nilai Helm (`PERMISSIVE` default; `STRICT` di
+  production setelah semua workload ber-sidecar).
 
 ## 🔒 TLS Certificate (DigiCert)
 

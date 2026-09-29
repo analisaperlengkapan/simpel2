@@ -1,0 +1,43 @@
+{{- /*
+  Batasi API administrasi IAM (`/api/v1/iam/*`) ke daftar CIDR. OPT-IN
+  (`istio.iamAllowlist.enabled`, default false): tanpa ini konsol admin identitas
+  — kelola pengguna, peran, reset MFA, klien OAuth — dapat dijangkau dari seluruh
+  jaringan yang bisa mencapai gateway; satu-satunya pagar adalah kredensial `admin`.
+
+  Kebijakan DENY di ingress gateway, jadi berlaku sebelum request menyentuh
+  authenc. Yang dibatasi hanya path IAM; login, refresh, dan seluruh API
+  perlengkapan tidak tersentuh.
+
+  `remoteIpBlocks` = IP klien ASLI (dari X-Forwarded-For/PROXY protocol), bukan
+  IP hop terakhir. Ia hanya benar bila gateway dipasang dengan
+  `externalTrafficPolicy: Local` atau `numTrustedProxies` yang sesuai —
+  verifikasi di STAGING dengan `curl` dari luar CIDR (harus 403) sebelum promote.
+
+  Daftar kosong + enabled = SEMUA orang terkunci dari IAM → render gagal.
+*/ -}}
+{{- $a := .Values.istio.iamAllowlist -}}
+{{- if and $a $a.enabled }}
+{{- if not $a.cidrs }}
+{{- fail "istio.iamAllowlist.enabled=true membutuhkan istio.iamAllowlist.cidrs (kosong = semua orang terkunci dari API IAM)" }}
+{{- end }}
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: iam-admin-allowlist
+  namespace: {{ .Values.global.istioNamespace }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "simpelv2" "component" "gateway") | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- toYaml .Values.istio.gateway.selector | nindent 6 }}
+  action: DENY
+  rules:
+    - from:
+        - source:
+            notRemoteIpBlocks:
+              {{- toYaml $a.cidrs | nindent 14 }}
+      to:
+        - operation:
+            paths: ["/api/v1/iam", "/api/v1/iam/*"]
+{{- end }}

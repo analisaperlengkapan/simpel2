@@ -62,5 +62,35 @@ else
   echo "entrypoint: WARNING - could not write $CONFIG_JSON (read-only web root); FE falls back to build-time defaults" >&2
 fi
 
+# ── CSP script-src: 'unsafe-inline' → per-script hashes (opt-in) ──────────────
+#
+# `script-src 'unsafe-inline'` lets any injected <script> run. Trunk needs it only
+# for the inline WASM boot, so the image ships the SHA-256 of each inline script
+# (computed at build time by infra/scripts/csp-script-hashes.py, the only place
+# the built index.html is known) and nginx swaps `'unsafe-inline'` for them when
+# CSP_HASH_MODE=true. OFF by default: the switch is thrown per environment, on
+# staging first, after checking the app boots with the stricter policy.
+#
+# nginx reads the hashes from an `include` glob; when the file is absent the CSP
+# falls back to 'unsafe-inline' (see the `$csp_script_inline` map), so the default
+# path — and an image without the hash file — behaves exactly as before.
+CSP_HASH_FILE=/tmp/csp-script-hashes.conf
+rm -f "$CSP_HASH_FILE" 2>/dev/null || true
+if [ "${CSP_HASH_MODE:-false}" = "true" ]; then
+  CSP_HASHES="$(cat /usr/share/nginx/csp-script-hashes.txt 2>/dev/null || true)"
+  if [ -z "$CSP_HASHES" ]; then
+    echo "entrypoint: FATAL - CSP_HASH_MODE=true but /usr/share/nginx/csp-script-hashes.txt is missing/empty" >&2
+    exit 1
+  fi
+  if printf 'default "%s";\n' "$CSP_HASHES" > "$CSP_HASH_FILE" 2>/dev/null; then
+    echo "entrypoint: CSP script-src pinned to inline-script hashes ($CSP_HASH_FILE)"
+  else
+    echo "entrypoint: FATAL - CSP_HASH_MODE=true but $CSP_HASH_FILE is not writable" >&2
+    exit 1
+  fi
+else
+  echo "entrypoint: CSP script-src keeps 'unsafe-inline' (CSP_HASH_MODE is not true)"
+fi
+
 # Execute the default CMD (nginx)
 exec "$@"

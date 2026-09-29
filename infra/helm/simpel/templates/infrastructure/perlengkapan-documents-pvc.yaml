@@ -1,0 +1,31 @@
+{{- /*
+  Penyimpanan dokumen unggahan layanan-perlengkapan (konsep SK, surat, lampiran).
+
+  Tanpa ini, `DOCUMENT_STORAGE_PATH` jatuh ke default `/tmp/perlengkapan/docs`
+  (dokumen/filesystem_storage.rs) — di pod itu emptyDir: dokumen HILANG pada
+  setiap restart/reschedule, padahal tautannya sudah tersimpan di database dan
+  dikirim ke validator. OPT-IN (`layananPerlengkapan.persistence.enabled`,
+  default false) agar rilis ini tidak menambah PVC/rollout tanpa disengaja.
+
+  RWO cukup selama `replicas: 1`. Untuk replicas > 1 pakai StorageClass RWX
+  atau pindahkan ke object storage — jangan naikkan replicas di atas RWO.
+*/ -}}
+{{- $p := .Values.layananPerlengkapan.persistence -}}
+{{- if and .Values.layananPerlengkapan.enabled $p $p.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $p.claimName }}
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "layanan-perlengkapan" "component" "backend") | nindent 4 }}
+  annotations:
+    # Dokumen resmi: jangan ikut terhapus oleh `helm uninstall`/prune.
+    "helm.sh/resource-policy": keep
+spec:
+  accessModes: {{ toYaml (default (list "ReadWriteOnce") $p.accessModes) | nindent 4 }}
+  storageClassName: {{ .Values.global.storageClass }}
+  resources:
+    requests:
+      storage: {{ default "5Gi" $p.size }}
+{{- end }}

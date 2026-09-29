@@ -341,6 +341,12 @@ jobs:
         run: |
           python3 ./infra/scripts/check-color-contrast.py --self-test
           python3 ./infra/scripts/check-color-contrast.py
+      # The opt-in hash-based CSP (`CSP_HASH_MODE`) trusts this script to hash
+      # the inline scripts exactly as the browser will; the self-test pins it to
+      # the CSP spec's reference vector.
+      - name: CSP inline-script hasher self-test
+        shell: bash
+        run: python3 ./infra/scripts/csp-script-hashes.py --self-test
       # The other half of the same wire contract: query parameters. serde DROPS
       # unknown query keys, so a frontend filter the backend never reads is a
       # 200 with the filter silently ignored. `GET /pakaian-dinas/spesifikasi`

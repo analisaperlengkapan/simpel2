@@ -82,6 +82,15 @@ ENV AUTHENC_URL=$AUTHENC_URL
 # Assets served at /portal/ path prefix
 RUN trunk build --release --public-url "/portal/"
 
+# SHA-256 of every inline <script> in the BUILT index.html, for the opt-in
+# hash-based CSP (`CSP_HASH_MODE=true` in the entrypoint replaces
+# `script-src 'unsafe-inline'`). Computed here because only this stage knows the
+# final page — Trunk's boot script carries content-hashed filenames, so its hash
+# changes every build. Fails the build if the page has no inline script.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 /workspace/infra/scripts/csp-script-hashes.py dist/index.html > csp-script-hashes.txt
+
 # Stage 2: Nginx untuk serving hasil build - LISTEN ON PORT 8080
 # nginx-unprivileged runs as non-root (uid 101) and listens on 8080 by default —
 # matches our port and clears Trivy DS-0002 (no root container). pid relocated to
@@ -94,6 +103,7 @@ COPY antarmuka/portal/nginx.conf /etc/nginx/nginx.conf
 
 # Copy build output ke Nginx html dir
 COPY --from=builder /workspace/antarmuka/portal/dist /usr/share/nginx/html
+COPY --from=builder /workspace/antarmuka/portal/csp-script-hashes.txt /usr/share/nginx/csp-script-hashes.txt
 
 # trunk builds with --public-url /portal/ (see above), so index.html requests
 # every hashed asset as /portal/<file> — but the dist is copied flat into the

@@ -28,6 +28,17 @@ data:
         gzip_min_length 1024;
         gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/javascript application/xml+rss application/json application/wasm;
 
+        # Where the CSP's inline-script allowance comes from. The image entrypoint writes
+        # /tmp/csp-script-hashes.conf (`default "'sha256-…' …";`) only when the
+        # workload sets CSP_HASH_MODE=true; otherwise nothing matches the glob (a
+        # wildcard `include` that matches no file is not an error), `$csp_script_hashes`
+        # is empty and the second map falls back to 'unsafe-inline' — the default.
+        map $host $csp_script_hashes { include /tmp/csp-script-hashes*.conf; }
+        map $csp_script_hashes $csp_script_inline {
+            ""      "'unsafe-inline'";
+            default $csp_script_hashes;
+        }
+
         # Common security headers reused per location (add_header tidak diwarisi).
         #
         # `img-src` diturunkan dari values, sama seperti `connect-src`. Ia dulu
@@ -35,7 +46,7 @@ data:
         # satu pun pesan yang terlihat — browser menolak gambarnya diam-diam.
         # Hostnya disebut eksplisit, bukan dibuka lebar dengan `https:`.
         map $sent_http_content_type $simpel_csp {
-            default "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src {{ $cspImg }}; connect-src {{ $cspConnect }}; font-src 'self'; frame-ancestors 'self'";
+            default "default-src 'self'; script-src 'self' $csp_script_inline 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src {{ $cspImg }}; connect-src {{ $cspConnect }}; font-src 'self'; frame-ancestors 'self'";
         }
 
         # Sama dengan perlengkapan: cegah nginx leak port internal 8080 ke
@@ -124,12 +135,23 @@ data:
         gzip_min_length 1024;
         gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/javascript application/xml+rss application/json application/wasm;
 
+        # Where the CSP's inline-script allowance comes from. The image entrypoint writes
+        # /tmp/csp-script-hashes.conf (`default "'sha256-…' …";`) only when the
+        # workload sets CSP_HASH_MODE=true; otherwise nothing matches the glob (a
+        # wildcard `include` that matches no file is not an error), `$csp_script_hashes`
+        # is empty and the second map falls back to 'unsafe-inline' — the default.
+        map $host $csp_script_hashes { include /tmp/csp-script-hashes*.conf; }
+        map $csp_script_hashes $csp_script_inline {
+            ""      "'unsafe-inline'";
+            default $csp_script_hashes;
+        }
+
         # Document CSP for perlengkapan. Mirrors the portal map below:
         # `script-src` needs 'unsafe-inline' because Trunk boots the WASM from
         # an INLINE module script, and the map form lets each `location` that
         # sets its own header restate the policy (add_header is not inherited).
         map $sent_http_content_type $simpel_csp {
-            default "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src {{ $cspImg }}; connect-src {{ $cspConnect }}; font-src 'self'; frame-ancestors 'self'";
+            default "default-src 'self'; script-src 'self' $csp_script_inline 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src {{ $cspImg }}; connect-src {{ $cspConnect }}; font-src 'self'; frame-ancestors 'self'";
         }
 
         # Penting: matikan port_in_redirect + absolute_redirect supaya nginx

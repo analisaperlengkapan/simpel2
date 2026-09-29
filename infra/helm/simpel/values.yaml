@@ -690,6 +690,17 @@ layananPerlengkapan:
   pdb: { enabled: false, minAvailable: 0 }
   terminationGracePeriodSeconds: 30
   tmpVolumeSizeLimit: 128Mi
+  # Dokumen unggahan (konsep SK/surat/lampiran). OFF = perilaku sekarang: tulis
+  # ke /tmp/perlengkapan/docs (emptyDir → hilang saat pod restart). ON = PVC
+  # `claimName` di-mount di `mountPath` dan DOCUMENT_STORAGE_PATH diarahkan ke
+  # sana. RWO ⇒ tetap replicas: 1. Nyalakan di staging dulu.
+  persistence:
+    enabled: false
+    claimName: perlengkapan-documents-pvc
+    mountPath: /var/lib/perlengkapan/docs
+    envName: DOCUMENT_STORAGE_PATH
+    size: 5Gi
+    accessModes: [ReadWriteOnce]
 
 simpelv1:
   enabled: true
@@ -877,6 +888,10 @@ portal:
     - name: RUST_LOG
       valueFrom: { configMapKeyRef: { name: simpelv2-config, key: RUST_LOG } }
     - { name: APP_NAME, value: "SIMPEL Portal" }
+    # CSP `script-src`: "false" = 'unsafe-inline' (perilaku sekarang); "true" =
+    # hash SHA-256 tiap inline <script> (dihitung saat build image). Nyalakan di
+    # STAGING dulu, pastikan app ter-boot, baru promote. Lihat infra/AGENTS.md.
+    - { name: CSP_HASH_MODE, value: "false" }
   volumeMounts:
     - { name: nginx-config, mountPath: /etc/nginx/nginx.conf, subPath: nginx.conf, readOnly: true }
     - { name: nginx-cache,  mountPath: /var/cache/nginx }
@@ -956,6 +971,8 @@ perlengkapan:
   env:
     - name: RUST_LOG
       valueFrom: { configMapKeyRef: { name: simpelv2-config, key: RUST_LOG } }
+    # Sama dengan portal: "false" = 'unsafe-inline', "true" = hash inline-script.
+    - { name: CSP_HASH_MODE, value: "false" }
   volumeMounts:
     - { name: nginx-config, mountPath: /etc/nginx/nginx.conf, subPath: nginx.conf, readOnly: true }
     - { name: nginx-cache,  mountPath: /var/cache/nginx }
@@ -974,6 +991,9 @@ perlengkapan:
     memoryUtilization: 80
   pdb: { enabled: false, minAvailable: 0 }
   terminationGracePeriodSeconds: 30
+  # /tmp yang bisa ditulis (root FS read-only): entrypoint menulis
+  # /tmp/csp-script-hashes.conf di sana saat CSP_HASH_MODE=true.
+  tmpVolumeSizeLimit: 32Mi
 
 # ─── Istio routing ─────────────────────────────────────────────────────────────
 istio:
@@ -1030,6 +1050,12 @@ istio:
   destinationRules:
     # Connection-pool & outlier detection per host. Default kosong — staging tidak butuh.
     extra: []
+  # Batasi /api/v1/iam/* (konsol admin identitas) ke CIDR tertentu di ingress
+  # gateway. OFF = perilaku sekarang. Isi `cidrs` (jaringan admin/VPN Kejaksaan)
+  # lalu set enabled: true — di STAGING dulu. Lihat templates/istio/iam-allowlist.yaml.
+  iamAllowlist:
+    enabled: false
+    cidrs: []
 
 # ─── Observability ─────────────────────────────────────────────────────────────
 monitoring:
