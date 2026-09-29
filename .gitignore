@@ -70,6 +70,11 @@ scripts/vault/decrypt_and_unseal.py
 # =======================
 node_modules/
 antarmuka/node_modules/
+# The top-level e2e harness reuses the perlengkapan Playwright install via a
+# SYMLINK. Git treats a symlink-to-directory as a file, so the `node_modules/`
+# pattern above (directory-only) does not match it and `git add -A` would commit
+# the link itself. Name it explicitly.
+tests/e2e/node_modules
 dist/
 dist-ssr/
 *.local

@@ -6,7 +6,7 @@
 //! frontend can render a live PDF/DOCX/HTML preview in an iframe without
 //! persisting an artifact.
 //!
-//! Auth: cross-satker/admin only — mirrors the rest of `/admin/*`.
+//! Auth: `Capability::Administer` only — mirrors the rest of `/admin/*`.
 
 use axum::{
     Json,
@@ -29,14 +29,11 @@ use crate::shared::middleware::Claims;
 use crate::state::AppState;
 use lib_perlengkapan::response::ApiResponse;
 
+/// Template administration: `Capability::Administer`. Was
+/// `is_cross_satker_role()` ("may read across satkers"), which let
+/// `validator_pusat` read and *preview-render* every template.
 fn require_admin(claims: &Claims) -> AppResult<()> {
-    if claims.is_cross_satker_role() {
-        Ok(())
-    } else {
-        Err(AppError::Authorization(
-            "Endpoint admin/templates hanya tersedia untuk role pusat/admin".to_string(),
-        ))
-    }
+    claims.require_capability(lib_core::authz::Capability::Administer)
 }
 
 fn template_service_error(e: crate::dokumen::error::AppError) -> AppError {

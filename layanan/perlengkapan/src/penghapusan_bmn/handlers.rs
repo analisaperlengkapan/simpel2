@@ -30,7 +30,7 @@ use axum::{
     extract::{Multipart, Path, Query, State},
     http::StatusCode,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::sync::Arc;
 use std::time::Duration;
 use uuid::Uuid;
@@ -67,46 +67,17 @@ pub struct PaginationQuery {
 }
 
 /// API response wrapper
-#[derive(Debug, Serialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub data: T,
-    pub message: String,
-}
-
-impl<T> ApiResponse<T> {
-    pub fn success(data: T, message: String) -> Self {
-        Self {
-            success: true,
-            data,
-            message,
-        }
-    }
-}
+///
+/// Re-exported from `lib_perlengkapan` rather than redeclared. A local copy
+/// lived here and in `workflow::handlers` / `workflow::definition_handlers`;
+/// the `PaginatedResponse` sibling below had already drifted from the shared
+/// one by dropping `total_pages`, which made serde reject the whole
+/// `/penghapusan-bmn` list response — the page rendered "Gagal memuat data"
+/// over a perfectly healthy 200. One type, one shape.
+pub use lib_perlengkapan::response::ApiResponse;
 
 /// Paginated response
-#[derive(Debug, Serialize)]
-pub struct PaginatedResponse<T> {
-    pub success: bool,
-    pub data: Vec<T>,
-    pub total: i64,
-    pub page: i32,
-    pub per_page: i32,
-    pub message: String,
-}
-
-impl<T> PaginatedResponse<T> {
-    pub fn new(data: Vec<T>, total: i64, page: i32, per_page: i32, message: String) -> Self {
-        Self {
-            success: true,
-            data,
-            total,
-            page,
-            per_page,
-            message,
-        }
-    }
-}
+pub use lib_perlengkapan::response::PaginatedResponse;
 
 /// Create penghapusan BMN
 pub async fn create_penghapusan_bmn(
@@ -116,9 +87,24 @@ pub async fn create_penghapusan_bmn(
 ) -> Result<(StatusCode, Json<ApiResponse<PenghapusanBmn>>), AppError> {
     request.validate()?;
 
-    // Derive the authoritative satker from identity (#66), not from client input.
+    // Only an operator opens a usulan. This had no role check, so any
+    // authenticated caller — a validator, a caller from another satker — could
+    // create one; the policy's `Create` action existed and was never consulted.
+    claims.require_any_role(&["operator_satker"])?;
+    crate::shared::upload::validate_document_url(
+        "lampiran_persyaratan",
+        &request.lampiran_persyaratan,
+    )?;
+
+    // Derive the authoritative satker from identity (#66), not from client input,
+    // and confine the SIMAN lookup to the caller's own satker's assets.
     let penghapusan = service
-        .create(request, claims.user_id, claims.satker_code.clone())
+        .create(
+            request,
+            claims.user_id,
+            claims.satker_code.clone(),
+            &crate::bank_aset::AsetScope::from_claims(&claims),
+        )
         .await?;
 
     Ok((
@@ -292,7 +278,7 @@ pub async fn submit_to_wilayah(
         .submit_to_wilayah(
             id,
             claims.user_id,
-            claims.role.clone(),
+            claims.acting_role(PenghapusanBmnStatus::SubmitWilayah.actor_roles()),
             body.catatan,
             &SatkerScope::from_claims(&claims),
         )
@@ -320,7 +306,7 @@ pub async fn forward_to_pusat(
         .forward_to_pusat(
             id,
             claims.user_id,
-            claims.role.clone(),
+            claims.acting_role(PenghapusanBmnStatus::SubmitPusat.actor_roles()),
             body.catatan,
             &SatkerScope::from_claims(&claims),
         )
@@ -351,7 +337,7 @@ pub async fn verifikasi_pusat(
         .verifikasi_pusat(
             id,
             claims.user_id,
-            claims.role.clone(),
+            claims.acting_role(PenghapusanBmnStatus::VerifikasiPusat.actor_roles()),
             body.catatan,
             &SatkerScope::from_claims(&claims),
         )
@@ -385,7 +371,7 @@ pub async fn return_to_operator(
         .return_to_operator(
             id,
             claims.user_id,
-            claims.role.clone(),
+            claims.acting_role(PenghapusanBmnStatus::ReturnedToOperator.actor_roles()),
             body.catatan,
             &SatkerScope::from_claims(&claims),
         )
@@ -412,7 +398,7 @@ pub async fn validator_wilayah_action(
                 .forward_to_pusat(
                     id,
                     claims.user_id,
-                    claims.role.clone(),
+                    claims.acting_role(PenghapusanBmnStatus::SubmitPusat.actor_roles()),
                     body.catatan,
                     &SatkerScope::from_claims(&claims),
                 )
@@ -432,7 +418,7 @@ pub async fn validator_wilayah_action(
                 .return_to_operator(
                     id,
                     claims.user_id,
-                    claims.role.clone(),
+                    claims.acting_role(PenghapusanBmnStatus::SubmitPusat.actor_roles()),
                     body.catatan,
                     &SatkerScope::from_claims(&claims),
                 )
@@ -466,7 +452,7 @@ pub async fn generate_konsep_sk(
         .generate_konsep_sk(
             id,
             claims.user_id,
-            claims.role.clone(),
+            claims.acting_role(PenghapusanBmnStatus::KonsepSKGenerated.actor_roles()),
             &SatkerScope::from_claims(&claims),
         )
         .await?;
@@ -540,11 +526,13 @@ pub async fn upload_signed_sk(
     Json(body): Json<UploadSignedSKRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     claims.require_any_role(PenghapusanBmnStatus::SKSigned.actor_roles())?;
+    // Stored and later rendered as a link for other users: web URLs only.
+    crate::shared::upload::validate_document_url("signed_sk_pdf_url", &body.signed_sk_pdf_url)?;
     let penghapusan = service
         .upload_signed_sk(
             id,
             claims.user_id,
-            claims.role.clone(),
+            claims.acting_role(PenghapusanBmnStatus::SKSigned.actor_roles()),
             body.signed_sk_pdf_url,
             &SatkerScope::from_claims(&claims),
         )
@@ -574,7 +562,20 @@ pub async fn upload_lampiran(
     // Verifikasi entity ada DAN dalam scope pemanggil — lookup ini juga
     // memastikan FK constraint nantinya tidak gagal di insert.
     let scope = SatkerScope::from_claims(&claims);
-    let _existing = service.get_by_id(id, &scope).await?;
+    let existing = service.get_by_id(id, &scope).await?;
+
+    // Lampiran adalah bagian dari usulan yang disusun OPERATOR satker, dan hanya
+    // selama usulan masih di tangannya. Sebelumnya tak ada cek peran maupun state:
+    // validator (scope wilayah/pusat) — atau siapa pun dalam scope — bisa
+    // menambah berkas ke usulan yang sedang diperiksa.
+    claims.require_role("operator_satker")?;
+    if !matches!(existing.status.as_str(), "DRAFT" | "RETURNED_TO_OPERATOR") {
+        return Err(AppError::Conflict(format!(
+            "Lampiran hanya dapat ditambahkan saat usulan berstatus Draft atau Dikembalikan (status saat ini: {})",
+            existing.status
+        )));
+    }
+    let mut files_seen = 0usize;
 
     // Presigned URL TTL: 1 tahun. FilesystemStorage abaikan TTL & emit
     // static URL; S3 adapter akan rotate sendiri.
@@ -601,6 +602,27 @@ pub async fn upload_lampiran(
         let size = bytes.len() as i64;
         let safe_name = sanitize_filename(&original_name);
 
+        // Content decides what a file is, not the client's label (see
+        // `shared::upload`): allowlisted extension, matching magic bytes, a size
+        // ceiling, a per-request file cap — and the stored `Content-Type` is the
+        // one WE derive. Unknown form fields are skipped, not validated.
+        let validated = if matches!(field_name.as_str(), "surat_usulan" | "lampiran") {
+            files_seen += 1;
+            if files_seen > crate::shared::upload::MAX_FILES_PER_REQUEST {
+                return Err(AppError::BadRequest(format!(
+                    "Maksimal {} file per unggahan",
+                    crate::shared::upload::MAX_FILES_PER_REQUEST
+                )));
+            }
+            Some(crate::shared::upload::validate_upload(
+                &original_name,
+                content_type.as_deref(),
+                &bytes,
+            )?)
+        } else {
+            None
+        };
+
         match field_name.as_str() {
             "surat_usulan" => {
                 let key = format!(
@@ -609,14 +631,12 @@ pub async fn upload_lampiran(
                     Uuid::new_v4(),
                     safe_name
                 );
+                let stored_type = validated
+                    .as_ref()
+                    .map(|v| v.content_type)
+                    .unwrap_or("application/octet-stream");
                 let handle = storage
-                    .put(
-                        &key,
-                        bytes,
-                        content_type
-                            .as_deref()
-                            .unwrap_or("application/octet-stream"),
-                    )
+                    .put(&key, bytes, stored_type)
                     .await
                     .map_err(|e| AppError::Internal(format!("Storage put: {}", e)))?;
                 let url = storage
@@ -633,14 +653,12 @@ pub async fn upload_lampiran(
                     Uuid::new_v4(),
                     safe_name
                 );
+                let stored_type = validated
+                    .as_ref()
+                    .map(|v| v.content_type)
+                    .unwrap_or("application/octet-stream");
                 let handle = storage
-                    .put(
-                        &key,
-                        bytes,
-                        content_type
-                            .as_deref()
-                            .unwrap_or("application/octet-stream"),
-                    )
+                    .put(&key, bytes, stored_type)
                     .await
                     .map_err(|e| AppError::Internal(format!("Storage put: {}", e)))?;
                 let url = storage
@@ -653,7 +671,7 @@ pub async fn upload_lampiran(
                         LampiranUpload {
                             nama: &original_name,
                             file_url: &url,
-                            content_type: content_type.as_deref(),
+                            content_type: validated.as_ref().map(|v| v.content_type),
                             size_bytes: Some(size),
                             uploaded_by: Some(claims.user_id),
                         },
@@ -703,21 +721,17 @@ pub async fn list_lampiran(
 
 // ─── V029 (Fase 1.9): SK Wilayah handlers ───────────────────────────────
 
-/// RBAC inline: validator_wilayah only (admin bypass). Diturunkan ke
-/// `Claims::require_role` setelah Fase 0.3 branch ter-merge.
+/// RBAC: validator_wilayah only. No admin bypass — the SK Wilayah is signed on
+/// behalf of the Kepala Kejaksaan Tinggi, which an IT administrator is not.
 fn require_validator_wilayah(claims: &Claims) -> Result<(), AppError> {
-    let role_lower = claims.role.to_ascii_lowercase();
-    if matches!(
-        role_lower.as_str(),
-        "admin" | "admin_pusat" | "superadmin" | "validator_wilayah"
-    ) {
-        Ok(())
-    } else {
-        Err(AppError::Authorization(format!(
-            "Akses ditolak: role '{}' tidak diizinkan utk aksi SK Wilayah (perlu validator_wilayah)",
-            claims.role
-        )))
-    }
+    claims
+        .require_role("validator_wilayah")
+        .map_err(|_| {
+            AppError::Authorization(format!(
+                "Akses ditolak: role '{}' tidak diizinkan utk aksi SK Wilayah (perlu validator_wilayah)",
+                claims.role
+            ))
+        })
 }
 
 /// Validator Wilayah generate konsep SK (jalur kewenangan WILAYAH).
@@ -732,7 +746,7 @@ pub async fn generate_konsep_sk_wilayah(
         .generate_konsep_sk_wilayah(
             id,
             claims.user_id,
-            claims.role.clone(),
+            claims.acting_role(&["validator_wilayah"]),
             &SatkerScope::from_claims(&claims),
         )
         .await?;
@@ -750,11 +764,12 @@ pub async fn upload_signed_sk_wilayah(
     Json(body): Json<UploadSignedSKRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     require_validator_wilayah(&claims)?;
+    crate::shared::upload::validate_document_url("signed_sk_pdf_url", &body.signed_sk_pdf_url)?;
     let penghapusan = service
         .upload_signed_sk_wilayah(
             id,
             claims.user_id,
-            claims.role.clone(),
+            claims.acting_role(&["validator_wilayah"]),
             body.signed_sk_pdf_url,
             &SatkerScope::from_claims(&claims),
         )
@@ -791,7 +806,7 @@ pub async fn transition_penghapusan_bmn(
             request.to_state,
             TransitionActor::new(
                 claims.user_id,
-                claims.role.clone(),
+                claims.acting_role(PenghapusanBmnStatus::Rejected.actor_roles()),
                 request.catatan,
                 "127.0.0.1",
             ),

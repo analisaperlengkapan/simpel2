@@ -26,11 +26,11 @@
     --text-primary:   #f8fafc;
     --text-secondary: #cbd5e1;
     --text-muted:     #94a3b8;
-    --text-dim:       #64748b;
+    --text-dim:       #7b8ba1;  /* >= 4.5:1 on every --surface-* (was #64748b, 3.5:1) */
 
     --state-success: #10b981;
     --state-warning: #f59e0b;
-    --state-danger:  #ef4444;
+    --state-danger:  #f05252;  /* >= 4.5:1 on every --surface-* (was #ef4444, 4.49:1 on raised) */
     --state-info:    #3b82f6;
   }
 

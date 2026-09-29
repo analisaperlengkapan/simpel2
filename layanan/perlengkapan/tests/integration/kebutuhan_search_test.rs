@@ -172,6 +172,20 @@ async fn post(server: &TestServer, path: &str, body: serde_json::Value) -> axum_
     req.await
 }
 
+/// POST as the satker's own operator — the only role that enters barang.
+async fn post_as_operator(
+    server: &TestServer,
+    path: &str,
+    body: serde_json::Value,
+    satker: &str,
+) -> axum_test::TestResponse {
+    let mut req = server.post(path).json(&body);
+    for (k, v) in auth_headers("operator_satker", satker) {
+        req = req.add_header(k, v);
+    }
+    req.await
+}
+
 async fn pusat_get(server: &TestServer, path: &str) -> axum_test::TestResponse {
     get(server, path, "validator_pusat", "PUSAT001").await
 }
@@ -212,10 +226,11 @@ async fn seed_full(server: &TestServer) {
         .unwrap()
         .to_string();
 
-    let r = post(
+    let r = post_as_operator(
         server,
         &format!("/kebutuhan-bmn/satker/{satker_row}/barang"),
         json!({"nama": "Meja Kerja Eselon IV", "jumlah": 3, "kode_barang": "3060201003"}),
+        "SKR001",
     )
     .await;
     assert_eq!(r.status_code(), 201, "seed barang: {:?}", r.text());

@@ -108,6 +108,9 @@ pub async fn update_pengajuan(
     claims: Claims,
     Json(request): Json<UpdatePengajuanRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmn>>, AppError> {
+    // A campaign (periode RKBMN) is authored by Validator Pusat — create already
+    // said so; update and delete did not check anything.
+    claims.require_role("validator_pusat")?;
     info!("Updating pengajuan kebutuhan BMN: {}", id);
 
     let user_id = Some(claims.user_id);
@@ -125,6 +128,7 @@ pub async fn delete_pengajuan(
     Path(id): Path<Uuid>,
     claims: Claims,
 ) -> Result<Json<ApiResponse<()>>, AppError> {
+    claims.require_role("validator_pusat")?;
     info!(
         "Deleting pengajuan kebutuhan BMN: {} by user {}",
         id, claims.user_id
@@ -147,12 +151,7 @@ pub async fn transition_pengajuan_status(
     Json(request): Json<WorkflowTransitionRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmn>>, AppError> {
     // Coarse-grained gate; the workflow engine enforces the per-state required role.
-    claims.require_any_role(&[
-        "operator_satker",
-        "validator_wilayah",
-        "validator_pusat",
-        "admin",
-    ])?;
+    claims.require_any_role(KEBUTUHAN_WORKFLOW_ROLES)?;
     info!(
         "Transitioning pengajuan {} to status {}",
         id, request.target_status
@@ -161,8 +160,9 @@ pub async fn transition_pengajuan_status(
     let user_id = Some(claims.user_id);
     let user_info = Some(extract_user_info(&claims));
 
+    let acting_role = acting_role_for_target(&claims, request.target_status);
     let pengajuan = service
-        .transition_pengajuan_status(id, request, user_id, user_info, claims.role.clone(), ip)
+        .transition_pengajuan_status(id, request, user_id, user_info, acting_role, ip)
         .await?;
 
     Ok(Json(ApiResponse::success(

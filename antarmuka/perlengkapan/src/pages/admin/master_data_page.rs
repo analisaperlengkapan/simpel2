@@ -8,6 +8,7 @@ use std::sync::Arc;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use lib_ui::utils::formatters::format_iso_local_opt;
 use phosphor_leptos::{
     ARROW_LEFT, ARROW_RIGHT, CARET_LEFT, CARET_RIGHT, CHECK, CLOCK, MAGNIFYING_GLASS, MINUS,
     PENCIL, PLUS, TRASH, WARNING, X,
@@ -125,10 +126,7 @@ fn SourceGrid(
                             .icon
                             .clone()
                             .unwrap_or_else(|| "fas fa-table".to_string());
-                        let updated = source
-                            .updated_at
-                            .clone()
-                            .unwrap_or_else(|| "—".to_string());
+                        let updated = format_iso_local_opt(source.updated_at.as_deref());
                         view! {
                             <button
                                 type="button"

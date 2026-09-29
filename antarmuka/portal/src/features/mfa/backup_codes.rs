@@ -39,6 +39,8 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
     let (loading, set_loading) = signal(false);
     let (error_message, set_error_message) = signal(None::<String>);
     let (show_codes, set_show_codes) = signal(false);
+    // Step-up: replacing the recovery factor re-asks for a current TOTP code.
+    let (totp_code, set_totp_code) = signal(String::new());
 
     // Load backup code status on component mount
     Effect::new(move |_| {
@@ -51,14 +53,22 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
     });
 
     let generate_codes = move || {
+        let code = totp_code.get_untracked().trim().to_string();
+        if code.is_empty() {
+            set_error_message.set(Some(
+                "Masukkan kode TOTP saat ini untuk membuat kode pemulihan baru.".to_string(),
+            ));
+            return;
+        }
         set_loading.set(true);
         set_error_message.set(None);
 
         spawn_local(async move {
-            match generate_backup_codes().await {
+            match generate_backup_codes(code).await {
                 Ok(codes_data) => {
                     set_backup_codes.set(Some(codes_data));
                     set_show_codes.set(true);
+                    set_totp_code.set(String::new());
                     // Refresh status
                     if let Ok(status_data) = get_backup_code_status().await {
                         set_status.set(Some(status_data));
@@ -202,6 +212,25 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                                     "If you don't have backup codes or need to replace existing ones, generate a new set. "
                                     "This will invalidate any previously generated codes."
                                 </p>
+
+                                <label
+                                    for="mfa-stepup-code"
+                                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                                >
+                                    "Kode TOTP saat ini (verifikasi ulang)"
+                                </label>
+                                <input
+                                    id="mfa-stepup-code"
+                                    type="text"
+                                    inputmode="numeric"
+                                    autocomplete="one-time-code"
+                                    maxlength="12"
+                                    placeholder="123456"
+                                    class="mb-4 w-48 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono tracking-widest"
+                                    prop:value=move || totp_code.get()
+                                    on:input=move |ev| set_totp_code.set(event_target_value(&ev))
+                                />
+                                <br />
 
                                 <button
                                     type="button"
@@ -367,11 +396,9 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
 struct MfaBackupCodesRequest {
-    /// Authorization token
-    token: String,
-    /// Action to perform (generate, list, verify)
+    /// Action to perform (generate, list)
     action: String,
-    /// Backup code to verify (for verify action)
+    /// Current TOTP code — required by the server for `generate` (step-up).
     #[serde(skip_serializing_if = "Option::is_none")]
     code: Option<String>,
 }
@@ -400,7 +427,11 @@ fn get_auth_token() -> Option<String> {
 }
 
 /// Generate new backup codes via authenc API
-async fn generate_backup_codes() -> Result<BackupCodesResponse, Box<dyn std::error::Error>> {
+async fn generate_backup_codes(
+    totp_code: String,
+) -> Result<BackupCodesResponse, Box<dyn std::error::Error>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = &totp_code;
     #[cfg(target_arch = "wasm32")]
     {
         // Get authentication token
@@ -409,13 +440,14 @@ async fn generate_backup_codes() -> Result<BackupCodesResponse, Box<dyn std::err
 
         // Prepare request body
         let request_body = MfaBackupCodesRequest {
-            token,
             action: "generate".to_string(),
-            code: None,
+            code: Some(totp_code),
         };
 
-        // Make API request
+        // Make API request — the access token travels in the Authorization
+        // header, which is the only credential path authenc accepts.
         let response = gloo_net::http::Request::post("/api/v1/auth/mfa/backup-codes")
+            .header("Authorization", &format!("Bearer {token}"))
             .json(&request_body)?
             .send()
             .await?;
@@ -461,13 +493,14 @@ async fn get_backup_code_status() -> Result<BackupCodeStatusResponse, Box<dyn st
 
         // Prepare request body
         let request_body = MfaBackupCodesRequest {
-            token,
             action: "list".to_string(),
             code: None,
         };
 
-        // Make API request
+        // Make API request — see `generate_backup_codes` for why the token goes
+        // in the header rather than the body.
         let response = gloo_net::http::Request::post("/api/v1/auth/mfa/backup-codes")
+            .header("Authorization", &format!("Bearer {token}"))
             .json(&request_body)?
             .send()
             .await?;

@@ -30,7 +30,7 @@ use crate::api::bank_aset::{
     fetch_filter_options,
 };
 use crate::api::dashboard::{PerlengkapanDashboardMetrics, fetch_perlengkapan_metrics};
-use crate::components::role_switcher::use_active_role;
+use crate::components::session_authz::use_session;
 use crate::pages::dashboard_panels::{
     DistribusiUkuran, FilterBar, Hambatan, KebutuhanPerSatker, KesenjanganKebutuhan, KomposisiAset,
     NilaiPerJenis, SatkerTeratas, StatusKebutuhan, StatusModul, TrenKebutuhan, TrenPerolehan,
@@ -401,35 +401,54 @@ fn format_number(n: i64) -> String {
 
 #[component]
 pub fn DashboardHome() -> impl IntoView {
-    // Reactive: closures below re-run on a role switch, so the greeting and
-    // the admin-only panels follow immediately instead of waiting for a
-    // browser refresh.
-    let active_role = use_active_role();
-    let role_label = move || match active_role.get().as_str() {
-        "validator_wilayah" => "Validator Wilayah",
-        "validator_pusat" => "Validator Pusat",
-        "admin" => "Administrator",
-        _ => "Operator Satker",
+    // Read from the JWT-backed session, not from the removed role switcher.
+    // The closures stay reactive: the session signal updates on login/logout
+    // and on cross-tab `storage` events, so the greeting and the scoped panels
+    // follow the real identity instead of a locally chosen label.
+    let session = use_session();
+    let role_key = move || {
+        session
+            .and_then(|s| s.get())
+            .map(|s| s.role)
+            .unwrap_or_default()
     };
+    let role_label = move || lib_core::authz::role_label(&role_key());
 
     // What this page actually covers, said out loud. The numbers below are
     // scoped per tier, so a heading that reads the same for everyone invites
     // exactly the misreading the scoping was meant to end: an operator seeing
     // "Ringkasan Sistem Manajemen" above 1 681 assets has no way to tell
     // whether that is the country or their own office.
-    let scope_word = move || match active_role.get().as_str() {
-        "validator_wilayah" => "Wilayah Anda",
-        "validator_pusat" | "admin" => "Nasional",
-        _ => "Satuan Kerja Anda",
+    //
+    // Derived from the authorization model, NOT from `role_key`. The key above
+    // is the *display* role — whichever wins priority when a token carries
+    // several — so branching on it made the sentence depend on which role
+    // happened to sort first rather than on what the caller may actually read.
+    let scope_word = move || {
+        let authz = session
+            .and_then(|s| s.get())
+            .map(|s| s.authz())
+            .unwrap_or_default();
+        if authz.is_cross_satker() {
+            "Nasional"
+        } else if authz.roles().has("validator_wilayah") {
+            "Wilayah Anda"
+        } else {
+            "Satuan Kerja Anda"
+        }
     };
-    let scope_sentence = move || match active_role.get().as_str() {
-        "validator_wilayah" => {
-            "Aset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja di wilayah Anda."
-        }
-        "validator_pusat" | "admin" => {
+    let scope_sentence = move || {
+        let authz = session
+            .and_then(|s| s.get())
+            .map(|s| s.authz())
+            .unwrap_or_default();
+        if authz.is_cross_satker() {
             "Aset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI."
+        } else if authz.roles().has("validator_wilayah") {
+            "Aset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja di wilayah Anda."
+        } else {
+            "Aset BMN, kebutuhan, dan perlengkapan pada satuan kerja Anda."
         }
-        _ => "Aset BMN, kebutuhan, dan perlengkapan pada satuan kerja Anda.",
     };
 
     // Drill-down state. The satker value is the MySIMKARI `kode_satker` — the
@@ -506,18 +525,31 @@ pub fn DashboardHome() -> impl IntoView {
         );
     }
 
-    let is_admin = move || active_role.get() == "admin";
+    let is_admin = move || {
+        session
+            .and_then(|s| s.get())
+            .map(|s| s.is_admin())
+            .unwrap_or(false)
+    };
     // A satker-tier caller's "top satker" list is one row naming themselves,
     // and their kebutuhan-by-satker breakdown likewise. Those panels are for
     // readers who actually oversee more than one.
     // Only a reader who already sees the whole country may pick an arbitrary
     // region; a wilayah validator's region is fixed by their claims.
-    let is_pusat = move || matches!(active_role.get().as_str(), "validator_pusat" | "admin");
+    let is_pusat = move || {
+        session
+            .and_then(|s| s.get())
+            .map(|s| s.can(lib_core::authz::Capability::ViewAllSatker))
+            .unwrap_or(false)
+    };
+    // Anyone whose claims let them see beyond a single satker. Derived from the
+    // same `is_cross_satker` rule the backend's `SatkerScope` uses, so the
+    // panels shown here match the rows the server will actually return.
     let is_multi_satker = move || {
-        matches!(
-            active_role.get().as_str(),
-            "validator_wilayah" | "validator_pusat" | "admin"
-        )
+        session
+            .and_then(|s| s.get())
+            .map(|s| s.is_cross_satker() || s.is_validator_wilayah())
+            .unwrap_or(false)
     };
 
     view! {
@@ -972,8 +1004,8 @@ pub fn DashboardHome() -> impl IntoView {
                     <QuickNav
                         href=routes::path::ANALITIK_ROADMAP
                         icon="fas fa-road"
-                        label="Roadmap Sarpras"
-                        description="Prediksi kebutuhan sarana prasarana"
+                        label="Analisis Kebutuhan"
+                        description="Analisis dan usulan kebutuhan sarana prasarana"
                         tone="teal"
                     />
                 </div>

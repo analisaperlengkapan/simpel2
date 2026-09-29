@@ -23,6 +23,7 @@
 //! - [`rate_limit`] — token-bucket per-IP rate limiter middleware.
 
 pub mod audit;
+pub mod break_glass;
 pub mod cache;
 pub mod connection_config;
 pub mod db;
@@ -44,3 +45,4 @@ pub mod satker_scope;
 pub mod search_db;
 pub mod siman_columns;
 pub mod status_tone;
+pub mod upload;

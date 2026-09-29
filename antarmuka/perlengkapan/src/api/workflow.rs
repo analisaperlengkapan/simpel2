@@ -163,6 +163,8 @@ impl DelegationStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mirrors the backend's `Delegation`: the stored delegation (flattened)
+/// plus the server's statement of whether it actually confers authority.
 pub struct Delegation {
     pub id: String,
     pub delegator_user_id: String,
@@ -175,6 +177,15 @@ pub struct Delegation {
     pub status: DelegationStatus,
     pub created_at: String,
     pub updated_at: String,
+    /// Does this delegation actually confer authority? The server says `false`
+    /// today: it is recorded and audited but the delegate cannot yet act on the
+    /// delegator's behalf. Absent means "no" — a screen must never imply
+    /// authority the server did not state.
+    #[serde(default)]
+    pub berlaku: bool,
+    /// The server's own words for why not, when `berlaku` is `false`.
+    #[serde(default)]
+    pub catatan_berlaku: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

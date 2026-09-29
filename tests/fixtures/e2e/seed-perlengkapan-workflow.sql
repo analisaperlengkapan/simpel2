@@ -595,4 +595,38 @@ ON CONFLICT (id) DO UPDATE SET
   read = EXCLUDED.read,
   read_at = EXCLUDED.read_at;
 
+-- ----------------------------------------------------------------------------
+-- 10. perlengkapan: Analitik/Roadmap rows (F-E2E, screenshot completeness).
+--     `analisis_kebutuhan` has no satker column and the list is unscoped, so
+--     these rows give the roadmap page a populated table instead of its empty
+--     state — an empty page photographs as "Belum ada data" and reads as a
+--     broken feature. Titles are `E2E `-prefixed so a spec can tell fixture
+--     rows from the ones it creates (whose assertion finds its own unique
+--     `E2E Roadmap <timestamp>` title regardless).
+-- ----------------------------------------------------------------------------
+INSERT INTO perlengkapan.analisis_kebutuhan
+  (id, judul, kategori, deskripsi, prioritas, status, estimasi_biaya, justifikasi, created_by, updated_by)
+VALUES
+  ('c2000000-0000-4c00-8c00-0000000d0001', 'E2E Analisis Kebutuhan TIK 2026', 'TIK',
+   'Peremajaan perangkat TIK pada satuan kerja wilayah DKI Jakarta.', 'tinggi', 'disetujui',
+   1250000000, 'Perangkat lama melewati umur ekonomis dan menurunkan kualitas layanan.',
+   '55555555-5555-4555-8555-555555555555', '55555555-5555-4555-8555-555555555555'),
+  ('c2000000-0000-4c00-8c00-0000000d0002', 'E2E Analisis Kebutuhan Kendaraan 2026', 'Kendaraan',
+   'Penambahan kendaraan operasional untuk kegiatan pemantauan lapangan.', 'sedang', 'draft',
+   750000000, 'Kebutuhan mobilitas tim pemeriksa meningkat pada dua tahun terakhir.',
+   '55555555-5555-4555-8555-555555555555', '55555555-5555-4555-8555-555555555555'),
+  ('c2000000-0000-4c00-8c00-0000000d0003', 'E2E Analisis Kebutuhan Gedung 2026', 'Gedung',
+   'Rehabilitasi ruang pelayanan publik pada satuan kerja wilayah Jawa Barat.', 'rendah', 'disetujui',
+   3400000000, 'Kerusakan struktur atap terdeteksi pada pemeriksaan terakhir.',
+   '55555555-5555-4555-8555-555555555555', '55555555-5555-4555-8555-555555555555')
+ON CONFLICT (id) DO UPDATE SET
+  judul = EXCLUDED.judul,
+  kategori = EXCLUDED.kategori,
+  deskripsi = EXCLUDED.deskripsi,
+  prioritas = EXCLUDED.prioritas,
+  status = EXCLUDED.status,
+  estimasi_biaya = EXCLUDED.estimasi_biaya,
+  justifikasi = EXCLUDED.justifikasi,
+  updated_by = EXCLUDED.updated_by;
+
 COMMIT;

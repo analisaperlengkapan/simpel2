@@ -12,8 +12,16 @@
 //
 // Solusi: `WorkflowPolicy` trait + impl per modul. Handler memanggil
 // `policy.authorize(&claims, action, current_state)?` dan policy
-// menentukan role yg sah berdasar (action, state). Admin/superadmin bypass
-// (escape hatch untuk recovery) — tapi tetap di-log via tracing.
+// menentukan role yg sah berdasar (action, state).
+//
+// TIDAK ADA bypass admin. Sebelumnya `admin`/`admin_pusat`/`superadmin` lolos
+// setiap policy, sehingga administrator IT bisa menyetujui/menolak/menandatangani
+// hal yg oleh proses bisnis dialamatkan ke pejabat (Approver Satker, Validator
+// Pusat) — melanggar segregation of duties (NIST INCITS 359 SSD; OWASP
+// Authorization: least privilege) dan membuat jejak audit tak bermakna
+// ("siapa yg menyetujui?" → "admin", selalu). Intervensi darurat lewat jalur
+// break-glass yg terpisah, wajib beralasan, dan diaudit (lihat
+// `shared::break_glass`).
 //
 // Migrasi inkremental: handler lama boleh tetap pakai `claims.require_*`;
 // handler baru / refactor pindah ke policy. Begitu coverage cukup, kita
@@ -46,29 +54,27 @@ pub trait WorkflowPolicy {
         current_state: Option<&str>,
     ) -> Option<&'static [&'static str]>;
 
-    /// Authorize satu aksi. Admin/superadmin bypass (di-log). Selain itu,
-    /// role caller harus ada di whitelist yg di-return `allowed_roles`.
+    /// Authorize satu aksi: caller harus memegang SALAH SATU role yg diizinkan
+    /// `allowed_roles` untuk (action, state) ini. Tidak ada bypass admin.
     fn authorize(
         &self,
         claims: &Claims,
         action: Self::Action,
         current_state: Option<&str>,
     ) -> Result<(), AppError> {
-        let role_lower = claims.role.to_ascii_lowercase();
+        self.authorize_as(claims, action, current_state).map(|_| ())
+    }
 
-        // Admin escape-hatch — di-log agar audit tahu manual override.
-        if matches!(role_lower.as_str(), "admin" | "admin_pusat" | "superadmin") {
-            tracing::warn!(
-                module = self.module_name(),
-                action = ?action,
-                state = current_state.unwrap_or("<none>"),
-                user_id = %claims.user_id,
-                role = %claims.role,
-                "policy: admin/superadmin bypass — review apakah ini override yg sah"
-            );
-            return Ok(());
-        }
-
+    /// Seperti [`authorize`](Self::authorize), tetapi mengembalikan **role
+    /// yang mengotorisasi** aksi itu (lihat [`Claims::acting_role`]) — role
+    /// inilah yang harus diteruskan ke workflow engine & dicatat di audit,
+    /// bukan role primer caller.
+    fn authorize_as(
+        &self,
+        claims: &Claims,
+        action: Self::Action,
+        current_state: Option<&str>,
+    ) -> Result<String, AppError> {
         let allowed = self.allowed_roles(action, current_state).ok_or_else(|| {
             AppError::Authorization(format!(
                 "Aksi {:?} tidak valid pada state '{}' utk modul {}",
@@ -78,23 +84,24 @@ pub trait WorkflowPolicy {
             ))
         })?;
 
-        if allowed.iter().any(|r| r.eq_ignore_ascii_case(&role_lower)) {
+        if claims.holds_any_role(allowed) {
+            let acting = claims.acting_role(allowed);
             tracing::debug!(
                 module = self.module_name(),
                 action = ?action,
                 state = current_state.unwrap_or("<none>"),
                 user_id = %claims.user_id,
-                role = %claims.role,
+                role = %acting,
                 "policy: allow"
             );
-            Ok(())
+            Ok(acting)
         } else {
             tracing::info!(
                 module = self.module_name(),
                 action = ?action,
                 state = current_state.unwrap_or("<none>"),
                 user_id = %claims.user_id,
-                role = %claims.role,
+                roles = ?claims.roles,
                 allowed = ?allowed,
                 "policy: deny"
             );
@@ -137,6 +144,16 @@ pub enum PemakaianBmnAction {
     Revoke,
     /// Operator update draft permit.
     UpdateDraft,
+    /// Operator membatalkan draft / usulan yang sedang direvisi miliknya.
+    Cancel,
+    /// Menerbitkan nomor izin + SK untuk izin yang sudah disetujui. Normalnya
+    /// otomatis saat approve; endpoint manual hanya untuk mengulang aktivasi
+    /// yang gagal (mis. SIMAN sedang tidak tersedia).
+    Activate,
+    /// Membuat konsep surat izin (DOCX/PDF).
+    GenerateDocument,
+    /// Mengunggah PDF izin yang sudah ditandatangani.
+    UploadSigned,
 }
 
 impl PemakaianBmnAction {
@@ -165,6 +182,7 @@ impl PemakaianBmnAction {
             ("SUBMITTED_APPROVER_SATKER", "REVISI_OPERATOR") => Some(ApproverSatkerReturn),
             ("REVISI_OPERATOR", "SUBMITTED") => Some(Resubmit),
             ("ACTIVE", "REVOKED") => Some(Revoke),
+            ("DRAFT" | "REVISI_OPERATOR", "CANCELLED") => Some(Cancel),
             _ => None,
         }
     }
@@ -185,6 +203,10 @@ impl PemakaianBmnAction {
             Resubmit => "Ajukan Ulang",
             Revoke => "Cabut Izin",
             UpdateDraft => "Simpan Draft",
+            Cancel => "Batalkan Usulan",
+            Activate => "Terbitkan Izin",
+            GenerateDocument => "Buat Konsep Surat",
+            UploadSigned => "Unggah PDF Bertanda Tangan",
         }
     }
 }
@@ -227,15 +249,68 @@ impl WorkflowPolicy for PemakaianBmnPolicy {
             (Resubmit, Some("REVISI_OPERATOR")) => Some(&["operator_satker"]),
 
             // Revoke: hanya Approver Satker, dan hanya saat ACTIVE.
-            // Stakeholder eksplisit: Admin TIDAK boleh revoke. Tapi karena
-            // authorize() men-bypass admin di awal, kita tidak bisa menolak
-            // admin di level ini — di handler revoke wajib panggil
-            // `enforce_no_admin_revoke(&claims)` sebagai guard tambahan.
+            // Stakeholder eksplisit: Admin TIDAK boleh revoke. Karena
+            // `authorize()` tidak lagi punya bypass admin, cukup tidak
+            // mencantumkan admin di sini — dan `allowed_roles` inilah yg
+            // dipakai endpoint detail untuk menyaring tombol, sehingga admin
+            // pun tidak lagi ditawari "Cabut Izin" yg berujung 403.
             (Revoke, Some("ACTIVE")) => Some(&["approver_satker"]),
+
+            // Operator boleh membatalkan usulannya sendiri selama belum
+            // berada di tangan validator/approver.
+            (Cancel, Some("DRAFT" | "REVISI_OPERATOR")) => Some(&["operator_satker"]),
+
+            // Aktivasi manual = mengulang penerbitan izin yg sudah disetujui;
+            // penerbitan nomor izin adalah tindakan pejabat (Approver Satker).
+            (Activate, Some("APPROVED")) => Some(&["approver_satker"]),
+
+            // Dokumen izin dikelola sisi satker yg mengajukan/menerbitkan.
+            // Validator Wilayah/Pusat hanya memantau (read-only, mandat
+            // stakeholder) — tidak boleh membuat/mengunggah dokumen.
+            (GenerateDocument, _) => Some(&["operator_satker", "approver_satker"]),
+            (UploadSigned, _) => Some(&["operator_satker", "approver_satker"]),
 
             // Kombinasi lain → tidak valid (None → 403).
             _ => None,
         }
+    }
+}
+
+/// Maker-checker (four-eyes) untuk rantai persetujuan internal-satker.
+///
+/// Orang yang **mengusulkan** tidak boleh **memvalidasi** usulannya sendiri,
+/// dan orang yang **menyetujui** tidak boleh sekaligus pengusul atau
+/// validatornya. Role yang berbeda tidak cukup: satu akun yang memegang
+/// `operator_satker` + `validator_satker` (atau + `approver_satker`) tetap bisa
+/// menjalankan seluruh rantai sendirian, dan itu persis kontrol yang dibuat
+/// rantai ini untuk dicegah (segregation of duties; OWASP Authorization).
+///
+/// `created_by` / `validator_satker_id` bernilai `None` untuk record legacy
+/// (sebelum V035) — tidak ada pihak untuk dibandingkan, jadi lolos.
+pub fn enforce_maker_checker(
+    action: PemakaianBmnAction,
+    actor: uuid::Uuid,
+    created_by: Option<uuid::Uuid>,
+    validator_satker_id: Option<uuid::Uuid>,
+) -> Result<(), AppError> {
+    use PemakaianBmnAction::*;
+    let conflict = |who: &str| {
+        Err(AppError::Authorization(format!(
+            "Pemisahan tugas: {who} tidak boleh {} usulan yang sama (maker-checker)",
+            action.action_label().to_lowercase()
+        )))
+    };
+    match action {
+        ValidatorSatkerForward | ValidatorSatkerReturn if created_by == Some(actor) => {
+            conflict("pengusul")
+        }
+        ApproverSatkerApprove | ApproverSatkerReturn if created_by == Some(actor) => {
+            conflict("pengusul")
+        }
+        ApproverSatkerApprove | ApproverSatkerReturn if validator_satker_id == Some(actor) => {
+            conflict("validator")
+        }
+        _ => Ok(()),
     }
 }
 
@@ -263,26 +338,24 @@ const PEMAKAIAN_MONITORING_ROLES: &[&str] = &[
 ///
 /// Endpoint monitoring bersifat agregat (tidak terikat state satu entitas),
 /// sehingga tidak lewat `WorkflowPolicy::authorize`. Guard tipis ini cukup:
-/// pastikan caller adalah audiens monitoring yg sah. Admin/superadmin lolos
-/// sbg escape-hatch operasional (read-only tidak mengubah data).
+/// pastikan caller adalah audiens monitoring yg sah. Administrator aplikasi
+/// boleh MEMBACA (pemantauan operasional, `Capability::ViewAudit`) — tetapi
+/// membaca tidak berarti bisa menyetujui: sisi tulis tidak punya bypass admin.
 pub fn enforce_monitoring_read(claims: &Claims) -> Result<(), AppError> {
-    if matches!(
-        claims.role.to_ascii_lowercase().as_str(),
-        "admin" | "admin_pusat" | "superadmin"
-    ) {
-        return Ok(());
-    }
-    claims.require_any_role(PEMAKAIAN_MONITORING_ROLES)
+    claims.require_any_role_or_admin(PEMAKAIAN_MONITORING_ROLES)
 }
 
 /// Stakeholder mandate: Admin TIDAK boleh revoke izin pemakaian BMN.
-/// Karena `WorkflowPolicy::authorize` punya admin bypass utk recovery,
-/// guard tambahan ini dipanggil di handler revoke utk menolak admin.
+///
+/// `PemakaianBmnPolicy::allowed_roles(Revoke, ACTIVE)` sudah tidak memuat admin,
+/// jadi seorang admin murni ditolak oleh policy. Guard ini menutup kasus yg
+/// tidak bisa ditangkap policy: pemegang **dua** role, `approver_satker` +
+/// `admin`, yang lolos policy lewat role approver-nya. Kewenangan ini eksklusif
+/// pejabat satker; orang yg juga mengadministrasi sistem tidak boleh
+/// menggunakannya. (Dengan `AUTHENC_ACTIVE_ROLE_ENFORCEMENT` aktif, pemegang dua
+/// role bertindak dgn SATU role aktif dan kasus ini hilang dgn sendirinya.)
 pub fn enforce_no_admin_revoke(claims: &Claims) -> Result<(), AppError> {
-    if matches!(
-        claims.role.to_ascii_lowercase().as_str(),
-        "admin" | "admin_pusat" | "superadmin"
-    ) {
+    if claims.is_admin() {
         Err(AppError::Authorization(
             "Admin tidak diizinkan mencabut izin pemakaian BMN — kewenangan ini eksklusif milik Approver Satker (sesuai PMK & arahan stakeholder)".into(),
         ))
@@ -436,10 +509,8 @@ impl WorkflowPolicy for PakaianDinasPolicy {
             (Return, Some("SUBMIT_VALIDATOR")) => Some(&["validator_wilayah"]),
             (Return, Some("REVISI_WILAYAH")) => Some(&["validator_wilayah"]),
             (Decide, Some("SUBMIT_PUSAT")) => Some(&["validator_pusat"]),
-            // Admin master: tidak peduli state. Note: admin bypass otomatis
-            // di authorize() — list ini cuma utk role non-admin yg juga boleh
-            // (di sini kosong → hanya admin yg lewat).
-            (AdminMaster, _) => Some(&[]),
+            // Admin master: tidak peduli state; hanya administrator aplikasi.
+            (AdminMaster, _) => Some(lib_core::authz::ADMIN_ROLES),
             _ => None,
         }
     }
@@ -455,17 +526,7 @@ mod tests {
     use uuid::Uuid;
 
     fn claims_with(role: &str) -> Claims {
-        Claims {
-            user_id: Uuid::nil(),
-            username: "test".into(),
-            role: role.into(),
-            permissions: vec![],
-            nip: None,
-            name: None,
-            nama: None,
-            jabatan: None,
-            satker_code: None,
-        }
+        Claims::with_roles(Uuid::nil(), "test", [role])
     }
 
     /// `for_transition` must agree with the workflow config, in both
@@ -552,6 +613,110 @@ mod tests {
     }
 
     #[test]
+    fn maker_cannot_check_their_own_submission() {
+        let me = Uuid::new_v4();
+        let other = Uuid::new_v4();
+        for action in [
+            PemakaianBmnAction::ValidatorSatkerForward,
+            PemakaianBmnAction::ValidatorSatkerReturn,
+            PemakaianBmnAction::ApproverSatkerApprove,
+            PemakaianBmnAction::ApproverSatkerReturn,
+        ] {
+            assert!(
+                enforce_maker_checker(action, me, Some(me), None).is_err(),
+                "{action:?}: the creator must not act on their own permit"
+            );
+            assert!(enforce_maker_checker(action, me, Some(other), None).is_ok());
+        }
+    }
+
+    #[test]
+    fn approver_cannot_be_the_validator_of_the_same_permit() {
+        let me = Uuid::new_v4();
+        let maker = Uuid::new_v4();
+        for action in [
+            PemakaianBmnAction::ApproverSatkerApprove,
+            PemakaianBmnAction::ApproverSatkerReturn,
+        ] {
+            assert!(enforce_maker_checker(action, me, Some(maker), Some(me)).is_err());
+            assert!(enforce_maker_checker(action, me, Some(maker), Some(Uuid::new_v4())).is_ok());
+        }
+        // The validator step itself has no validator to conflict with.
+        assert!(
+            enforce_maker_checker(
+                PemakaianBmnAction::ValidatorSatkerForward,
+                me,
+                Some(maker),
+                Some(me)
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn legacy_rows_without_a_maker_are_not_blocked() {
+        let me = Uuid::new_v4();
+        assert!(
+            enforce_maker_checker(PemakaianBmnAction::ApproverSatkerApprove, me, None, None)
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn operator_may_cancel_only_before_review() {
+        let p = PemakaianBmnPolicy;
+        let op = claims_with("operator_satker");
+        for ok in ["DRAFT", "REVISI_OPERATOR"] {
+            assert!(
+                p.authorize(&op, PemakaianBmnAction::Cancel, Some(ok))
+                    .is_ok()
+            );
+        }
+        for bad in ["SUBMITTED", "SUBMITTED_APPROVER_SATKER", "ACTIVE"] {
+            assert!(
+                p.authorize(&op, PemakaianBmnAction::Cancel, Some(bad))
+                    .is_err()
+            );
+        }
+        assert_eq!(
+            PemakaianBmnAction::for_transition("DRAFT", "CANCELLED").map(|a| a.action_label()),
+            Some("Batalkan Usulan")
+        );
+    }
+
+    #[test]
+    fn manual_activation_is_the_approvers_and_only_when_approved() {
+        let p = PemakaianBmnPolicy;
+        assert!(
+            p.authorize(
+                &claims_with("approver_satker"),
+                PemakaianBmnAction::Activate,
+                Some("APPROVED")
+            )
+            .is_ok()
+        );
+        for role in ["operator_satker", "validator_satker", "validator_pusat"] {
+            assert!(
+                p.authorize(
+                    &claims_with(role),
+                    PemakaianBmnAction::Activate,
+                    Some("APPROVED")
+                )
+                .is_err(),
+                "{role} must not issue a permit number"
+            );
+        }
+        assert!(
+            p.authorize(
+                &claims_with("approver_satker"),
+                PemakaianBmnAction::Activate,
+                Some("DRAFT")
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
     fn pemakaian_validator_satker_forward_allowed_only_from_submitted() {
         let p = PemakaianBmnPolicy;
         let claims = claims_with("validator_satker");
@@ -588,19 +753,85 @@ mod tests {
         assert!(matches!(err, AppError::Authorization(_)));
     }
 
+    /// Regression for the removed escape hatch: every application-admin role
+    /// used to pass EVERY policy, in EVERY state, silently. It must now be
+    /// refused for every business action of every module.
     #[test]
-    fn pemakaian_admin_bypass_with_audit_log() {
-        let p = PemakaianBmnPolicy;
-        let claims = claims_with("admin");
-        // Admin lolos meski state mismatch.
-        assert!(
-            p.authorize(
-                &claims,
-                PemakaianBmnAction::ApproverSatkerApprove,
-                Some("DRAFT")
-            )
-            .is_ok()
-        );
+    fn admin_cannot_perform_any_business_action() {
+        let states = [
+            None,
+            Some("DRAFT"),
+            Some("SUBMITTED"),
+            Some("SUBMITTED_APPROVER_SATKER"),
+            Some("REVISI_OPERATOR"),
+            Some("ACTIVE"),
+            Some("SUBMIT_WILAYAH"),
+            Some("SUBMIT_PUSAT"),
+            Some("ANALISIS_KELAYAKAN"),
+            Some("VERIFIKASI_PUSAT"),
+            Some("INPUT"),
+        ];
+        for role in lib_core::authz::ADMIN_ROLES {
+            let admin = claims_with(role);
+            for &state in &states {
+                for action in [
+                    PemakaianBmnAction::Create,
+                    PemakaianBmnAction::Submit,
+                    PemakaianBmnAction::ValidatorSatkerForward,
+                    PemakaianBmnAction::ApproverSatkerApprove,
+                    PemakaianBmnAction::Revoke,
+                ] {
+                    assert!(
+                        PemakaianBmnPolicy.authorize(&admin, action, state).is_err(),
+                        "{role} must not do {action:?} @ {state:?}"
+                    );
+                }
+                for action in [
+                    KebutuhanBmnAction::CreatePeriode,
+                    KebutuhanBmnAction::Decide,
+                ] {
+                    assert!(KebutuhanBmnPolicy.authorize(&admin, action, state).is_err());
+                }
+                for action in [PenghapusanBmnAction::Create, PenghapusanBmnAction::Reject] {
+                    assert!(
+                        PenghapusanBmnPolicy
+                            .authorize(&admin, action, state)
+                            .is_err()
+                    );
+                }
+                for action in [PakaianDinasAction::Create, PakaianDinasAction::Decide] {
+                    assert!(PakaianDinasPolicy.authorize(&admin, action, state).is_err());
+                }
+            }
+            // The one thing an application administrator IS for.
+            assert!(
+                PakaianDinasPolicy
+                    .authorize(&admin, PakaianDinasAction::AdminMaster, None)
+                    .is_ok()
+            );
+        }
+    }
+
+    /// The acting role handed to the workflow engine is the one that authorized
+    /// the move, not the caller's highest-ranked role.
+    #[test]
+    fn authorize_as_returns_the_authorizing_role() {
+        let both = Claims::with_roles(Uuid::nil(), "u", ["operator_satker", "validator_wilayah"]);
+        assert_eq!(both.role, "validator_wilayah");
+        let acting = PemakaianBmnPolicy
+            .authorize_as(&both, PemakaianBmnAction::Submit, Some("DRAFT"))
+            .unwrap();
+        assert_eq!(acting, "operator_satker");
+    }
+
+    /// Detail endpoint narrowing goes through `allowed_roles`; with no bypass
+    /// in `authorize`, an administrator is no longer offered "Cabut Izin".
+    #[test]
+    fn revoke_is_offered_to_approver_satker_and_nobody_else() {
+        let allowed = PemakaianBmnPolicy
+            .allowed_roles(PemakaianBmnAction::Revoke, Some("ACTIVE"))
+            .unwrap();
+        assert_eq!(allowed, ["approver_satker"]);
     }
 
     #[test]
@@ -611,6 +842,15 @@ mod tests {
         // Non-admin lolos
         let approver = claims_with("approver_satker");
         assert!(enforce_no_admin_revoke(&approver).is_ok());
+        // Approver yang JUGA admin: policy meloloskannya lewat role approver,
+        // guard inilah yang menolaknya.
+        let both = Claims::with_roles(Uuid::nil(), "u", ["approver_satker", "admin"]);
+        assert!(
+            PemakaianBmnPolicy
+                .authorize(&both, PemakaianBmnAction::Revoke, Some("ACTIVE"))
+                .is_ok()
+        );
+        assert!(enforce_no_admin_revoke(&both).is_err());
     }
 
     #[test]
@@ -660,6 +900,10 @@ mod tests {
             PemakaianBmnAction::Resubmit,
             PemakaianBmnAction::Revoke,
             PemakaianBmnAction::UpdateDraft,
+            PemakaianBmnAction::Cancel,
+            PemakaianBmnAction::Activate,
+            PemakaianBmnAction::GenerateDocument,
+            PemakaianBmnAction::UploadSigned,
         ];
         for role in ["validator_wilayah", "validator_pusat"] {
             for &state in &states {

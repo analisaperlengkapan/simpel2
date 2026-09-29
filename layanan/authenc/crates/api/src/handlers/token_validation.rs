@@ -80,6 +80,14 @@ pub async fn validate_token_handler(
                 }
             }
 
+            // A half-authenticated token (password verified, second factor not)
+            // is not a session. Reporting it `valid` would let any relying
+            // party treat a password-only login as fully authenticated —
+            // AGENTS.md: protected endpoints MUST refuse `mfa_pending`.
+            if super::auth_helpers::claims_are_mfa_pending(&claims) {
+                return Ok(Json(invalid_response("Token is not a session token")));
+            }
+
             let user_id = Uuid::parse_str(&claims.sub).ok();
             let realm_id = claims.realm.and_then(|r| Uuid::parse_str(&r).ok());
             let username = claims
@@ -199,6 +207,12 @@ pub async fn introspect_handler(
             tracing::error!("Revocation check failed during introspection: {}", e);
             return Ok(Json(IntrospectResponse::inactive()));
         }
+    }
+
+    // A password-only (`mfa_pending`) token is not an active *session*; report
+    // it inactive like any other token the caller must not honour.
+    if super::auth_helpers::claims_are_mfa_pending(&claims) {
+        return Ok(Json(IntrospectResponse::inactive()));
     }
 
     let username = claims
@@ -329,8 +343,8 @@ pub async fn revoke_handler(
     Ok(Json(RevokeResponse { revoked: true }))
 }
 
-/// Require that the Authorization bearer is a valid token carrying the `admin`
-/// realm role. Returns 401 if missing/invalid, 403 if not an admin.
+/// Require that the Authorization bearer is a valid token carrying an
+/// administrative realm role. Returns 401 if missing/invalid, 403 if not an admin.
 fn require_admin(
     state: &Arc<ApiState>,
     headers: &axum::http::HeaderMap,
@@ -351,12 +365,32 @@ fn require_admin(
             message: "Invalid or expired token".to_string(),
         })?;
 
+    // A password-only token must not administer anything, whatever the account
+    // holds — see `authenc_iam_api::middleware::admin_auth`.
+    if super::auth_helpers::claims_are_mfa_pending(&claims) {
+        return Err(ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
+            error: "unauthorized".to_string(),
+            message: "MFA verification token cannot be used for admin actions".to_string(),
+        });
+    }
+
+    // Revoking *other users'* tokens is an identity-provider administration act,
+    // so the allowlist is `lib_core::authz::IAM_ADMIN_ROLES` (exact `admin`) —
+    // the same predicate the IAM console guard uses. PR #930 had widened this to
+    // the application-admin list (`admin_pusat`, `superadmin`); those roles
+    // administer perlengkapan, not the IdP that issues everybody's tokens.
     let is_admin = claims
         .custom
         .get("realm_access")
         .and_then(|v| v.get("roles"))
         .and_then(|v| v.as_array())
-        .is_some_and(|roles| roles.iter().any(|r| r.as_str() == Some("admin")));
+        .is_some_and(|roles| {
+            roles
+                .iter()
+                .filter_map(|r| r.as_str())
+                .any(lib_core::authz::is_iam_admin_role)
+        });
 
     if is_admin {
         Ok(())
@@ -546,5 +580,71 @@ mod tests {
         // Verifying with different key should fail
         let result = jwt_service2.verify_token(&token);
         assert!(result.is_err());
+    }
+
+    /// The predicate behind `/api/v1/auth/revoke`'s admin-scoped path
+    /// (revoking *another user's* tokens) is the IdP-administrator predicate:
+    /// exact `admin`. Revoking everybody's sessions is identity-provider
+    /// administration, not application administration.
+    #[test]
+    fn revoke_admin_predicate_is_the_iam_admin_role() {
+        let accepts = |roles: &[&str]| roles.iter().any(|r| lib_core::authz::is_iam_admin_role(r));
+
+        for admin in lib_core::authz::IAM_ADMIN_ROLES {
+            assert!(accepts(&[admin]), "'{admin}' must be accepted");
+        }
+        // The application-admin roles PR #930 admitted here must not be.
+        for app_admin in ["admin_pusat", "superadmin"] {
+            assert!(
+                !accepts(&[app_admin]),
+                "'{app_admin}' must not revoke other users' tokens"
+            );
+        }
+    }
+
+    /// Non-administrative roles and look-alikes must be refused.
+    #[test]
+    fn revoke_admin_predicate_refuses_non_admin_roles() {
+        let accepts = |roles: &[&str]| roles.iter().any(|r| lib_core::authz::is_iam_admin_role(r));
+
+        for role in [
+            "operator_satker",
+            "validator_wilayah",
+            "validator_pusat",
+            "validator_satker",
+            "approver_satker",
+            "user",
+            // Lookalikes: a prefix check would admit all of these.
+            "admin_master_read_only",
+            "administrator",
+            "super_admin",
+            "superuser",
+        ] {
+            assert!(
+                !accepts(&[role]),
+                "'{role}' must not be treated as an IdP admin"
+            );
+        }
+    }
+
+    /// A satker-bound principal that also holds an unrelated role must not be
+    /// promoted by the presence of extra roles.
+    #[test]
+    fn revoke_admin_predicate_requires_an_actual_admin_among_roles() {
+        let accepts = |roles: &[&str]| roles.iter().any(|r| lib_core::authz::is_iam_admin_role(r));
+
+        assert!(!accepts(&["operator_satker", "validator_wilayah"]));
+        assert!(accepts(&["operator_satker", "admin"]));
+    }
+
+    /// The password-only temp token (`mfa_pending`) is neither a valid session
+    /// for the validate/introspect endpoints nor an admin credential.
+    #[test]
+    fn mfa_pending_token_is_recognised_by_the_shared_helper() {
+        use authenc_crypto::jwt::TokenClaims;
+        let plain = TokenClaims::new("u".to_string(), "iss".to_string(), Duration::minutes(5));
+        assert!(!super::super::auth_helpers::claims_are_mfa_pending(&plain));
+        let pending = plain.with_custom_claim("mfa_pending".to_string(), serde_json::json!(true));
+        assert!(super::super::auth_helpers::claims_are_mfa_pending(&pending));
     }
 }

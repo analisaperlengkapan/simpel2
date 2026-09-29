@@ -26,6 +26,8 @@ async fn load_user_roles(
         FROM user_roles ur
         JOIN roles r ON r.id = ur.role_id
         WHERE ur.user_id = $1
+          AND r.deleted_at IS NULL
+        ORDER BY r.name
     "#;
     match db.query(roles_query, &[user_id]).await {
         Ok(role_rows) => role_rows.iter().map(row_to_role).collect(),
@@ -55,6 +57,8 @@ async fn load_users_roles_batch(
         FROM user_roles ur
         JOIN roles r ON r.id = ur.role_id
         WHERE ur.user_id IN ({})
+          AND r.deleted_at IS NULL
+        ORDER BY r.name
         "#,
         placeholders.join(", ")
     );

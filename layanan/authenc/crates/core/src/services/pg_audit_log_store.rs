@@ -55,13 +55,27 @@ impl PgAuditLogStore {
         });
         let status = normalize_status(&log.status);
 
+        // `ip_address` is an `inet` column, and PostgreSQL does NOT quietly turn
+        // a non-address into NULL: `'x'::inet`, `'1.2.3.4:80'::inet`,
+        // `'[::1]:443'::inet` and a comma-joined chain each raise
+        // `invalid input syntax for type inet`, which fails the WHOLE insert
+        // (verified against PostgreSQL 16). The previous version cast in SQL
+        // on the strength of a comment claiming the opposite — so a caller
+        // sending `X-Forwarded-For: x` could make its own audit row vanish
+        // (the error was only logged). Parse in Rust; a value that is not an
+        // address is stored as NULL, and the original text stays in `details`.
+        let ip_address: Option<std::net::IpAddr> = log
+            .ip_address
+            .as_deref()
+            .and_then(lib_backend::client_ip::parse_ip_token);
+
         self.db
             .execute(
-                r#"INSERT INTO audit_logs ("timestamp", event_type, user_id, client_id, action, status, details)
+                r#"INSERT INTO audit_logs ("timestamp", event_type, user_id, client_id, action, status, details, ip_address)
                    VALUES ($1, $2,
                            (SELECT id FROM users WHERE id = $3),
                            (SELECT id FROM oauth2_clients WHERE id = $4),
-                           $5, $6, $7)"#,
+                           $5, $6, $7, $8)"#,
                 &[
                     &log.timestamp,
                     &log.event,
@@ -70,6 +84,7 @@ impl PgAuditLogStore {
                     &log.event,
                     &status,
                     &details,
+                    &ip_address,
                 ],
             )
             .await

@@ -6,15 +6,16 @@
 //!   Kebutuhan BMN (Daftar, Buat Baru, Laporan)
 //!   Pakaian Dinas (Jenis, Pengajuan, Ukuran, Laporan)
 //!   Pengelolaan BMN (Pemakaian BMN, Penghapusan)
-//!   Analitik (Roadmap Sarpras)
+//!   Analitik (Analisis Kebutuhan)
 //!   Admin (Pengguna, Otorisasi, Audit Log, Master Data, Template Dokumen,
 //!          Konfigurasi/Monitoring/Delegasi Workflow) — admin role only
 //!   Bantuan (Panduan, FAQ, Helpdesk)
 
-use crate::components::role_switcher::use_active_role;
+use crate::components::session_authz::use_authz;
 use crate::{navigation, routes};
 use leptos::prelude::*;
 use leptos_router::components::A;
+use lib_core::authz::Capability;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
 use phosphor_leptos::CARET_RIGHT;
 
@@ -144,7 +145,7 @@ pub fn Sidebar(sidebar_open: RwSignal<bool>) -> impl IntoView {
                         <div style="font-size: 1rem; font-weight: 800; color: #ffffff; letter-spacing: 0.03em; line-height: 1;">
                             "SIMPEL"
                         </div>
-                        <div style="font-size: 0.6rem; color: #64748b; margin-top: 2px; letter-spacing: 0.05em; text-transform: uppercase;">
+                        <div style="font-size: 0.6rem; color: #7b8ba1; margin-top: 2px; letter-spacing: 0.05em; text-transform: uppercase;">
                             "Manajemen Perlengkapan"
                         </div>
                     </div>
@@ -182,13 +183,17 @@ pub fn Sidebar(sidebar_open: RwSignal<bool>) -> impl IntoView {
                                 .iter()
                                 .map(|group| {
                                     let group = *group;
-                                    let active_role = use_active_role();
+                                    let authz = use_authz();
                                     // admin_only declutters nav for non-admin
                                     // roles; the pages stay guarded by
-                                    // AdminLayout + server-side RBAC.
+                                    // AdminLayout + server-side RBAC. The
+                                    // predicate is a capability, not a role
+                                    // name, so it cannot drift from the
+                                    // backend's own definition of "admin".
                                     view! {
                                         <Show when=move || {
-                                            !group.admin_only || active_role.get() == "admin"
+                                            !group.admin_only
+                                                || authz.get().can(Capability::Administer)
                                         }>
                                             <NavSection group=group />
                                         </Show>

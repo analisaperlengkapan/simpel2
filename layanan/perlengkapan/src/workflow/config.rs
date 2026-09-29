@@ -127,7 +127,11 @@ impl WorkflowConfig {
         required_roles.insert("REVISI_WILAYAH".to_string(), "validator_pusat".to_string());
         required_roles.insert("APPROVED".to_string(), "validator_pusat".to_string());
         required_roles.insert("REJECTED".to_string(), "validator_pusat".to_string());
-        required_roles.insert("COMPLETED".to_string(), "admin_pusat".to_string());
+        // Penyelesaian adalah keputusan bisnis Validator Pusat, bukan tugas
+        // administrator IT (`admin_pusat` — role yang bahkan tidak ada di seed
+        // authenc). Menyebut role admin di sini juga satu-satunya alasan mesin
+        // dulu perlu jalan pintas admin.
+        required_roles.insert("COMPLETED".to_string(), "validator_pusat".to_string());
 
         Self {
             name: "kebutuhan_bmn".to_string(),
@@ -325,7 +329,11 @@ impl WorkflowConfig {
             "validator_wilayah".to_string(),
         );
         required_roles.insert("REJECTED".to_string(), "validator_pusat".to_string());
-        required_roles.insert("COMPLETED".to_string(), "admin_pusat".to_string());
+        // Penyelesaian adalah keputusan bisnis Validator Pusat, bukan tugas
+        // administrator IT (`admin_pusat` — role yang bahkan tidak ada di seed
+        // authenc). Menyebut role admin di sini juga satu-satunya alasan mesin
+        // dulu perlu jalan pintas admin.
+        required_roles.insert("COMPLETED".to_string(), "validator_pusat".to_string());
 
         Self {
             name: "penghapusan_bmn".to_string(),

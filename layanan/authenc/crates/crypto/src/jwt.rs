@@ -276,13 +276,33 @@ impl JwtService {
     /// * `user_id` - User ID (subject)
     /// * `session_id` - Session ID
     pub fn generate_refresh_token(&self, user_id: &str, session_id: &str) -> Result<String> {
-        let claims = TokenClaims::new(
+        self.generate_refresh_token_with_active_role(user_id, session_id, None)
+    }
+
+    /// Generate a refresh token that remembers the session's **active role**.
+    ///
+    /// The refresh token is what survives across access-token lifetimes, so it is
+    /// where "which of my roles am I acting as in this session" has to live for it
+    /// to outlast the 15-minute access token — otherwise every refresh would fall
+    /// back to the default role and silently undo the user's choice. The claim is
+    /// covered by the token's signature, so a client cannot change it.
+    pub fn generate_refresh_token_with_active_role(
+        &self,
+        user_id: &str,
+        session_id: &str,
+        active_role: Option<&str>,
+    ) -> Result<String> {
+        let mut claims = TokenClaims::new(
             user_id.to_string(),
             self.issuer.clone(),
             self.refresh_token_ttl,
         )
         .with_scope("refresh_token".to_string())
         .with_session_id(session_id.to_string());
+
+        if let Some(role) = active_role {
+            claims = claims.with_custom_claim("active_role".to_string(), serde_json::json!(role));
+        }
 
         self.generate_token(&claims)
     }
@@ -434,6 +454,36 @@ mod tests {
             Duration::days(7),
         )
         .unwrap()
+    }
+
+    /// The session's active role has to outlive the 15-minute access token, so it
+    /// rides in the refresh token — signed, hence unforgeable — and is absent
+    /// unless a role was actually chosen.
+    #[test]
+    fn a_refresh_token_remembers_the_active_role_only_when_given() {
+        let service = create_test_service();
+
+        let plain = service.generate_refresh_token("user-1", "sid-1").unwrap();
+        let plain = service.verify_token(&plain).unwrap();
+        assert!(!plain.custom.contains_key("active_role"));
+        assert_eq!(plain.scope.as_deref(), Some("refresh_token"));
+
+        let chosen = service
+            .generate_refresh_token_with_active_role("user-1", "sid-1", Some("operator_satker"))
+            .unwrap();
+        let claims = service.verify_token(&chosen).unwrap();
+        assert_eq!(claims.custom["active_role"], "operator_satker");
+        assert_eq!(claims.sid.as_deref(), Some("sid-1"));
+
+        // Tampering with the remembered role invalidates the signature.
+        let mut parts: Vec<String> = chosen.split('.').map(str::to_string).collect();
+        let forged_payload = URL_SAFE_NO_PAD.encode(
+            String::from_utf8(URL_SAFE_NO_PAD.decode(&parts[1]).unwrap())
+                .unwrap()
+                .replace("operator_satker", "validator_pusat"),
+        );
+        parts[1] = forged_payload;
+        assert!(service.verify_token(&parts.join(".")).is_err());
     }
 
     #[test]

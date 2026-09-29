@@ -33,30 +33,10 @@ use crate::{AppState, workflow::config::WorkflowConfig};
 // Request/Response Types
 // ═══════════════════════════════════════════════════════════════════════════
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub data: T,
-    pub message: String,
-}
-
-impl<T: Serialize> ApiResponse<T> {
-    pub fn success(data: T) -> Self {
-        Self {
-            success: true,
-            data,
-            message: "Success".to_string(),
-        }
-    }
-
-    pub fn success_with_message(data: T, message: String) -> Self {
-        Self {
-            success: true,
-            data,
-            message,
-        }
-    }
-}
+// Shared envelope, not a local copy. A second declaration of the wire envelope
+// is how `penghapusan_bmn` drifted out of sync with the paginated shape the
+// frontend DTO requires — see the note in `workflow::handlers`.
+pub use lib_perlengkapan::response::ApiResponse;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkflowDefinitionResponse {
@@ -108,7 +88,10 @@ pub async fn get_workflow_definitions(
         workflow_config_to_response(&WorkflowConfig::default_pakaian_dinas()),
     ];
 
-    Ok((StatusCode::OK, Json(ApiResponse::success(definitions))))
+    Ok((
+        StatusCode::OK,
+        Json(ApiResponse::success(definitions, "Success")),
+    ))
 }
 
 /// GET /api/v1/workflow/definitions/{name}
@@ -134,7 +117,10 @@ pub async fn get_workflow_definition_by_name(
 
     let detail = workflow_config_to_detail_response(&config);
 
-    Ok((StatusCode::OK, Json(ApiResponse::success(detail))))
+    Ok((
+        StatusCode::OK,
+        Json(ApiResponse::success(detail, "Success")),
+    ))
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

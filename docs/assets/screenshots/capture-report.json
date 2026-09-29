@@ -1,0 +1,1066 @@
+{
+  "app_origin": "http://127.0.0.1:18099",
+  "captured": 70,
+  "unresolved": [],
+  "capturedRoutes": [
+    {
+      "fe": "portal",
+      "route": "/portal/",
+      "path": "/portal/",
+      "file": "portal__portal__.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/login",
+      "path": "/portal/login",
+      "file": "portal__portal__login.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/callback",
+      "path": "/portal/callback",
+      "file": "portal__portal__callback.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/logged-out",
+      "path": "/portal/logged-out",
+      "file": "portal__portal__logged-out.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/mfa/setup",
+      "path": "/portal/mfa/setup",
+      "file": "portal__portal__mfa__setup.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/mfa/verify",
+      "path": "/portal/mfa/verify",
+      "file": "portal__portal__mfa__verify.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/mfa/backup-verify",
+      "path": "/portal/mfa/backup-verify",
+      "file": "portal__portal__mfa__backup-verify.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/dashboard",
+      "path": "/portal/dashboard",
+      "file": "portal__portal__dashboard.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/apps",
+      "path": "/portal/apps",
+      "file": "portal__portal__apps.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/notifications",
+      "path": "/portal/notifications",
+      "file": "portal__portal__notifications.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/settings",
+      "path": "/portal/settings",
+      "file": "portal__portal__settings.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/mfa/backup-codes",
+      "path": "/portal/mfa/backup-codes",
+      "file": "portal__portal__mfa__backup-codes.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/profile",
+      "path": "/portal/profile",
+      "file": "portal__portal__profile.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/passkeys",
+      "path": "/portal/passkeys",
+      "file": "portal__portal__passkeys.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/password",
+      "path": "/portal/password",
+      "file": "portal__portal__password.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/sessions",
+      "path": "/portal/sessions",
+      "file": "portal__portal__sessions.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/admin",
+      "path": "/portal/admin",
+      "file": "portal__portal__admin.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/admin/users",
+      "path": "/portal/admin/users",
+      "file": "portal__portal__admin__users.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/admin/users/:id",
+      "path": "/portal/admin/users/11111111-1111-4111-8111-111111111111",
+      "file": "portal__portal__admin__users__id.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/admin/clients",
+      "path": "/portal/admin/clients",
+      "file": "portal__portal__admin__clients.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/admin/clients/:id",
+      "path": "/portal/admin/clients/1e1d4de9-7d1c-4739-8e39-483fa7dfd9f6",
+      "file": "portal__portal__admin__clients__id.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/admin/roles",
+      "path": "/portal/admin/roles",
+      "file": "portal__portal__admin__roles.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/admin/audit",
+      "path": "/portal/admin/audit",
+      "file": "portal__portal__admin__audit.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/login",
+      "path": "/perlengkapan/simpel/v2/login",
+      "file": "perlengkapan__perlengkapan__simpel__v2__login.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/",
+      "path": "/perlengkapan/simpel/v2/",
+      "file": "perlengkapan__perlengkapan__simpel__v2__.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/dashboard",
+      "path": "/perlengkapan/simpel/v2/dashboard",
+      "file": "perlengkapan__perlengkapan__simpel__v2__dashboard.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/bank-aset/dashboard",
+      "path": "/perlengkapan/simpel/v2/bank-aset/dashboard",
+      "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__dashboard.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/bank-aset/daftar",
+      "path": "/perlengkapan/simpel/v2/bank-aset/daftar",
+      "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__daftar.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/bank-aset/daftar/:id",
+      "path": "/perlengkapan/simpel/v2/bank-aset/daftar/1",
+      "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__daftar__id.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/bank-aset/sebaran",
+      "path": "/perlengkapan/simpel/v2/bank-aset/sebaran",
+      "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__sebaran.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/bank-aset/qrcode",
+      "path": "/perlengkapan/simpel/v2/bank-aset/qrcode",
+      "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__qrcode.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/kebutuhan-bmn/periode",
+      "path": "/perlengkapan/simpel/v2/kebutuhan-bmn/periode",
+      "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__periode.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/kebutuhan-bmn/daftar",
+      "path": "/perlengkapan/simpel/v2/kebutuhan-bmn/daftar",
+      "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__daftar.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/kebutuhan-bmn/buat",
+      "path": "/perlengkapan/simpel/v2/kebutuhan-bmn/buat",
+      "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__buat.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/kebutuhan-bmn/:id/edit",
+      "path": "/perlengkapan/simpel/v2/kebutuhan-bmn/c1000000-0000-4c00-8c00-000000000001/edit",
+      "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__id__edit.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/kebutuhan-bmn/detail/:id",
+      "path": "/perlengkapan/simpel/v2/kebutuhan-bmn/detail/c1000000-0000-4c00-8c00-000000000001",
+      "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__detail__id.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/kebutuhan-bmn/satker/:satker_id",
+      "path": "/perlengkapan/simpel/v2/kebutuhan-bmn/satker/c1000000-0000-4c00-8c00-0000000a0003",
+      "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__satker__satker_id.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/kebutuhan-bmn/laporan",
+      "path": "/perlengkapan/simpel/v2/kebutuhan-bmn/laporan",
+      "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__laporan.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/pakaian-dinas/jenis",
+      "path": "/perlengkapan/simpel/v2/pakaian-dinas/jenis",
+      "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__jenis.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/pakaian-dinas/jenis/:id/spesifikasi",
+      "path": "/perlengkapan/simpel/v2/pakaian-dinas/jenis/c5f67a58-9779-42a9-8a2b-3f0d026a33db/spesifikasi",
+      "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__jenis__id__spesifikasi.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/pakaian-dinas/pengajuan",
+      "path": "/perlengkapan/simpel/v2/pakaian-dinas/pengajuan",
+      "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__pengajuan.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/pakaian-dinas/pengajuan/:pengajuan_id/satker",
+      "path": "/perlengkapan/simpel/v2/pakaian-dinas/pengajuan/d1000000-0000-4d00-8d00-0000000000c1/satker",
+      "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__pengajuan__pengajuan_id__satker.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/pakaian-dinas/pengajuan/:pengajuan_id/satker/:satker_code/isi",
+      "path": "/perlengkapan/simpel/v2/pakaian-dinas/pengajuan/d1000000-0000-4d00-8d00-0000000000c1/satker/0200010/isi",
+      "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__pengajuan__pengajuan_id__satker__satker_code__isi.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/pakaian-dinas/ukuran",
+      "path": "/perlengkapan/simpel/v2/pakaian-dinas/ukuran",
+      "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__ukuran.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/pakaian-dinas/laporan",
+      "path": "/perlengkapan/simpel/v2/pakaian-dinas/laporan",
+      "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__laporan.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/pengelolaan/pemakaian",
+      "path": "/perlengkapan/simpel/v2/pengelolaan/pemakaian",
+      "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/pengelolaan/pemakaian/buat",
+      "path": "/perlengkapan/simpel/v2/pengelolaan/pemakaian/buat",
+      "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian__buat.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/pengelolaan/pemakaian/detail/:id",
+      "path": "/perlengkapan/simpel/v2/pengelolaan/pemakaian/detail/e2000000-0000-4e00-8e00-0000000b0001",
+      "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian__detail__id.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/pengelolaan/pemakaian/monitoring",
+      "path": "/perlengkapan/simpel/v2/pengelolaan/pemakaian/monitoring",
+      "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian__monitoring.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/pengelolaan/penghapusan",
+      "path": "/perlengkapan/simpel/v2/pengelolaan/penghapusan",
+      "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__penghapusan.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/pengelolaan/penghapusan/buat",
+      "path": "/perlengkapan/simpel/v2/pengelolaan/penghapusan/buat",
+      "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__penghapusan__buat.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/pengelolaan/penghapusan/detail/:id",
+      "path": "/perlengkapan/simpel/v2/pengelolaan/penghapusan/detail/e1000000-0000-4e00-8e00-0000000a0001",
+      "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__penghapusan__detail__id.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/analitik/roadmap",
+      "path": "/perlengkapan/simpel/v2/analitik/roadmap",
+      "file": "perlengkapan__perlengkapan__simpel__v2__analitik__roadmap.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/analitik/roadmap/buat",
+      "path": "/perlengkapan/simpel/v2/analitik/roadmap/buat",
+      "file": "perlengkapan__perlengkapan__simpel__v2__analitik__roadmap__buat.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/notifikasi",
+      "path": "/perlengkapan/simpel/v2/notifikasi",
+      "file": "perlengkapan__perlengkapan__simpel__v2__notifikasi.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/bantuan/panduan",
+      "path": "/perlengkapan/simpel/v2/bantuan/panduan",
+      "file": "perlengkapan__perlengkapan__simpel__v2__bantuan__panduan.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/bantuan/faq",
+      "path": "/perlengkapan/simpel/v2/bantuan/faq",
+      "file": "perlengkapan__perlengkapan__simpel__v2__bantuan__faq.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/bantuan/helpdesk",
+      "path": "/perlengkapan/simpel/v2/bantuan/helpdesk",
+      "file": "perlengkapan__perlengkapan__simpel__v2__bantuan__helpdesk.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/admin/roles",
+      "path": "/perlengkapan/simpel/v2/admin/roles",
+      "file": "perlengkapan__perlengkapan__simpel__v2__admin__roles.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/admin/audit",
+      "path": "/perlengkapan/simpel/v2/admin/audit",
+      "file": "perlengkapan__perlengkapan__simpel__v2__admin__audit.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/admin/master",
+      "path": "/perlengkapan/simpel/v2/admin/master",
+      "file": "perlengkapan__perlengkapan__simpel__v2__admin__master.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/admin/templates",
+      "path": "/perlengkapan/simpel/v2/admin/templates",
+      "file": "perlengkapan__perlengkapan__simpel__v2__admin__templates.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/admin/workflow",
+      "path": "/perlengkapan/simpel/v2/admin/workflow",
+      "file": "perlengkapan__perlengkapan__simpel__v2__admin__workflow.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/admin/workflow-monitoring",
+      "path": "/perlengkapan/simpel/v2/admin/workflow-monitoring",
+      "file": "perlengkapan__perlengkapan__simpel__v2__admin__workflow-monitoring.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/admin/workflow-delegation",
+      "path": "/perlengkapan/simpel/v2/admin/workflow-delegation",
+      "file": "perlengkapan__perlengkapan__simpel__v2__admin__workflow-delegation.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/login (anon)",
+      "path": "/portal/login",
+      "file": "portal__anon__portal__login.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/logged-out (anon)",
+      "path": "/portal/logged-out",
+      "file": "portal__anon__portal__logged-out.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/login (anon)",
+      "path": "/perlengkapan/simpel/v2/login",
+      "file": "perlengkapan__anon__perlengkapan__simpel__v2__login.png"
+    },
+    {
+      "fe": "perlengkapan",
+      "route": "/perlengkapan/simpel/v2/admin/roles (operator)",
+      "path": "/perlengkapan/simpel/v2/admin/roles",
+      "file": "guard__operator__perlengkapan__simpel__v2__admin__roles.png"
+    },
+    {
+      "fe": "portal",
+      "route": "/portal/admin/users (operator)",
+      "path": "/portal/admin/users",
+      "file": "guard__operator__portal__admin__users.png"
+    }
+  ],
+  "findings": [
+    {
+      "file": "portal__portal__.png",
+      "url": "http://127.0.0.1:18099/portal/",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [
+        "TypeError: WebAssembly compilation aborted: Network error: Response body loading was aborted"
+      ],
+      "textPreview": "Sistem Informasi\nManajemen Perlengkapan\n\nKEJAKSAAN REPUBLIK INDONESIA\n\n\"Demi Keadilan Berdasarkan Ketuhanan Yang Maha Esa\"\n\nMasuk ke Aplikasi"
+    },
+    {
+      "file": "portal__portal__login.png",
+      "url": "http://127.0.0.1:18099/portal/login",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Masuk ke SIMPEL\n\nKejaksaan Agung Republik Indonesia\n\nMasuk ke Sistem\nMasuk dengan Passkey\n\nGunakan sidik jari, wajah, atau kunci keamanan\n\nAtau masuk dengan password"
+    },
+    {
+      "file": "portal__portal__callback.png",
+      "url": "http://127.0.0.1:18099/portal/callback",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Autentikasi Gagal\n\nTautan masuk ini tidak lengkap atau sudah kedaluwarsa. Ini biasanya terjadi bila halaman dimuat ulang atau tautan dibuka kembali dari riwayat peramban. Silakan mulai proses masuk kembali dari halaman login.\n\nKembali ke Login"
+    },
+    {
+      "file": "portal__portal__logged-out.png",
+      "url": "http://127.0.0.1:18099/portal/logged-out",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Anda Telah Keluar\n\nSesi Anda telah berakhir dengan aman. Terima kasih telah menggunakan SIMPEL.\n\nUntuk keamanan, pastikan Anda menutup browser jika menggunakan komputer bersama.\n\nMasuk Kembali\nKembali ke Beranda\n\nJika Anda mengalami masalah saat login, silakan hubungi administrator sistem."
+    },
+    {
+      "file": "portal__portal__mfa__setup.png",
+      "url": "http://127.0.0.1:18099/portal/mfa/setup",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "🔐\nSetup Multi-Factor Authentication\n\nSecure your account with an additional layer of protection\n\nStep 1: Scan QR Code\n\nUse your authenticator app to scan this QR code. We recommend Google Authenticator, Microsoft Authenticator, or FreeOTP.\n\nScan this QR code with your authenticator app\n\nCompatible with Google Authenticator, Microsoft Authenticator, FreeOTP, and Authy\n\nQR Code for Multi-Factor Authentication setup. If you cannot scan this code, use the manual setup option below.\nCan't scan the Q"
+    },
+    {
+      "file": "portal__portal__mfa__verify.png",
+      "url": "http://127.0.0.1:18099/portal/mfa/verify",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "🔐\nTwo-Factor Authentication\n\nEnter the verification code from your authenticator app\n\nU\n\nLogged in as: user@kejaksaan.go.id\n\nComplete verification to access your account\n\nVerification Code\n0/6 digits\n\nEnter the 6-digit code from your authenticator app\n\nVerify & Continue\nHaving trouble?\nUse backup code\nBack to login\n\nLost your device? Contact support"
+    },
+    {
+      "file": "portal__portal__mfa__backup-verify.png",
+      "url": "http://127.0.0.1:18099/portal/mfa/backup-verify",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Backup Code Verification\n\nEnter one of your 8-digit backup codes to access your account\n\nU\n\nLogged in as: user@kejaksaan.go.id\n\nUse a backup code to complete verification\n\nBackup Code\n\nEnter the 8-digit backup code from your saved codes\n\nVerify Backup Code\nHaving trouble?\nUse authenticator app instead\nBack to login\n\nLost your backup codes? Contact support"
+    },
+    {
+      "file": "portal__portal__dashboard.png",
+      "url": "http://127.0.0.1:18099/portal/dashboard",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Selamat Pagi\n\nE2E Admin Pusat\nAdministrator Global\nNIP: 200000000000000005\nAdministrator\nRingkasan Akun\n\nEmail\n\n200000000000000005@kejaksaan.go.id\n\nMFA\n\nBelum Aktif\n\nEmail Verifikasi\n\nTerverifikasi\n\nStatistik Sistem\n\nTOTAL PENGGUNA\n\n9\n\nPENGGUNA AKTIF\n\n9\n\nSESI AKTIF\n\n6\n\nTOTAL REALM\n\n1\n\nEVENT KEAMANAN HARI INI\n\n6\n\nLOGIN GAGAL\n\n0\n\nMenu Utama\n\nAplikasi\n\nAkses layanan\n\nProfil\n\nData pegawai\n\nPengaturan\n\nPreferensi akun\n\nNotifikasi\n\nPemberitahuan"
+    },
+    {
+      "file": "portal__portal__apps.png",
+      "url": "http://127.0.0.1:18099/portal/apps",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Aplikasi\n\nDaftar layanan dan aplikasi terintegrasi SIMPEL\n\nSemua\nPengelolaan Aset\n📦\nPerlengkapan\n\nManajemen Aset dan Logistik\n\nPengelolaan Aset\n\nSIMPEL v2 (Modern)\n\nVersi terbaru berbasis Rust & WebAssembly\n\nSIMPEL v1 (Legacy)\n\nVersi sebelumnya berbasis Laravel"
+    },
+    {
+      "file": "portal__portal__notifications.png",
+      "url": "http://127.0.0.1:18099/portal/notifications",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Notifikasi\n\nSemua notifikasi dan pemberitahuan sistem\n\nSemua\nℹ️ Info\n⚠️ Peringatan\n❌ Error\n✅ Sukses\nTandai Semua Dibaca\n🔔\nTidak ada notifikasi\n\nAnda tidak memiliki notifikasi saat ini"
+    },
+    {
+      "file": "portal__portal__settings.png",
+      "url": "http://127.0.0.1:18099/portal/settings",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Pengaturan\n\nKelola preferensi dan kustomisasi tampilan\n\nTampilan\n\nTema dan warna\n\nEditor Tema\n\nMode gelap/terang dan warna\n\nCustom Branding\n\nLogo dan warna unit kerja\n\nAkun\n\nInformasi profil\n\nNIP\n\n200000000000000005\n\nNAMA\n\nE2E Admin Pusat\n\nJABATAN\n\nAdministrator\n\nSATUAN KERJA\n\n0100000\n\nROLE\n\nAdministrator Global\n\nKeamanan\n\nAutentikasi dan akses\n\nAutentikasi Multi-Faktor\n\nMFA belum aktif\n\nAktifkan\n\nUbah Password\n\nGanti password akun"
+    },
+    {
+      "file": "portal__portal__mfa__backup-codes.png",
+      "url": "http://127.0.0.1:18099/portal/mfa/backup-codes",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "MFA Backup Codes\n\nManage your multi-factor authentication backup codes\n\nBackup Codes Available\n\nYou have 10 backup codes remaining\n\nDismiss\nImportant Security Information\n\n• Backup codes are for emergency access only • Each code can only be used once • Store codes in a secure, offline location • Generate new codes if you suspect compromise • Do not share codes with anyone\n\nDismiss\nGenerate New Backup Codes\n\nIf you don't have backup codes or need to replace existing ones, generate a new set. This"
+    },
+    {
+      "file": "portal__portal__profile.png",
+      "url": "http://127.0.0.1:18099/portal/profile",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Profil Pengguna\n\nInformasi akun dan data kepegawaian Anda\n\nEA\n\nE2E Admin Pusat\n\n200000000000000005\n\nIdentitas\n\nNIP\n\n200000000000000005\n\nNAMA LENGKAP\n\nE2E Admin Pusat\n\nJABATAN\n\nAdministrator\n\nSATUAN KERJA\n\n0100000\n\nAkun\n\nEMAIL\n\n200000000000000005@kejaksaan.go.id\n\nTELEPON\n\n-\n\nROLE\n\nadmin\n\nEMAIL TERVERIFIKASI\n\nYa\n\nKeamanan\n\nMFA\n\nBelum Aktif\n\nPASSWORD\n\nUbah Password"
+    },
+    {
+      "file": "portal__portal__passkeys.png",
+      "url": "http://127.0.0.1:18099/portal/passkeys",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Kelola Passkey\n\nPasskey memungkinkan Anda login dengan sidik jari, wajah, atau kunci keamanan tanpa kata sandi.\n\n🔑\nTambah Passkey\n🔐\nBelum Ada Passkey\n\nPasskey memungkinkan login yang lebih aman dan cepat menggunakan sidik jari, pengenalan wajah, atau kunci keamanan fisik.\n\n🔑\nDaftarkan Passkey Pertama\nℹ️ Tentang Passkey\nPasskey menggantikan kata sandi dengan autentikasi biometrik atau kunci keamanan\nLebih aman dari kata sandi - tahan terhadap phishing\nTersinkronisasi otomatis melalui iCloud, G"
+    },
+    {
+      "file": "portal__portal__password.png",
+      "url": "http://127.0.0.1:18099/portal/password",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Ubah Kata Sandi\n\nPastikan kata sandi baru Anda kuat dan unik.\n\nKata Sandi Saat Ini\n👁️\nKata Sandi Baru\n👁️\n\n○ Minimal 8 karakter\n\n○ Huruf besar\n\n○ Angka\n\n○ Karakter khusus\n\nKonfirmasi Kata Sandi Baru\nUbah Kata Sandi"
+    },
+    {
+      "file": "portal__portal__sessions.png",
+      "url": "http://127.0.0.1:18099/portal/sessions",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Sesi Aktif\n\nKelola perangkat dan sesi login yang aktif.\n\n💻\nChrome di Linux\nSesi ini\n\nIP: 172.18.0.1\n\nLogin: 28 Sep 2026, 04:01\n\nAktif terakhir: 28 Sep 2026, 04:01\n\n💻\nPerangkat tidak dikenal\n\nIP: 172.18.0.1\n\nLogin: 28 Sep 2026, 04:01\n\nAktif terakhir: 28 Sep 2026, 04:01\n\nHentikan\n💻\nPerangkat tidak dikenal\n\nIP: 172.18.0.1\n\nLogin: 28 Sep 2026, 03:00\n\nAktif terakhir: 28 Sep 2026, 03:00\n\nHentikan\n💻\nPerangkat tidak dikenal\n\nIP: 172.18.0.1\n\nLogin: 28 Sep 2026, 03:00\n\nAktif terakhir: 28 Sep 2026, 03:"
+    },
+    {
+      "file": "portal__portal__admin.png",
+      "url": "http://127.0.0.1:18099/portal/admin",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Dasbor Administrasi\n\nAdministrasi Identitas dan Manajemen Akses\n\n👥\nManajemen Pengguna\n\nKelola pengguna, buat akun baru, atur peran\n\n🛡️\nPeran & Hak Akses\n\nKelola peran dan izin\n\n🔑\nKlien OAuth2\n\nLihat aplikasi klien terdaftar\n\n📋\nAudit Log\n\nLihat log aktivitas dan keamanan\n\nStatistik Sistem\n👤\nTotal Pengguna\n\n9\n\n✅\nPengguna Aktif\n\n9\n\n📱\nSesi Aktif\n\n6\n\n🔑\nKlien OAuth2\n\n1"
+    },
+    {
+      "file": "portal__portal__admin__users.png",
+      "url": "http://127.0.0.1:18099/portal/admin/users",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Admin / Pengguna\nManajemen Pengguna\n+ Tambah Pengguna\n🔍 Cari\nUSERNAME\tEMAIL\tNAMA\tSTATUS\tAKSI\n200000000000000007\t200000000000000007@kejaksaan.go.id\t\tAktif\tNonaktifkanDetail\n200000000000000001\t200000000000000001@kejaksaan.go.id\t\tAktif\tNonaktifkanDetail\n200000000000000002\t200000000000000002@kejaksaan.go.id\t\tAktif\tNonaktifkanDetail\n200000000000000003\t200000000000000003@kejaksaan.go.id\t\tAktif\tNonaktifkanDetail\n200000000000000004\t200000000000000004@kejaksaan.go.id\t\tAktif\tNonaktifkanDetail\n20000000000"
+    },
+    {
+      "file": "portal__portal__admin__users__id.png",
+      "url": "http://127.0.0.1:18099/portal/admin/users/11111111-1111-4111-8111-111111111111",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Admin / Pengguna / Detail\n2\n200000000000000001\n\n200000000000000001 · 200000000000000001@kejaksaan.go.id\n\nAktif\n\nID Internal\n\n11111111-1111-4111-8111-111111111111\n\nPeran\n\n1\n\nDibuat\n\n28 Sep 2026, 02:51\n\nLogin Terakhir\n\n—\n\n👤\nDetail\n🏷\nAtribut\n🔑\nKredensial\n🛡\nPemetaan Peran\nEmail\nUsername\nNama Depan\nNama Belakang\nAkun Aktif\nSimpan"
+    },
+    {
+      "file": "portal__portal__admin__clients.png",
+      "url": "http://127.0.0.1:18099/portal/admin/clients",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Admin / Klien OAuth2\nManajemen Klien OAuth2\nCLIENT ID\tNAMA\tTIPE\tSTATUS\tREDIRECT URI\nperlengkapan\tSIMPEL Perlengkapan\tpublic\tAktif\t/perlengkapan/*, /dashboard/*"
+    },
+    {
+      "file": "portal__portal__admin__clients__id.png",
+      "url": "http://127.0.0.1:18099/portal/admin/clients/1e1d4de9-7d1c-4739-8e39-483fa7dfd9f6",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Admin / Klien / Detail\n🔐\nSIMPEL Perlengkapan\n\nperlengkapan\n\nAktif\npublic\n\nID Internal\n\n1e1d4de9-7d1c-4739-8e39-483fa7dfd9f6\n\nDibuat\n\n9 Jun 2026, 09:23\n\nURI Pengalihan\n\n2\n\nKonfigurasi Klien\nID Klien\nperlengkapan\nTipe Klien\npublic\nRedirect URIs\n/perlengkapan/*\n/dashboard/*\n\nKlien merupakan konfigurasi ter-seed. Rahasia klien tidak pernah ditampilkan; perubahan konfigurasi dilakukan lewat seed/migrasi."
+    },
+    {
+      "file": "portal__portal__admin__roles.png",
+      "url": "http://127.0.0.1:18099/portal/admin/roles",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Admin / Peran\nManajemen Peran & Hak Akses\n\nPenetapan peran per pengguna dilakukan dari halaman detail pengguna\n\nadmin\n\nAdministrator role with full access\n\n🛡️ 14 permission\n👤 3 pengguna\napprover_satker\n\nApprover Satker Perlengkapan (Pengguna Barang Satker) - Menyetujui atau mencabut izin pemakaian BMN di satuan kerja\n\n🛡️ 1 permission\n👤 1 pengguna\noperator_satker\n\nOperator Satker Perlengkapan - Input data kebutuhan BMN, pemakaian, pemeliharaan, pakaian dinas di tingkat satuan kerja\n\n🛡️ 9 per"
+    },
+    {
+      "file": "portal__portal__admin__audit.png",
+      "url": "http://127.0.0.1:18099/portal/admin/audit",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Admin / Audit Log\nAudit Log\nSemua Event\nLogin\nLogout\nLogin Gagal\nToken Refresh\nUbah Password\nMFA Enable\nMFA Disable\nUser Create\nUser Update\nUser Delete\nWebAuthn Register\n🔍 Filter\nWAKTU\tEVENT\tUSER\tIP\tDETAIL\n28 Sep 2026, 04:01\tLogin berhasil\t200000000000000005\t172.18.0.1\tduration_ms: 126 · method: POST · path: /api/v1/auth/login · status_code: 200\n28 Sep 2026, 04:01\tLogin berhasil\t200000000000000005\t172.18.0.1\tduration_ms: 127 · method: POST · path: /api/v1/auth/login · status_code: 200\n28 Sep 20"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__login.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/login",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Perlengkapan · Kejaksaan RI\nRingkasan Nasional\n\nAset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI.\n\nRole: Administrator\nTahun Anggaran 2026\nCakupan:\n3\nsatuan kerja\nDiperbarui\n04:02:28\nMuat ulang\nWILAYAH\nSeluruh wilayah\nKEJAKSAAN TINGGI DKI JAKARTA (4)\nKEJAKSAAN TINGGI JAWA BARAT (1)\nSATUAN KERJA\nSeluruh satuan kerja\nKEJAKSAAN NEGERI JAKARTA PUSAT (2)\nKEJAKSAAN NEGERI JAKARTA SELATAN (2)\nKEJAKSAAN NEGERI BANDUNG (1)\nJENIS ASET\nSeluruh jenis\nAlat Angkutan Bermotor (2)\nPe"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Perlengkapan · Kejaksaan RI\nRingkasan Nasional\n\nAset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI.\n\nRole: Administrator\nTahun Anggaran 2026\nCakupan:\n3\nsatuan kerja\nDiperbarui\n04:02:30\nMuat ulang\nWILAYAH\nSeluruh wilayah\nKEJAKSAAN TINGGI DKI JAKARTA (4)\nKEJAKSAAN TINGGI JAWA BARAT (1)\nSATUAN KERJA\nSeluruh satuan kerja\nKEJAKSAAN NEGERI JAKARTA PUSAT (2)\nKEJAKSAAN NEGERI JAKARTA SELATAN (2)\nKEJAKSAAN NEGERI BANDUNG (1)\nJENIS ASET\nSeluruh jenis\nAlat Angkutan Bermotor (2)\nPe"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__dashboard.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/dashboard",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Perlengkapan · Kejaksaan RI\nRingkasan Nasional\n\nAset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI.\n\nRole: Administrator\nTahun Anggaran 2026\nCakupan:\n3\nsatuan kerja\nDiperbarui\n04:02:32\nMuat ulang\nWILAYAH\nSeluruh wilayah\nKEJAKSAAN TINGGI DKI JAKARTA (4)\nKEJAKSAAN TINGGI JAWA BARAT (1)\nSATUAN KERJA\nSeluruh satuan kerja\nKEJAKSAAN NEGERI JAKARTA PUSAT (2)\nKEJAKSAAN NEGERI JAKARTA SELATAN (2)\nKEJAKSAAN NEGERI BANDUNG (1)\nJENIS ASET\nSeluruh jenis\nAlat Angkutan Bermotor (2)\nPe"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__dashboard.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/bank-aset/dashboard",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Dashboard\nBank Aset\nDashboard Bank Aset\n\nRingkasan data BMN dari hasil sinkronisasi SIMAN.\n\nDaftar Aset\nSebaran\nRingkasan\n\nAgregat BMN lintas kategori dan satuan kerja.\n\nTOTAL ASET\n\n5\n\nunit tercatat\n\nNILAI PEROLEHAN\n\nRp 5.291.000.000\n\nakumulasi rupiah\n\nSATUAN KERJA\n\n3\n\nsatker dengan aset\n\nKATEGORI\n\n3\n\nklasifikasi SIMAN\n\nSumber data: SIMAN — sinkron terakhir: 28 Sep 2026, 02:51\n\nKondisi Aset\n\nDistribusi aset berdasarkan kondisi.\n\nBaik\n4 (80.0%)\nRusak Ringan\n1 (20.0%)\nKategori Aset\n\n10 kategori te"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__daftar.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/bank-aset/daftar",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Dashboard\nBank Aset\nDaftar\nDaftar Aset\n\nJelajahi, cari, dan filter seluruh BMN dari SIMAN.\n\nDashboard\nQR Code\nFilter\n\nBatasi daftar berdasarkan kategori, kondisi, atau kata kunci.\n\nSemua Jenis BMN\nAlat Angkutan Bermotor (2)\nPeralatan Mesin Khusus TIK (2)\nTanah (1)\nSemua Kategori\nAlat Angkutan Bermotor (2)\nPeralatan Mesin Khusus TIK (2)\nTanah (1)\nSemua Kondisi\nBaik (4)\nRusak Ringan (1)\nTerbaru diperbarui\nTerlama diperbarui\nNama A→Z\nNama Z→A\nNilai tertinggi\nNilai terendah\nTerapkan\nReset\nSemua Satk"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__daftar__id.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/bank-aset/daftar/1",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Dashboard\nBank Aset\nDaftar\nDetail\nDetail Aset\n\nInformasi lengkap aset beserta riwayat pemakaian, penghapusan, dan kebutuhan.\n\nKembali ke Daftar\nStation Wagon\n\nAlat Angkutan Bermotor · No. Aset E2E-A-1\n\nKODE BARANG\n3020101003\nNUP\nE2E-A-1\nMERK\nToyota\nTIPE\nAvanza 1.3\nKONDISI\nBaik\nTANGGAL PEROLEHAN\n2020-01-15\nNILAI PEROLEHAN\nRp 250.000.000\nSATKER\nKEJAKSAAN NEGERI JAKARTA PUSAT\nKODE SATKER\n006019999010001KD\nLOKASI\nJl. Sunda Kelapa No.1\nDIPERBARUI\n28 Sep 2026, 02:51\nRiwayat\n\nHubungan aset dengan modul"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__sebaran.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/bank-aset/sebaran",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Dashboard\nBank Aset\nSebaran\nSebaran Aset per Satker\n\nDistribusi BMN berdasarkan satuan kerja, lengkap dengan komposisi kondisi.\n\nDaftar Aset\nRingkasan per Satker\n\nSatker diurutkan dari jumlah aset terbanyak.\n\n#\tSATKER\tTOTAL ASET\tBAIK\tRUSAK\tNILAI\t% POPULASI\n1\t\n\nKEJAKSAAN NEGERI JAKARTA PUSAT\n\n006019999010001KD\n\n\t2\t2\t0\tRp 265.000.000\t40.0%\n2\t\n\nKEJAKSAAN NEGERI JAKARTA SELATAN\n\n006019999020001KD\n\n\t2\t2\t0\tRp 5.022.000.000\t40.0%\n3\t\n\nKEJAKSAAN NEGERI BANDUNG\n\n006018888010001KD\n\n\t1\t0\t1\tRp 4.000.000\t20.0"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__qrcode.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/bank-aset/qrcode",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Dashboard\nBank Aset\nQR Code\nGenerator QR Code Aset\n\nPilih aset, tentukan ukuran label, lalu cetak batch untuk penandaan fisik BMN.\n\nKembali\nKonfigurasi\n\nFilter aset yang ingin dicetak dan pilih ukuran label.\n\nSemua Kategori\nTanah\nGedung & Bangunan\nPeralatan & Mesin\nJalan & Jembatan\nAset Lainnya\n30×60 mm (kompatibel legacy)\n40×80 mm\n50×100 mm\nCari\nPilih Aset\n\nCentang aset yang ingin dicetak. Gunakan tombol bulk untuk mempercepat.\n\n0 terpilih\nPilih semua\nBersihkan\nPratinjau & Cetak\n\nStation Wagon\n"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__periode.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/periode",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Periode Kebutuhan BMN\n\nKelola periode pengumpulan kebutuhan BMN dari satker\n\nBuat Periode Baru\nDaftar Periode\nRefresh\nE2E Periode Kebutuhan BMN 2026\nTahun: 2026\nSatker: 3\nBarang: 3\nDraft\nEdit"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__daftar.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/daftar",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Analisis Kebutuhan BMN\n\nKelola pengajuan kebutuhan barang milik negara\n\nBuat Pengajuan\nFilter\nSemua Tahun\n2027\n2026\n2025\n2024\n2023\n2022\n2021\n2020\nSemua Status\nDraft\nInput Barang\nDiajukan ke Validator\nRevisi Satker\nAnalisis Kelayakan\nPenyusunan Prioritas\nDisetujui\nDitolak\nSelesai\nDibatalkan\n\tNAMA PENGAJUAN\tTAHUN\tSATKER\tBARANG\tDIMINTA\tDISETUJUI\tSTATUS\tAKSI\n\tE2E Periode Kebutuhan BMN 2026\t2026\t3\t3\t6\t0\tDraft\t\n\nMenampilkan 1 dari 1 data\n\nSebelumnya\n1 / 1\nSelanjutnya"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__buat.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/buat",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Buat Pengajuan Kebutuhan BMN\n\nFormulir pengajuan analisis kebutuhan barang milik negara\n\nKembali ke Daftar\nDetail Pengajuan\nNAMA PENGAJUAN\n*\nDESKRIPSI\nTAHUN ANGGARAN\n*\n2028\n2027\n2026\n2025\n2024\n2023\n2022\n2021\n2020\nTANGGAL MULAI\n*\nTANGGAL SELESAI\n*\nPILIHAN SATKER\n*\nSemua Satker\nSebagian Satker\nBatal\nSimpan"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__id__edit.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/c1000000-0000-4c00-8c00-000000000001/edit",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Edit Pengajuan Kebutuhan BMN\n\nFormulir pengajuan analisis kebutuhan barang milik negara\n\nKembali ke Daftar\nDetail Pengajuan\nNAMA PENGAJUAN\n*\nDESKRIPSI\nTAHUN ANGGARAN\n*\n2028\n2027\n2026\n2025\n2024\n2023\n2022\n2021\n2020\nTANGGAL MULAI\n*\nTANGGAL SELESAI\n*\nPILIHAN SATKER\n*\nSemua Satker\nSebagian Satker\nBatal\nSimpan"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__detail__id.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/detail/c1000000-0000-4c00-8c00-000000000001",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Detail Pengajuan Kebutuhan BMN\n\nDetail dan status pengajuan analisis kebutuhan BMN\n\nKembali ke Daftar\nE2E Periode Kebutuhan BMN 2026\n\nTahun Anggaran: 2026\n\nDraft\nEdit\nPeriode\n2026-01-01 s.d. 2026-12-31\nTotal Satker\n3\nPersetujuan DASKRIMTI\nBelum\nVersi\n1\nDeskripsi\n\nSeed F-E2E kebutuhan workflow\n\nAksi Workflow\nInput Barang\nDibatalkan\nDaftar Satker\nNAMA SATKER\tSTATUS\tPRIORITAS\tAKSI\nKEJAKSAAN NEGERI BANDUNG\tAnalisis Kelayakan\t0\t\nDetail\nKEJAKSAAN NEGERI JAKARTA PUSAT\tInput Barang\t0\t\nDetail\nKEJAKSAAN N"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__satker__satker_id.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/satker/c1000000-0000-4c00-8c00-0000000a0003",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Detail Satker — Kebutuhan BMN\n\nDetail pengajuan kebutuhan BMN per satker\n\nKembali\nKEJAKSAAN NEGERI BANDUNG\n\nKode Satker: 0300010\n\nAnalisis Kelayakan\nTotal Barang\n1\nTotal Jumlah Diminta\n1\nPrioritas\n0\nRiwayat Proses\n\nPengajuan Dibuat\n\n28 Sep 2026, 02:53\n\nAnalisis Kelayakan\n\nKeputusan Validator Pusat\nSetujui\nTolak\nDaftar Barang\nAnalisis Kelayakan\nRiwayat Aktivitas\nDaftar Barang\nTambah Barang\nNAMA BARANG\tKODE\tJUMLAH\tDISETUJUI\tPRIORITAS\tALASAN\tAKSI\nE2E Barang Seed C\t3.10.01.05.010\t1 Unit\t0\t0\tSeed jus"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__laporan.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/laporan",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Laporan Kebutuhan BMN\n\nRekap dan laporan analisis kebutuhan barang milik negara\n\nExport XLSX\nExport PDF\nSemua Tahun\n2027\n2026\n2025\n2024\n2023\nSemua Status\nDraft\nInput Barang\nDiajukan ke Validator Wilayah\nRevisi Satker\nDiajukan ke Validator Pusat\nAnalisis Kelayakan\nDisetujui\nDitolak\nSelesai\nDibatalkan\nRevisi Wilayah\nTotal Baris\n3\nJumlah Diusulkan\n6\nJumlah Disetujui\n0\nNO\tNAMA BARANG\tSATKER\tSTATUS\tJUMLAH\n1\tE2E Barang Seed C\tKEJAKSAAN NEGERI BANDUNG\tAnalisis Kelayakan\t1\n2\tE2E Barang Seed A\tKEJAKSAAN "
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__jenis.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pakaian-dinas/jenis",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Jenis Pakaian Dinas\n\nKelola master data jenis pakaian dinas\n\nTambah Jenis\nDaftar Jenis\nNO\tNAMA JENIS\tKETERANGAN\tDIBUAT\tAKSI\n1\tBatik\tPakaian Batik Dinas\t2026-06-09\t\n\n2\tJas Almamater\tJas Almamater Kejaksaan\t2026-06-09\t\n\n3\tPDH\tPakaian Dinas Harian\t2026-06-09\t\n\n4\tPDH E2E\tSeed F-E2E pakaian dinas\t2026-09-28\t\n\n5\tPDL\tPakaian Dinas Lapangan\t2026-06-09\t\n\n6\tPDL E2E\tSeed F-E2E pakaian dinas (jenis kedua)\t2026-09-28\t\n\n7\tPDU-I 2023\tPakaian Dinas Upacara I (2023)\t2026-09-28\t\n\n8\tToga Jaksa\tToga untuk Jaksa\t202"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__jenis__id__spesifikasi.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pakaian-dinas/jenis/c5f67a58-9779-42a9-8a2b-3f0d026a33db/spesifikasi",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Spesifikasi Pakaian Dinas\n\nRincian pakaian yang diminta pada satu jenis — tiap baris menjadi satu kolom ukuran saat satker mengisi.\n\nTambah Spesifikasi\nBelum Ada Spesifikasi\n\nTanpa spesifikasi, pengajuan pakaian dinas tidak dapat dibuat. Tambahkan minimal satu."
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__pengajuan.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pakaian-dinas/pengajuan",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Pengajuan Pakaian Dinas\n\nKelola periode pengajuan pakaian dinas per tahun\n\nBuat Pengajuan\nE2E Pengajuan Pakaian Dinas 2026\n\nTahun: 2026\n\nDibuka\n\nBuka: 2026-01-01\n\nTutup: 2026-12-31\n\nSatker\nE2E Laporan Pakaian Dinas 2026\n\nTahun: 2026\n\nDibuka\n\nBuka: 2026-01-01\n\nTutup: 2026-12-31\n\nSatker\n\nTotal: 2 pengajuan\n\nSebelumnya\nSelanjutnya"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__pengajuan__pengajuan_id__satker.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pakaian-dinas/pengajuan/d1000000-0000-4d00-8d00-0000000000c1/satker",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Daftar Satker — Pengajuan Pakaian Dinas\n\nPantau & proses pengajuan pakaian dinas per satuan kerja\n\nKEJAKSAAN NEGERI JAKARTA PUSAT\n\n0200010 · 1 pegawai\n\nDiajukan ke Validator Wilayah\nIsi Ukuran Pegawai\nLihat Riwayat & Aksi\nKEJAKSAAN NEGERI JAKARTA SELATAN\n\n0200020 · 1 pegawai\n\nDiajukan ke Pusat\nIsi Ukuran Pegawai\nLihat Riwayat & Aksi"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__pengajuan__pengajuan_id__satker__satker_code__isi.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pakaian-dinas/pengajuan/d1000000-0000-4d00-8d00-0000000000c1/satker/0200010/isi",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Pengisian Ukuran Pakaian Dinas\n\nPilih pegawai, isi ukurannya, simpan. Ajukan setelah seluruhnya sesuai.\n\nE2E Pengajuan Pakaian Dinas 2026\nKembali ke daftar satker\n\nKEJAKSAAN NEGERI JAKARTA PUSAT0200010\n\n1 dari 1 pegawai sudah diisi\n\nPengajuan ini sudah diajukan, sehingga ukurannya tidak dapat diubah lagi. Isinya ditampilkan apa adanya.\n\nDaftar Pegawai\nNAMA / NIP\tJABATAN / PANGKAT\tKEMEJA PDH E2E\tKEMEJA PDL E2E\tAKSI\n\n\nE2E Operator Jakpus\n\n200000000000000001\n\n\t\n\nOperator Satker\n\nPenata Muda\n\n\tbelum"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__ukuran.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pakaian-dinas/ukuran",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Ukuran Pakaian Dinas\n\nIsi ukuran pakaian dinas Anda untuk keperluan pengajuan\n\nData Pegawai\nE\n\nE2E Admin Pusat\n\nNIP: 200000000000000005\n\nIsi Ukuran\nUkuran Baju\n-- Pilih Ukuran --\nXS\nS\nM\nL\nXL\nXXL\nXXXL\n4XL\n\nUkuran standar: S, M, L, XL, XXL, XXXL\n\nUkuran Celana\n-- Pilih Ukuran --\n27\n28\n29\n30\n31\n32\n33\n34\n35\n36\n37\n38\n39\n40\n42\n44\n\nUkuran standar: 27-42 (angka)\n\nUkuran Sepatu\n-- Pilih Ukuran --\n36\n37\n38\n39\n40\n41\n42\n43\n44\n45\n46\n\nUkuran standar: 36-46 (angka)\n\nMenggunakan hijab\nSimpan Ukuran\nPanduan Peng"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__laporan.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pakaian-dinas/laporan",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Laporan Pakaian Dinas\n\nRekap dan daftar pegawai berdasarkan ukuran pakaian dinas\n\nRekap Ukuran\nDaftar Pegawai\nFilter Laporan\nPeriode Pengajuan\n— Pilih Periode —\nE2E Pengajuan Pakaian Dinas 2026 (2026)\nE2E Laporan Pakaian Dinas 2026 (2026)\nJenis Pakaian\nSemua Jenis\nBatik\nJas Almamater\nPDH\nPDH E2E\nPDL\nPDL E2E\nPDU-I 2023\nToga Jaksa\nToga TU\nSatker\nJenis Kelamin\nSemua\nLaki-laki\nPerempuan\nJenis Pegawai\nSemua\nJaksa\nTata Usaha\nEselon\nSemua Eselon\nEselon I\nEselon II\nEselon III\nEselon IV\nCetak Excel\nCetak"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pengelolaan/pemakaian",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Dashboard\nPemakaian BMN\nIzin Pemakaian BMN\n\nKelola permohonan dan siklus hidup izin pemakaian BMN.\n\nAjukan Izin Baru\nFilter Lifecycle\n\nPilih fase izin untuk mempersempit daftar.\n\nSemua\nDraft\nDiajukan\nAktif\nAkan Expire ≤7 hari\nKadaluarsa\nDicabut\nSemua Jenis BMN\nKendaraan Bermotor\nRumah Negara\nLaptop / Komputer\nLainnya\nCari\nReset\nDaftar Izin\n\nUrutkan berdasarkan status untuk mengawasi lifecycle izin.\n\nTotal: 4 izin\n\nNOMOR IZIN\tPEMOHON\tBMN\tSTATUS\tAKSI\n\n\nE2E-IZIN-001\n\n2026-01-01 → 2026-12-31\n\n\t\n\nE2E"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian__buat.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pengelolaan/pemakaian/buat",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Permohonan Izin Pemakaian BMN\nJenis BMN\nKendaraan Bermotor\nRumah Negara\nLaptop/Komputer\nLainnya\nPegawai yang Akan Menggunakan BMN\nNIP Pegawai\n\nCukup NIP-nya. Nama, pangkat, jabatan, dan satker diambil dari data kepegawaian.\n\nPilih BMN\nCari BMN\n\nMinimal 3 huruf. Hasilnya hanya BMN di lingkup satker Anda.\n\nDetail BMN\nNomor Polisi*\nNomor BPKB\nNomor STNK\nNomor Rangka\nNomor Mesin\nPeriode Pemakaian\nTanggal Mulai\nTanggal Selesai\nKeperluan\nLokasi Pemakaian\nBMN Tambahan(Opsional, untuk pegawai yang mengg"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian__detail__id.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pengelolaan/pemakaian/detail/e2000000-0000-4e00-8e00-0000000b0001",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Dashboard\nPemakaian BMN\nDetail\nDetail Izin Pemakaian\n\nKelola aksi lifecycle: perpanjang, cabut, dan pantau sisa waktu.\n\nKembali\nLifecycle\n\nStatus dan sisa waktu izin.\n\nPerpanjang\nCabut Izin\n\nSTATUS\n\nAktif\n\nPERIODE\n\n2026-01-01 → 2026-12-31\n\nSISA WAKTU\n\n94 hari lagi\n\nIzin #E2E-IZIN-001\n\nInformasi umum permohonan.\n\nPEMOHON\nE2E Operator Jakpus\nNIP\n200000000000000001\nSATKER\nKEJAKSAAN NEGERI JAKARTA PUSAT\nBMN\nE2E Laptop Dinas Pinjam\nNUP\nE2E-A-2\nKODE BARANG\n3100102003\nPERIODE\n2026-01-01 → 2026-12-31\nLO"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian__monitoring.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pengelolaan/pemakaian/monitoring",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Monitoring Pemakaian BMN\n\nPantau penggunaan dan riwayat pemakaian BMN\n\nBMN Sedang Dipakai\n\n3\n\nIzin pemakaian aktif\n\nBMN Tidak Dipakai\n\n0\n\nBMN berkondisi baik tanpa izin aktif\n\nAkan Expired (30 hari)\n\n0\n\nIzin berakhir ≤ 30 hari\n\nDaftar Pemakaian BMN\nSatker\tNama Barang\tNUP\tPegawai Pemakai\tJangka Waktu\tStatus\tAksi\n\nKEJAKSAAN NEGERI JAKARTA SELATAN\n0200020\n\t\nE2E Laptop Jaksel\n3020104001\n\tE2E-B-1\t\nE2E Operator Jaksel\n200000000000000002\nOperator Satker\n\t\n2026-03-01 s.d. 2026-10-31\n244 hari\nsisa 33 har"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__penghapusan.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pengelolaan/penghapusan",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Dashboard\nPenghapusan BMN\nPenghapusan BMN\n\nKelola usulan penghapusan BMN: review, konsep SK, dan unggah SK tertandatangan.\n\nUsulan Baru\nFilter Fase\n\nPilih fase workflow untuk mempersempit daftar.\n\nSemua\nDraft\nReview Wilayah\nReview Pusat\nKonsep SK\nSK Ditandatangani\nSelesai\nDitolak\nSemua Metode\nLelang\nHibah\nPemusnahan\nPenghapusan Lain\nCari\nReset\nDaftar Usulan\n\nBaris ditandai jika perlu tindakan: unggah SK tertandatangan.\n\nTotal: 3 usulan\n\nKODE BARANG\tNAMA BMN\tMETODE\tSTATUS\tAKSI\n\n\n3.10.01.02.003\n\nN"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__penghapusan__buat.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pengelolaan/penghapusan/buat",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Usulan SK Penghapusan BMN\nIdentifikasi BMN\nCari BMN\n\nMinimal 3 huruf. Hasilnya hanya BMN di lingkup satker Anda.\n\nKode Barang\nNama Barang\nNUP\nItem BMN Tambahan (opsional)\n+ Tambah Item\n\nItem utama diisi di atas. Tambahkan BMN lain bila satu usulan SK mencakup beberapa aset.\n\nBelum ada item tambahan.\n\nDetail Penghapusan\nTanggal Penghapusan\nMetode Penghapusan\nPilih Metode\nLelang\nMusnah\nHibah Keluar\nTukar Menukar\nAlasan Penghapusan\nNilai Perolehan (Rp)\n\nNilai perolehan diambil langsung dari data SI"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__penghapusan__detail__id.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pengelolaan/penghapusan/detail/e1000000-0000-4e00-8e00-0000000a0001",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Dashboard\nPenghapusan BMN\nDetail\nDetail Usulan Penghapusan\n\nPantau workflow, konsep SK, dan status SK tertandatangan.\n\nKembali\nStatus Workflow\n\nFase saat ini dan petunjuk tindakan berikutnya.\n\nDraft\n\nLengkapi data usulan lalu ajukan ke validator wilayah.\n\nInformasi Usulan\n\nData penghapusan dan konteks BMN.\n\nKODE BARANG\n3.10.01.02.003\nNAMA BMN\nE2E Laptop Hapus A\nNUP\nE2E-A-2\nTANGGAL RENCANA\n2026-06-01\nMETODE\nDIMUSNAHKAN\nNILAI PEROLEHAN\nRp 15.000.000\n\nALASAN PENGHAPUSAN\n\nRusak berat, tidak ekonomis"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__analitik__roadmap.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/analitik/roadmap",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Analisis Kebutuhan\nBuat Analisis Baru\nJUDUL\tKATEGORI\tPRIORITAS\tESTIMASI BIAYA\tSTATUS\tAKSI\nE2E Analisis Kebutuhan TIK 2026\tTIK\tTinggi\tRp 1250000000.00\tDisetujui\t\n\nE2E Analisis Kebutuhan Kendaraan 2026\tKendaraan\tSedang\tRp 750000000.00\tDraft\t\n\nE2E Analisis Kebutuhan Gedung 2026\tGedung\tRendah\tRp 3400000000.00\tDisetujui\t\nMenampilkan halaman 1 dari 1\nSebelumnya\nSelanjutnya"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__analitik__roadmap__buat.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/analitik/roadmap/buat",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Buat Analisis Kebutuhan\nJudul Analisis\nKategori\nPilih Kategori\nTIK\nKendaraan\nGedung\nLainnya\nPrioritas\nRendah\nSedang\nTinggi\nEstimasi Biaya (Rp)\nBatal\nSimpan"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__notifikasi.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/notifikasi",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Notifikasi\n\nNotifikasi sistem (workflow, tiket bantuan, SLA).\n\nHanya yang belum dibaca\nTandai semua dibaca\n\nBelum ada notifikasi."
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__bantuan__panduan.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/bantuan/panduan",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Panduan Pengguna\n\nDokumentasi penggunaan SIMPEL — Sistem Informasi Manajemen Perlengkapan\n\nDashboard\n\nMelihat ringkasan statistik, akses cepat ke modul, dan status aset terkini.\n\nStat cards menampilkan data real-time dari backend\nKlik modul untuk navigasi langsung\nGanti role aktif via menu profil di kanan atas\nBank Aset\n\nKatalog lengkap BMN dengan pencarian, filter, dan cetak QR Code.\n\nGunakan filter untuk menyaring berdasarkan kategori, kondisi, atau satker\nKlik baris aset untuk melihat detail "
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__bantuan__faq.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/bantuan/faq",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "FAQ\n\nPertanyaan yang sering diajukan tentang SIMPEL\n\nBagaimana cara mengajukan kebutuhan BMN?\n\nBuka menu 'Kebutuhan BMN' → 'Buat Baru', isi formulir analisis kebutuhan, lalu submit. Pengajuan akan diproses sesuai alur persetujuan (Operator → Validator Wilayah → Validator Pusat).\n\nBagaimana cara mengganti role aktif?\n\nKlik ikon profil di pojok kanan atas header, lalu pilih role yang diinginkan dari daftar yang tersedia. Perubahan langsung berlaku tanpa perlu reload.\n\nApa saja role yang tersedia?\n"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__bantuan__helpdesk.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/bantuan/helpdesk",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Helpdesk\n\nHubungi tim dukungan teknis SIMPEL\n\nEmail\nhelpdesk-simpel@kejaksaan.go.id\nTelepon\n(021) 123-4567 ext. 890\nJam Kerja\nSenin - Jumat, 08:00 - 16:00\nKirim Pesan\nSUBJEK\n*\nPRIORITAS\nRendah\nNormal\nTinggi\nMendesak\nPESAN\n*\nKirim Pesan\nTiket Saya\n\nTiket bantuan yang pernah Anda kirim beserta statusnya. Staf helpdesk melihat semua tiket dan dapat mengubah statusnya.\n\nMuat Ulang\n\nBelum ada tiket bantuan."
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__admin__roles.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/admin/roles",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Pengaturan Role\n\nKonfigurasi role dan hak akses perlengkapan\n\nOperator Satker\n\nPengelola perlengkapan di tingkat Satuan Kerja\n\nHak Akses:\nKebutuhan BMN: Buat, Edit, Hapus, Submit\nPemakaian BMN: Buat, Edit, Submit\nPenghapusan BMN: Buat, Submit\nPakaian Dinas: Input Ukuran\nPemeliharaan: Buat, Edit\nValidator Wilayah\n\nVerifikator di tingkat Kejaksaan Tinggi\n\nHak Akses:\nKebutuhan BMN: Validasi, Kembalikan, Teruskan\nPemakaian BMN: Monitor (read-only)\nPenghapusan BMN: Validasi, Teruskan; Generate & Uplo"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__admin__audit.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/admin/audit",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Dashboard\nAdmin\nAudit Log\nAudit Log\n\nJejak audit seluruh aktivitas sistem: siapa, apa, kapan, dan entitas yang terdampak.\n\nFilter\nPengguna\nJenis Entitas\nSemua\nKebutuhan BMN\nPakaian Dinas\nPemakaian BMN\nPenghapusan BMN\nBank Aset\nWorkflow\nMaster Data\nPengguna\nAksi\nSemua\nCreate\nUpdate\nDelete\nApprove\nReject\nLogin\nLogout\nDari tanggal\nSampai tanggal\nPencarian bebas\nReset\nTerapkan\nAktivitas\nMenampilkan 0 entri.\nTidak ada aktivitas\n\nBelum ada entri audit untuk filter saat ini."
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__admin__master.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/admin/master",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Dashboard\nAdmin\nMaster Data\nMaster Data\n\nKelola data referensi sistem: aktivitas BMN, jenis pakaian, spesifikasi, ukuran standar, kode barang.\n\nSumber Data\n43 record\nAktivitas BMN\n\nStatus workflow untuk pengajuan BMN dan pakaian dinas\n\nDiperbarui: 9 Jun 2026, 12:10\nKelola\n9 record\nJenis Pakaian Dinas\n\nKategori pakaian dinas (PDH, PDL, Toga, dll)\n\nDiperbarui: 28 Sep 2026, 02:53\nKelola\n7 record\nSpesifikasi Pakaian\n\nSpesifikasi per jenis pakaian dengan kategori ukuran\n\nDiperbarui: 28 Sep 2026, 02:5"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__admin__templates.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/admin/templates",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Document Templates\n\nPratinjau langsung template surat / SK / laporan. Pilih template di kiri, atur format, lalu klik Render Preview.\n\nDaftar Template\nSK Kebutuhan BMN\nsk_kebutuhan_bmn · v1\nSK Penghapusan BMN\nsk_penghapusan_bmn · v1\nFormat:\nPDF\nDOCX\nHTML\nExcel\nRender Preview\n\nPilih sebuah template untuk melihat pratinjau."
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__admin__workflow.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/admin/workflow",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Konfigurasi Workflow\n\nKelola definisi workflow, langkah, role, transisi dan SLA untuk seluruh proses BMN.\n\nDefinisi Workflow\nkebutuhan_bmn\nAktif\n\nWorkflow for BMN requirements approval process\n\nv1.0.0\nParallel Approval\nDetail\npemakaian_bmn\nAktif\n\nWorkflow for BMN usage permit approval process\n\nv1.0.0\nDetail\npenghapusan_bmn\nAktif\n\nWorkflow for BMN disposal — dual kewenangan (PUSAT / WILAYAH)\n\nv1.0.0\nDetail\npakaian_dinas\nAktif\n\nWorkflow for official uniform distribution approval process\n\nv1.0.0\nDe"
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__admin__workflow-monitoring.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/admin/workflow-monitoring",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Monitoring Workflow\n\nPantau performa workflow secara real-time dengan metrik SLA dan bottleneck.\n\nRefresh\nAuto-refresh 30 detik\nRingkasan Metrics\n\nIndikator utama performa workflow.\n\nTOTAL AKTIF\n\n3\n\nWorkflows dalam proses\n\nSLA BREACHES\n\n0\n\nMelebihi batas waktu\n\nMENDEKATI SLA\n\n0\n\nDalam 25% batas waktu\n\nBOTTLENECKS\n\n0\n\nStates dengan delay\n\nBottlenecks\n\nState yang mendekati atau melewati SLA.\n\nTidak ada bottleneck\nSemua workflow state berjalan dalam batas SLA.\nDistribusi per State\n\nJumlah workflow "
+    },
+    {
+      "file": "perlengkapan__perlengkapan__simpel__v2__admin__workflow-delegation.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/admin/workflow-delegation",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Delegasi Workflow\n\nLihat dan kelola pendelegasian role workflow ke pengguna lain.\n\nBuat Delegasi\nRefresh\nSaya Delegasikan\nUntuk Saya\nDaftar Delegasi\nBelum ada delegasi\n\nBelum ada pendelegasian yang tercatat pada tab ini."
+    },
+    {
+      "file": "portal__anon__portal__login.png",
+      "url": "http://127.0.0.1:18099/portal/login",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Masuk ke SIMPEL\n\nKejaksaan Agung Republik Indonesia\n\nMasuk ke Sistem\nMasuk dengan Passkey\n\nGunakan sidik jari, wajah, atau kunci keamanan\n\nAtau masuk dengan password"
+    },
+    {
+      "file": "portal__anon__portal__logged-out.png",
+      "url": "http://127.0.0.1:18099/portal/logged-out",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Anda Telah Keluar\n\nSesi Anda telah berakhir dengan aman. Terima kasih telah menggunakan SIMPEL.\n\nUntuk keamanan, pastikan Anda menutup browser jika menggunakan komputer bersama.\n\nMasuk Kembali\nKembali ke Beranda\n\nJika Anda mengalami masalah saat login, silakan hubungi administrator sistem."
+    },
+    {
+      "file": "perlengkapan__anon__perlengkapan__simpel__v2__login.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/login",
+      "flags": [],
+      "expected": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Sistem Informasi\nManajemen Perlengkapan\n\nKejaksaan Republik Indonesia\n\nUntuk masuk ke aplikasi Perlengkapan, autentikasi dilakukan melalui Portal SIMPEL terlebih dahulu.\n\nMasuk via Portal\n\nSetelah login berhasil, Anda akan diarahkan kembali ke dashboard Perlengkapan.\n\nAkses resmi internal — SIMPEL"
+    },
+    {
+      "file": "guard__operator__perlengkapan__simpel__v2__admin__roles.png",
+      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/admin/roles",
+      "flags": [],
+      "expected": [
+        "AKSES-DITOLAK",
+        "halaman-nyaris-kosong"
+      ],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Akses Ditolak\n\nAnda tidak memiliki izin untuk membuka halaman ini.\n\nKembali ke Dashboard"
+    },
+    {
+      "file": "guard__operator__portal__admin__users.png",
+      "url": "http://127.0.0.1:18099/portal/admin/users",
+      "flags": [],
+      "expected": [
+        "AKSES-DITOLAK"
+      ],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "textPreview": "Akses Ditolak\n\nAnda tidak memiliki izin untuk mengakses halaman ini. Hubungi administrator jika Anda memerlukan akses.\n\nKembali ke Dashboard"
+    }
+  ]
+}

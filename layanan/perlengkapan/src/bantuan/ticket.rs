@@ -74,7 +74,7 @@ impl TicketActor {
         Self {
             user_id: claims.user_id,
             satker_code: claims.satker_code.clone(),
-            is_staff: matches!(claims.role.as_str(), "admin" | "admin_pusat" | "superadmin"),
+            is_staff: claims.is_admin(),
         }
     }
 

@@ -397,12 +397,19 @@ services:
       # values for docker-compose. Both URLs must be reachable from the
       # browser running on the host, not from inside the container.
       PORTAL_URL: http://localhost:3000/portal
-      # No authenc HTTP gateway is exposed in this compose file (authenc
-      # speaks gRPC on :50051). Point at an origin-relative path so the
-      # WASM client at least surfaces a clear 404 against the portal's
-      # own nginx instead of silently hitting a staging IP. Replace with
-      # a real gateway URL once a sidecar/proxy is added to compose.
+      # Origin-relative, so the WASM client's auth calls hit this nginx, which
+      # proxies them to authenc via the upstreams below. (authenc's REST API is
+      # published by the e2e overlay on :8088; the base stack has no REST
+      # target, so login only works under the overlay.)
       AUTHENC_URL: /api/v1/auth
+      # nginx upstream host:port overrides (entrypoint substitutes these into
+      # nginx.conf; defaults are the K8s Service ports). In compose the backends
+      # listen on :3020 / :8088, so without these the in-browser FE→BE data path
+      # (origin-relative /api/* proxied by this nginx) dials the K8s ports that
+      # nothing binds here → 502 on every call, including the login page's
+      # captcha widget.
+      PERLENGKAPAN_API_UPSTREAM: layanan-perlengkapan:3020
+      AUTHENC_API_UPSTREAM: authenc:8088
     depends_on:
       authenc:
         condition: service_started

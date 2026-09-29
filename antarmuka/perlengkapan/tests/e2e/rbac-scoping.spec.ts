@@ -209,12 +209,13 @@ test.describe('Perlengkapan RBAC data-scoping (bank_aset)', () => {
   });
 });
 
-test.describe('Perlengkapan admin API authZ — server-side (cross-satker required)', () => {
-  // The backend `/admin/*` gate is `require_admin` = `is_cross_satker_role`, so
-  // satker-bound roles get 403 while validator_pusat (cross-satker) is allowed —
-  // intentionally WIDER than the FE `/admin` UI guard (`is_admin`, which denies
-  // validator_pusat). Asserting both halves keeps that asymmetry from drifting.
-  for (const user of TEST_USERS.filter((u) => u.role !== 'validator_pusat')) {
+test.describe('Perlengkapan admin API authZ — server-side (administrator only)', () => {
+  // The backend `/admin/*` gate is `require_admin` = `Capability::Administer`
+  // (`lib_core::authz::ADMIN_ROLES`). It used to be `is_cross_satker_role`, so
+  // validator_pusat could reach the admin console API — wider than the FE `/admin`
+  // guard and wider than "administer the system" means. Every business role,
+  // cross-satker or not, is now refused.
+  for (const user of TEST_USERS) {
     test(`${user.key} (${user.role}) is forbidden (403) at the admin API`, async ({ request }) => {
       const { accessToken } = await apiLogin(request, credsFor(user));
       const resp = await adminMasterList(request, accessToken);
@@ -222,14 +223,12 @@ test.describe('Perlengkapan admin API authZ — server-side (cross-satker requir
     });
   }
 
-  test('validator_pusat (cross-satker) is allowed (200) at the admin API', async ({ request }) => {
-    const pusat = TEST_USERS.find((u) => u.key === 'validator_pusat')!;
-    const { accessToken } = await apiLogin(request, credsFor(pusat));
-    const resp = await adminMasterList(request, accessToken);
-    expect(
-      resp.status(),
-      'validator_pusat is cross-satker → allowed at the admin API (unlike the FE UI)',
-    ).toBe(200);
+  // The positive half: the all-role seed user holds `admin`, so it passes the
+  // gate (`tokenFor` resolves "admin" to that identity). Asserting it here keeps
+  // the gate from degenerating into "deny everyone" unnoticed.
+  test('the admin identity is allowed (200) at the admin API', async ({ request }) => {
+    const resp = await adminMasterList(request, await tokenFor(request, 'admin'));
+    expect(resp.status(), 'admin must reach /admin/master').toBe(200);
   });
 
   test('admin API rejects an unauthenticated request (401)', async ({ request }) => {

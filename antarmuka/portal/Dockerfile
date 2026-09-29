@@ -82,6 +82,15 @@ ENV AUTHENC_URL=$AUTHENC_URL
 # Assets served at /portal/ path prefix
 RUN trunk build --release --public-url "/portal/"
 
+# SHA-256 of every inline <script> in the BUILT index.html, for the opt-in
+# hash-based CSP (`CSP_HASH_MODE=true` in the entrypoint replaces
+# `script-src 'unsafe-inline'`). Computed here because only this stage knows the
+# final page — Trunk's boot script carries content-hashed filenames, so its hash
+# changes every build. Fails the build if the page has no inline script.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 /workspace/infra/scripts/csp-script-hashes.py dist/index.html > csp-script-hashes.txt
+
 # Stage 2: Nginx untuk serving hasil build - LISTEN ON PORT 8080
 # nginx-unprivileged runs as non-root (uid 101) and listens on 8080 by default —
 # matches our port and clears Trivy DS-0002 (no root container). pid relocated to
@@ -94,6 +103,7 @@ COPY antarmuka/portal/nginx.conf /etc/nginx/nginx.conf
 
 # Copy build output ke Nginx html dir
 COPY --from=builder /workspace/antarmuka/portal/dist /usr/share/nginx/html
+COPY --from=builder /workspace/antarmuka/portal/csp-script-hashes.txt /usr/share/nginx/csp-script-hashes.txt
 
 # trunk builds with --public-url /portal/ (see above), so index.html requests
 # every hashed asset as /portal/<file> — but the dist is copied flat into the
@@ -106,9 +116,13 @@ RUN ln -sn . /usr/share/nginx/html/portal
 # Copy entrypoint script
 COPY antarmuka/portal/entrypoint.sh /docker-entrypoint.sh
 
-# Make the web root writable (entrypoint writes config.json at runtime) and the
-# entrypoint executable, then drop back to the non-root nginx user.
-RUN chown -R nginx:nginx /usr/share/nginx/html && chmod +x /docker-entrypoint.sh
+# Make the web root writable (entrypoint writes config.json), hand nginx.conf
+# to the entrypoint so it can substitute the upstream placeholders in place
+# (it runs as uid 101), and make the entrypoint executable — then drop back to
+# the non-root nginx user.
+RUN chown -R nginx:nginx /usr/share/nginx/html \
+    && chown nginx:nginx /etc/nginx/nginx.conf \
+    && chmod +x /docker-entrypoint.sh
 USER nginx
 
 # Expose port 8080 (match K8s deployment)

@@ -31,15 +31,12 @@ fn sample(id: Uuid, judul: &str, uid: Option<Uuid>) -> AnalisisKebutuhan {
 
 fn mock_claims() -> Claims {
     Claims {
-        user_id: Uuid::new_v4(),
-        username: "testuser".to_string(),
-        role: "admin".to_string(),
-        permissions: vec![],
         nama: Some("Test User".to_string()),
         jabatan: Some("Admin".to_string()),
         name: Some("Test User".to_string()),
         nip: Some("123456789".to_string()),
         satker_code: Some("001".to_string()),
+        ..Claims::with_roles(Uuid::new_v4(), "testuser", ["operator_satker"])
     }
 }
 
@@ -51,9 +48,10 @@ async fn test_service_create_analisis() {
         .with(
             mockall::predicate::always(),
             mockall::predicate::eq(Some(user_id)),
+            mockall::predicate::eq(Some("001".to_string())),
         )
         .times(1)
-        .returning(|req, uid| Ok(sample(Uuid::new_v4(), &req.judul, uid)));
+        .returning(|req, uid, _| Ok(sample(Uuid::new_v4(), &req.judul, uid)));
 
     let service = AnalisisService::new(Arc::new(repo));
     let req = CreateAnalisisRequest {
@@ -64,7 +62,10 @@ async fn test_service_create_analisis() {
         estimasi_biaya: None,
         justifikasi: None,
     };
-    let result = service.create_analisis(req, Some(user_id)).await.unwrap();
+    let result = service
+        .create_analisis(req, Some(user_id), Some("001".to_string()))
+        .await
+        .unwrap();
     assert_eq!(result.judul, "New Analisis");
 }
 
@@ -72,9 +73,16 @@ async fn test_service_create_analisis() {
 async fn test_handler_get_all_analisis() {
     let mut repo = MockAnalisisRepository::new();
     repo.expect_get_all_analisis()
-        .with(mockall::predicate::eq(1), mockall::predicate::eq(20))
+        .with(
+            mockall::predicate::eq(1),
+            mockall::predicate::eq(20),
+            // The caller is an operator of satker "001": the list is confined to it.
+            mockall::predicate::eq(crate::shared::satker_scope::SatkerScope::Satker(
+                "001".to_string(),
+            )),
+        )
         .times(1)
-        .returning(|_, _| Ok((vec![sample(Uuid::new_v4(), "Analisis Server", None)], 1)));
+        .returning(|_, _, _| Ok((vec![sample(Uuid::new_v4(), "Analisis Server", None)], 1)));
 
     let state = State(AnalisisService::new(Arc::new(repo)));
     let pagination = Query(PaginationQuery {
@@ -95,9 +103,14 @@ async fn test_handler_create_analisis() {
     let mut repo = MockAnalisisRepository::new();
     let user_id = Uuid::new_v4();
     repo.expect_create_analisis()
-        .with(mockall::predicate::always(), mockall::predicate::always())
+        .with(
+            mockall::predicate::always(),
+            mockall::predicate::always(),
+            // The satker is the caller's, from the token.
+            mockall::predicate::eq(Some("001".to_string())),
+        )
         .times(1)
-        .returning(move |req, uid| Ok(sample(Uuid::new_v4(), &req.judul, uid)));
+        .returning(move |req, uid, _| Ok(sample(Uuid::new_v4(), &req.judul, uid)));
 
     let state = State(AnalisisService::new(Arc::new(repo)));
     let mut claims = mock_claims();
@@ -124,9 +137,9 @@ async fn test_handler_get_analisis_by_id() {
     let mut repo = MockAnalisisRepository::new();
     let id = Uuid::new_v4();
     repo.expect_get_analisis_by_id()
-        .with(mockall::predicate::eq(id))
+        .with(mockall::predicate::eq(id), mockall::predicate::always())
         .times(1)
-        .returning(move |_| Ok(sample(id, "Test Analisis", None)));
+        .returning(move |_, _| Ok(sample(id, "Test Analisis", None)));
 
     let state = State(AnalisisService::new(Arc::new(repo)));
     let result = get_analisis_by_id(state, Path(id), mock_claims()).await;

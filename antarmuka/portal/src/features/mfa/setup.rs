@@ -423,24 +423,6 @@ pub fn MfaSetupPage() -> impl IntoView {
 // API FUNCTIONS
 // ============================================================================
 
-/// API response structure for MFA setup
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
-struct MfaSetupResponse {
-    success: bool,
-    data: MfaSetupData,
-    message: String,
-}
-
-/// API response structure for MFA verification
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
-struct MfaVerifyResponse {
-    success: bool,
-    data: MfaVerifyData,
-    message: String,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
 struct MfaVerifyData {
@@ -448,7 +430,6 @@ struct MfaVerifyData {
     setup_completed_at: String,
 }
 
-/// API error response structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
 struct ApiErrorResponse {
@@ -551,12 +532,18 @@ async fn generate_mfa_setup(
             .map_err(|e| format!("Network error: {}", e))?;
 
         if response.ok() {
-            let setup_response: MfaSetupResponse = response
+            // `POST /api/v1/auth/mfa/setup` returns the setup payload FLAT —
+            // `{qr_code_url, secret_key, backup_codes}` — the way every other
+            // authenc handler does (see `LoginResponse`). This used to be parsed
+            // as a `{success, data, message}` envelope that authenc never sends,
+            // so setup ALWAYS failed with "missing field `success`" and the user
+            // could never enrol.
+            let setup_response: MfaSetupData = response
                 .json()
                 .await
                 .map_err(|e| format!("Failed to parse response: {}", e))?;
 
-            Ok(setup_response.data)
+            Ok(setup_response)
         } else {
             // Try to parse error response
             let error_text = response
@@ -606,11 +593,10 @@ async fn verify_mfa_setup(code: &str) -> Result<(), Box<dyn std::error::Error>> 
             .map_err(|e| format!("Network error: {}", e))?;
 
         if response.ok() {
-            let _verify_response: MfaVerifyResponse = response
-                .json()
-                .await
-                .map_err(|e| format!("Failed to parse response: {}", e))?;
-
+            // `POST /api/v1/auth/mfa/verify-setup` answers `200 OK` with NO body
+            // (the handler returns `StatusCode`), so parsing it as JSON always
+            // failed and reported a successful enrolment as an error. Status is
+            // the whole signal here.
             Ok(())
         } else {
             // Try to parse error response

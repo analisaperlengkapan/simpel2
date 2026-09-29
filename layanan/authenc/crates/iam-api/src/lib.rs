@@ -12,6 +12,7 @@
 // Re-export types from authenc-types
 pub use authenc_types::*;
 
+pub mod audit_trail;
 pub mod error;
 pub mod handlers;
 pub mod middleware;

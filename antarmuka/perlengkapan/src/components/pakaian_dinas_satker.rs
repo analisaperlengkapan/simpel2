@@ -110,13 +110,15 @@ fn build_timeline(
 /// Returns `(can_act, approve_label, reject_label)`.
 fn available_actions(code: i32) -> Option<(&'static str, &'static str)> {
     let session = AuthService::load_session()?;
-    let is_admin = session.is_admin();
+    // The validators' moves are the validators'. An administrator is not offered
+    // them: the API refuses an admin every business decision (no bypass), so the
+    // button would only ever answer 403.
     // Wilayah review pending (1001 / 1012)
-    if matches!(code, 1001 | 1012) && (session.is_validator_wilayah() || is_admin) {
+    if matches!(code, 1001 | 1012) && session.is_validator_wilayah() {
         return Some(("Teruskan ke Pusat", "Kembalikan untuk Revisi"));
     }
     // Pusat review pending (1004 / 1010)
-    if matches!(code, 1004 | 1010) && (session.is_validator_pusat() || is_admin) {
+    if matches!(code, 1004 | 1010) && session.is_validator_pusat() {
         return Some(("Setujui (Selesai)", "Kembalikan ke Wilayah"));
     }
     None

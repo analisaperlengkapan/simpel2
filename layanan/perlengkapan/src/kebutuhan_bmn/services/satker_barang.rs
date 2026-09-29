@@ -146,8 +146,14 @@ impl KebutuhanBmnService {
         barang_id: Uuid,
         request: UpdateBarangApprovalRequest,
         user_id: Option<Uuid>,
+        scope: &SatkerScope,
     ) -> AppResult<PengajuanKebutuhanBmnBarang> {
         let barang = self.repository.get_barang_by_id(barang_id).await?;
+        // A barang is reached by its own id, so its owning satker must be
+        // consulted — out of scope is a 404, as everywhere else.
+        self.repository
+            .get_satker_by_id(barang.pengajuan_satker_id, scope)
+            .await?;
 
         // Validate jml_setuju doesn't exceed jumlah
         if request.jml_setuju > barang.jumlah {
@@ -197,7 +203,11 @@ impl KebutuhanBmnService {
     }
 
     /// Set priorities for multiple barang
-    pub async fn set_barang_prioritas(&self, request: SetPrioritasRequest) -> AppResult<()> {
+    pub async fn set_barang_prioritas(
+        &self,
+        request: SetPrioritasRequest,
+        scope: &SatkerScope,
+    ) -> AppResult<()> {
         // Validate all items have valid prioritas
         for item in &request.items {
             if item.prioritas < 0 {
@@ -205,6 +215,15 @@ impl KebutuhanBmnService {
                     "Prioritas tidak boleh negatif".to_string(),
                 ));
             }
+        }
+
+        // Every item must belong to a satker the caller may touch, checked BEFORE
+        // anything is written so a batch cannot half-apply across the boundary.
+        for item in &request.items {
+            let barang = self.repository.get_barang_by_id(item.barang_id).await?;
+            self.repository
+                .get_satker_by_id(barang.pengajuan_satker_id, scope)
+                .await?;
         }
 
         info!("Setting prioritas for {} items", request.items.len());

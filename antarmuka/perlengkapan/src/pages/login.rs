@@ -65,7 +65,7 @@ pub fn LoginPage() -> impl IntoView {
                     "Setelah login berhasil, Anda akan diarahkan kembali ke dashboard Perlengkapan."
                 </p>
 
-                <div style="margin-top: 1.2rem; text-align: center; font-size: 0.78rem; color: #64748b;">
+                <div style="margin-top: 1.2rem; text-align: center; font-size: 0.78rem; color: #7b8ba1;">
                     "Akses resmi internal — SIMPEL"
                 </div>
             </div>

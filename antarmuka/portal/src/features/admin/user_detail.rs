@@ -246,10 +246,15 @@ pub fn UserDetailPage() -> impl IntoView {
     let user_mfa = move || user.get().map(|u| u.mfa_enabled).unwrap_or(false);
     let user_roles = move || user.get().map(|u| u.roles.clone()).unwrap_or_default();
     let user_roles_len = move || user_roles().len();
-    let user_created = move || user.get().map(|u| u.created_at.clone()).unwrap_or_default();
+    let user_created = move || {
+        lib_ui::utils::format_iso_local(
+            &user.get().map(|u| u.created_at.clone()).unwrap_or_default(),
+        )
+    };
     let user_last_login = move || {
         user.get()
             .and_then(|u| u.last_login_at.clone())
+            .map(|t| lib_ui::utils::format_iso_local(&t))
             .unwrap_or_else(|| "—".to_string())
     };
     let avatar_letter = move || {
@@ -338,7 +343,7 @@ pub fn UserDetailPage() -> impl IntoView {
                             // Stats row
                             <div class="grid grid-cols-4 divide-x border-t">
                                 <div class="px-4 py-3 text-center">
-                                    <p class="text-xs text-gray-500">"ID"</p>
+                                    <p class="text-xs text-gray-500">"ID Internal"</p>
                                     <p class="text-xs font-mono text-gray-700 truncate">
                                         {user_id_str}
                                     </p>

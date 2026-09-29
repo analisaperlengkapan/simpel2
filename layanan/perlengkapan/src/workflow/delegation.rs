@@ -82,6 +82,68 @@ pub enum DelegationStatus {
     Scheduled,
 }
 
+/// Longest a delegation may run. A delegation is for a leave or a business trip,
+/// not a permanent re-assignment of authority.
+pub const MAX_DELEGATION_DAYS: i64 = 30;
+/// Shortest written reason accepted, in characters (after trimming).
+pub const MIN_DELEGATION_REASON_CHARS: usize = 10;
+
+/// The checks on a delegation that need no database: whether the delegator may
+/// give this role away at all, and whether the window is sane.
+///
+/// * The delegator must **hold** the role. Before, the role was free text the
+///   caller typed, so anyone could "delegate" `validator_pusat`.
+/// * Only a known business role may be delegated, and never an administrator
+///   role — authority over the system is not something to hand round.
+/// * No future-dated start: the table's status check has no `SCHEDULED` value,
+///   so a future `valid_from` used to fail the INSERT with a 500. Rather than
+///   widen the constraint for a feature that grants nothing yet, it is refused
+///   up front.
+/// * At most [`MAX_DELEGATION_DAYS`], with a written reason.
+pub fn validate_delegation_authority(
+    delegator_roles: &lib_core::authz::RoleSet,
+    request: &CreateDelegationRequest,
+    now: DateTime<Utc>,
+) -> Result<(), DelegationError> {
+    let role = request.role.trim();
+    if lib_core::authz::role_info(role).is_none() {
+        return Err(DelegationError::InvalidRequest(format!(
+            "Role '{role}' tidak dikenal"
+        )));
+    }
+    if lib_core::authz::is_admin_role(role) {
+        return Err(DelegationError::InvalidRequest(
+            "Role administrator tidak dapat didelegasikan".to_string(),
+        ));
+    }
+    if !delegator_roles.has(role) {
+        return Err(DelegationError::Unauthorized(format!(
+            "Anda tidak memegang role '{role}', sehingga tidak dapat mendelegasikannya"
+        )));
+    }
+    if request.valid_from > now + chrono::Duration::minutes(5) {
+        return Err(DelegationError::InvalidRequest(
+            "Tanggal mulai tidak boleh di masa depan; delegasi berlaku sejak dibuat".to_string(),
+        ));
+    }
+    if request.valid_until - request.valid_from > chrono::Duration::days(MAX_DELEGATION_DAYS) {
+        return Err(DelegationError::InvalidRequest(format!(
+            "Delegasi maksimal {MAX_DELEGATION_DAYS} hari"
+        )));
+    }
+    let reason_chars = request
+        .reason
+        .as_deref()
+        .map(|r| r.trim().chars().count())
+        .unwrap_or(0);
+    if reason_chars < MIN_DELEGATION_REASON_CHARS {
+        return Err(DelegationError::InvalidRequest(format!(
+            "Alasan delegasi wajib diisi minimal {MIN_DELEGATION_REASON_CHARS} karakter"
+        )));
+    }
+    Ok(())
+}
+
 /// Delegation manager
 pub struct DelegationManager {
     /// Database connection pool
@@ -452,6 +514,82 @@ pub enum DelegationError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lib_core::authz::RoleSet;
+
+    fn req(role: &str) -> CreateDelegationRequest {
+        let now = Utc::now();
+        CreateDelegationRequest {
+            delegator_user_id: Uuid::new_v4(),
+            delegate_user_id: Uuid::new_v4(),
+            role: role.to_string(),
+            valid_from: now,
+            valid_until: now + chrono::Duration::days(7),
+            reason: Some("Cuti tahunan 7 hari".to_string()),
+        }
+    }
+
+    #[test]
+    fn a_caller_can_only_delegate_a_role_they_hold() {
+        let now = Utc::now();
+        let mine = RoleSet::new(["validator_wilayah"]);
+        assert!(validate_delegation_authority(&mine, &req("validator_wilayah"), now).is_ok());
+        assert!(matches!(
+            validate_delegation_authority(&mine, &req("validator_pusat"), now),
+            Err(DelegationError::Unauthorized(_))
+        ));
+    }
+
+    #[test]
+    fn administrator_and_unknown_roles_cannot_be_delegated() {
+        let now = Utc::now();
+        let admin = RoleSet::new(["admin", "superadmin", "admin_pusat"]);
+        for role in ["admin", "superadmin", "admin_pusat"] {
+            assert!(
+                matches!(
+                    validate_delegation_authority(&admin, &req(role), now),
+                    Err(DelegationError::InvalidRequest(_))
+                ),
+                "{role} must not be delegable even by an admin"
+            );
+        }
+        let odd = RoleSet::new(["totally_made_up"]);
+        assert!(validate_delegation_authority(&odd, &req("totally_made_up"), now).is_err());
+    }
+
+    #[test]
+    fn the_window_is_bounded_and_may_not_start_in_the_future() {
+        let now = Utc::now();
+        let mine = RoleSet::new(["validator_wilayah"]);
+
+        let mut long = req("validator_wilayah");
+        long.valid_until = long.valid_from + chrono::Duration::days(MAX_DELEGATION_DAYS + 1);
+        assert!(validate_delegation_authority(&mine, &long, now).is_err());
+
+        let mut exact = req("validator_wilayah");
+        exact.valid_until = exact.valid_from + chrono::Duration::days(MAX_DELEGATION_DAYS);
+        assert!(validate_delegation_authority(&mine, &exact, now).is_ok());
+
+        // The `workflow_delegations` status check has no SCHEDULED value.
+        let mut future = req("validator_wilayah");
+        future.valid_from = now + chrono::Duration::days(2);
+        future.valid_until = future.valid_from + chrono::Duration::days(3);
+        assert!(validate_delegation_authority(&mine, &future, now).is_err());
+    }
+
+    #[test]
+    fn a_written_reason_is_required() {
+        let now = Utc::now();
+        let mine = RoleSet::new(["validator_wilayah"]);
+        let mut none = req("validator_wilayah");
+        none.reason = None;
+        assert!(validate_delegation_authority(&mine, &none, now).is_err());
+        let mut short = req("validator_wilayah");
+        short.reason = Some("cuti".to_string());
+        assert!(validate_delegation_authority(&mine, &short, now).is_err());
+        let mut blank = req("validator_wilayah");
+        blank.reason = Some("           ".to_string());
+        assert!(validate_delegation_authority(&mine, &blank, now).is_err());
+    }
 
     #[test]
     fn test_delegation_status_serialization() {

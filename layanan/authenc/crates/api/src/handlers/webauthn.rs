@@ -300,7 +300,8 @@ pub async fn finish_authentication_handler(
     })?;
 
     // Build custom claims
-    let custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(Some(&user));
+    let custom_claims =
+        crate::handlers::active_role::build_claims_for_user(&state, &user, None).await;
 
     let access_token = state
         .jwt_service

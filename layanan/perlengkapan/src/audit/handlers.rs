@@ -27,11 +27,16 @@ pub async fn list_audit_trail(
     claims: Claims,
     Query(query): Query<AuditTrailQuery>,
 ) -> AppResult<Json<PaginatedResponse<AuditTrailEntry>>> {
-    if !claims.is_cross_satker_role() {
-        return Err(AppError::Authorization(
-            "Audit log lintas-modul hanya tersedia untuk role pusat/admin".to_string(),
-        ));
-    }
+    // Administrators (`ViewAudit`) and the pusat-level oversight roles — the same
+    // readership as before, now named instead of borrowed from "may read across
+    // satkers", which is what the previous check actually tested.
+    claims
+        .require_any_role_or_admin(&["validator_pusat", "analis_pusat", "pusat"])
+        .map_err(|_| {
+            AppError::Authorization(
+                "Audit log lintas-modul hanya tersedia untuk role pusat/admin".to_string(),
+            )
+        })?;
 
     let page = query.page.unwrap_or(1).max(1);
     let per_page = query.per_page.unwrap_or(25).clamp(1, 200);

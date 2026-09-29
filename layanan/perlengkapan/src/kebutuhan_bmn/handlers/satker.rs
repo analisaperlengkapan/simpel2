@@ -21,6 +21,8 @@ pub async fn add_satker_to_pengajuan(
     claims: Claims,
     Json(request): Json<AddSatkerRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<PengajuanKebutuhanBmnSatker>>), AppError> {
+    // Choosing which satkers take part in a campaign is the campaign author's.
+    claims.require_role("validator_pusat")?;
     info!(
         "Adding satker {} to pengajuan {}",
         request.satker_id, pengajuan_id
@@ -79,12 +81,7 @@ pub async fn transition_satker_status(
     Json(request): Json<WorkflowTransitionRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmnSatker>>, AppError> {
     // Coarse-grained gate; the workflow engine enforces the per-state required role.
-    claims.require_any_role(&[
-        "operator_satker",
-        "validator_wilayah",
-        "validator_pusat",
-        "admin",
-    ])?;
+    claims.require_any_role(KEBUTUHAN_WORKFLOW_ROLES)?;
     info!(
         "Transitioning satker {} to status {}",
         satker_id, request.target_status
@@ -92,6 +89,7 @@ pub async fn transition_satker_status(
 
     let user_id = Some(claims.user_id);
     let user_info = Some(extract_user_info(&claims));
+    let acting_role = acting_role_for_target(&claims, request.target_status);
 
     let satker = service
         .transition_satker_status(
@@ -99,7 +97,7 @@ pub async fn transition_satker_status(
             request,
             user_id,
             user_info,
-            claims.role.clone(),
+            acting_role,
             &SatkerScope::from_claims(&claims),
         )
         .await?;
@@ -146,7 +144,7 @@ pub async fn submit_satker_to_wilayah(
             request,
             Some(claims.user_id),
             Some(user_info),
-            claims.role.clone(),
+            claims.acting_role(&["operator_satker"]),
             &SatkerScope::from_claims(&claims),
         )
         .await?;

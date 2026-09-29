@@ -20,23 +20,25 @@ pub struct MfaVerificationRequest {
 }
 
 /// MFA verification response from authenc API
+///
+/// Flat, matching `MfaVerifyResponse` on the authenc side — authenc does not
+/// wrap handler payloads in a `{success, data, message}` envelope (see
+/// `LoginResponse`). The previous envelope expectation made every successful
+/// MFA login fail with "missing field `success`", so the second factor could
+/// never be completed.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MfaVerificationResponse {
-    /// Success status
-    pub success: bool,
-    /// Response data
-    pub data: MfaVerificationData,
-    /// Response message
-    pub message: String,
-}
-
-/// MFA verification data
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MfaVerificationData {
     /// JWT access token
     pub access_token: String,
-    /// User session data
-    pub user: serde_json::Value,
+    /// Token type (always "Bearer")
+    #[serde(default)]
+    pub token_type: Option<String>,
+    /// Token lifetime in seconds
+    #[serde(default)]
+    pub expires_in: Option<u64>,
+    /// Refresh token for session renewal
+    #[serde(default)]
+    pub refresh_token: Option<String>,
 }
 
 /// API error response structure
@@ -67,6 +69,10 @@ pub fn MfaVerificationPage() -> impl IntoView {
     let (is_locked, set_is_locked) = signal(false);
 
     let navigate = leptos_router::hooks::use_navigate();
+    // Resolved at render time: `app_state_login` runs inside `spawn_local`,
+    // after an `.await`, when the reactive Owner is gone — resolving context
+    // there panics and blanks the page.
+    let app_state = crate::utils::app_state::use_app_state();
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.
@@ -237,22 +243,31 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                         let nav = navigate.clone();
                                         let is_mounted = is_mounted.clone();
                                         let set_user_session = set_user_session;
+                                        let app_state = app_state;
                                         spawn_local(async move {
                                             match verify_mfa_code(&temp_token, &code).await {
                                                 Ok(response) => {
                                                     #[cfg(target_arch = "wasm32")]
                                                     {
                                                         use crate::features::auth::AuthService;
-                                                        AuthService::save_token(&response.data.access_token);
+                                                        AuthService::save_token(&response.access_token);
+                                                        // The login flow persists the refresh token;
+                                                        // dropping it here meant an MFA user was
+                                                        // silently unable to refresh their session and
+                                                        // got logged out at access-token expiry.
+                                                        if let Some(refresh) = &response.refresh_token {
+                                                            AuthService::save_refresh_token(refresh);
+                                                        }
                                                         match AuthService::decode_jwt_claims(
-                                                            &response.data.access_token,
+                                                            &response.access_token,
                                                         ) {
                                                             Ok(mut session) => {
                                                                 session.mfa_enabled = true;
                                                                 session.mfa_setup_required = false;
-                                                                session.access_token = Some(response.data.access_token);
+                                                                session.access_token = Some(response.access_token);
+                                                                session.refresh_token = response.refresh_token.clone();
                                                                 AuthService::save_session(&session);
-                                                                crate::utils::app_state::app_state_login(session.clone());
+                                                                crate::utils::app_state::app_state_login(app_state, session.clone());
                                                                 if let Some(setter) = set_user_session {
                                                                     setter.set(Some(session.clone()));
                                                                 }

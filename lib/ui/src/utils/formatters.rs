@@ -345,6 +345,59 @@ pub fn format_iso_local_opt(iso: Option<&str>) -> String {
     }
 }
 
+/// Turn a raw `User-Agent` header into a short, human label.
+///
+/// The header is a protocol artifact — `Mozilla/5.0 (X11; Linux x86_64)
+/// AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36` — and
+/// printing it verbatim into a session card shows the reader a parser puzzle
+/// instead of the one fact they came for: which device is logged in.
+///
+/// The ORDER of the checks is the whole trick. Every browser lies about being
+/// every other browser: Chrome claims `Safari` and `Mozilla`, Edge claims
+/// `Chrome` and `Safari`, and Opera claims all three. Testing `Safari` first
+/// would label Edge as Safari. So the most specific brands are matched before
+/// the ones they impersonate.
+pub fn device_label(user_agent: &str) -> String {
+    let ua = user_agent.to_lowercase();
+
+    let platform = if ua.contains("iphone") {
+        "iPhone"
+    } else if ua.contains("ipad") {
+        "iPad"
+    } else if ua.contains("android") {
+        "Android"
+    } else if ua.contains("windows") {
+        "Windows"
+    } else if ua.contains("mac os") || ua.contains("macintosh") {
+        "macOS"
+    } else if ua.contains("linux") {
+        "Linux"
+    } else {
+        ""
+    };
+
+    let browser = if ua.contains("edg/") || ua.contains("edgios") || ua.contains("edga/") {
+        "Edge"
+    } else if ua.contains("opr/") || ua.contains("opera") {
+        "Opera"
+    } else if ua.contains("firefox") || ua.contains("fxios") {
+        "Firefox"
+    } else if ua.contains("chrome") || ua.contains("crios") {
+        "Chrome"
+    } else if ua.contains("safari") {
+        "Safari"
+    } else {
+        ""
+    };
+
+    match (browser, platform) {
+        ("", "") => "Perangkat tidak dikenal".to_string(),
+        (b, "") => b.to_string(),
+        ("", p) => p.to_string(),
+        (b, p) => format!("{b} di {p}"),
+    }
+}
+
 #[cfg(test)]
 mod iso_local_tests {
     use super::{format_iso_local, format_iso_local_opt};
@@ -377,5 +430,34 @@ mod iso_local_tests {
         assert_eq!(format_iso_local("kemarin"), "kemarin");
         assert_eq!(format_iso_local_opt(None), "—");
         assert_eq!(format_iso_local_opt(Some("  ")), "—");
+    }
+}
+
+#[cfg(test)]
+mod device_label_tests {
+    use super::device_label;
+
+    /// The whole point of the ordering: Edge and Chrome both claim to be
+    /// Safari, and Opera claims to be Chrome. A naive "check Safari first"
+    /// table labels two of these three wrongly.
+    #[test]
+    fn impersonating_browsers_are_not_mislabelled() {
+        let edge = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0";
+        assert_eq!(device_label(edge), "Edge di Windows");
+
+        let opera = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 OPR/105.0.0.0";
+        assert_eq!(device_label(opera), "Opera di Linux");
+
+        let chrome = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+        assert_eq!(device_label(chrome), "Chrome di Linux");
+    }
+
+    #[test]
+    fn mobile_platforms_and_the_empty_case() {
+        let iphone = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+        assert_eq!(device_label(iphone), "Safari di iPhone");
+
+        assert_eq!(device_label(""), "Perangkat tidak dikenal");
+        assert_eq!(device_label("curl/8.5.0"), "Perangkat tidak dikenal");
     }
 }

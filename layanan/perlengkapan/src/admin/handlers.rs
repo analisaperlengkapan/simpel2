@@ -20,14 +20,19 @@ use super::models::{
 };
 use super::repository;
 
+/// Master-data administration: `Capability::Administer` (ADMIN_ROLES).
+///
+/// This used to be `is_cross_satker_role()`, which is "may READ across satkers"
+/// — and so admitted `validator_pusat`, `pusat` and `analis_pusat` to
+/// create/update/delete master records. Reading the whole estate is not
+/// administering the reference data every workflow validates against.
 fn require_admin(claims: &Claims) -> AppResult<()> {
-    if claims.is_cross_satker_role() {
-        Ok(())
-    } else {
-        Err(AppError::Authorization(
-            "Endpoint admin hanya tersedia untuk role pusat/admin".to_string(),
-        ))
-    }
+    claims.require_capability(lib_core::authz::Capability::Administer)
+}
+
+/// Workflow audit trail: `Capability::ViewAudit`.
+fn require_audit_viewer(claims: &Claims) -> AppResult<()> {
+    claims.require_capability(lib_core::authz::Capability::ViewAudit)
 }
 
 /// GET /admin/audit
@@ -36,7 +41,7 @@ pub async fn list_audit_logs(
     claims: Claims,
     Query(filter): Query<AuditFilter>,
 ) -> AppResult<Json<PaginatedResponse<AuditLogEntry>>> {
-    require_admin(&claims)?;
+    require_audit_viewer(&claims)?;
     let page = filter.page.unwrap_or(1).max(1);
     let per_page = filter.per_page.unwrap_or(25).clamp(1, 200);
 

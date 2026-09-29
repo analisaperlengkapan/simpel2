@@ -4,11 +4,24 @@
 //! roadmap_sarpras, riwayat_pemenuhan). Small datasets stream synchronously;
 //! large ones queue an async job tracked in `perlengkapan.export_jobs`.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::shared::satker_scope::SatkerScope;
+
+/// Who is asking, as far as an export is concerned. Built from the caller's
+/// verified claims — never from the query string.
+#[derive(Debug, Clone)]
+pub struct ExportCaller {
+    pub user_id: Uuid,
+    /// May read every job, not only their own (`Capability::ViewAudit`).
+    pub is_admin: bool,
+    /// Which rows of the satker-keyed entities this caller may export.
+    pub scope: SatkerScope,
+}
+
 /// Export query parameters
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ExportQuery {
     /// Entity type to export (kebutuhan_bmn, pakaian_dinas, etc.)
     pub entity_type: String,
@@ -28,6 +41,12 @@ pub struct ExportQuery {
     pub satker_id: Option<String>,
     /// Status filter
     pub status: Option<String>,
+    /// Which rows the caller may export. **Never read from the request**: the
+    /// handler overwrites it from the verified claims, and until it does the
+    /// value is `Denied`, so a code path that forgets exports nothing rather
+    /// than the whole country.
+    #[serde(skip, default = "SatkerScope::denied")]
+    pub scope: SatkerScope,
 }
 
 /// Export job response

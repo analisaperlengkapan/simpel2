@@ -53,6 +53,22 @@ async fn post(server: &TestServer, path: &str, body: serde_json::Value) -> axum_
     req.await
 }
 
+/// POST as the satker's own OPERATOR — the only role that enters barang. The
+/// fixture used to add barang as `validator_pusat`, which only worked because
+/// the endpoint had no role check at all.
+async fn post_as_operator(
+    server: &TestServer,
+    path: &str,
+    body: serde_json::Value,
+    satker: &str,
+) -> axum_test::TestResponse {
+    let mut req = server.post(path).json(&body);
+    for (k, v) in auth_headers("operator_satker", satker) {
+        req = req.add_header(k, v);
+    }
+    req.await
+}
+
 async fn get(server: &TestServer, path: &str) -> axum_test::TestResponse {
     let mut req = server.get(path);
     for (k, v) in auth_headers("validator_pusat", "PUSAT001") {
@@ -103,10 +119,11 @@ async fn seed(server: &TestServer, satker: &str, kode_barang: Option<&str>) -> S
     if let Some(kode) = kode_barang {
         barang["kode_barang"] = json!(kode);
     }
-    let r = post(
+    let r = post_as_operator(
         server,
         &format!("/kebutuhan-bmn/satker/{satker_row}/barang"),
         barang,
+        satker,
     )
     .await;
     assert_eq!(r.status_code(), 201, "seed barang: {:?}", r.text());

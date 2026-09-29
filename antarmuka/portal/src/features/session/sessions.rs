@@ -125,6 +125,7 @@ pub fn SessionsPage() -> impl IntoView {
                                     let device = session_info
                                         .user_agent
                                         .clone()
+                                        .map(|ua| lib_ui::utils::formatters::device_label(&ua))
                                         .unwrap_or_else(|| "Perangkat tidak dikenal".to_string());
                                     let ip = session_info
                                         .ip_address
@@ -173,8 +174,8 @@ pub fn SessionsPage() -> impl IntoView {
                                                 </div>
                                                 <div class="text-sm text-gray-500 mt-1 space-y-0.5">
                                                     <p>"IP: " {ip}</p>
-                                                    <p>"Login: " {created}</p>
-                                                    <p>"Aktif terakhir: " {last_active}</p>
+                                                    <p>"Login: " {lib_ui::utils::format_iso_local(&created)}</p>
+                                                    <p>"Aktif terakhir: " {lib_ui::utils::format_iso_local(&last_active)}</p>
                                                 </div>
                                             </div>
                                             <div class="flex-shrink-0">

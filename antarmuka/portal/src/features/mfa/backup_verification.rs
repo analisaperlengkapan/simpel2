@@ -70,6 +70,10 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
     let (verification_success, _set_verification_success) = signal(false);
 
     let navigate = leptos_router::hooks::use_navigate();
+    // Resolved at render time: `app_state_login` runs inside `spawn_local`,
+    // after an `.await`, when the reactive Owner is gone — resolving context
+    // there panics and blanks the page.
+    let app_state = crate::utils::app_state::use_app_state();
 
     // Obtain the top-level user_session writer so we can update the reactive
     // signal after successful MFA verification.  Without this, route guards
@@ -260,6 +264,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                         let nav = navigate.clone();
                                         let is_mounted = mounted.clone();
                                         let set_user_session = set_user_session;
+                                        let app_state = app_state;
                                         spawn_local(async move {
                                             match verify_backup_code(&temp_token, &code).await {
                                                 Ok(response) => {
@@ -275,7 +280,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                                                 session.mfa_setup_required = false;
                                                                 session.access_token = Some(response.data.access_token);
                                                                 AuthService::save_session(&session);
-                                                                crate::utils::app_state::app_state_login(session.clone());
+                                                                crate::utils::app_state::app_state_login(app_state, session.clone());
                                                                 if let Some(setter) = set_user_session {
                                                                     setter.set(Some(session.clone()));
                                                                 }

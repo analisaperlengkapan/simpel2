@@ -92,6 +92,15 @@ RUN mkdir -p /root/.cache/trunk/tailwindcss-3.3.5 && \
 # matches `<base href>` in index.html dan WASM router base path.
 RUN trunk build --release --public-url "/perlengkapan/simpel/v2/"
 
+# SHA-256 of every inline <script> in the BUILT index.html, for the opt-in
+# hash-based CSP (`CSP_HASH_MODE=true` in the entrypoint replaces
+# `script-src 'unsafe-inline'`). Computed here because only this stage knows the
+# final page — Trunk's boot script carries content-hashed filenames, so its hash
+# changes every build. Fails the build if the page has no inline script.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 /workspace/infra/scripts/csp-script-hashes.py dist/index.html > csp-script-hashes.txt
+
 # Stage 2: Nginx for serving build output - LISTEN ON PORT 8080
 # nginx-unprivileged runs as non-root (uid 101) on 8080 — clears Trivy DS-0002.
 # pid relocated to /tmp in nginx.conf; the html chown below (already present)
@@ -107,6 +116,7 @@ COPY antarmuka/perlengkapan/nginx.conf /etc/nginx/nginx.conf
 RUN rm -rf /usr/share/nginx/html/* && \
     mkdir -p /usr/share/nginx/html/perlengkapan/simpel
 COPY --from=builder /workspace/antarmuka/perlengkapan/dist /usr/share/nginx/html/perlengkapan/simpel/v2
+COPY --from=builder /workspace/antarmuka/perlengkapan/csp-script-hashes.txt /usr/share/nginx/csp-script-hashes.txt
 
 # Redirect HTML untuk path parent. Saat user akses /perlengkapan/ atau
 # /perlengkapan/simpel/, browser dapat meta-refresh ke canonical

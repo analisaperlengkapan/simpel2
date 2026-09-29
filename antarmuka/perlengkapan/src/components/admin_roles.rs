@@ -15,7 +15,7 @@ use leptos::prelude::*;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
 use phosphor_leptos::{CHECK, USER_CHECK};
 
-use crate::components::role_switcher::PerlengkapanRole;
+use crate::components::role_catalog::PerlengkapanRole;
 
 /// Admin Roles Configuration Page
 #[component]
@@ -156,36 +156,70 @@ pub fn AdminRolesPage() -> impl IntoView {
                                                         <span class="text-success-400 mr-2">
                                                             <AppIcon icon=CHECK />
                                                         </span>
-                                                        "Roadmap Sarpras: Approve"
+                                                        "Analisis Kebutuhan: Approve"
                                                     </div>
                                                 }
                                                     .into_any()
                                             }
-                                            "admin" => {
+                                            "validator_satker" => {
                                                 view! {
                                                     <div>
                                                         <span class="text-success-400 mr-2">
                                                             <AppIcon icon=CHECK />
                                                         </span>
-                                                        "Semua akses Operator, Validator Wilayah, Validator Pusat"
+                                                        "Pemakaian BMN: Teruskan ke Approver Satker, Kembalikan untuk Revisi"
                                                     </div>
                                                     <div>
                                                         <span class="text-success-400 mr-2">
                                                             <AppIcon icon=CHECK />
                                                         </span>
-                                                        "Manajemen Pengguna & Role"
+                                                        "Bukan pengusul usulan yang sama (pemisahan tugas)"
+                                                    </div>
+                                                }
+                                                    .into_any()
+                                            }
+                                            "approver_satker" => {
+                                                view! {
+                                                    <div>
+                                                        <span class="text-success-400 mr-2">
+                                                            <AppIcon icon=CHECK />
+                                                        </span>
+                                                        "Pemakaian BMN: Setujui (Izin Terbit), Kembalikan, Cabut Izin"
                                                     </div>
                                                     <div>
                                                         <span class="text-success-400 mr-2">
                                                             <AppIcon icon=CHECK />
                                                         </span>
-                                                        "Konfigurasi Sistem"
+                                                        "Bukan pengusul maupun validator usulan yang sama (pemisahan tugas)"
+                                                    </div>
+                                                }
+                                                    .into_any()
+                                            }
+                                            "admin" | "admin_pusat" | "superadmin" => {
+                                                view! {
+                                                    <div>
+                                                        <span class="text-success-400 mr-2">
+                                                            <AppIcon icon=CHECK />
+                                                        </span>
+                                                        "Master Data, Template Dokumen & Audit Log"
                                                     </div>
                                                     <div>
                                                         <span class="text-success-400 mr-2">
                                                             <AppIcon icon=CHECK />
                                                         </span>
-                                                        "Master Data & Audit Log"
+                                                        "Pemantauan Workflow & Pemicu Auto-Expire"
+                                                    </div>
+                                                    <div>
+                                                        <span class="text-success-400 mr-2">
+                                                            <AppIcon icon=CHECK />
+                                                        </span>
+                                                        "Manajemen Pengguna & Role (khusus role admin, lewat konsol IAM)"
+                                                    </div>
+                                                    <div>
+                                                        <span class="text-warning-400 mr-2">
+                                                            <AppIcon icon=CHECK />
+                                                        </span>
+                                                        "Tidak menyetujui, menolak atau mencabut: keputusan bisnis milik Validator/Approver. Keadaan darurat lewat break-glass (beralasan & tercatat)"
                                                     </div>
                                                 }
                                                     .into_any()

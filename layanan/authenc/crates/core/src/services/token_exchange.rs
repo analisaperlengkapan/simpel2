@@ -779,6 +779,7 @@ impl TokenExchangeService {
             client_id: Some(client_id.to_string()),
             status: if success { "success" } else { "failure" }.to_string(),
             detail: Some(detail),
+            ip_address: None,
         };
 
         self.audit_log.send(&audit_log);

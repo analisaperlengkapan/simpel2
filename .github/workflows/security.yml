@@ -24,6 +24,12 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # Kontrol kompensasi untuk kebijakan "pemeriksaan dependency yang tak pernah
+  # menjawab = hijau" (infra/scripts/retry-dependency-check.py): di job TERJADWAL
+  # harian, tak pernah menjawab = MERAH. Di PR/push tetap hijau (dengan
+  # anotasi ::warning::), tetapi tak bisa bertahan lebih dari sehari tanpa
+  # tampil merah di `main`.
+  DEP_CHECK_HANG_IS_RED: ${{ github.event_name == 'schedule' && '1' || '0' }}
 
 jobs:
   # ── Blocking checks ─────────────────────────────────
@@ -34,9 +40,88 @@ jobs:
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
+      # This job is the one that checks out FULL history (fetch-depth: 0), and
+      # that fetch is where it fails: `curl 92 HTTP/2 stream N was not closed
+      # cleanly: CANCEL (err 8)` -> `fatal: early EOF` -> `fetch-pack: invalid
+      # index-pack output`, then the transfer stalls until timeout-minutes kills
+      # the job (observed 2026-09-25, twice in a row, ~19 min into a 30 min job).
+      #
+      # The summary is right to fail-closed here — a cancelled secret scan must
+      # never read as green — so the repair belongs in the transport, not in the
+      # classification. HTTP/1.1 is the documented mitigation for the HTTP/2
+      # stream CANCEL class; the buffer setting covers the large pack this repo
+      # produces. Set BEFORE checkout so the action's own git inherits it.
+      - name: Harden git transport (HTTP/2 stream CANCEL on full-history fetch)
+        shell: bash
+        run: |
+          git config --global http.version HTTP/1.1
+          git config --global http.postBuffer 524288000
+          git config --global http.lowSpeedLimit 1000
+          git config --global http.lowSpeedTime 300
+      # `actions/checkout` cannot be retried (no `retry` on `uses` steps), so a
+      # single transport blip is fatal. Let it fail softly, then repair with a
+      # bounded retry loop — and re-assert afterwards that history really is
+      # present, so a half-fetched tree can never reach the scanner.
       - uses: actions/checkout@v7
+        id: checkout
+        continue-on-error: true
         with:
           fetch-depth: 0
+      - name: Repair incomplete checkout (bounded retry)
+        if: steps.checkout.outcome == 'failure'
+        shell: bash
+        run: |
+          set -uo pipefail
+          git rev-parse --git-dir >/dev/null 2>&1 || git init -q .
+          git remote get-url origin >/dev/null 2>&1 || \
+            git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          for attempt in 1 2 3 4 5; do
+            echo "::group::repair attempt ${attempt}/5"
+            # Branches carry the history; the reviewed commit is fetched by SHA
+            # ON TOP of that. On `pull_request`, GITHUB_SHA is the synthetic
+            # merge commit (refs/pull/N/merge) which is not under refs/heads/*;
+            # relying on the server happening to include it in the pack is luck,
+            # so ask for it explicitly. (Verified against this repo's own PR
+            # merge ref: fetch-by-SHA succeeds.)
+            if git fetch --prune --no-tags origin '+refs/heads/*:refs/remotes/origin/*' \
+               && git fetch --no-tags origin "${GITHUB_SHA}"; then
+              rc=0
+            else
+              rc=$?
+            fi
+            echo "::endgroup::"
+            if [ "$rc" -eq 0 ]; then
+              echo "fetch repaired on attempt ${attempt}"
+              # Fetching refs alone leaves no working tree; the scanner reads
+              # files literally, so check the reviewed commit out by SHA. Without
+              # this the scan would run against a partial tree and could report
+              # "no findings" for code it never read. This step runs without
+              # `set -e`, so a failed checkout must be caught HERE — falling
+              # through to `exit 0` would report a repaired tree that is empty.
+              if git checkout -f --detach "${GITHUB_SHA}"; then
+                exit 0
+              fi
+              echo "::warning::checkout of ${GITHUB_SHA} failed after a successful fetch"
+            fi
+            sleep $((attempt * 10))
+          done
+          echo "::error::full-history fetch failed after 5 attempts (transport, not a finding)"
+          exit 1
+      - name: Assert full history and working tree are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse --git-dir >/dev/null
+          # A shallow tree would silently narrow the scan; gitleaks must see
+          # every commit, so an incomplete fetch is a hard failure, not a pass.
+          test -f .git/shallow && { echo "::error::history is shallow"; exit 1; } || true
+          commits=$(git rev-list --count HEAD)
+          echo "history: ${commits} commits reachable from HEAD"
+          test "$commits" -gt 1 || { echo "::error::no usable history"; exit 1; }
+          # Guard the other failure mode: refs present but no checked-out files.
+          # `.gitleaks.toml` is the config the next step is handed, so its
+          # absence proves the tree is not usable.
+          test -s .gitleaks.toml || { echo "::error::working tree is not checked out"; exit 1; }
       - name: Cleanup stale temp files (self-hosted fix)
         shell: bash
         run: rm -f /tmp/gitleaks.tmp /tmp/gitleaks-report.*
@@ -67,45 +152,57 @@ jobs:
         with:
           cache-key: audit
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      # Pinned + SHA-256 verified (shared with maintenance.yml): a checksum
+      # mismatch is a hard failure, a network failure falls back to a source build.
       - name: Install cargo-audit
         shell: bash
-        run: |
-          if ! command -v cargo-audit &>/dev/null; then
-            AUDIT_VERSION="0.22.1"
-            URL="https://github.com/rustsec/rustsec/releases/download/cargo-audit/v${AUDIT_VERSION}/cargo-audit-x86_64-unknown-linux-gnu-v${AUDIT_VERSION}.tgz"
-            # Tarball contains a top-level
-            # `cargo-audit-x86_64-unknown-linux-gnu-vX.Y.Z/` directory;
-            # `--strip-components=1` flattens it so the binary lands at
-            # `$CARGO_HOME/bin/cargo-audit` (in PATH) rather than buried
-            # in a subdirectory. CARGO_HOME is set by setup-rust action
-            # to a job-isolated path under runner.temp.
-            mkdir -p "$CARGO_HOME/bin"
-            if curl -LsSf "$URL" | tar -xzf- --strip-components=1 -C "$CARGO_HOME/bin/" cargo-audit-x86_64-unknown-linux-gnu-v${AUDIT_VERSION}/cargo-audit 2>/dev/null; then
-              echo "Installed cargo-audit ${AUDIT_VERSION} from pre-built binary"
-              cargo-audit --version
-            else
-              echo "::warning::Pre-built binary unavailable, compiling from source"
-              cargo install cargo-audit --locked
-            fi
-          fi
+        run: ./infra/scripts/install-cargo-audit.sh
       # Beberapa entri ignore di .cargo/audit.toml dibenarkan HANYA karena
       # crate-nya tak pernah dikompilasi: ia dependency opsional yang tak
       # diaktifkan feature mana pun, dan cuma tercatat di Cargo.lock (lockfile
       # bersifat feature-agnostic). Alasan seperti itu bisa basi diam-diam
       # begitu ada yang mengaktifkan feature-nya, jadi tegakkan secara mekanis
-      # alih-alih mengandalkan komentar. `cargo tree -i` keluar 0 walau paket
-      # tak ditemukan, jadi yang diperiksa adalah ADA/TIDAKNYA baris output.
+      # alih-alih mengandalkan komentar. Yang diperiksa adalah ADA/TIDAKNYA baris
+      # `rkyv v…` di pohon PENUH, bukan `-i`: `-i` keluar non-nol justru pada
+      # kasus normal "crate tak ada", sehingga kegagalan jaringan tak bisa
+      # dibedakan dari hasil yang sah. Lihat komentar di dalam langkah.
       - name: Assert lockfile-only audit ignores still hold
         shell: bash
         run: |
           set -euo pipefail
+          repo=$(pwd)
+          tmp=$(mktemp -d)
+          # Dua cacat ditutup di sini, keduanya kelas yang sama dengan probe
+          # ignore basi di atas:
+          #
+          # 1. Versi lama menjalankan `cargo tree -i "$crate" 2>/dev/null | grep`
+          #    tanpa timeout. `cargo tree` bisa menggantung menembus batas job,
+          #    dan `2>/dev/null` membuat SETIAP kegagalannya — jaringan, panic,
+          #    toolchain hilang — tercetak persis seperti "crate-nya memang tak
+          #    ada": `ok: rkyv tetap di luar build graph`. Probe yang tak bisa
+          #    membedakan "sudah diperiksa dan bersih" dari "tidak bisa
+          #    diperiksa" adalah probe yang lulus tanpa memeriksa apa pun.
+          # 2. `-i` keluar non-nol justru pada kasus NORMAL (crate memang tak
+          #    ada), jadi kegagalannya tak bisa dibedakan dari jaringan.
+          #    Pohon PENUH keluar 0, sehingga ketiadaan crate menjadi bermakna.
+          python3 "$repo/infra/scripts/retry-dependency-check.py" \
+            --name "cargo tree (probe lockfile-only)" \
+            --attempts 3 --timeout 300 \
+            --capture "$tmp/tree.txt" \
+            -- cargo tree --workspace --all-features --target all
+          if [ ! -s "$tmp/tree.txt" ]; then
+            echo "::notice::cargo tree tak pernah menjawab (jaringan) — probe \
+          lockfile-only dilewati, bukan dianggap lulus."
+            exit 0
+          fi
           fail=0
           # crate -> advisory yang di-ignore atas dasar "tak pernah dikompilasi"
           for pair in "rkyv:RUSTSEC-2026-0235"; do
             crate="${pair%%:*}"
             advisory="${pair##*:}"
-            if cargo tree --workspace --all-features --target all \
-                 -i "$crate" 2>/dev/null | grep -q "^${crate} v"; then
+            # Baris pohon menjorok, jadi batas kiri tidak boleh `^` telanjang:
+            # `(^|[^a-zA-Z0-9_-])` mencegah `foo-rkyv` ikut cocok.
+            if grep -qE "(^|[^a-zA-Z0-9_-])${crate} v" "$tmp/tree.txt"; then
               echo "::error file=.cargo/audit.toml::${crate} kini MASUK build graph — ${advisory} tak lagi lockfile-only. Cabut ignore-nya dan tangani advisory sungguhan."
               fail=1
             else
@@ -123,17 +220,54 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          repo=$(pwd)
           tmp=$(mktemp -d)
           cp Cargo.lock "$tmp/"
-          # cargo audit keluar non-nol saat ada temuan; di sini kita hanya
-          # butuh laporannya, dan skrip di bawah yang memutuskan lulus/gagal
-          # (termasuk menolak laporan kosong = probe rusak).
-          ( cd "$tmp" && cargo audit --json -f Cargo.lock ) > "$tmp/report.json" || true
-          python3 ./infra/scripts/check-audit-ignores-live.py .cargo/audit.toml \
-            < "$tmp/report.json"
+          # `cargo audit` lebih dulu mengambil DB advisory RustSec dari GitHub,
+          # jadi probe ini pun terkena kelas kegagalan yang sama dengan langkah
+          # `cargo audit` di bawah: satu koneksi putus menghasilkan stdout
+          # kosong, dan versi sebelumnya menyerahkan kosong itu ke penjaga di
+          # hilir — yang lalu melaporkan "gagal mem-parse laporan JSON", merah
+          # yang tak ada hubungannya dengan ignore basi. (Terjadi sungguhan pada
+          # run 2026-09-24: probe menggantung ~7 menit lalu menyerahkan 0 byte.)
+          #
+          # Pembungkus menutupnya: laporan diperoleh → berkas ditulis; tak pernah
+          # menjawab → hijau DAN berkas sengaja tak ditulis, sehingga cabang di
+          # bawah melewatinya dengan alasan jujur alih-alih mem-parse kosong.
+          #
+          # `cd "$tmp"` TETAP wajib dan sengaja: dari direktori yang tak memuat
+          # `.cargo/audit.toml`, daftar ignore tak ikut terpakai sehingga yang
+          # terukur adalah advisory yang benar-benar menyala. Menjalankannya dari
+          # akar repo akan menyaring justru advisory yang sedang kita uji, dan
+          # SEMUA entri lalu terbaca basi. Karena itu skrip pembungkus dipanggil
+          # lewat path absolut.
+          cd "$tmp"
+          python3 "$repo/infra/scripts/retry-dependency-check.py" \
+            --name "cargo audit --json (probe ignore basi)" \
+            --attempts 3 --timeout 300 \
+            --capture "$tmp/report.json" \
+            -- cargo audit --json -f Cargo.lock
+          if [ ! -s "$tmp/report.json" ]; then
+            echo "::notice::probe cargo-audit tak pernah menjawab (jaringan) — \
+          pemeriksaan ignore basi dilewati, bukan dianggap lulus."
+            exit 0
+          fi
+          python3 "$repo/infra/scripts/check-audit-ignores-live.py" \
+            "$repo/.cargo/audit.toml" < "$tmp/report.json"
 
       - name: cargo audit
-        run: cargo audit
+        shell: bash
+        # Dijalankan lewat pembungkus retry: `cargo audit` lebih dulu mengambil
+        # DB advisory RustSec dari GitHub (dan menyegarkannya), jadi satu
+        # koneksi putus muncul sebagai job merah yang tak ada hubungannya
+        # dengan dependency proyek. Pembungkus mengulang kegagalan transport
+        # dan menghitungnya hijau HANYA bila alat tak pernah menjawab; temuan
+        # sungguhan tetap merah. Lihat
+        # infra/scripts/retry-dependency-check.py untuk kebijakan + batasnya.
+        run: |
+          python3 ./infra/scripts/retry-dependency-check.py \
+            --name "cargo audit" --attempts 4 --timeout 420 \
+            -- cargo audit
 
   # PHP dependency audit for the legacy simpelv1 monolith (composer.lock).
   # Defense-in-depth alongside trivy-fs (which already parses composer.lock):
@@ -161,17 +295,33 @@ jobs:
       - name: composer audit (--locked, no install)
         if: steps.filter.outputs.composer == 'true'
         shell: bash
+        # `docker run` di sini menarik image PHP DAN `composer audit`
+        # menyegarkan DB advisory Packagist — dua unduhan jaringan sebelum
+        # pemeriksaan apa pun berjalan. Pembungkus retry memisahkan keduanya
+        # dari temuan sungguhan: transport yang gagal → hijau (dengan catatan
+        # eksplisit di summary), temuan → merah.
         run: |
           set -euo pipefail
           # serversideup/php:8.2-cli bundles composer; --locked audits the
-          # lockfile directly (no `composer install`/vendor needed). COMPOSER_HOME
-          # points at a writable tmp dir for the advisory-DB cache.
-          docker run --rm \
-            -v "${{ github.workspace }}/monolith/simpelv1:/app" \
-            -w /app \
-            -e COMPOSER_HOME=/tmp/composer \
-            serversideup/php:8.2-cli \
-            composer audit --locked --no-interaction
+          # lockfile directly (no `composer install`/vendor needed).
+          # COMPOSER_HOME points at a writable tmp dir for the advisory-DB cache.
+          #
+          # `docker` dijalankan sebagai argv klasik (bukan `$PWD` shell-nya)
+          # supaya pembungkus dapat mengatur timeout per percobaan.
+          IMAGE="serversideup/php:8.2-cli"
+          for i in 1 2 3; do
+            docker pull -q "$IMAGE" && break
+            echo "::warning::docker pull $IMAGE gagal (percobaan $i/3) — ulangi dalam $((i*10))s"
+            sleep $((i * 10))
+          done
+          python3 ./infra/scripts/retry-dependency-check.py \
+            --name "composer audit (simpelv1)" --attempts 3 --timeout 300 \
+            -- docker run --rm \
+                 -v "${{ github.workspace }}/monolith/simpelv1:/app" \
+                 -w /app \
+                 -e COMPOSER_HOME=/tmp/composer \
+                 "$IMAGE" \
+                 composer audit --locked --no-interaction
 
   cargo-deny:
     name: cargo-deny
@@ -179,32 +329,97 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - name: Run cargo-deny
-        uses: EmbarkStudios/cargo-deny-action@v2
+      # WAJIB: cargo-deny memanggil `cargo metadata` untuk membangun build
+      # graph. Sebelumnya action `@v2` menyediakannya dari DALAM container-nya
+      # sendiri (image `rust:1.85-alpine`); begitu binarinya dijalankan langsung
+      # di runner, cargo harus ada di runner. Tanpa langkah ini cargo-deny gagal
+      # dengan "failed to run cargo: No such file or directory" — dan itulah
+      # persis kegagalan yang ditemukan saat menguji pembungkus ini lawan biner
+      # sungguhan, lalu dikunci sebagai kasus self-test.
+      - uses: ./.github/actions/setup-rust
         with:
-          manifest-path: Cargo.toml
-          command: check advisories bans licenses sources
-          arguments: --workspace
-          # Ketiga flag ini menaikkan supresi BASI dari peringatan jadi
-          # kegagalan. Supresi yang sudah tak cocok apa pun terbaca persis
-          # seperti supresi yang masih perlu, dan ia tetap menekan temuannya
-          # diam-diam kalau crate-nya suatu saat kembali.
-          #   advisory-not-detected  -> entri [advisories] ignore
-          #   unmatched-skip         -> entri [bans] skip
-          #   license-not-encountered-> entri [licenses] allow
-          # 2026-08-23: 10 dari 19 entri ignore, 1 dari 2 skip, dan 1 lisensi
-          # allow ternyata sudah basi; sebagian ignore bahkan sudah memenuhi
-          # syarat pencabutan yang ditulis di komentarnya sendiri. Sebagai
-          # peringatan, tak satu pun dicabut.
-          #
-          # WAJIB `command-arguments`, BUKAN `arguments`: cargo-deny hanya
-          # menerima -D SETELAH subperintah (`cargo deny <args> check <cmd-args>`),
-          # jadi menaruhnya di `arguments` menghasilkan
-          # "error: unexpected argument '-D' found" dan job merah.
-          command-arguments: >-
-            -D advisory-not-detected
-            -D unmatched-skip
-            -D license-not-encountered
+          cache-key: deny
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      # cargo-deny dipasang langsung dari rilis ber-versi + ber-checksum, lalu
+      # dijalankan lewat pembungkus retry.
+      #
+      # KENAPA BUKAN `EmbarkStudios/cargo-deny-action@v2`: action itu berjalan
+      # sebagai CONTAINER (`FROM rust:1.85.0-alpine`). Retry/tuning apa pun yang
+      # ditulis di sisi runner tak bisa memengaruhi `$HOME` di dalam container
+      # — jadi "pre-seed advisory DB" di runner adalah langkah yang TERLIHAT
+      # seperti pengaman tapi tak pernah menyentuh apa yang dibaca alatnya,
+      # persis kelas cacat yang repo ini kejar di tempat lain (middleware yang
+      # tak pernah di-mount, kredensial yang hanya dipakai saat cache-miss).
+      # Menjalankan binarinya langsung membuat pembungkus retry benar-benar
+      # mengatur hal yang ia klaim atur — termasuk clone DB advisory, yang di
+      # dalam action terjadi sekali-tembak tanpa retry.
+      #
+      # VERSI 0.20.2 SENGAJA DIPIN, dan harus sama dengan yang dipin action
+      # `@v2` (Dockerfile-nya: `ENV deny_version="0.20.2"`). Seluruh daftar
+      # ignore/skip/allow di deny.toml dibuktikan lawan versi ITU, termasuk
+      # `-D advisory-not-detected`. Menaikkannya bukan sekadar bump: ia
+      # menurunkan ulang setiap supresi di bawah versi baru. Naikkan keduanya
+      # bersamaan, dalam commit yang benar-benar menguji hasilnya.
+      - name: Install cargo-deny (pinned + checksum + retry)
+        shell: bash
+        run: |
+          set -euo pipefail
+          DENY_VERSION="0.20.2"
+          DENY_SHA256="9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f"
+          BIN_DIR="${RUNNER_TEMP:-/tmp}/cargo-deny-bin"
+          mkdir -p "$BIN_DIR"
+
+          if [ -x "$BIN_DIR/cargo-deny" ] && \
+             "$BIN_DIR/cargo-deny" --version 2>/dev/null | grep -q "$DENY_VERSION"; then
+            echo "cargo-deny ${DENY_VERSION} already present"
+          else
+            ARCHIVE="$BIN_DIR/cargo-deny.tar.gz"
+            URL="https://github.com/EmbarkStudios/cargo-deny/releases/download/${DENY_VERSION}/cargo-deny-${DENY_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+            ok=0
+            for attempt in 1 2 3 4; do
+              # --retry menangani blip; loop menangani blip yang lebih panjang
+              # daripada yang ditoleransi curl. Checksum memastikan unduhan
+              # yang terpotong tidak pernah sampai ke PATH.
+              if curl -LsSf --retry 3 --retry-delay 2 --retry-all-errors \
+                   --connect-timeout 15 --max-time 240 -o "$ARCHIVE" "$URL"; then
+                got=$(sha256sum "$ARCHIVE" | awk '{print $1}')
+                if [ "$got" = "$DENY_SHA256" ]; then ok=1; break; fi
+                echo "::error::sha256 cargo-deny tidak cocok: dapat ${got}, mau ${DENY_SHA256}"
+                rm -f "$ARCHIVE"
+                # Checksum yang salah BUKAN kegagalan jaringan: jangan retry,
+                # itu sinyal rilis/asset berubah.
+                exit 1
+              fi
+              echo "::warning::unduhan cargo-deny gagal (percobaan ${attempt}/4)"
+              [ "$attempt" -lt 4 ] && sleep $((attempt * 5))
+            done
+            [ "$ok" -eq 1 ] || {
+              echo "::error::tidak bisa mengunduh cargo-deny ${DENY_VERSION} setelah 4 percobaan"
+              exit 1
+            }
+            tar -xzf "$ARCHIVE" -C "$BIN_DIR" --strip-components=1 \
+              "cargo-deny-${DENY_VERSION}-x86_64-unknown-linux-musl/cargo-deny"
+            rm -f "$ARCHIVE"
+            chmod +x "$BIN_DIR/cargo-deny"
+          fi
+          echo "$BIN_DIR" >> "$GITHUB_PATH"
+          "$BIN_DIR/cargo-deny" --version
+
+      # Inti job. Argumennya = persis yang dihasilkan action `@v2` sebelumnya:
+      #   --log-level warn --manifest-path ./Cargo.toml --workspace
+      #   check advisories bans licenses sources <command-arguments>
+      # (`-D` WAJIB setelah subperintah — menaruhnya lebih awal menghasilkan
+      # "unexpected argument '-D' found".)
+      - name: Run cargo-deny
+        shell: bash
+        run: |
+          python3 ./infra/scripts/retry-dependency-check.py \
+            --name "cargo-deny" --attempts 4 --timeout 600 \
+            -- cargo-deny --log-level warn --manifest-path ./Cargo.toml \
+               --workspace check advisories bans licenses sources \
+               -D advisory-not-detected \
+               -D unmatched-skip \
+               -D license-not-encountered
 
   semgrep:
     name: Semgrep SAST
@@ -302,11 +517,36 @@ jobs:
           # naikkan saat perlu fitur/perbaikan Verus baru.
           VERUS_TAG="release/0.2026.05.31.5dd6d83"
           VERUS_VER="0.2026.05.31.5dd6d83"
+          # SHA-256 of the release asset as fetched when this pin was made
+          # (trust-on-first-use, same bar as cargo-deny). Bump with VERUS_TAG.
+          VERUS_SHA256="d234121e38718860e00edaadd2807278f720f9715f8d6c90e22f5d606be92cf1"
           ASSET="verus-${VERUS_VER}-x86-linux.zip"
           URL="https://github.com/verus-lang/verus/releases/download/${VERUS_TAG}/${ASSET}"
           dest="$HOME/.verus"
           mkdir -p "$dest"
-          curl -LsSf "$URL" -o /tmp/verus.zip
+          # Unduhan sekali-tembak dari rilis GitHub — sama rapuhnya dengan
+          # unduhan tool lain di repo ini, dan kegagalannya di sini akan
+          # terbaca sebagai "verifikasi formal gagal", bukan "unduhan gagal".
+          ok=0
+          for attempt in 1 2 3 4; do
+            if curl -LsSf --retry 3 --retry-delay 2 --retry-all-errors \
+                 --connect-timeout 15 --max-time 300 -o /tmp/verus.zip "$URL"; then
+              ok=1; break
+            fi
+            echo "::warning::unduhan Verus gagal (percobaan ${attempt}/4)"
+            [ "$attempt" -lt 4 ] && sleep $((attempt * 5))
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::tidak bisa mengunduh ${ASSET} setelah 4 percobaan (jaringan, bukan hasil verifikasi)"
+            exit 1
+          fi
+          got="$(sha256sum /tmp/verus.zip | awk '{print $1}')"
+          if [ "$got" != "$VERUS_SHA256" ]; then
+            # Not a network failure — the asset changed under a pinned tag. Fail
+            # rather than unzip and run an unverified binary.
+            echo "::error::sha256 ${ASSET} tidak cocok: dapat ${got}, mau ${VERUS_SHA256}"
+            exit 1
+          fi
           unzip -q -o /tmp/verus.zip -d "$dest"
           verus_bin="$(find "$dest" -type f -name verus | head -1)"
           if [ -z "$verus_bin" ]; then

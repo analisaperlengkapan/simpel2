@@ -7,22 +7,41 @@
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::export::models::{ExportJobStatusResponse, ExportQuery};
+use crate::export::models::{ExportCaller, ExportJobStatusResponse, ExportQuery};
 use crate::shared::db::Database;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::satker_scope::{BoxedParam, SatkerScope, scope_and};
 
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait ExportRepository: Send + Sync {
-    async fn queue_export_job(&self, query: ExportQuery) -> AppResult<Uuid>;
+    /// Queue a job **owned by** `caller`. The query carries the caller's scope.
+    async fn queue_export_job(&self, query: ExportQuery, caller: &ExportCaller) -> AppResult<Uuid>;
     async fn export_to_excel_sync(&self, query: ExportQuery) -> AppResult<Vec<u8>>;
-    async fn get_export_job_status(&self, job_id: Uuid) -> AppResult<ExportJobStatusResponse>;
-    async fn download_export_job(&self, job_id: Uuid) -> AppResult<(String, Vec<u8>)>;
+    /// A job is visible to its owner and to administrators; anyone else gets a
+    /// 404, exactly as if it did not exist.
+    async fn get_export_job_status(
+        &self,
+        job_id: Uuid,
+        caller: &ExportCaller,
+    ) -> AppResult<ExportJobStatusResponse>;
+    async fn download_export_job(
+        &self,
+        job_id: Uuid,
+        caller: &ExportCaller,
+    ) -> AppResult<(String, Vec<u8>)>;
+}
+
+/// Is `caller` allowed to see a job created by `owner`? Owner, or an
+/// administrator. A job with no recorded owner (rows from before ownership was
+/// stored) is visible to administrators only — never to "everyone".
+pub(crate) fn may_see_job(owner: Option<Uuid>, caller: &ExportCaller) -> bool {
+    caller.is_admin || owner == Some(caller.user_id)
 }
 
 #[async_trait]
 impl ExportRepository for Database {
-    async fn queue_export_job(&self, query: ExportQuery) -> AppResult<Uuid> {
+    async fn queue_export_job(&self, query: ExportQuery, caller: &ExportCaller) -> AppResult<Uuid> {
         let client =
             self.pool().get().await.map_err(|e| {
                 AppError::Internal(format!("Failed to get database connection: {}", e))
@@ -30,15 +49,23 @@ impl ExportRepository for Database {
 
         let job_id = Uuid::new_v4();
 
-        // Store job in database
+        // The WHOLE query is stored (its scope is not: it is recomputed from the
+        // downloader's claims), so the file is generated from what was asked for.
+        // It used to be regenerated at download time with every filter dropped —
+        // the job "completed" and then handed back the unfiltered dataset. The
+        // column is `jsonb`; the old bind was an `Option<String>`, which the
+        // driver refuses for that type.
+        let stored = serde_json::to_value(&query)
+            .map_err(|e| AppError::Internal(format!("serialise export query: {e}")))?;
+
         client
             .execute(
                 r#"
                 INSERT INTO perlengkapan.export_jobs
-                (id, entity_type, filters, status, created_at)
-                VALUES ($1, $2, $3, 'queued', NOW())
+                (id, entity_type, filters, status, created_by, created_at)
+                VALUES ($1, $2, $3, 'queued', $4, NOW())
                 "#,
-                &[&job_id, &query.entity_type, &query.filters],
+                &[&job_id, &query.entity_type, &stored, &caller.user_id],
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
@@ -55,25 +82,16 @@ impl ExportRepository for Database {
     }
 
     async fn export_to_excel_sync(&self, query: ExportQuery) -> AppResult<Vec<u8>> {
-        // Fetch data based on entity type
-        let data = match query.entity_type.as_str() {
-            "kebutuhan_bmn" => self.fetch_kebutuhan_bmn_for_export(&query).await?,
-            "pakaian_dinas" => self.fetch_pakaian_dinas_for_export(&query).await?,
-            "roadmap_sarpras" => self.fetch_roadmap_for_export(&query).await?,
-            "riwayat_pemenuhan" => self.fetch_riwayat_for_export(&query).await?,
-            _ => {
-                return Err(AppError::BadRequest(format!(
-                    "Unknown entity type: {}",
-                    query.entity_type
-                )));
-            }
-        };
-
+        let data = self.export_rows(&query).await?;
         // Generate Excel
         generate_excel(&query.entity_type, data)
     }
 
-    async fn get_export_job_status(&self, job_id: Uuid) -> AppResult<ExportJobStatusResponse> {
+    async fn get_export_job_status(
+        &self,
+        job_id: Uuid,
+        caller: &ExportCaller,
+    ) -> AppResult<ExportJobStatusResponse> {
         let client =
             self.pool().get().await.map_err(|e| {
                 AppError::Internal(format!("Failed to get database connection: {}", e))
@@ -82,7 +100,8 @@ impl ExportRepository for Database {
         let row = client
             .query_opt(
                 r#"
-                SELECT id, status, progress, document_id, error_message, created_at, completed_at
+                SELECT id, status, progress, document_id, error_message, created_at,
+                       completed_at, created_by
                 FROM perlengkapan.export_jobs
                 WHERE id = $1
                 "#,
@@ -91,6 +110,13 @@ impl ExportRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?
             .ok_or_else(|| AppError::NotFound(format!("Export job not found: {}", job_id)))?;
+        // Someone else's job is indistinguishable from a missing one.
+        if !may_see_job(row.get::<_, Option<Uuid>>("created_by"), caller) {
+            return Err(AppError::NotFound(format!(
+                "Export job not found: {}",
+                job_id
+            )));
+        }
 
         Ok(ExportJobStatusResponse {
             job_id: row.get("id"),
@@ -107,7 +133,11 @@ impl ExportRepository for Database {
         })
     }
 
-    async fn download_export_job(&self, job_id: Uuid) -> AppResult<(String, Vec<u8>)> {
+    async fn download_export_job(
+        &self,
+        job_id: Uuid,
+        caller: &ExportCaller,
+    ) -> AppResult<(String, Vec<u8>)> {
         let client =
             self.pool().get().await.map_err(|e| {
                 AppError::Internal(format!("Failed to get database connection: {}", e))
@@ -117,7 +147,7 @@ impl ExportRepository for Database {
         let row = client
             .query_opt(
                 r#"
-                SELECT status, document_id, entity_type
+                SELECT status, document_id, entity_type, filters, created_by
                 FROM perlengkapan.export_jobs
                 WHERE id = $1
                 "#,
@@ -126,6 +156,13 @@ impl ExportRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?
             .ok_or_else(|| AppError::NotFound(format!("Export job not found: {}", job_id)))?;
+        // Ownership BEFORE anything about the job — even its status — is revealed.
+        if !may_see_job(row.get::<_, Option<Uuid>>("created_by"), caller) {
+            return Err(AppError::NotFound(format!(
+                "Export job not found: {}",
+                job_id
+            )));
+        }
 
         let status: String = row.get("status");
         if status != "completed" {
@@ -142,16 +179,24 @@ impl ExportRepository for Database {
 
         let entity_type: String = row.get("entity_type");
 
-        // For now, we'll fetch the data again and generate Excel
-        // In production, this should fetch from document storage
-        let query = ExportQuery {
-            entity_type: entity_type.clone(),
-            filters: None,
-            limit: Some(50000),
-            tahun_anggaran: None,
-            satker_id: None,
-            status: None,
-        };
+        // The file is regenerated from the query that was queued (not from a
+        // blank one), under the DOWNLOADER's current scope: a job never widens
+        // what its owner could see, and revoking access takes effect here too.
+        // (Production should serve the stored document instead.)
+        let stored: Option<serde_json::Value> = row.get("filters");
+        let mut query = stored
+            .and_then(|v| serde_json::from_value::<ExportQuery>(v).ok())
+            .unwrap_or_else(|| ExportQuery {
+                entity_type: entity_type.clone(),
+                filters: None,
+                limit: Some(50000),
+                tahun_anggaran: None,
+                satker_id: None,
+                status: None,
+                scope: SatkerScope::Denied,
+            });
+        query.entity_type = entity_type.clone();
+        query.scope = caller.scope.clone();
 
         let data = self.export_to_excel_sync(query).await?;
         let filename = format!("export_{}_{}.xlsx", entity_type, job_id);
@@ -401,8 +446,40 @@ fn write_number_safe(
     Ok(())
 }
 
+/// The roadmap and fulfilment-history tables key their rows by a legacy satker
+/// *uuid* (the satker master that was demoted, #42), which no claim carries and
+/// no view maps to a MySIMKARI `kode_satker`. They cannot be confined to a
+/// satker, so they are exportable only by a caller who may see every satker;
+/// anyone narrower is refused rather than handed the national table.
+fn require_unrestricted_scope(scope: &SatkerScope, entity: &str) -> AppResult<()> {
+    if matches!(scope, SatkerScope::All) {
+        Ok(())
+    } else {
+        Err(AppError::Authorization(format!(
+            "Ekspor '{entity}' hanya tersedia untuk peran lintas-satker (data tidak dapat dibatasi per satker)"
+        )))
+    }
+}
+
 // Helper methods for Database to fetch export data
 impl Database {
+    /// The rows an export of `query` contains, already confined to
+    /// `query.scope`. The workbook is generated from exactly these, and it is
+    /// public so the scope can be asserted on the data itself rather than on a
+    /// compressed `.xlsx` blob.
+    pub async fn export_rows(&self, query: &ExportQuery) -> AppResult<Vec<serde_json::Value>> {
+        match query.entity_type.as_str() {
+            "kebutuhan_bmn" => self.fetch_kebutuhan_bmn_for_export(query).await,
+            "pakaian_dinas" => self.fetch_pakaian_dinas_for_export(query).await,
+            "roadmap_sarpras" => self.fetch_roadmap_for_export(query).await,
+            "riwayat_pemenuhan" => self.fetch_riwayat_for_export(query).await,
+            _ => Err(AppError::BadRequest(format!(
+                "Unknown entity type: {}",
+                query.entity_type
+            ))),
+        }
+    }
+
     async fn fetch_kebutuhan_bmn_for_export(
         &self,
         query: &ExportQuery,
@@ -464,6 +541,12 @@ impl Database {
             params.push(Box::new(status.clone()));
             param_idx += 1;
         }
+
+        // The caller's satker boundary, applied to the row's own satker. Bound
+        // after every other value so its `$n` lines up with `params`.
+        let _ = param_idx;
+        sql.push_str(&scope_and(&query.scope, "ks.satker_id", &mut params));
+        let param_idx = params.len() + 1;
 
         sql.push_str(&format!(
             " ORDER BY kb.created_at DESC LIMIT ${}",
@@ -546,24 +629,29 @@ impl Database {
 
         let limit = query.limit.unwrap_or(50000).min(50000);
 
-        let rows = client
-            .query(
-                // `perlengkapan.ukuran_pakaian_pegawai` exists in no environment,
-                // so this export 500'd exactly like the kebutuhan one above. The
-                // real table is `pegawai_pakaian_dinas`, and it does not model
-                // sizes as `jenis_pakaian_id`/`ukuran_id` foreign keys at all —
-                // it stores three text sizes per employee on a single row.
-                //
-                // The LATERAL unpivots those three columns into one export row
-                // per recorded size, which is what the "Jenis Pakaian"/"Ukuran"
-                // column pair was always asking for. Unset sizes are dropped
-                // rather than exported blank.
-                //
-                // `nama` and `status` are nullable and are COALESCEd here
-                // because the readers below decode them as bare `String`, which
-                // panics on NULL under `panic = "abort"`. Ordering is by NIP:
-                // the table has no `created_at`, only `updated_at`.
-                r#"
+        // `perlengkapan.ukuran_pakaian_pegawai` exists in no environment,
+        // so this export 500'd exactly like the kebutuhan one above. The
+        // real table is `pegawai_pakaian_dinas`, and it does not model
+        // sizes as `jenis_pakaian_id`/`ukuran_id` foreign keys at all —
+        // it stores three text sizes per employee on a single row.
+        //
+        // The LATERAL unpivots those three columns into one export row
+        // per recorded size, which is what the "Jenis Pakaian"/"Ukuran"
+        // column pair was always asking for. Unset sizes are dropped
+        // rather than exported blank.
+        //
+        // `nama` and `status` are nullable and are COALESCEd here
+        // because the readers below decode them as bare `String`, which
+        // panics on NULL under `panic = "abort"`. Ordering is by NIP:
+        // the table has no `created_at`, only `updated_at`.
+        //
+        // Each row is a named civil servant (NIP + name) — personal data — so the
+        // export is confined to the caller's satker via `kode_satker`. It used to
+        // dump every employee in the country to any authenticated caller.
+        let mut params: Vec<BoxedParam> = Vec::new();
+        let scope_sql = scope_and(&query.scope, "p.kode_satker", &mut params);
+        let sql = format!(
+            r#"
                 SELECT
                     p.nip,
                     COALESCE(p.nama, '')       AS nama_pegawai,
@@ -579,12 +667,17 @@ impl Database {
                         ('Celana', p.ukuran_celana),
                         ('Sepatu', p.ukuran_sepatu)
                 ) AS v(jenis_pakaian, ukuran)
-                WHERE v.ukuran IS NOT NULL AND v.ukuran <> ''
+                WHERE v.ukuran IS NOT NULL AND v.ukuran <> ''{scope_sql}
                 ORDER BY p.nip, v.jenis_pakaian
-                LIMIT $1
+                LIMIT ${limit_idx}
                 "#,
-                &[&(limit as i64)],
-            )
+            limit_idx = params.len() + 1,
+        );
+        params.push(Box::new(limit as i64));
+        let param_refs = crate::shared::satker_scope::as_refs(&params);
+
+        let rows = client
+            .query(&sql, &param_refs[..])
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -639,6 +732,8 @@ impl Database {
             })?;
 
         let limit = query.limit.unwrap_or(50000).min(50000);
+
+        require_unrestricted_scope(&query.scope, "roadmap_sarpras")?;
 
         let rows = client
             .query(
@@ -727,6 +822,8 @@ impl Database {
             })?;
 
         let limit = query.limit.unwrap_or(50000).min(50000);
+
+        require_unrestricted_scope(&query.scope, "riwayat_pemenuhan")?;
 
         let rows = client
             .query(

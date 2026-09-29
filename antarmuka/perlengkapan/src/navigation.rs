@@ -140,7 +140,7 @@ const ANALITIK_GROUPS: &[NavGroup] = &[NavGroup {
     items: &[NavItem {
         href: routes::path::ANALITIK_ROADMAP,
         icon: "fas fa-road",
-        label: "Roadmap Sarpras",
+        label: "Analisis Kebutuhan",
     }],
 }];
 

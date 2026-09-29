@@ -164,6 +164,25 @@ where
             last_used: None, // ditto — wire when the audit log is plumbed in
         })
     }
+
+    async fn generate_backup_codes(&self, user_id: Uuid) -> Result<Vec<String>, MfaApiError> {
+        let uid = UserId(user_id);
+        let codes = self
+            .backup_codes
+            .regenerate_backup_codes(uid)
+            .await
+            .map_err(|e| MfaApiError::internal(format!("backup codes regenerate: {}", e)))?;
+        info!(user_id = %user_id, count = codes.len(), "backup codes regenerated");
+        Ok(codes)
+    }
+
+    async fn backup_codes_remaining(&self, user_id: Uuid) -> Result<usize, MfaApiError> {
+        let uid = UserId(user_id);
+        self.backup_codes
+            .get_remaining_codes_count(uid)
+            .await
+            .map_err(|e| MfaApiError::internal(format!("backup remaining: {}", e)))
+    }
 }
 
 #[cfg(test)]

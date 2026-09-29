@@ -55,11 +55,62 @@ pub struct UserSession {
     pub refresh_token: Option<String>,
     /// Token expiration timestamp (Unix timestamp)
     pub expires_at: Option<i64>,
-    /// User permissions
-    pub permissions: Vec<String>,
+    /// Realm roles from the token (`realm_access.roles`).
+    ///
+    /// Named `roles`, not `permissions`: this list holds Keycloak-style role
+    /// names (`admin`, `validator_pusat`, …), never permission strings. The
+    /// old name invited callers to test it against a permission vocabulary
+    /// that does not exist in this system, which is why `has_permission`
+    /// could never match anything and `MenuVisibility::AnyPermission` never
+    /// fired. The `alias` keeps a session persisted before the rename
+    /// loadable, so no user is silently logged out by the upgrade.
+    #[serde(default, alias = "permissions")]
+    pub roles: Vec<String>,
+    /// Every role the user is *assigned* (`assigned_roles` claim). Display and
+    /// role-switcher input only — authority is `roles`, which the server derives.
+    #[serde(default)]
+    pub assigned_roles: Vec<String>,
+    /// The role this session currently acts as (`active_role` claim).
+    #[serde(default)]
+    pub active_role: Option<String>,
 }
 
 pub use lib_core::auth::UserRole;
+
+impl UserSession {
+    /// The roles this session can switch between, or `None` when there is
+    /// nothing to offer.
+    ///
+    /// NIST INCITS 359 separates roles *assigned* from roles *active*. The
+    /// issuer only honours a switch when single-active-role enforcement is on,
+    /// and that state is visible in the token itself: with it on,
+    /// `realm_access.roles` is exactly `[active_role]` although the user holds
+    /// several. With it off every assigned role is in every token — there is
+    /// nothing to switch, and offering a control that the server would refuse
+    /// (`403 active_role_disabled`) is worse than offering none.
+    pub fn switchable_roles(&self) -> Option<&[String]> {
+        (self.assigned_roles.len() > 1 && self.roles.len() == 1)
+            .then_some(self.assigned_roles.as_slice())
+    }
+
+    /// May this session use the identity-provider console (users, roles, MFA
+    /// resets, OAuth clients, the IAM audit trail)?
+    ///
+    /// **Exact `admin`** — `lib_core::authz::Capability::AdministerIam`, the same
+    /// rule the IAM API enforces. The gate used to be `UserRole::is_admin()`, i.e.
+    /// the *application* admin list (`admin_pusat`, `superadmin`), so the console
+    /// opened for roles whose every request it then answered 403.
+    ///
+    /// A session persisted before `roles` existed has an empty list; fall back to
+    /// the single `role` it did carry, which is `UserRole::Admin` only for the
+    /// exact string `admin`.
+    pub fn can_administer_iam(&self) -> bool {
+        if self.roles.is_empty() {
+            return matches!(self.role, UserRole::Admin);
+        }
+        lib_core::authz::Authorization::from_slice(&self.roles).is_iam_admin()
+    }
+}
 
 /// Login credentials
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -315,19 +366,19 @@ impl AuthService {
             UserRole::User
         };
 
-        // Determine permissions based on role's capabilities (not hardcoded variants)
-        let permissions = if role.is_admin() {
-            vec![
-                "admin:*".to_string(),
-                "user:read".to_string(),
-                "user:write".to_string(),
-            ]
-        } else if matches!(role, UserRole::Supervisor) {
-            vec!["user:read".to_string(), "user:write".to_string()]
-        } else if matches!(role, UserRole::Guest) {
-            vec![]
-        } else {
-            vec!["user:read".to_string()]
+        // Roles are the token's realm roles. The mock path has no token, so
+        // synthesize the equivalent realm role names rather than inventing a
+        // separate permission vocabulary that the real path never produces.
+        let roles: Vec<String> = match role {
+            UserRole::Admin => lib_core::authz::ADMIN_ROLES
+                .iter()
+                .take(1)
+                .map(|r| r.to_string())
+                .collect(),
+            UserRole::Supervisor => vec!["validator_wilayah".to_string()],
+            UserRole::User => vec!["operator_satker".to_string()],
+            UserRole::Guest => vec![],
+            UserRole::Custom(ref name) => vec![name.clone()],
         };
 
         let now = chrono::Utc::now();
@@ -352,7 +403,9 @@ impl AuthService {
             access_token: Some("mock_access_token".to_string()),
             refresh_token: Some("mock_refresh_token".to_string()),
             expires_at: Some(expires_at.timestamp()),
-            permissions,
+            roles,
+            assigned_roles: Vec::new(),
+            active_role: None,
         };
 
         LoginResult::Success(Box::new(session))
@@ -382,7 +435,7 @@ impl AuthService {
         // Map roles
         let role = claims.get_primary_role();
         let username = claims.preferred_username.unwrap_or(claims.sub.clone());
-        let permissions = claims.realm_access.map(|ra| ra.roles).unwrap_or_default();
+        let roles = claims.realm_access.map(|ra| ra.roles).unwrap_or_default();
 
         // Use the raw satker code as the satuan_kerja fallback.  The profile
         // page resolves the human-readable name via the API's
@@ -415,7 +468,9 @@ impl AuthService {
             access_token: Some(token.to_string()),
             refresh_token: None,
             expires_at: Some(claims.exp as i64),
-            permissions,
+            roles,
+            assigned_roles: claims.assigned_roles,
+            active_role: claims.active_role,
         })
     }
 
@@ -747,6 +802,47 @@ impl AuthService {
         }
     }
 
+    /// Act as another of the user's assigned roles
+    /// (`POST /api/v1/auth/session/active-role`).
+    ///
+    /// The server needs the current access token (Bearer) *and* the session's
+    /// refresh token, replaces both, and revokes the access token it replaces.
+    /// The caller stores the result with [`Self::update_session_token`] and must
+    /// reload: menus, guards and every page's data were resolved for the old role.
+    pub async fn switch_active_role(_role: &str) -> Result<TokenResponse, String> {
+        #[cfg(target_arch = "wasm32")]
+        {
+            use gloo_net::http::Request;
+
+            let session = Self::load_session().ok_or("Sesi tidak ditemukan")?;
+            let access = session.access_token.ok_or("Token akses tidak ada")?;
+            let refresh = session.refresh_token.ok_or("Token pembaruan tidak ada")?;
+
+            let response = Request::post(&format!("{}/session/active-role", Self::get_api_url()))
+                .header("Authorization", &format!("Bearer {access}"))
+                .json(&serde_json::json!({ "role": _role, "refresh_token": refresh }))
+                .map_err(|e| format!("Failed to build request: {e}"))?
+                .send()
+                .await
+                .map_err(|e| format!("Network error: {e}"))?;
+
+            match response.status() {
+                200 => response
+                    .json::<TokenResponse>()
+                    .await
+                    .map_err(|e| format!("Failed to parse response: {e}")),
+                403 => Err("Peran ini tidak dapat diaktifkan untuk akun Anda.".to_string()),
+                401 => Err("Sesi berakhir. Silakan masuk kembali.".to_string()),
+                other => Err(format!("Gagal mengganti peran (HTTP {other}).")),
+            }
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            Err("Role switching is not available in non-WASM environment".to_string())
+        }
+    }
+
     /// Update session with new token
     ///
     /// Re-decodes the JWT to refresh claim-derived fields (e.g.
@@ -780,7 +876,9 @@ impl AuthService {
                 session.mfa_enabled = decoded.mfa_enabled;
                 session.mfa_setup_required = decoded.mfa_setup_required;
                 session.require_password_change = decoded.require_password_change;
-                session.permissions = decoded.permissions;
+                session.roles = decoded.roles;
+                session.assigned_roles = decoded.assigned_roles;
+                session.active_role = decoded.active_role;
             }
 
             Self::save_session(&session);
@@ -796,11 +894,15 @@ impl AuthService {
         parts.len() == 3
     }
 
-    /// Check if user has specific permission
-    pub fn has_permission(session: &UserSession, permission: &str) -> bool {
-        session.permissions.iter().any(|p| {
-            p == permission || p.ends_with(":*") && permission.starts_with(&p[..p.len() - 1])
-        })
+    /// Resolve this session's roles into the shared authorization model.
+    ///
+    /// Portal's admin surfaces should ask the returned [`Authorization`] for a
+    /// [`lib_core::authz::Capability`]. The previous `has_permission` compared
+    /// role names against a permission string vocabulary (`"user:read"`) that
+    /// nothing in this system ever issues, so it was guaranteed to return
+    /// false for every real caller.
+    pub fn authz(session: &UserSession) -> lib_core::authz::Authorization {
+        lib_core::authz::Authorization::from_slice(&session.roles)
     }
 
     /// Broadcast logout event to all tabs/windows

@@ -97,7 +97,7 @@ pub fn NotifikasiInboxPage() -> impl IntoView {
                     <h1 style="font-size: 1.4rem; font-weight: 800; color: #e2e8f0; margin: 0;">
                         "Notifikasi"
                     </h1>
-                    <p style="font-size: 0.82rem; color: #64748b; margin: 4px 0 0;">
+                    <p style="font-size: 0.82rem; color: #7b8ba1; margin: 4px 0 0;">
                         "Notifikasi sistem (workflow, tiket bantuan, SLA)."
                     </p>
                 </div>
@@ -128,7 +128,7 @@ pub fn NotifikasiInboxPage() -> impl IntoView {
             </Show>
 
             <Show when=move || loading.get()>
-                <div style="font-size: 0.82rem; color: #64748b; padding: 8px 0;">
+                <div style="font-size: 0.82rem; color: #7b8ba1; padding: 8px 0;">
                     "Memuat notifikasi..."
                 </div>
             </Show>
@@ -173,7 +173,7 @@ pub fn NotifikasiInboxPage() -> impl IntoView {
                                     <p style="font-size: 0.82rem; color: #cbd5e1; margin: 6px 0 0; line-height: 1.5;">
                                         {n.message.clone()}
                                     </p>
-                                    <div style="font-size: 0.72rem; color: #64748b; margin-top: 8px;">
+                                    <div style="font-size: 0.72rem; color: #7b8ba1; margin-top: 8px;">
                                         {waktu}
                                         {n
                                             .action_url
@@ -210,7 +210,7 @@ pub fn NotifikasiInboxPage() -> impl IntoView {
             </ul>
 
             <Show when=move || !loading.get() && items.get().is_empty()>
-                <p style="font-size: 0.85rem; color: #64748b; text-align: center; padding: 48px 0;">
+                <p style="font-size: 0.85rem; color: #7b8ba1; text-align: center; padding: 48px 0;">
                     "Belum ada notifikasi."
                 </p>
             </Show>

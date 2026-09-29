@@ -452,7 +452,7 @@ impl PakaianDinasService {
         request: ValidatorActionRequest,
         user_nip: &str,
         user_nama: &str,
-        user_role: &str,
+        user_roles: &[String],
         scope: &SatkerScope,
     ) -> AppResult<PengajuanSatker> {
         // Scoped read FIRST, and it is the only read of this row: everything
@@ -468,8 +468,14 @@ impl PakaianDinasService {
         // Determine next status based on current status, action, and role.
         // Invalid (status, action, role) combos return 422 here — this doubles
         // as the RBAC + workflow guard for the validator action.
-        let next_status =
-            self.determine_next_status(satker.aktivitas_id, &request.aksi, user_role)?;
+        //
+        // The caller may hold several roles; act as the first one for which the
+        // move is valid. (This used to test only `claims.role`, so which role a
+        // multi-role user was checked as depended on the order the token listed
+        // them in.)
+        let (user_role, next_status) =
+            self.resolve_actor(satker.aktivitas_id, &request.aksi, user_roles)?;
+        let user_role = user_role.as_str();
 
         // Persist the transition + record an activity row (atomic). This is
         // the real per-satker workflow advance that replaces the prior no-op.
@@ -524,6 +530,28 @@ impl PakaianDinasService {
             .await
     }
 
+    /// Pick the caller's role that makes `(current_status, action)` valid, and
+    /// the status it leads to. Deterministic: roles are tried in the order given
+    /// (the caller passes them sorted). No valid role → the error for the first
+    /// one, which names a role the caller actually holds.
+    fn resolve_actor(
+        &self,
+        current_status: i32,
+        action: &str,
+        roles: &[String],
+    ) -> AppResult<(String, i32)> {
+        let mut first_err = None;
+        for role in roles {
+            match self.determine_next_status(current_status, action, role) {
+                Ok(next) => return Ok((role.clone(), next)),
+                Err(e) => {
+                    first_err.get_or_insert(e);
+                }
+            }
+        }
+        Err(first_err.unwrap_or_else(|| bad_request("Akun tidak memiliki role untuk aksi ini")))
+    }
+
     /// Determine the next workflow status based on current status and action
     fn determine_next_status(
         &self,
@@ -548,11 +576,13 @@ impl PakaianDinasService {
             // IAM mana pun.
             //
             // `operator_satker` adalah peran yang benar-benar mengisi
-            // formulirnya. `admin` ikut diterima, seperti pada tahap validator.
-            (AktivitasStatus::Input, "submit", "operator_satker" | "admin") => {
+            // formulirnya. `admin` TIDAK ikut: administrator sistem bukan
+            // pelaksana satker, dan mengajukan atas nama satker berarti
+            // membuat keterangan yang tak pernah ia buat.
+            (AktivitasStatus::Input, "submit", "operator_satker") => {
                 Ok(AktivitasStatus::SubmitToValidator.to_i32())
             }
-            (AktivitasStatus::RevisiPelaksana, "submit", "operator_satker" | "admin") => {
+            (AktivitasStatus::RevisiPelaksana, "submit", "operator_satker") => {
                 Ok(AktivitasStatus::SubmitToValidator.to_i32())
             }
 
@@ -573,7 +603,7 @@ impl PakaianDinasService {
             }
 
             // Kejagung direct flow
-            (AktivitasStatus::StartKejagung, "submit", "operator_satker" | "admin") => {
+            (AktivitasStatus::StartKejagung, "submit", "operator_satker") => {
                 Ok(AktivitasStatus::SubmitToPusat.to_i32())
             }
 

@@ -29,6 +29,8 @@ rand = { workspace = true }
 anyhow = { workspace = true }
 deadpool-postgres = { workspace = true }
 lib-core = { workspace = true }
+# `client_ip::parse_ip_token` — audit rows must carry a real address or NULL.
+lib-backend = { workspace = true }
 regex = { workspace = true }
 axum = { workspace = true }
 config = { workspace = true }

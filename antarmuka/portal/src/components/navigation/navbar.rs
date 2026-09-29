@@ -4,6 +4,7 @@
 //! Follows Kejaksaan RI design system.
 
 use crate::components::navigation::menu::{PortalMenuItem, resolve_menu_sections, topbar_items};
+use crate::components::navigation::role_switcher::RoleSwitcher;
 use crate::features::auth::{AuthService, UserSession};
 use crate::features::profile::page::PegawaiAvatar;
 use leptos::prelude::*;
@@ -187,6 +188,11 @@ pub fn Navbar(
                             .map(|session| {
                                 view! {
                                     <>
+                                        // Session role activation — renders only when the
+                                        // user holds several roles and the issuer enforces
+                                        // a single active one.
+                                        <RoleSwitcher session=session.clone() />
+
                                         // User Info
                                         <div class="hidden md:flex items-center space-x-3 px-3 py-1.5 rounded-lg text-white bg-white/10 border border-white/5">
                                             <div class="text-right">

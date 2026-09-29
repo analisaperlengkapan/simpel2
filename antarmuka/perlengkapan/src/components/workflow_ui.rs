@@ -101,7 +101,12 @@ impl WorkflowStep {
     }
 
     pub fn with_timestamp(mut self, ts: impl Into<String>) -> Self {
-        self.timestamp = Some(ts.into());
+        // Formatted here rather than at each call site: the four modules that
+        // build a timeline all pass a raw RFC 3339 string straight from the API,
+        // so any one of them could have shipped `2026-09-24T19:42:10.591175Z`
+        // to the screen — and one did. Normalising in the builder makes that
+        // impossible to reintroduce one module at a time.
+        self.timestamp = Some(lib_ui::utils::formatters::format_iso_local(&ts.into()));
         self
     }
 

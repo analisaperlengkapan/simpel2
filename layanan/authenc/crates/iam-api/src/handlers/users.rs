@@ -1,7 +1,7 @@
 //! User management HTTP handlers
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, Query, State},
     http::StatusCode,
 };
@@ -9,8 +9,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
+use crate::audit_trail::{AdminAction, changed_fields, record_admin_action};
+use crate::middleware::admin_auth::{AdminUser, ClientAddr};
 use crate::{error::ApiResult, state::IamApiState};
-use authenc_types::{RealmId, UserId};
+use authenc_types::{AuthencError, RealmId, UserId};
 
 /// Master realm UUID constant (from migration 001)
 const MASTER_REALM_ID: Uuid = Uuid::from_bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
@@ -198,8 +200,15 @@ pub async fn list_users(
 /// POST /api/v1/iam/users - Create user
 pub async fn create_user(
     State(state): State<Arc<IamApiState>>,
+    Extension(admin): Extension<AdminUser>,
+    Extension(addr): Extension<ClientAddr>,
     Json(req): Json<CreateUserRequest>,
 ) -> ApiResult<(StatusCode, Json<UserResponse>)> {
+    // Captured before `req` is moved into the domain request. Names and codes
+    // only — never the password.
+    let audit_username = req.username.clone();
+    let audit_satker = req.satker_code.clone();
+    let audit_enabled = req.enabled;
     let create_req = authenc_types::domain::CreateUserRequest {
         username: req.username,
         email: req.email,
@@ -224,6 +233,23 @@ pub async fn create_user(
         .await
         .map_err(crate::error::ApiError)?;
 
+    record_admin_action(
+        &state,
+        &admin,
+        addr,
+        AdminAction {
+            event: "USER_CREATE",
+            resource_type: "user",
+            resource_id: Some(user.id),
+            details: serde_json::json!({
+                "username": audit_username,
+                "satker_code": audit_satker,
+                "enabled": audit_enabled,
+            }),
+        },
+    )
+    .await;
+
     Ok((StatusCode::CREATED, Json(user_to_response(&user))))
 }
 
@@ -244,9 +270,36 @@ pub async fn get_user(
 /// PUT /api/v1/iam/users/{id} - Update user
 pub async fn update_user(
     State(state): State<Arc<IamApiState>>,
+    Extension(admin): Extension<AdminUser>,
+    Extension(addr): Extension<ClientAddr>,
     Path(id): Path<Uuid>,
     Json(req): Json<UpdateUserRequest>,
 ) -> ApiResult<Json<UserResponse>> {
+    // An administrator must not be able to lock themselves out of the console —
+    // and thereby, if they are the last one, everybody: disabling one's own
+    // account is refused (create a second admin first, and let *them* do it).
+    if id == admin.user_id && req.enabled == Some(false) {
+        return Err(crate::error::ApiError(AuthencError::validation(
+            "Anda tidak dapat menonaktifkan akun Anda sendiri.",
+        )));
+    }
+    // Names of the fields this request carries, for the audit row (no values).
+    let audit_fields = changed_fields(&[
+        ("email", req.email.is_some()),
+        ("first_name", req.first_name.is_some()),
+        ("last_name", req.last_name.is_some()),
+        ("enabled", req.enabled.is_some()),
+        ("nip", req.nip.is_some()),
+        ("nama", req.nama.is_some()),
+        ("jabatan", req.jabatan.is_some()),
+        ("satker_code", req.satker_code.is_some()),
+        (
+            "require_password_change",
+            req.require_password_change.is_some(),
+        ),
+    ]);
+    let audit_enabled = req.enabled;
+    let audit_satker = req.satker_code.clone();
     let update_req = authenc_types::domain::UpdateUserRequest {
         username: None,
         email: req.email,
@@ -272,19 +325,64 @@ pub async fn update_user(
         .await
         .map_err(crate::error::ApiError)?;
 
+    // Disabling an account must cut its live sessions, not wait for expiry.
+    if audit_enabled == Some(false) {
+        state.revoke_user_sessions(id, "user disabled").await;
+    }
+
+    record_admin_action(
+        &state,
+        &admin,
+        addr,
+        AdminAction {
+            event: "USER_UPDATE",
+            resource_type: "user",
+            resource_id: Some(id),
+            details: serde_json::json!({
+                "fields": audit_fields,
+                "enabled": audit_enabled,
+                "satker_code": audit_satker,
+            }),
+        },
+    )
+    .await;
+
     Ok(Json(user_to_response(&user)))
 }
 
 /// DELETE /api/v1/iam/users/{id} - Delete user (soft delete)
 pub async fn delete_user(
     State(state): State<Arc<IamApiState>>,
+    Extension(admin): Extension<AdminUser>,
+    Extension(addr): Extension<ClientAddr>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<StatusCode> {
+    if id == admin.user_id {
+        return Err(crate::error::ApiError(AuthencError::validation(
+            "Anda tidak dapat menghapus akun Anda sendiri.",
+        )));
+    }
+
     state
         .user_service
         .delete_user(UserId::from_uuid(id))
         .await
         .map_err(crate::error::ApiError)?;
+
+    state.revoke_user_sessions(id, "user deleted").await;
+
+    record_admin_action(
+        &state,
+        &admin,
+        addr,
+        AdminAction {
+            event: "USER_DELETE",
+            resource_type: "user",
+            resource_id: Some(id),
+            details: serde_json::json!({ "soft_delete": true }),
+        },
+    )
+    .await;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -292,6 +390,8 @@ pub async fn delete_user(
 /// POST /api/v1/iam/users/{id}/password/reset - Reset user password
 pub async fn reset_user_password(
     State(state): State<Arc<IamApiState>>,
+    Extension(admin): Extension<AdminUser>,
+    Extension(addr): Extension<ClientAddr>,
     Path(id): Path<Uuid>,
     Json(req): Json<ResetPasswordRequest>,
 ) -> ApiResult<StatusCode> {
@@ -320,12 +420,34 @@ pub async fn reset_user_password(
         .await
         .map_err(crate::error::ApiError)?;
 
+    // Whoever held the old password must lose their sessions with it.
+    state
+        .revoke_user_sessions(id, "password reset by administrator")
+        .await;
+
+    // The new password is deliberately NOT in the row — only the fact of the
+    // reset and that the user is forced to change it.
+    record_admin_action(
+        &state,
+        &admin,
+        addr,
+        AdminAction {
+            event: "PASSWORD_RESET",
+            resource_type: "user",
+            resource_id: Some(id),
+            details: serde_json::json!({ "require_password_change": true }),
+        },
+    )
+    .await;
+
     Ok(StatusCode::NO_CONTENT)
 }
 
 /// POST /api/v1/iam/users/{id}/mfa/enable - Enable MFA for user
 pub async fn enable_user_mfa(
     State(state): State<Arc<IamApiState>>,
+    Extension(admin): Extension<AdminUser>,
+    Extension(addr): Extension<ClientAddr>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<serde_json::Value>> {
     state
@@ -334,14 +456,32 @@ pub async fn enable_user_mfa(
         .await
         .map_err(crate::error::ApiError)?;
 
+    record_admin_action(
+        &state,
+        &admin,
+        addr,
+        AdminAction {
+            event: "MFA_ENABLE",
+            resource_type: "user",
+            resource_id: Some(id),
+            details: serde_json::json!({}),
+        },
+    )
+    .await;
+
     Ok(Json(serde_json::json!({
         "message": "MFA enabled successfully"
     })))
 }
 
 /// POST /api/v1/iam/users/{id}/mfa/disable - Disable MFA for user
+///
+/// Switching off somebody's second factor is the single most account-takeover-
+/// shaped thing this API can do, so it is audited like nothing else here.
 pub async fn disable_user_mfa(
     State(state): State<Arc<IamApiState>>,
+    Extension(admin): Extension<AdminUser>,
+    Extension(addr): Extension<ClientAddr>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<StatusCode> {
     state
@@ -349,6 +489,19 @@ pub async fn disable_user_mfa(
         .disable_mfa(UserId::from_uuid(id))
         .await
         .map_err(crate::error::ApiError)?;
+
+    record_admin_action(
+        &state,
+        &admin,
+        addr,
+        AdminAction {
+            event: "MFA_DISABLE",
+            resource_type: "user",
+            resource_id: Some(id),
+            details: serde_json::json!({ "self": id == admin.user_id }),
+        },
+    )
+    .await;
 
     Ok(StatusCode::NO_CONTENT)
 }

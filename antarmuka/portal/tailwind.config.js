@@ -21,6 +21,27 @@ module.exports = {
           900: '#102a43',
           950: '#061523',
         },
+        // `primary` IS navy. The frontends have always written `bg-primary-600`,
+        // `ring-primary-500`, `text-primary-700` … (~100 uses, most of them in
+        // the shared lib/ui crate) but neither config defined the scale, so
+        // Tailwind emitted nothing: primary buttons rendered transparent and
+        // focus rings never appeared. It is defined as an alias of the navy
+        // scale above; `check-color-contrast.py` fails if the two drift apart.
+        primary: {
+          DEFAULT: '#1e3a5f', // = navy-800, for bare `bg-primary` / `text-primary`
+          dark: '#102a43', // = navy-900, for `hover:bg-primary-dark`
+          50: '#f0f4f8',
+          100: '#d9e2ec',
+          200: '#bcccdc',
+          300: '#9fb3c8',
+          400: '#829ab1',
+          500: '#627d98',
+          600: '#486581',
+          700: '#334e68',
+          800: '#1e3a5f',
+          900: '#102a43',
+          950: '#061523',
+        },
         gold: {
           50: '#fbf7e6',
           100: '#f5ebc5',

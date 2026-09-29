@@ -11,6 +11,7 @@
     env: [{name, value} | {name, valueFrom}],
     envFrom: [{configMapRef|secretRef}],
     volumes, volumeMounts,
+    persistence: { enabled, claimName, mountPath, envName },   # PVC data pod (opt-in)
     resources, podSecurityContext, containerSecurityContext,
     probes: { startup, liveness, readiness },
     topologySpreadConstraints, podAntiAffinity,
@@ -25,6 +26,7 @@
 {{- $ctx := .ctx -}}
 {{- $name := .name -}}
 {{- $values := .values -}}
+{{- $persist := and $values.persistence $values.persistence.enabled -}}
 {{- if $values.enabled }}
 {{- include "simpel.service" (dict "ctx" $ctx "name" $name "values" $values) }}
 ---
@@ -137,10 +139,14 @@ spec:
           envFrom:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if or $values.env (and $values.secretonAuth $values.secretonAuth.enabled) }}
+          {{- if or $values.env $persist (and $values.secretonAuth $values.secretonAuth.enabled) }}
           env:
             {{- with $values.env }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- if and $persist $values.persistence.envName }}
+            - name: {{ $values.persistence.envName }}
+              value: {{ $values.persistence.mountPath | quote }}
             {{- end }}
             {{- if and $values.secretonAuth $values.secretonAuth.enabled }}
             - name: SECRETON_ADDR
@@ -159,10 +165,14 @@ spec:
           {{- end }}
           {{- include "simpel.containerSecurityContext" $values | nindent 10 }}
           {{- include "simpel.probes" (dict "spec" (default (dict) $values.probes)) | nindent 10 }}
-          {{- if or $values.volumeMounts (and $values.secretonAuth $values.secretonAuth.enabled) $values.tmpVolumeSizeLimit }}
+          {{- if or $values.volumeMounts $persist (and $values.secretonAuth $values.secretonAuth.enabled) $values.tmpVolumeSizeLimit }}
           volumeMounts:
             {{- with $values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- if $persist }}
+            - name: data
+              mountPath: {{ $values.persistence.mountPath }}
             {{- end }}
             {{- if and $values.secretonAuth $values.secretonAuth.enabled }}
             - name: secreton-token
@@ -181,10 +191,15 @@ spec:
         {{- with $values.sidecars }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-      {{- if or $values.volumes (and $values.secretonAuth $values.secretonAuth.enabled) $values.tmpVolumeSizeLimit }}
+      {{- if or $values.volumes $persist (and $values.secretonAuth $values.secretonAuth.enabled) $values.tmpVolumeSizeLimit }}
       volumes:
         {{- with $values.volumes }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $persist }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ $values.persistence.claimName }}
         {{- end }}
         {{- if and $values.secretonAuth $values.secretonAuth.enabled }}
         - name: secreton-token

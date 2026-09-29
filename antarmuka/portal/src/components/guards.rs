@@ -61,7 +61,8 @@ pub fn PortalAuthLayout(
     }
 }
 
-/// Admin layout guard for portal. Enforces admin role + password-change policy.
+/// Admin layout guard for portal. Enforces the IAM-administrator role (exact `admin`,
+/// `Capability::AdministerIam`) + password-change policy.
 #[component]
 pub fn PortalAdminLayout(
     /// Current user session signal
@@ -82,7 +83,7 @@ pub fn PortalAdminLayout(
                 );
                 return view! { <div /> }.into_any();
             }
-            if session.role.is_admin() {
+            if session.can_administer_iam() {
                 view! { <leptos_router::components::Outlet /> }.into_any()
             } else {
                 view! { <ForbiddenPage /> }.into_any()

@@ -509,9 +509,17 @@ pub async fn process_validator_action(
     claims: Claims,
     Json(request): Json<ValidatorActionRequest>,
 ) -> Result<Json<ApiResponse<PengajuanSatker>>, AppError> {
+    // Coarse gate: only the roles that take part in this workflow. Which of them
+    // may make WHICH move from the current state is decided by
+    // `determine_next_status` in the service; this refuses everyone else up front
+    // (an approver of another workflow, an administrator) instead of leaving the
+    // decision to the "no valid (status, action, role)" fall-through.
+    claims.require_any_role(&["operator_satker", "validator_wilayah", "validator_pusat"])?;
     let user_nip = claims.nip.as_deref().unwrap_or("unknown");
     let user_nama = claims.name.as_deref().unwrap_or("unknown");
-    let user_role = &claims.role;
+    // Every role the caller holds, sorted (`RoleSet` order); the service acts
+    // as the first one for which the requested move is valid.
+    let user_roles: Vec<String> = claims.role_set().iter().map(str::to_string).collect();
 
     // The role gate lives in `determine_next_status`; this is the object gate
     // beside it. Without it a validator could approve or reject a satker's
@@ -521,7 +529,7 @@ pub async fn process_validator_action(
             request,
             user_nip,
             user_nama,
-            user_role,
+            &user_roles,
             &SatkerScope::from_claims(&claims),
         )
         .await?;
@@ -578,6 +586,10 @@ pub async fn upsert_pegawai_profile(
     claims: Claims,
     Json(request): Json<UpsertPegawaiProfileRequest>,
 ) -> Result<Json<ApiResponse<PegawaiPakaianDinas>>, AppError> {
+    // Filling in a satker's roster is that satker's operator's job. Scope decides
+    // WHICH satker; with no role gate a validator_pusat (scope `All`) could
+    // rewrite any employee's record in the country.
+    claims.require_role("operator_satker")?;
     // The request used to carry `kode_satker`, and nothing checked it: one
     // satker's operator could overwrite another satker's employee — measured
     // on staging, 200 with the row rewritten. The satker now comes from the
@@ -600,6 +612,10 @@ pub async fn bulk_upsert_pegawai_profiles(
     claims: Claims,
     Json(requests): Json<Vec<UpsertPegawaiProfileRequest>>,
 ) -> Result<Json<ApiResponse<usize>>, AppError> {
+    // Filling in a satker's roster is that satker's operator's job. Scope decides
+    // WHICH satker; with no role gate a validator_pusat (scope `All`) could
+    // rewrite any employee's record in the country.
+    claims.require_role("operator_satker")?;
     let count = service
         .repository
         .bulk_upsert_pegawai_profiles(&requests, &SatkerScope::from_claims(&claims))
@@ -760,6 +776,11 @@ pub async fn submit_pengajuan_handler(
     claims: Claims,
     Json(request): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<PengajuanPakaianDinas>>, AppError> {
+    // These move a whole *campaign* — the record every satker responds to —
+    // and had no check at all: any authenticated caller could approve or
+    // reject a nationwide campaign. Campaigns are authored (and deleted) by
+    // validator_pusat, so that is who advances them.
+    claims.require_any_role(&["validator_pusat"])?;
     let catatan = request
         .get("catatan")
         .and_then(|v| v.as_str())
@@ -782,6 +803,11 @@ pub async fn approve_pengajuan_handler(
     claims: Claims,
     Json(request): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<PengajuanPakaianDinas>>, AppError> {
+    // These move a whole *campaign* — the record every satker responds to —
+    // and had no check at all: any authenticated caller could approve or
+    // reject a nationwide campaign. Campaigns are authored (and deleted) by
+    // validator_pusat, so that is who advances them.
+    claims.require_any_role(&["validator_pusat"])?;
     let catatan = request
         .get("catatan")
         .and_then(|v| v.as_str())
@@ -804,6 +830,11 @@ pub async fn reject_pengajuan_handler(
     claims: Claims,
     Json(request): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<PengajuanPakaianDinas>>, AppError> {
+    // These move a whole *campaign* — the record every satker responds to —
+    // and had no check at all: any authenticated caller could approve or
+    // reject a nationwide campaign. Campaigns are authored (and deleted) by
+    // validator_pusat, so that is who advances them.
+    claims.require_any_role(&["validator_pusat"])?;
     let catatan = request
         .get("catatan")
         .and_then(|v| v.as_str())
@@ -1003,6 +1034,10 @@ pub async fn simpan_ukuran_pegawai(
     claims: Claims,
     Json(request): Json<SimpanUkuranPegawaiRequest>,
 ) -> Result<Json<ApiResponse<RosterPengisian>>, AppError> {
+    // Filling in a satker's roster is that satker's operator's job. Scope decides
+    // WHICH satker; with no role gate a validator_pusat (scope `All`) could
+    // rewrite any employee's record in the country.
+    claims.require_role("operator_satker")?;
     let scope = SatkerScope::from_claims(&claims);
     service
         .repository
@@ -1026,6 +1061,10 @@ pub async fn hapus_pegawai_dari_pengajuan(
     Path((pengajuan_id, satker_code, nip)): Path<(Uuid, String, String)>,
     claims: Claims,
 ) -> Result<Json<ApiResponse<RosterPengisian>>, AppError> {
+    // Filling in a satker's roster is that satker's operator's job. Scope decides
+    // WHICH satker; with no role gate a validator_pusat (scope `All`) could
+    // rewrite any employee's record in the country.
+    claims.require_role("operator_satker")?;
     let scope = SatkerScope::from_claims(&claims);
     service
         .repository

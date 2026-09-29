@@ -57,6 +57,13 @@ pub async fn create_permit(
     claims: Claims,
     Json(request): Json<CreateIzinPemakaianRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<IzinPemakaianBmn>>), AppError> {
+    use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
+    // Before this, ANY authenticated caller — a validator_pusat, an approver of
+    // another satker — could open a permit request. Only an operator drafts, and
+    // only for the satker their token names (never one taken from the body).
+    PemakaianBmnPolicy.authorize(&claims, PemakaianBmnAction::Create, None)?;
+    // (A caller whose token names no satker is refused by the service with a 400
+    // — the permit must belong to exactly one satker.)
     info!("Creating new permit for BMN {}", request.bmn_nup);
 
     let permit = service
@@ -85,6 +92,18 @@ pub async fn update_permit(
     claims: Claims,
     Json(request): Json<UpdateIzinPemakaianRequest>,
 ) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
+    use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
+    // The scoped read is also the object-level check: a permit outside the
+    // caller's satker is a 404 here, before any state or role is disclosed.
+    let permit_now = service
+        .get_permit_detail(id, &SatkerScope::from_claims(&claims))
+        .await?
+        .izin;
+    PemakaianBmnPolicy.authorize(
+        &claims,
+        PemakaianBmnAction::UpdateDraft,
+        Some(permit_now.status.as_str()),
+    )?;
     info!("Updating permit {}", id);
 
     let permit = service
@@ -132,20 +151,41 @@ pub async fn transition_permit_status(
     ClientIp(ip): ClientIp,
     Json(request): Json<WorkflowTransitionRequest>,
 ) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
+    use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
     info!(
         "Transitioning permit {} to status {}",
         id, request.target_status
     );
 
+    // The generic transition is NOT a way around the dedicated endpoints. Those
+    // carry the optimistic-lock version, the mandatory return note, and the
+    // `validator_satker_id` / `approver_satker_id` stamps the maker-checker rule
+    // reads — a move made here would skip all three. So it serves only the two
+    // moves that have no dedicated endpoint (submit, cancel), each checked
+    // against the same policy the rest of the workflow uses.
+    let scope = SatkerScope::from_claims(&claims);
+    let permit_now = service.get_permit_detail(id, &scope).await?.izin;
+    let from_state = permit_now.status.as_str();
+    let action = match PemakaianBmnAction::for_transition(from_state, &request.target_status) {
+        Some(a @ (PemakaianBmnAction::Submit | PemakaianBmnAction::Cancel)) => a,
+        Some(_) => {
+            return Err(AppError::BadRequest(format!(
+                "Perpindahan {from_state} → {} dilakukan lewat endpoint aksinya \
+                 (validator-satker-action / approver-satker-action / resubmit / revoke)",
+                request.target_status
+            )));
+        }
+        None => {
+            return Err(AppError::Authorization(format!(
+                "Perpindahan {from_state} → {} tidak dapat dilakukan lewat API",
+                request.target_status
+            )));
+        }
+    };
+    let acting_role = PemakaianBmnPolicy.authorize_as(&claims, action, Some(from_state))?;
+
     let permit = service
-        .transition_permit_status(
-            id,
-            request,
-            claims.user_id,
-            claims.role.clone(),
-            ip,
-            &SatkerScope::from_claims(&claims),
-        )
+        .transition_permit_status(id, request, claims.user_id, acting_role, ip, &scope)
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -161,11 +201,19 @@ pub async fn activate_permit(
     Path(id): Path<Uuid>,
     claims: Claims,
 ) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
+    use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
+    let scope = SatkerScope::from_claims(&claims);
+    // Issuing a permit number is an official act. It had no role check at all —
+    // any authenticated user could activate any permit they could name.
+    let permit_now = service.get_permit_detail(id, &scope).await?.izin;
+    PemakaianBmnPolicy.authorize(
+        &claims,
+        PemakaianBmnAction::Activate,
+        Some(permit_now.status.as_str()),
+    )?;
     info!("Activating permit {}", id);
 
-    let permit = service
-        .activate_permit(id, claims.user_id, &SatkerScope::from_claims(&claims))
-        .await?;
+    let permit = service.activate_permit(id, claims.user_id, &scope).await?;
 
     Ok(Json(ApiResponse::success(
         permit,
@@ -221,8 +269,16 @@ pub async fn generate_konsep_surat(
     Path(id): Path<Uuid>,
     claims: Claims,
 ) -> Result<Json<lib_perlengkapan::response::ApiResponse<IzinPemakaianBmn>>, AppError> {
+    use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
+    let scope = SatkerScope::from_claims(&claims);
+    let permit_now = service.get_permit_detail(id, &scope).await?.izin;
+    PemakaianBmnPolicy.authorize(
+        &claims,
+        PemakaianBmnAction::GenerateDocument,
+        Some(permit_now.status.as_str()),
+    )?;
     let permit = service
-        .generate_konsep_surat(id, claims.user_id, &SatkerScope::from_claims(&claims))
+        .generate_konsep_surat(id, claims.user_id, &scope)
         .await?;
 
     Ok(Json(lib_perlengkapan::response::ApiResponse::success(
@@ -336,13 +392,18 @@ pub async fn upload_signed_pdf(
     claims: Claims,
     Json(body): Json<UploadSignedPdfRequest>,
 ) -> Result<Json<lib_perlengkapan::response::ApiResponse<IzinPemakaianBmn>>, AppError> {
+    use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
+    let scope = SatkerScope::from_claims(&claims);
+    let permit_now = service.get_permit_detail(id, &scope).await?.izin;
+    PemakaianBmnPolicy.authorize(
+        &claims,
+        PemakaianBmnAction::UploadSigned,
+        Some(permit_now.status.as_str()),
+    )?;
+    // Stored and later served as a link: web URLs only (no `javascript:`/`file:`).
+    crate::shared::upload::validate_document_url("signed_pdf_url", &body.signed_pdf_url)?;
     let permit = service
-        .upload_signed_pdf(
-            id,
-            body.signed_pdf_url,
-            claims.user_id,
-            &SatkerScope::from_claims(&claims),
-        )
+        .upload_signed_pdf(id, body.signed_pdf_url, claims.user_id, &scope)
         .await?;
 
     Ok(Json(lib_perlengkapan::response::ApiResponse::success(
@@ -401,6 +462,9 @@ pub async fn renew_permit(
     claims: Claims,
     Json(request): Json<RenewPermitRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<IzinPemakaianBmn>>), AppError> {
+    use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
+    // A renewal opens a NEW request, so it is a Create.
+    PemakaianBmnPolicy.authorize(&claims, PemakaianBmnAction::Create, None)?;
     info!("Renewing permit {}", id);
 
     let permit = service
@@ -614,8 +678,12 @@ pub async fn get_expiring_permits(
 /// Auto-expire permits (admin/scheduler endpoint)
 pub async fn auto_expire_permits(
     State(service): State<PemakaianBmnService>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<usize>>, AppError> {
+    // A maintenance sweep across EVERY satker's permits; it had no check, so any
+    // authenticated user could trigger it. The scheduler runs it in-process and
+    // does not come through here.
+    claims.require_capability(lib_core::authz::Capability::Administer)?;
     let count = service.auto_expire_permits().await?;
 
     Ok(Json(ApiResponse::success(
@@ -695,8 +763,9 @@ pub async fn list_pemakaian_monitoring(
 // ============================================================================
 // V035 (Fase 1.5): Endpoints alur internal-satker 3-step.
 //
-// RBAC ditegakkan dgn `Claims::require_any_role`. Admin/superadmin bypass
-// untuk kebutuhan recovery, bukan untuk operasi harian.
+// RBAC ditegakkan lewat `PemakaianBmnPolicy` (tanpa bypass admin) ditambah
+// maker-checker (`enforce_maker_checker`): pengusul tidak boleh memvalidasi,
+// dan pemberi persetujuan tidak boleh pengusul/validator usulan yang sama.
 // ============================================================================
 
 use validator::Validate as _SatkerValidate;
@@ -727,6 +796,12 @@ pub async fn validator_satker_action(
         ValidatorSatkerActionRequest::Return(_) => PemakaianBmnAction::ValidatorSatkerReturn,
     };
     PemakaianBmnPolicy.authorize(&claims, action, state)?;
+    crate::shared::policy::enforce_maker_checker(
+        action,
+        claims.user_id,
+        permit_now.created_by,
+        permit_now.validator_satker_id,
+    )?;
     let permit = match request {
         ValidatorSatkerActionRequest::Forward(req) => {
             service
@@ -783,6 +858,12 @@ pub async fn approver_satker_action(
         ApproverSatkerActionRequest::Return(_) => PemakaianBmnAction::ApproverSatkerReturn,
     };
     PemakaianBmnPolicy.authorize(&claims, action, state)?;
+    crate::shared::policy::enforce_maker_checker(
+        action,
+        claims.user_id,
+        permit_now.created_by,
+        permit_now.validator_satker_id,
+    )?;
     let permit = match request {
         ApproverSatkerActionRequest::Approve(req) => {
             service

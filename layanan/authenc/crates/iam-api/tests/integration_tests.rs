@@ -1,191 +1,117 @@
-//! Integration tests for IAM API
+//! Authorization contract tests for the IAM API.
+//!
+//! # Scope, and why it is what it is
+//!
+//! This file used to hold 26 `#[tokio::test]` stubs whose bodies were entirely
+//! commented out — **zero assertions**, so `cargo test` reported 26 green tests
+//! that could not fail. A suite that cannot go red reads as a guarantee.
+//!
+//! Driving the real router end-to-end needs `IamApiState`, which holds a
+//! `authenc_storage::Database` that connects eagerly in `Database::new`; the
+//! unit-test CI job provisions a bare Postgres, not a migrated `authenc`
+//! schema. So the *decision* the guard makes is unit-tested where it lives —
+//! `middleware::admin_auth::tests` exercises `evaluate_admin` (MFA-pending,
+//! IAM-admin-only, password change) with no database — and this file pins the
+//! shared vocabulary that decision resolves through (`lib_core::authz`), so a
+//! change to it surfaces here, in the fast unit job, instead of only in e2e.
+//!
+//! The router-level "operator gets 403, admin gets 200" assertion lives where a
+//! real stack exists: `antarmuka/portal/tests/e2e/portal-core-workflow.spec.ts`.
+//!
+//! Note what this file does **not** claim: that the *application*-admin list
+//! (`ADMIN_ROLES`) may enter the IAM console. It may not — the console is
+//! `IAM_ADMIN_ROLES` (exact `admin`).
 
-// Imports will be uncommented when test implementations are added:
-// use axum::{
-//     body::Body,
-//     http::{Request, StatusCode},
-// };
-// use tower::ServiceExt;
+use lib_core::authz::{ADMIN_ROLES, Authorization, Capability, IAM_ADMIN_ROLES, is_iam_admin_role};
 
-// TODO: Add proper test setup with mock services
-
-#[tokio::test]
-async fn test_list_users_requires_auth() {
-    // TODO: Create test app with mock state
-    // let app = create_router(mock_state);
-
-    // Test that listing users without auth returns 401
-    // let response = app
-    //     .oneshot(
-    //         Request::builder()
-    //             .uri("/api/v1/iam/users")
-    //             .body(Body::empty())
-    //             .unwrap(),
-    //     )
-    //     .await
-    //     .unwrap();
-
-    // assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+/// Roles the e2e seed mints for non-admin users; none may reach the IAM console
+/// or read its audit log.
+#[test]
+fn satker_bound_roles_cannot_reach_iam_admin_routes() {
+    for role in [
+        "operator_satker",
+        "validator_satker",
+        "validator_wilayah",
+        "validator_pusat",
+        "approver_satker",
+    ] {
+        let authz = Authorization::from_slice(&[role.to_string()]);
+        assert!(
+            !authz.is_iam_admin(),
+            "'{role}' must be refused by the IAM guard"
+        );
+        assert!(
+            !authz.can(Capability::AdministerIam),
+            "'{role}' must not administer IAM"
+        );
+        assert!(
+            !authz.can(Capability::ViewAudit),
+            "'{role}' must not read the audit log"
+        );
+    }
 }
 
-#[tokio::test]
-async fn test_list_users_with_valid_token() {
-    // TODO: Create test app with mock state
-    // TODO: Generate valid admin JWT token
-
-    // Test that listing users with valid admin token returns 200
-    // let response = app
-    //     .oneshot(
-    //         Request::builder()
-    //             .uri("/api/v1/iam/users")
-    //             .header("Authorization", format!("Bearer {}", admin_token))
-    //             .body(Body::empty())
-    //             .unwrap(),
-    //     )
-    //     .await
-    //     .unwrap();
-
-    // assert_eq!(response.status(), StatusCode::OK);
+/// The console is exact `admin`. The roles PR #930 admitted (`admin_pusat`,
+/// `superadmin`) administer the *application*, not the identity provider.
+#[test]
+fn only_the_iam_admin_role_reaches_iam_admin_routes() {
+    for role in IAM_ADMIN_ROLES {
+        assert!(Authorization::from_slice(&[role.to_string()]).is_iam_admin());
+    }
+    for role in ADMIN_ROLES.iter().filter(|r| !IAM_ADMIN_ROLES.contains(r)) {
+        let authz = Authorization::from_slice(&[role.to_string()]);
+        assert!(
+            !authz.is_iam_admin(),
+            "'{role}' must not administer the IdP"
+        );
+        assert!(
+            authz.can(Capability::Administer),
+            "'{role}' still administers the app"
+        );
+    }
 }
 
-#[tokio::test]
-async fn test_create_user() {
-    // TODO: Test user creation endpoint
-    // - Verify request validation
-    // - Verify user is created in database
-    // - Verify response contains user data
+/// Roles are database rows, so an operator can mint a name that *looks*
+/// administrative. A prefix match would admit all of these.
+#[test]
+fn administrative_looking_role_names_are_refused() {
+    for lookalike in [
+        "admin_readonly",
+        "admin_audit_log",
+        "administrative",
+        "administrator",
+        "super_admin",
+        "admin_pusat_readonly",
+    ] {
+        assert!(
+            !is_iam_admin_role(lookalike),
+            "'{lookalike}' must not pass the IAM admin guard"
+        );
+    }
 }
 
-#[tokio::test]
-async fn test_update_user() {
-    // TODO: Test user update endpoint
-    // - Create test user
-    // - Update user data
-    // - Verify changes persisted
+/// A caller holding an admin role alongside others still passes — the guard
+/// must scan the whole role set, since role order in `realm_access.roles` is
+/// not guaranteed.
+#[test]
+fn admin_among_several_roles_still_passes() {
+    let owned: Vec<String> = ["operator_satker", "validator_wilayah", "admin"]
+        .iter()
+        .map(|r| r.to_string())
+        .collect();
+    assert!(Authorization::from_slice(&owned).is_iam_admin());
 }
 
-#[tokio::test]
-async fn test_delete_user() {
-    // TODO: Test user deletion endpoint
-    // - Create test user
-    // - Delete user
-    // - Verify user is soft-deleted
-}
-
-#[tokio::test]
-async fn test_reset_user_password() {
-    // TODO: Test password reset endpoint
-    // - Create test user
-    // - Reset password
-    // - Verify new password works
-}
-
-#[tokio::test]
-async fn test_enable_user_mfa() {
-    // TODO: Test MFA enablement endpoint
-    // - Create test user
-    // - Enable MFA
-    // - Verify TOTP secret generated
-}
-
-#[tokio::test]
-async fn test_list_realms() {
-    // TODO: Test realm listing endpoint
-}
-
-#[tokio::test]
-async fn test_create_realm() {
-    // TODO: Test realm creation endpoint
-}
-
-#[tokio::test]
-async fn test_update_realm() {
-    // TODO: Test realm update endpoint
-}
-
-#[tokio::test]
-async fn test_delete_realm() {
-    // TODO: Test realm deletion endpoint
-}
-
-#[tokio::test]
-async fn test_list_clients() {
-    // TODO: Test OAuth2 client listing endpoint
-}
-
-#[tokio::test]
-async fn test_create_client() {
-    // TODO: Test OAuth2 client creation endpoint
-}
-
-#[tokio::test]
-async fn test_update_client() {
-    // TODO: Test OAuth2 client update endpoint
-}
-
-#[tokio::test]
-async fn test_delete_client() {
-    // TODO: Test OAuth2 client deletion endpoint
-}
-
-#[tokio::test]
-async fn test_regenerate_client_secret() {
-    // TODO: Test client secret regeneration endpoint
-}
-
-#[tokio::test]
-async fn test_list_roles() {
-    // TODO: Test role listing endpoint
-}
-
-#[tokio::test]
-async fn test_create_role() {
-    // TODO: Test role creation endpoint
-}
-
-#[tokio::test]
-async fn test_assign_role_to_user() {
-    // TODO: Test role assignment endpoint
-}
-
-#[tokio::test]
-async fn test_remove_role_from_user() {
-    // TODO: Test role removal endpoint
-}
-
-#[tokio::test]
-async fn test_list_identity_providers() {
-    // TODO: Test identity provider listing endpoint
-}
-
-#[tokio::test]
-async fn test_create_identity_provider() {
-    // TODO: Test identity provider creation endpoint
-}
-
-#[tokio::test]
-async fn test_list_audit_logs() {
-    // TODO: Test audit log listing endpoint
-    // - Test pagination
-    // - Test filtering by event type
-    // - Test filtering by user
-    // - Test filtering by date range
-}
-
-#[tokio::test]
-async fn test_export_audit_logs_json() {
-    // TODO: Test audit log export in JSON format
-}
-
-#[tokio::test]
-async fn test_export_audit_logs_csv() {
-    // TODO: Test audit log export in CSV format
-}
-
-#[tokio::test]
-async fn test_admin_authorization() {
-    // TODO: Test that non-admin users cannot access IAM endpoints
-    // - Create non-admin JWT token
-    // - Attempt to access IAM endpoint
-    // - Verify 403 Forbidden response
+/// An empty role claim grants nothing privileged. Since the guard no longer
+/// falls back to a database lookup, "no roles in the token" means "no authority"
+/// — which is also what makes session-scoped role activation meaningful.
+#[test]
+fn absent_roles_grant_nothing() {
+    let none = Authorization::from_slice(&[]);
+    assert!(!none.is_iam_admin());
+    assert!(!none.can(Capability::AdministerIam));
+    assert!(!none.can(Capability::Administer));
+    assert!(!none.can(Capability::ViewAudit));
+    assert!(!none.can(Capability::Create));
+    assert!(!none.can(Capability::View));
 }

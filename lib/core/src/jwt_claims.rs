@@ -47,9 +47,35 @@ pub struct Claims {
     #[serde(default)]
     pub satker_nama: Option<String>,
 
-    /// Realm access (roles)
+    /// Realm access (roles).
+    ///
+    /// **This is the only claim any service may authorize on.** When the issuer
+    /// runs with session-scoped role activation
+    /// (`AUTHENC_ACTIVE_ROLE_ENFORCEMENT`), it holds exactly the one role the
+    /// caller activated for this session; otherwise all assigned roles.
     #[serde(default)]
     pub realm_access: Option<RealmAccess>,
+
+    /// Every role the user is *assigned*, whether or not active in this token.
+    ///
+    /// **Display/selection only — never authorize on it.** It exists so a
+    /// frontend can offer the role switcher (NIST RBAC "session": a user
+    /// activates a subset of assigned roles). Authority comes solely from
+    /// [`realm_access`](Self::realm_access), which the server re-derives.
+    #[serde(default)]
+    pub assigned_roles: Vec<String>,
+
+    /// The role activated for this session, when role activation is enforced.
+    #[serde(default)]
+    pub active_role: Option<String>,
+
+    /// Organisational groups the user belongs to, as slash-separated paths from
+    /// the root (`/kejagung/kejati-jakarta/kejari-jakarta-pusat`) — the
+    /// Keycloak group-path convention and the RFC 9068 `groups` claim. Derived
+    /// from the satker hierarchy (Pusat → Wilayah → Satker). Empty unless the
+    /// issuer runs with `AUTHENC_GROUPS_CLAIM`.
+    #[serde(default)]
+    pub groups: Vec<String>,
 
     /// Resource access (client specific roles)
     #[serde(default)]
@@ -101,9 +127,14 @@ impl Claims {
     }
 
     /// Get primary role from JWT claims.
-    /// Returns the highest-priority role found, or User if no recognized roles.
-    /// Custom roles (like admin_pusat, admin_wilayah, etc.) are supported flexibly
-    /// without hardcoding - any role starting with "admin" gets admin privileges.
+    /// Returns the highest-priority role found, or `User` if no recognized
+    /// roles are present.
+    ///
+    /// Administrative roles are matched **exactly** against
+    /// [`crate::authz::ADMIN_ROLES`]. This used to accept any role whose name
+    /// merely began with `admin`, which classified read-only roles such as
+    /// `admin_master_read_only` — a name this very repository uses as its
+    /// example of a false positive — as administrative principals.
     pub fn get_primary_role(&self) -> crate::auth::UserRole {
         // Check for standard roles first (highest priority)
         if self.has_role("admin") {
@@ -116,12 +147,10 @@ impl Claims {
             return crate::auth::UserRole::Guest;
         }
 
-        // Check for any admin-like role in realm_access (flexible)
+        // Any *exact* administrative role from the shared allowlist.
         if let Some(ref ra) = self.realm_access {
             for role in &ra.roles {
-                let lower = role.to_lowercase();
-                // Any role starting with "admin" (admin_pusat, admin_wilayah, etc.)
-                if lower.starts_with("admin") {
+                if crate::authz::ADMIN_ROLES.contains(&role.to_lowercase().as_str()) {
                     return crate::auth::UserRole::Custom(role.clone());
                 }
             }
@@ -141,5 +170,96 @@ impl Claims {
         } else {
             vec![crate::auth::UserRole::User]
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::auth::UserRole;
+
+    fn claims_with(roles: &[&str]) -> Claims {
+        Claims {
+            sub: "00000000-0000-0000-0000-000000000001".into(),
+            preferred_username: Some("tester".into()),
+            name: None,
+            email: None,
+            nip: None,
+            jabatan: None,
+            satker_code: Some("02.28".into()),
+            satker_id: None,
+            satker_nama: None,
+            realm_access: Some(RealmAccess {
+                roles: roles.iter().map(|r| r.to_string()).collect(),
+            }),
+            assigned_roles: Vec::new(),
+            active_role: None,
+            groups: Vec::new(),
+            resource_access: None,
+            mfa_enabled: false,
+            mfa_setup_required: false,
+            require_password_change: false,
+            exp: 9_999_999_999,
+            iat: 0,
+            iss: "authenc".into(),
+        }
+    }
+
+    /// A role whose name merely begins with `admin` must not be promoted to an
+    /// administrative primary role. This is the prefix bug that lived in
+    /// `get_primary_role` and in `UserRole::is_admin`.
+    #[test]
+    fn admin_prefixed_roles_are_not_primary_admins() {
+        for bogus in [
+            "admin_audit_log",
+            "administrative",
+            "admin_master_read_only",
+            "administrator",
+        ] {
+            let primary = claims_with(&[bogus]).get_primary_role();
+            assert_eq!(
+                primary,
+                UserRole::User,
+                "'{bogus}' must not become the administrative primary role"
+            );
+            assert!(!primary.is_admin(), "'{bogus}' must not be an admin");
+        }
+    }
+
+    #[test]
+    fn allowlisted_admin_roles_do_become_primary() {
+        assert_eq!(claims_with(&["admin"]).get_primary_role(), UserRole::Admin);
+        assert!(claims_with(&["admin_pusat"]).get_primary_role().is_admin());
+        assert!(claims_with(&["superadmin"]).get_primary_role().is_admin());
+    }
+
+    #[test]
+    fn satker_roles_do_not_become_admins() {
+        for role in [
+            "operator_satker",
+            "validator_wilayah",
+            "validator_pusat",
+            "validator_satker",
+        ] {
+            let primary = claims_with(&[role]).get_primary_role();
+            assert!(!primary.is_admin(), "'{role}' must not be an admin");
+        }
+    }
+
+    #[test]
+    fn standard_roles_keep_priority() {
+        assert_eq!(
+            claims_with(&["supervisor", "operator_satker"]).get_primary_role(),
+            UserRole::Supervisor
+        );
+        assert_eq!(claims_with(&["guest"]).get_primary_role(), UserRole::Guest);
+    }
+
+    #[test]
+    fn role_checks_are_exact() {
+        let c = claims_with(&["operator_satker"]);
+        assert!(c.has_role("operator_satker"));
+        assert!(!c.has_role("operator"));
+        assert!(!c.has_role("operator_satker_extra"));
     }
 }

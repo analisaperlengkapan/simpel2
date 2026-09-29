@@ -366,6 +366,26 @@ impl IntoResponse for ErrorResponse {
     }
 }
 
+/// Annotate `response` with the actor a handler just authenticated.
+///
+/// See [`crate::middleware::security::AuthenticatedActor`] for why this handoff
+/// exists. A login handler is the one place the identity is known but the audit
+/// write is not; returning the response unchanged keeps every other path
+/// (failed logins, unauthenticated requests) correctly unattributed.
+fn with_authenticated_actor(
+    mut response: axum::response::Response,
+    user_id: &str,
+    client_id: Option<&str>,
+) -> axum::response::Response {
+    response
+        .extensions_mut()
+        .insert(crate::middleware::security::AuthenticatedActor {
+            user_id: user_id.to_string(),
+            client_id: client_id.map(str::to_string),
+        });
+    response
+}
+
 /// POST /api/v1/auth/login - Username/password login
 ///
 /// Authenticates a user with username and password.
@@ -492,7 +512,7 @@ pub async fn login_handler(
 
             // Enrich JWT with pegawai data
             let custom_claims =
-                crate::handlers::auth_helpers::build_user_custom_claims(Some(&user));
+                crate::handlers::active_role::build_claims_for_user(&state, &user, None).await;
 
             let access_token = match state.jwt_service.generate_access_token_with_claims(
                 &uid,
@@ -527,7 +547,7 @@ pub async fn login_handler(
                 }
             };
 
-            (
+            let response = (
                 axum::http::StatusCode::OK,
                 axum::Json(LoginResponse {
                     access_token,
@@ -546,7 +566,12 @@ pub async fn login_handler(
                     },
                 }),
             )
-                .into_response()
+                .into_response();
+            // Hand the now-verified identity to `security_monitoring_middleware`
+            // so the AUTH_SUCCESS audit row carries the user instead of leaving
+            // `user_id` NULL. This is the only place the login path knows who
+            // the caller is.
+            with_authenticated_actor(response, &uid, None)
         }
 
         Ok(AuthResult::MfaRequired {
@@ -837,11 +862,28 @@ pub async fn refresh_token_handler(
     let uid = claims.sub.clone();
     let sid = claims.sid.as_deref().unwrap_or("").to_string();
 
+    // The session's active role rides in the (signed) refresh token, so a refresh
+    // keeps acting as the role the user switched to instead of reverting to the
+    // default. `build_claims_for_user` honours it only if the user is STILL
+    // assigned that role — a role revoked since falls back to the default.
+    let remembered_active_role = claims
+        .custom
+        .get("active_role")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
+
     // Fetch user from DB to build the same custom claims as the login handler
     let custom_claims = if let Ok(user_uuid) = uid.parse::<Uuid>() {
         let user_id = authenc_types::UserId::from_uuid(user_uuid);
         match state.user_service.get_user(user_id).await {
-            Ok(user) => crate::handlers::auth_helpers::build_user_custom_claims(Some(&user)),
+            Ok(user) => {
+                crate::handlers::active_role::build_claims_for_user(
+                    &state,
+                    &user,
+                    remembered_active_role.as_deref(),
+                )
+                .await
+            }
             Err(e) => {
                 tracing::error!(error = %e, "Failed to fetch user details for refresh token claims — refusing to issue JWT without claims");
                 return ErrorResponse {
@@ -881,8 +923,12 @@ pub async fn refresh_token_handler(
         }
     };
 
-    // Generate new refresh token
-    let refresh_token = match state.jwt_service.generate_refresh_token(&uid, &sid) {
+    // Generate new refresh token (carrying the session's active role forward)
+    let refresh_token = match state.jwt_service.generate_refresh_token_with_active_role(
+        &uid,
+        &sid,
+        remembered_active_role.as_deref(),
+    ) {
         Ok(t) => t,
         Err(e) => {
             tracing::error!(error = %e, "Failed to generate refresh token during refresh");

@@ -7,7 +7,6 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Json},
 };
-use serde::{Deserialize, Serialize};
 
 use crate::AppState;
 use crate::shared::error::AppError;
@@ -18,30 +17,11 @@ use crate::workflow::monitoring::{WorkflowMonitor, WorkflowSummary};
 // Response Types
 // ═══════════════════════════════════════════════════════════════════════════
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub data: T,
-    pub message: String,
-}
-
-impl<T: Serialize> ApiResponse<T> {
-    pub fn success(data: T) -> Self {
-        Self {
-            success: true,
-            data,
-            message: "Success".to_string(),
-        }
-    }
-
-    pub fn success_with_message(data: T, message: String) -> Self {
-        Self {
-            success: true,
-            data,
-            message,
-        }
-    }
-}
+// The envelope is the shared one, not a local copy. A second declaration here
+// is how `penghapusan_bmn` came to emit a paginated envelope without
+// `total_pages`: its local twin looked authoritative, drifted from the shared
+// shape, and serde rejected every response while the API answered 200.
+pub use lib_perlengkapan::response::ApiResponse;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Handler Functions
@@ -52,8 +32,9 @@ impl<T: Serialize> ApiResponse<T> {
 /// Get overall workflow metrics for monitoring dashboard
 pub async fn get_workflow_metrics(
     State(state): State<AppState>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
+    require_monitoring(&claims)?;
     let monitor = WorkflowMonitor::new(state.db_pool.clone());
 
     let metrics = monitor
@@ -61,7 +42,18 @@ pub async fn get_workflow_metrics(
         .await
         .map_err(|e| AppError::Internal(format!("Failed to get metrics: {}", e)))?;
 
-    Ok((StatusCode::OK, Json(ApiResponse::success(metrics))))
+    Ok((
+        StatusCode::OK,
+        Json(ApiResponse::success(metrics, "Success")),
+    ))
+}
+
+/// Operational monitoring is cross-module and cross-satker (queues, bottlenecks,
+/// per-satker dwell times) and is not confined to any satker; it is the
+/// administrators' console (`/admin/workflow-monitoring`). It answered any
+/// authenticated caller before.
+fn require_monitoring(claims: &Claims) -> Result<(), AppError> {
+    claims.require_capability(lib_core::authz::Capability::ViewAudit)
 }
 
 /// GET /api/v1/workflow/monitoring/active
@@ -69,8 +61,9 @@ pub async fn get_workflow_metrics(
 /// Get list of active workflows
 pub async fn get_active_workflows(
     State(state): State<AppState>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
+    require_monitoring(&claims)?;
     let monitor = WorkflowMonitor::new(state.db_pool.clone());
 
     // One query over every non-terminal state, instead of six queries over a
@@ -85,7 +78,10 @@ pub async fn get_active_workflows(
         .await
         .map_err(|e| AppError::Internal(format!("Failed to get workflows: {}", e)))?;
 
-    Ok((StatusCode::OK, Json(ApiResponse::success(all_workflows))))
+    Ok((
+        StatusCode::OK,
+        Json(ApiResponse::success(all_workflows, "Success")),
+    ))
 }
 
 /// GET /api/v1/workflow/monitoring/sla-breaches
@@ -93,8 +89,9 @@ pub async fn get_active_workflows(
 /// Get list of workflows that have breached SLA
 pub async fn get_sla_breaches(
     State(state): State<AppState>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
+    require_monitoring(&claims)?;
     let monitor = WorkflowMonitor::new(state.db_pool.clone());
 
     let metrics = monitor
@@ -108,7 +105,7 @@ pub async fn get_sla_breaches(
 
     Ok((
         StatusCode::OK,
-        Json(ApiResponse::success_with_message(
+        Json(ApiResponse::success(
             breaches,
             format!("Total SLA breaches: {}", metrics.sla_breaches),
         )),
@@ -120,8 +117,9 @@ pub async fn get_sla_breaches(
 /// Get list of workflow bottlenecks
 pub async fn get_bottlenecks(
     State(state): State<AppState>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
+    require_monitoring(&claims)?;
     let monitor = WorkflowMonitor::new(state.db_pool.clone());
 
     let bottlenecks = monitor
@@ -129,7 +127,10 @@ pub async fn get_bottlenecks(
         .await
         .map_err(|e| AppError::Internal(format!("Failed to detect bottlenecks: {}", e)))?;
 
-    Ok((StatusCode::OK, Json(ApiResponse::success(bottlenecks))))
+    Ok((
+        StatusCode::OK,
+        Json(ApiResponse::success(bottlenecks, "Success")),
+    ))
 }
 
 #[cfg(test)]
@@ -138,9 +139,27 @@ mod tests {
 
     #[test]
     fn test_api_response_serialization() {
-        let response = ApiResponse::success(vec!["test"]);
-        let json = serde_json::to_string(&response).unwrap();
-        assert!(json.contains("success"));
-        assert!(json.contains("true"));
+        let response = ApiResponse::success(vec!["test"], "Success");
+        let json = serde_json::to_value(&response).unwrap();
+
+        // Assert the KEY SET, not the presence of a substring. The previous
+        // version checked only that the output contained "success" and "true",
+        // which passes just as well if `data` and `message` are dropped — so it
+        // could not have caught the drift that motivated the duplicate-envelope
+        // guard, where exactly those keys went missing from a local copy.
+        let keys: std::collections::BTreeSet<&str> = json
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(
+            keys,
+            ["data", "message", "success"].into_iter().collect(),
+            "the wire envelope must carry exactly success/data/message"
+        );
+        assert_eq!(json["success"], serde_json::json!(true));
+        assert_eq!(json["data"], serde_json::json!(["test"]));
+        assert_eq!(json["message"], serde_json::json!("Success"));
     }
 }

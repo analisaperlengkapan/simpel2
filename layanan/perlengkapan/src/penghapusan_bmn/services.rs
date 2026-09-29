@@ -103,6 +103,9 @@ impl PenghapusanBmnService {
         // Authoritative MySIMKARI satker_code of the creating operator (from JWT
         // claims, #66) — persisted for RBAC scoping; NOT the client satker_id.
         satker_code: Option<String>,
+        // What the caller may see in SIMAN. The BMN being proposed for removal
+        // must be one of THEIR satker's assets.
+        aset_scope: &crate::bank_aset::AsetScope,
     ) -> AppResult<PenghapusanBmn> {
         info!(
             "Creating Usulan SK Penghapusan BMN for asset: {}",
@@ -110,14 +113,18 @@ impl PenghapusanBmnService {
         );
 
         let bank_repo = BankAsetRepository::new(self.pool.clone());
-        // Authoritative SIMAN value lookup — unscoped on purpose; satker
-        // ownership of the BMN is enforced by the penghapusan workflow.
+        // The asset's value is SIMAN's, never the operator's: it is what decides
+        // whether the record is within the Wilayah's authority, and an operator
+        // who could type it could simply type a small one.
+        //
+        // The lookup used to run with `AsetScope::All` ("satker ownership is
+        // enforced by the workflow" — it was not: nothing compared the asset's
+        // satker to the caller's), so an operator could open a removal for any
+        // satker's asset. And a failed lookup fell back to the operator's own
+        // number. Both are closed: the lookup is scoped to the caller, and a SIMAN
+        // failure refuses the request instead of trusting the client.
         match bank_repo
-            .find_nilai_perolehan(
-                &request.nup,
-                Some(&request.kode_barang),
-                &crate::bank_aset::AsetScope::All,
-            )
+            .find_nilai_perolehan(&request.nup, Some(&request.kode_barang), aset_scope)
             .await
         {
             Ok(Some(nilai)) => {
@@ -125,18 +132,32 @@ impl PenghapusanBmnService {
             }
             Ok(None) => {
                 return Err(AppError::BadRequest(format!(
-                    "BMN dgn NUP {} (kode_barang {}) tidak ditemukan di SIMAN. \
+                    "BMN dgn NUP {} (kode_barang {}) tidak ditemukan di SIMAN untuk satker Anda. \
                      Pastikan kode_barang & NUP cocok dgn data SIMAN.",
                     request.nup, request.kode_barang
                 )));
             }
             Err(e) => {
                 warn!(
-                    "find_nilai_perolehan failed for NUP {}: {}. Fallback to operator-supplied value.",
+                    "find_nilai_perolehan failed for NUP {}: {} — refusing rather than \
+                     trusting the operator-supplied value",
                     request.nup, e
                 );
+                return Err(AppError::Internal(
+                    "Data SIMAN belum dapat diverifikasi; usulan tidak dapat dibuat sekarang. \
+                     Coba lagi beberapa saat."
+                        .to_string(),
+                ));
             }
         }
+
+        // Authority follows value. When a ceiling is configured, a value above it
+        // cannot be routed through the Wilayah, whatever the operator selected.
+        enforce_wilayah_value_ceiling(
+            &request.kewenangan_penetap_sk,
+            request.nilai_perolehan,
+            wilayah_max_nilai_from_env(),
+        )?;
 
         self.repository
             .create(request, created_by, satker_code)
@@ -698,9 +719,10 @@ impl PenghapusanBmnService {
         )
         .await?;
 
-        // Auto-complete is a SYSTEM-initiated continuation (not a separate admin
-        // decision), so it runs as "system" — otherwise COMPLETED's required role
-        // (admin_pusat) would reject the validator who just signed the SK.
+        // Auto-complete is a SYSTEM-initiated continuation of the decision the
+        // validator just took (signing the SK), not a second decision, so it
+        // runs as the engine's internal actor. The audit row still names the
+        // validator (`validator_id`) as the user.
         self.transition(
             id,
             PenghapusanBmnStatus::Completed.to_state_name().to_string(),
@@ -809,9 +831,9 @@ impl PenghapusanBmnService {
             scope,
         )
         .await?;
-        // Auto-complete = SYSTEM continuation (see upload_signed_sk): run as
-        // "system" so COMPLETED's admin_pusat requirement doesn't reject the
-        // validator who just signed the SK.
+        // Auto-complete = SYSTEM continuation (see upload_signed_sk): run as the
+        // engine's internal actor; the Wilayah validator who signed is not the
+        // role COMPLETED names (validator_pusat), and should not need to be.
         self.transition(
             id,
             PenghapusanBmnStatus::Completed.to_state_name().to_string(),
@@ -857,5 +879,81 @@ impl PenghapusanBmnService {
 
         self.repository.update_status(id, &to_state).await?;
         self.repository.get_by_id(id, scope).await
+    }
+}
+
+/// The highest asset value (rupiah) the Kejaksaan Tinggi may decide on its own,
+/// from `PENGHAPUSAN_WILAYAH_MAX_NILAI`. `None` when unset or unparseable.
+///
+/// Configuration rather than a constant on purpose: the threshold is a
+/// regulatory figure (PMK 83/PMK.06/2016 and its amendments) that changes by
+/// regulation, not by release, and this codebase does not hard-code a number
+/// nobody has confirmed. Unset = no ceiling is enforced (the pre-existing
+/// behaviour); set = enforced for every new usulan.
+pub fn wilayah_max_nilai_from_env() -> Option<f64> {
+    std::env::var("PENGHAPUSAN_WILAYAH_MAX_NILAI")
+        .ok()
+        .and_then(|v| v.trim().parse::<f64>().ok())
+        .filter(|v| v.is_finite() && *v >= 0.0)
+}
+
+/// Refuse the WILAYAH route for a value above `ceiling`.
+///
+/// With a ceiling configured the rule fails closed: an unknown value
+/// (`nilai = None`) cannot be shown to be within it, so it is refused too.
+/// Without one, nothing is enforced. The PUSAT route is always allowed —
+/// sending a matter to the higher authority is never the violation.
+pub fn enforce_wilayah_value_ceiling(
+    kewenangan: &str,
+    nilai: Option<f64>,
+    ceiling: Option<f64>,
+) -> AppResult<()> {
+    let Some(max) = ceiling else {
+        return Ok(());
+    };
+    if !kewenangan.eq_ignore_ascii_case("WILAYAH") {
+        return Ok(());
+    }
+    match nilai {
+        Some(v) if v <= max => Ok(()),
+        Some(v) => Err(AppError::BadRequest(format!(
+            "Nilai perolehan Rp {v:.0} melebihi batas kewenangan Wilayah (Rp {max:.0}); \
+             usulan harus melalui kewenangan PUSAT"
+        ))),
+        None => Err(AppError::BadRequest(
+            "Nilai perolehan tidak diketahui, sehingga tidak dapat dipastikan berada dalam batas \
+             kewenangan Wilayah; gunakan kewenangan PUSAT"
+                .to_string(),
+        )),
+    }
+}
+
+#[cfg(test)]
+mod ceiling_tests {
+    use super::*;
+
+    #[test]
+    fn without_a_ceiling_nothing_is_enforced() {
+        assert!(enforce_wilayah_value_ceiling("WILAYAH", Some(1e12), None).is_ok());
+        assert!(enforce_wilayah_value_ceiling("WILAYAH", None, None).is_ok());
+    }
+
+    #[test]
+    fn a_value_above_the_ceiling_cannot_use_the_wilayah_route() {
+        assert!(enforce_wilayah_value_ceiling("WILAYAH", Some(999.0), Some(1000.0)).is_ok());
+        assert!(enforce_wilayah_value_ceiling("WILAYAH", Some(1000.0), Some(1000.0)).is_ok());
+        assert!(enforce_wilayah_value_ceiling("WILAYAH", Some(1000.01), Some(1000.0)).is_err());
+        assert!(enforce_wilayah_value_ceiling("wilayah", Some(5000.0), Some(1000.0)).is_err());
+    }
+
+    #[test]
+    fn an_unknown_value_fails_closed_once_a_ceiling_exists() {
+        assert!(enforce_wilayah_value_ceiling("WILAYAH", None, Some(1000.0)).is_err());
+    }
+
+    #[test]
+    fn the_pusat_route_is_never_the_violation() {
+        assert!(enforce_wilayah_value_ceiling("PUSAT", Some(1e12), Some(1000.0)).is_ok());
+        assert!(enforce_wilayah_value_ceiling("PUSAT", None, Some(1000.0)).is_ok());
     }
 }
