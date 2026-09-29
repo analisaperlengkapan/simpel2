@@ -91,7 +91,14 @@ SERDE_SKIP_RE = re.compile(r"serde\s*\([^)]*\bskip\b")
 
 # Frontend fields allowed to have no backend counterpart. Every entry needs a
 # written reason; an empty allowlist is the healthy state.
-ALLOWLIST: dict[tuple[str, str], str] = {}
+ALLOWLIST: dict[tuple[str, str], str] = {
+    # The wire object is the backend's `DelegationView` = `Delegation` flattened
+    # (`#[serde(flatten)]`) + these two fields. The frontend struct mirrors the
+    # whole view under the shorter name, and this guard does not follow a
+    # flatten on the BACKEND side, so it sees `Delegation` without them.
+    ("Delegation", "berlaku"): "added by DelegationView (flatten + berlaku)",
+    ("Delegation", "catatan_berlaku"): "added by DelegationView (flatten + catatan_berlaku)",
+}
 
 
 # `pub enum X { Variant = 1000, ... }` -- only the explicit-discriminant kind.
