@@ -31,15 +31,12 @@ fn sample(id: Uuid, judul: &str, uid: Option<Uuid>) -> AnalisisKebutuhan {
 
 fn mock_claims() -> Claims {
     Claims {
-        user_id: Uuid::new_v4(),
-        username: "testuser".to_string(),
-        role: "admin".to_string(),
-        permissions: vec![],
         nama: Some("Test User".to_string()),
         jabatan: Some("Admin".to_string()),
         name: Some("Test User".to_string()),
         nip: Some("123456789".to_string()),
         satker_code: Some("001".to_string()),
+        ..Claims::with_roles(Uuid::new_v4(), "testuser", ["admin"])
     }
 }
 

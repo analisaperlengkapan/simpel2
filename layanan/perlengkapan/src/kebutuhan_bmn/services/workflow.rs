@@ -433,9 +433,9 @@ impl KebutuhanBmnService {
                 ));
             }
 
-            if !Self::is_admin_user(&user_info) {
+            if !Self::may_override_sync_lock(&user_role) {
                 return Err(AppError::Authorization(
-                    "Override darurat hanya boleh dilakukan oleh admin".to_string(),
+                    "Override darurat hanya boleh dilakukan oleh Validator Pusat yang mengambil keputusan".to_string(),
                 ));
             }
 
@@ -525,18 +525,19 @@ impl KebutuhanBmnService {
         .await
     }
 
-    fn is_admin_user(user_info: &Option<UserInfo>) -> bool {
-        user_info
-            .as_ref()
-            .and_then(|u| u.role.as_deref())
-            .map(|role| {
-                let normalized = role.to_ascii_lowercase();
-                normalized == "admin"
-                    || normalized == "super_admin"
-                    || normalized == "administrator"
-                    || normalized.starts_with("admin_")
-            })
-            .unwrap_or(false)
+    /// Who may override the "integrasi sync failed" lock on a final decision.
+    ///
+    /// The Validator Pusat who is making the decision — the lock is a
+    /// data-quality guard on THEIR call, so waiving it is theirs to do (with a
+    /// written reason, enforced by the caller, and stamped into the alasan).
+    ///
+    /// It used to be `admin`, matched by a *prefix* (`starts_with("admin_")`),
+    /// which admitted any role someone cared to name `admin_<anything>`. It also
+    /// asked an administrator to override a decision the same administrator was
+    /// not allowed to take: the workflow engine (rightly) refuses admin the
+    /// APPROVED/REJECTED transition, so the override could never complete.
+    fn may_override_sync_lock(user_role: &str) -> bool {
+        user_role.eq_ignore_ascii_case("validator_pusat")
     }
 
     async fn is_integrasi_sync_risky(&self) -> bool {

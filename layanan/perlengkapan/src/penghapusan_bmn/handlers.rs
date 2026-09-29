@@ -87,9 +87,20 @@ pub async fn create_penghapusan_bmn(
 ) -> Result<(StatusCode, Json<ApiResponse<PenghapusanBmn>>), AppError> {
     request.validate()?;
 
-    // Derive the authoritative satker from identity (#66), not from client input.
+    // Only an operator opens a usulan. This had no role check, so any
+    // authenticated caller — a validator, a caller from another satker — could
+    // create one; the policy's `Create` action existed and was never consulted.
+    claims.require_any_role(&["operator_satker"])?;
+
+    // Derive the authoritative satker from identity (#66), not from client input,
+    // and confine the SIMAN lookup to the caller's own satker's assets.
     let penghapusan = service
-        .create(request, claims.user_id, claims.satker_code.clone())
+        .create(
+            request,
+            claims.user_id,
+            claims.satker_code.clone(),
+            &crate::bank_aset::AsetScope::from_claims(&claims),
+        )
         .await?;
 
     Ok((
@@ -263,7 +274,7 @@ pub async fn submit_to_wilayah(
         .submit_to_wilayah(
             id,
             claims.user_id,
-            claims.role.clone(),
+            claims.acting_role(PenghapusanBmnStatus::SubmitWilayah.actor_roles()),
             body.catatan,
             &SatkerScope::from_claims(&claims),
         )
@@ -291,7 +302,7 @@ pub async fn forward_to_pusat(
         .forward_to_pusat(
             id,
             claims.user_id,
-            claims.role.clone(),
+            claims.acting_role(PenghapusanBmnStatus::SubmitPusat.actor_roles()),
             body.catatan,
             &SatkerScope::from_claims(&claims),
         )
@@ -322,7 +333,7 @@ pub async fn verifikasi_pusat(
         .verifikasi_pusat(
             id,
             claims.user_id,
-            claims.role.clone(),
+            claims.acting_role(PenghapusanBmnStatus::VerifikasiPusat.actor_roles()),
             body.catatan,
             &SatkerScope::from_claims(&claims),
         )
@@ -356,7 +367,7 @@ pub async fn return_to_operator(
         .return_to_operator(
             id,
             claims.user_id,
-            claims.role.clone(),
+            claims.acting_role(PenghapusanBmnStatus::ReturnedToOperator.actor_roles()),
             body.catatan,
             &SatkerScope::from_claims(&claims),
         )
@@ -383,7 +394,7 @@ pub async fn validator_wilayah_action(
                 .forward_to_pusat(
                     id,
                     claims.user_id,
-                    claims.role.clone(),
+                    claims.acting_role(PenghapusanBmnStatus::SubmitPusat.actor_roles()),
                     body.catatan,
                     &SatkerScope::from_claims(&claims),
                 )
@@ -403,7 +414,7 @@ pub async fn validator_wilayah_action(
                 .return_to_operator(
                     id,
                     claims.user_id,
-                    claims.role.clone(),
+                    claims.acting_role(PenghapusanBmnStatus::SubmitPusat.actor_roles()),
                     body.catatan,
                     &SatkerScope::from_claims(&claims),
                 )
@@ -437,7 +448,7 @@ pub async fn generate_konsep_sk(
         .generate_konsep_sk(
             id,
             claims.user_id,
-            claims.role.clone(),
+            claims.acting_role(PenghapusanBmnStatus::KonsepSKGenerated.actor_roles()),
             &SatkerScope::from_claims(&claims),
         )
         .await?;
@@ -515,7 +526,7 @@ pub async fn upload_signed_sk(
         .upload_signed_sk(
             id,
             claims.user_id,
-            claims.role.clone(),
+            claims.acting_role(PenghapusanBmnStatus::SKSigned.actor_roles()),
             body.signed_sk_pdf_url,
             &SatkerScope::from_claims(&claims),
         )
@@ -674,21 +685,17 @@ pub async fn list_lampiran(
 
 // ─── V029 (Fase 1.9): SK Wilayah handlers ───────────────────────────────
 
-/// RBAC inline: validator_wilayah only (admin bypass). Diturunkan ke
-/// `Claims::require_role` setelah Fase 0.3 branch ter-merge.
+/// RBAC: validator_wilayah only. No admin bypass — the SK Wilayah is signed on
+/// behalf of the Kepala Kejaksaan Tinggi, which an IT administrator is not.
 fn require_validator_wilayah(claims: &Claims) -> Result<(), AppError> {
-    let role_lower = claims.role.to_ascii_lowercase();
-    if matches!(
-        role_lower.as_str(),
-        "admin" | "admin_pusat" | "superadmin" | "validator_wilayah"
-    ) {
-        Ok(())
-    } else {
-        Err(AppError::Authorization(format!(
-            "Akses ditolak: role '{}' tidak diizinkan utk aksi SK Wilayah (perlu validator_wilayah)",
-            claims.role
-        )))
-    }
+    claims
+        .require_role("validator_wilayah")
+        .map_err(|_| {
+            AppError::Authorization(format!(
+                "Akses ditolak: role '{}' tidak diizinkan utk aksi SK Wilayah (perlu validator_wilayah)",
+                claims.role
+            ))
+        })
 }
 
 /// Validator Wilayah generate konsep SK (jalur kewenangan WILAYAH).
@@ -703,7 +710,7 @@ pub async fn generate_konsep_sk_wilayah(
         .generate_konsep_sk_wilayah(
             id,
             claims.user_id,
-            claims.role.clone(),
+            claims.acting_role(&["validator_wilayah"]),
             &SatkerScope::from_claims(&claims),
         )
         .await?;
@@ -725,7 +732,7 @@ pub async fn upload_signed_sk_wilayah(
         .upload_signed_sk_wilayah(
             id,
             claims.user_id,
-            claims.role.clone(),
+            claims.acting_role(&["validator_wilayah"]),
             body.signed_sk_pdf_url,
             &SatkerScope::from_claims(&claims),
         )
@@ -762,7 +769,7 @@ pub async fn transition_penghapusan_bmn(
             request.to_state,
             TransitionActor::new(
                 claims.user_id,
-                claims.role.clone(),
+                claims.acting_role(PenghapusanBmnStatus::Rejected.actor_roles()),
                 request.catatan,
                 "127.0.0.1",
             ),

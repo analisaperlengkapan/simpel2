@@ -64,6 +64,32 @@ impl PaginationQuery {
 // Helper Functions
 // ============================================================================
 
+/// Roles that take part in the Kebutuhan BMN workflow. The coarse gate for the
+/// transition endpoints; the engine still enforces the per-state role.
+///
+/// `admin` is deliberately absent: the engine no longer lets an administrator
+/// complete a state on behalf of the business role it names, so listing admin
+/// here only produced a gate that passed and an engine that then refused.
+pub(crate) const KEBUTUHAN_WORKFLOW_ROLES: &[&str] =
+    &["operator_satker", "validator_wilayah", "validator_pusat"];
+
+/// The role `claims` should act as for a move to status `target_code`: the
+/// caller's own role that the workflow names for that state, else the primary.
+///
+/// A user holding several roles must be checked as the one that authorizes the
+/// move — see [`Claims::acting_role`].
+pub(crate) fn acting_role_for_target(claims: &Claims, target_code: i32) -> String {
+    use crate::kebutuhan_bmn::models::KebutuhanBmnStatus;
+    use crate::workflow::config::WorkflowConfig;
+    match KebutuhanBmnStatus::from_code(target_code) {
+        Some(status) => claims.role_for_transition(
+            &WorkflowConfig::default_kebutuhan_bmn(),
+            status.to_state_name(),
+        ),
+        None => claims.role.clone(),
+    }
+}
+
 pub(crate) fn extract_user_info(claims: &Claims) -> UserInfo {
     UserInfo {
         nip: claims.nip.clone(),

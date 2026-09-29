@@ -225,9 +225,14 @@ async fn main() -> anyhow::Result<()> {
     let is_production = app_env.eq_ignore_ascii_case("production");
     let skip_authenc = std::env::var("SKIP_AUTHENC").unwrap_or_default() == "true";
 
-    if skip_authenc && is_production {
+    // The accept-all dummy client may exist only on a developer machine. This was
+    // "forbidden in production" — which left staging (a real environment with
+    // real data, and the one that spent 69 days accepting every token as admin)
+    // free to set it by accident. Allow-list the local environments instead of
+    // deny-listing the real one.
+    if skip_authenc && !skip_authenc_allowed(&app_env) {
         return Err(anyhow::anyhow!(
-            "SKIP_AUTHENC=true is forbidden when APP_ENV=production"
+            "SKIP_AUTHENC=true is only allowed when APP_ENV is one of dev/development/local/test (got '{app_env}')"
         ));
     }
 
@@ -540,34 +545,94 @@ async fn main() -> anyhow::Result<()> {
     info!("Perlengkapan service listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    // `ConnectInfo` gives the TCP peer, which `ClientIp` needs to decide whether
+    // the forwarding headers may be believed at all.
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
 
     Ok(())
 }
 
-fn build_router(state: AppState) -> Router {
-    let allowed_origins = std::env::var("CORS_ALLOWED_ORIGINS").unwrap_or_else(|_| "*".to_string());
+/// May the accept-all dummy authenticator be used in this `APP_ENV`?
+///
+/// Only the local environments. Everything else — production, staging, an
+/// unrecognised name, a typo — refuses to start with it.
+fn skip_authenc_allowed(app_env: &str) -> bool {
+    ["dev", "development", "local", "test"]
+        .iter()
+        .any(|allowed| app_env.eq_ignore_ascii_case(allowed))
+}
 
-    let cors = if allowed_origins == "*" {
-        CorsLayer::new()
+/// Which cross-origin callers the API answers.
+#[derive(Debug, PartialEq, Eq)]
+enum CorsPolicy {
+    /// Any origin (`*`). Local development only.
+    Any,
+    /// Exactly these origins.
+    Origins(Vec<String>),
+    /// No cross-origin caller at all — the browser's same-origin policy applies.
+    SameOriginOnly,
+}
+
+/// Decide the CORS policy from `CORS_ALLOWED_ORIGINS` and `APP_ENV`.
+///
+/// The default used to be `*` regardless of environment, so a deployment that
+/// forgot to set the variable (the Helm chart does not) answered every origin on
+/// the internet. It is now deny-by-default outside local development: the SPA is
+/// served from the same origin as `/api/v1/perlengkapan`, so nothing needs it.
+/// An explicit `*` is still honoured in a non-local environment — that is a
+/// choice somebody wrote down — but it is warned about at startup.
+fn cors_policy(configured: Option<&str>, app_env: &str) -> CorsPolicy {
+    match configured.map(str::trim) {
+        Some("*") => CorsPolicy::Any,
+        Some(list) if !list.is_empty() => CorsPolicy::Origins(
+            list.split(',')
+                .map(str::trim)
+                .filter(|o| !o.is_empty())
+                .map(str::to_string)
+                .collect(),
+        ),
+        _ if skip_authenc_allowed(app_env) => CorsPolicy::Any,
+        _ => CorsPolicy::SameOriginOnly,
+    }
+}
+
+fn build_router(state: AppState) -> Router {
+    let app_env = std::env::var("APP_ENV").unwrap_or_else(|_| "dev".to_string());
+    let configured_origins = std::env::var("CORS_ALLOWED_ORIGINS").ok();
+    let policy = cors_policy(configured_origins.as_deref(), &app_env);
+    if policy == CorsPolicy::Any && !skip_authenc_allowed(&app_env) {
+        tracing::warn!(
+            "CORS_ALLOWED_ORIGINS=* in APP_ENV={app_env}: every origin may call this API"
+        );
+    }
+
+    let cors = match policy {
+        CorsPolicy::Any => CorsLayer::new()
             .allow_origin(Any)
             .allow_methods(Any)
-            .allow_headers(Any)
-    } else {
-        let origins: Vec<HeaderValue> = allowed_origins
-            .split(',')
-            .map(|s| {
-                s.trim()
-                    .parse::<HeaderValue>()
-                    .unwrap_or(HeaderValue::from_static(""))
-            })
-            .filter(|h| !h.is_empty())
-            .collect();
-
-        CorsLayer::new()
-            .allow_origin(origins)
-            .allow_methods(Any)
-            .allow_headers(Any)
+            .allow_headers(Any),
+        CorsPolicy::Origins(list) => {
+            let origins: Vec<HeaderValue> = list
+                .iter()
+                .filter_map(|o| match o.parse::<HeaderValue>() {
+                    Ok(v) => Some(v),
+                    Err(_) => {
+                        tracing::warn!("CORS_ALLOWED_ORIGINS: ignoring unparseable origin {o:?}");
+                        None
+                    }
+                })
+                .collect();
+            CorsLayer::new()
+                .allow_origin(origins)
+                .allow_methods(Any)
+                .allow_headers(Any)
+        }
+        // No `Access-Control-Allow-Origin` is ever emitted.
+        CorsPolicy::SameOriginOnly => CorsLayer::new(),
     };
 
     // Health check routes (no auth or rate limiting required)
@@ -587,12 +652,31 @@ fn build_router(state: AppState) -> Router {
         .route("/metrics", get(middleware::metrics::metrics_handler))
         .with_state(Arc::new(state.clone()));
 
-    // API routes. NOTE: there is no auth *middleware* layer here — authentication
-    // is enforced per-handler by the `Claims` extractor. A handler that omits
-    // `Claims` is therefore PUBLIC, and the gateway routes /api/v1/perlengkapan
-    // straight from the Istio ingress, so "public" means internet-reachable.
-    // Only the k8s probes under /health are meant to be unauthenticated.
-    let api_routes = routes::create_routes(state.clone());
+    // API routes. Authentication is a DENY-BY-DEFAULT layer over the whole
+    // router: a request without a valid bearer token is answered 401 here and
+    // never reaches a handler. Before, authentication was per-handler (the
+    // `Claims` extractor), so a handler that omitted it was public — and the
+    // gateway routes /api/v1/perlengkapan straight from the Istio ingress, so
+    // "public" meant internet-reachable. The extractor remains, and now reads the
+    // claims this layer already validated instead of calling authenc a second
+    // time. Only the k8s probes under /health (merged separately below) and the
+    // WebSocket handshake (which cannot carry an Authorization header, and
+    // validates its own query token) are exempt.
+    //
+    // Layer order: `require_authentication` is OUTER so the per-user rate
+    // limiter — INNER — can key on the authenticated user. The limiter used to
+    // read `Claims` from request extensions that nothing ever set, so every
+    // request landed in one shared "nil user" bucket: the whole service was
+    // capped at one user's quota, and no individual was limited at all.
+    let api_routes = routes::create_routes(state.clone())
+        .layer(axum::middleware::from_fn_with_state(
+            Arc::clone(&state.rate_limiter),
+            layanan_perlengkapan::shared::rate_limit::rate_limit_middleware,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.authenc.clone(),
+            middleware::require_authentication,
+        ));
 
     // Combine all routes
     Router::new()
@@ -612,10 +696,68 @@ fn build_router(state: AppState) -> Router {
         .layer(axum::middleware::from_fn(
             middleware::metrics::track_metrics,
         ))
-        .layer(axum::middleware::from_fn_with_state(
-            Arc::clone(&state.rate_limiter),
-            layanan_perlengkapan::shared::rate_limit::rate_limit_middleware,
-        ))
         .layer(TraceLayer::new_for_http())
         .layer(cors)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_dummy_authenticator_is_only_allowed_locally() {
+        for env in ["dev", "development", "local", "test", "DEV", "Local"] {
+            assert!(skip_authenc_allowed(env), "{env} is a local environment");
+        }
+        // Production AND staging AND anything unrecognised: refuse.
+        for env in [
+            "production",
+            "staging",
+            "prod",
+            "stag",
+            "preprod",
+            "",
+            "devv",
+        ] {
+            assert!(
+                !skip_authenc_allowed(env),
+                "{env:?} must refuse SKIP_AUTHENC"
+            );
+        }
+    }
+
+    #[test]
+    fn cors_is_deny_by_default_outside_local_development() {
+        assert_eq!(cors_policy(None, "production"), CorsPolicy::SameOriginOnly);
+        assert_eq!(cors_policy(None, "staging"), CorsPolicy::SameOriginOnly);
+        assert_eq!(
+            cors_policy(Some(""), "production"),
+            CorsPolicy::SameOriginOnly
+        );
+        assert_eq!(
+            cors_policy(Some("   "), "staging"),
+            CorsPolicy::SameOriginOnly
+        );
+        // Local development keeps working without configuration.
+        assert_eq!(cors_policy(None, "dev"), CorsPolicy::Any);
+    }
+
+    #[test]
+    fn an_explicit_origin_list_is_honoured_and_trimmed() {
+        assert_eq!(
+            cors_policy(
+                Some(" https://simpel.kejaksaan.go.id , https://staging.simpel.kejaksaan.go.id,, "),
+                "production"
+            ),
+            CorsPolicy::Origins(vec![
+                "https://simpel.kejaksaan.go.id".to_string(),
+                "https://staging.simpel.kejaksaan.go.id".to_string(),
+            ])
+        );
+    }
+
+    #[test]
+    fn an_explicit_wildcard_is_still_honoured_but_only_because_someone_wrote_it() {
+        assert_eq!(cors_policy(Some("*"), "production"), CorsPolicy::Any);
+    }
 }

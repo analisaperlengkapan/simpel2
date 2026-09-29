@@ -84,10 +84,14 @@ impl SatkerScope {
         else {
             return Self::Denied;
         };
-        match claims.role.to_ascii_lowercase().as_str() {
-            "validator_wilayah" => Self::Wilayah(code.to_string()),
+        // Any held role counts (widest wins): a caller who is both operator and
+        // validator_wilayah reads their wilayah, and must not be narrowed to
+        // their own satker because the token happened to list operator first.
+        if claims.holds_role("validator_wilayah") {
+            Self::Wilayah(code.to_string())
+        } else {
             // operator_satker, validator_satker, and any other satker-bound role.
-            _ => Self::Satker(code.to_string()),
+            Self::Satker(code.to_string())
         }
     }
 
@@ -348,17 +352,24 @@ mod tests {
     use uuid::Uuid;
 
     fn claims(role: &str, satker: Option<&str>) -> Claims {
-        Claims {
-            user_id: Uuid::nil(),
-            username: "u".to_string(),
-            role: role.to_string(),
-            permissions: vec![],
-            nip: None,
-            name: None,
-            nama: None,
-            jabatan: None,
-            satker_code: satker.map(|s| s.to_string()),
-        }
+        let mut c = Claims::with_roles(Uuid::nil(), "u", [role]);
+        c.satker_code = satker.map(|s| s.to_string());
+        c
+    }
+
+    #[test]
+    fn scope_uses_every_held_role_not_the_first() {
+        let mut c = Claims::with_roles(Uuid::nil(), "u", ["operator_satker", "validator_wilayah"]);
+        c.satker_code = Some("02.28".to_string());
+        assert_eq!(
+            SatkerScope::from_claims(&c),
+            SatkerScope::Wilayah("02.28".to_string()),
+            "widest held role wins, regardless of token order"
+        );
+        let mut both =
+            Claims::with_roles(Uuid::nil(), "u", ["validator_wilayah", "validator_pusat"]);
+        both.satker_code = Some("02.28".to_string());
+        assert_eq!(SatkerScope::from_claims(&both), SatkerScope::All);
     }
 
     #[test]

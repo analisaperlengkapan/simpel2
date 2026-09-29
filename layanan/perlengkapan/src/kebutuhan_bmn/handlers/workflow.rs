@@ -29,7 +29,7 @@ pub async fn validator_wilayah_action(
             request,
             Some(claims.user_id),
             Some(user_info),
-            claims.role.clone(),
+            claims.acting_role(&["validator_wilayah"]),
             // `require_role` above answers "may a validator_wilayah ever do
             // this". This answers "may THIS one, to THIS satker".
             &SatkerScope::from_claims(&claims),
@@ -57,7 +57,7 @@ pub async fn validator_pusat_keputusan(
             request,
             Some(claims.user_id),
             Some(user_info),
-            claims.role.clone(),
+            claims.acting_role(&["validator_pusat"]),
             // Pusat is a cross-satker role, so this resolves to `All` and
             // changes nothing for them. It is passed anyway: the day a
             // narrower role is given this action, the scope is already here.

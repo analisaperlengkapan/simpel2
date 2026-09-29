@@ -22,6 +22,12 @@ pub async fn batch_approve_kebutuhan(
 ) -> Result<Json<ApiResponse<crate::kebutuhan_bmn::models::BatchOperationResponse>>, AppError> {
     use validator::Validate;
 
+    // Coarse gate, like the single-item transition endpoint: the batch used to
+    // reach the workflow engine with NO handler-side check at all, leaving the
+    // engine as the only thing between any authenticated user and a bulk
+    // approval.
+    claims.require_any_role(KEBUTUHAN_WORKFLOW_ROLES)?;
+
     // Validate request
     request
         .validate()
@@ -37,7 +43,16 @@ pub async fn batch_approve_kebutuhan(
     let user_info = Some(extract_user_info(&claims));
 
     let response = service
-        .batch_approve_kebutuhan(request, user_id, user_info, claims.role.clone(), ip)
+        .batch_approve_kebutuhan(
+            request,
+            user_id,
+            user_info,
+            acting_role_for_target(
+                &claims,
+                crate::kebutuhan_bmn::models::KebutuhanBmnStatus::Approved.to_code(),
+            ),
+            ip,
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -55,6 +70,12 @@ pub async fn batch_reject_kebutuhan(
 ) -> Result<Json<ApiResponse<crate::kebutuhan_bmn::models::BatchOperationResponse>>, AppError> {
     use validator::Validate;
 
+    // Coarse gate, like the single-item transition endpoint: the batch used to
+    // reach the workflow engine with NO handler-side check at all, leaving the
+    // engine as the only thing between any authenticated user and a bulk
+    // approval.
+    claims.require_any_role(KEBUTUHAN_WORKFLOW_ROLES)?;
+
     // Validate request
     request
         .validate()
@@ -70,7 +91,16 @@ pub async fn batch_reject_kebutuhan(
     let user_info = Some(extract_user_info(&claims));
 
     let response = service
-        .batch_reject_kebutuhan(request, user_id, user_info, claims.role.clone(), ip)
+        .batch_reject_kebutuhan(
+            request,
+            user_id,
+            user_info,
+            acting_role_for_target(
+                &claims,
+                crate::kebutuhan_bmn::models::KebutuhanBmnStatus::Rejected.to_code(),
+            ),
+            ip,
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -88,6 +118,12 @@ pub async fn batch_update_status(
 ) -> Result<Json<ApiResponse<crate::kebutuhan_bmn::models::BatchOperationResponse>>, AppError> {
     use validator::Validate;
 
+    // Coarse gate, like the single-item transition endpoint: the batch used to
+    // reach the workflow engine with NO handler-side check at all, leaving the
+    // engine as the only thing between any authenticated user and a bulk
+    // approval.
+    claims.require_any_role(KEBUTUHAN_WORKFLOW_ROLES)?;
+
     // Validate request
     request
         .validate()
@@ -103,8 +139,9 @@ pub async fn batch_update_status(
     let user_id = Some(claims.user_id);
     let user_info = Some(extract_user_info(&claims));
 
+    let acting_role = acting_role_for_target(&claims, request.target_status);
     let response = service
-        .batch_update_status(request, user_id, user_info, claims.role.clone(), ip)
+        .batch_update_status(request, user_id, user_info, acting_role, ip)
         .await?;
 
     Ok(Json(ApiResponse::success(

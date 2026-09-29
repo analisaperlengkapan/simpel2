@@ -5,9 +5,18 @@
 //! surface. These endpoints back the `/admin/workflow/delegation` page in
 //! the Perlengkapan MFE.
 //!
-//! Auth: handlers read `Claims::sub` to identify the caller. The frontend
-//! is responsible for restricting access to admin-realm roles; backend
-//! validation happens in the JWT middleware before the handler runs.
+//! Auth: handlers read the authenticated [`Claims`]; the delegator is always the
+//! caller. Creation is validated against what the caller actually holds
+//! ([`validate_delegation_authority`]).
+//!
+//! **A delegation is a record, not (yet) a grant.** Nothing in the authorization
+//! path consults delegations: `Claims` is built from the token's roles alone,
+//! and the workflow engine checks the actor's role, not "roles delegated to
+//! them". Every response says so (`berlaku: false`) so a user is not left
+//! believing a colleague can now approve on their behalf when the API would
+//! answer 403. Making delegation effective needs the token (or a per-request
+//! lookup) to carry the delegated role *and* the audit trail to record
+//! "acting for X" — a design decision, not a flag.
 
 use axum::{
     Json,
@@ -21,7 +30,10 @@ use uuid::Uuid;
 
 use crate::shared::middleware::Claims;
 
-use super::delegation::{CreateDelegationRequest, Delegation, DelegationError, DelegationManager};
+use super::delegation::{
+    CreateDelegationRequest, Delegation, DelegationError, DelegationManager,
+    validate_delegation_authority,
+};
 use super::handlers::ApiResponse;
 use crate::AppState;
 
@@ -57,6 +69,30 @@ pub struct ListDelegationsQuery {
 // Handlers
 // ---------------------------------------------------------------------------
 
+/// A delegation as the API presents it: the record, plus the plain statement
+/// that it does not currently confer any authority.
+#[derive(Debug, Serialize)]
+pub struct DelegationView {
+    #[serde(flatten)]
+    pub delegation: Delegation,
+    /// Always `false` today — see the module docs.
+    pub berlaku: bool,
+    pub catatan_berlaku: &'static str,
+}
+
+const NOT_EFFECTIVE_NOTE: &str = "Delegasi ini tercatat tetapi belum berlaku sebagai kewenangan: \
+     penerima belum dapat bertindak atas nama pemberi.";
+
+impl From<Delegation> for DelegationView {
+    fn from(delegation: Delegation) -> Self {
+        Self {
+            delegation,
+            berlaku: false,
+            catatan_berlaku: NOT_EFFECTIVE_NOTE,
+        }
+    }
+}
+
 /// `POST /workflow/delegations` — create a delegation. The delegator is
 /// always the authenticated caller; the body cannot spoof a different
 /// `delegator_user_id`.
@@ -70,18 +106,41 @@ pub async fn create_delegation_handler(
     let req = CreateDelegationRequest {
         delegator_user_id: claims.user_id,
         delegate_user_id: body.delegate_user_id,
-        role: body.role,
+        role: body.role.trim().to_ascii_lowercase(),
         valid_from: body.valid_from.unwrap_or_else(Utc::now),
         valid_until: body.valid_until,
         reason: body.reason,
     };
 
+    // What the caller holds decides what they may give away.
+    validate_delegation_authority(&claims.role_set(), &req, Utc::now())?;
+
+    // The delegate must be a real account. The column has no foreign key to
+    // authenc (a cross-service reference), so a typo'd id used to be stored as a
+    // delegation to nobody.
+    let client = state.db_pool.get().await.map_err(DelegationError::from)?;
+    let delegate_exists = client
+        .query_opt(
+            "SELECT 1 FROM authenc.users WHERE id = $1",
+            &[&req.delegate_user_id],
+        )
+        .await
+        .map_err(DelegationError::from)?
+        .is_some();
+    if !delegate_exists {
+        return Err(DelegationError::InvalidRequest(
+            "Penerima delegasi tidak ditemukan".to_string(),
+        )
+        .into());
+    }
+    drop(client);
+
     let delegation = manager.create_delegation(req).await?;
     Ok((
         StatusCode::CREATED,
         Json(ApiResponse::success(
-            delegation,
-            "Delegasi berhasil dibuat".to_string(),
+            DelegationView::from(delegation),
+            "Delegasi berhasil dicatat (belum berlaku sebagai kewenangan)".to_string(),
         )),
     ))
 }
@@ -102,7 +161,8 @@ pub async fn list_delegations_handler(
         manager.get_delegations_by_delegator(claims.user_id).await?
     };
 
-    Ok(Json(ApiResponse::success(delegations, "Success")))
+    let views: Vec<DelegationView> = delegations.into_iter().map(DelegationView::from).collect();
+    Ok(Json(ApiResponse::success(views, "Success")))
 }
 
 /// `POST /workflow/delegations/{id}/revoke` — caller (must be the

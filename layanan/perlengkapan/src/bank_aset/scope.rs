@@ -83,10 +83,13 @@ impl AsetScope {
         else {
             return Self::Denied;
         };
-        match claims.role.to_ascii_lowercase().as_str() {
-            "validator_wilayah" => Self::Wilayah(code.to_string()),
+        // Widest held role wins — same rule as `SatkerScope::from_claims`, so the
+        // two halves of a dashboard describe the same population.
+        if claims.holds_role("validator_wilayah") {
+            Self::Wilayah(code.to_string())
+        } else {
             // operator_satker, validator_satker, and any other satker-bound role.
-            _ => Self::Satker(code.to_string()),
+            Self::Satker(code.to_string())
         }
     }
 
@@ -170,17 +173,9 @@ mod tests {
     use uuid::Uuid;
 
     fn claims(role: &str, satker: Option<&str>) -> Claims {
-        Claims {
-            user_id: Uuid::nil(),
-            username: "u".to_string(),
-            role: role.to_string(),
-            permissions: vec![],
-            nip: None,
-            name: None,
-            nama: None,
-            jabatan: None,
-            satker_code: satker.map(|s| s.to_string()),
-        }
+        let mut c = Claims::with_roles(Uuid::nil(), "u", [role]);
+        c.satker_code = satker.map(|s| s.to_string());
+        c
     }
 
     #[test]

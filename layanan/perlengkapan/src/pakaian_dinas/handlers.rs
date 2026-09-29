@@ -511,7 +511,9 @@ pub async fn process_validator_action(
 ) -> Result<Json<ApiResponse<PengajuanSatker>>, AppError> {
     let user_nip = claims.nip.as_deref().unwrap_or("unknown");
     let user_nama = claims.name.as_deref().unwrap_or("unknown");
-    let user_role = &claims.role;
+    // Every role the caller holds, sorted (`RoleSet` order); the service acts
+    // as the first one for which the requested move is valid.
+    let user_roles: Vec<String> = claims.role_set().iter().map(str::to_string).collect();
 
     // The role gate lives in `determine_next_status`; this is the object gate
     // beside it. Without it a validator could approve or reject a satker's
@@ -521,7 +523,7 @@ pub async fn process_validator_action(
             request,
             user_nip,
             user_nama,
-            user_role,
+            &user_roles,
             &SatkerScope::from_claims(&claims),
         )
         .await?;
@@ -760,6 +762,11 @@ pub async fn submit_pengajuan_handler(
     claims: Claims,
     Json(request): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<PengajuanPakaianDinas>>, AppError> {
+    // These move a whole *campaign* — the record every satker responds to —
+    // and had no check at all: any authenticated caller could approve or
+    // reject a nationwide campaign. Campaigns are authored (and deleted) by
+    // validator_pusat, so that is who advances them.
+    claims.require_any_role(&["validator_pusat"])?;
     let catatan = request
         .get("catatan")
         .and_then(|v| v.as_str())
@@ -782,6 +789,11 @@ pub async fn approve_pengajuan_handler(
     claims: Claims,
     Json(request): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<PengajuanPakaianDinas>>, AppError> {
+    // These move a whole *campaign* — the record every satker responds to —
+    // and had no check at all: any authenticated caller could approve or
+    // reject a nationwide campaign. Campaigns are authored (and deleted) by
+    // validator_pusat, so that is who advances them.
+    claims.require_any_role(&["validator_pusat"])?;
     let catatan = request
         .get("catatan")
         .and_then(|v| v.as_str())
@@ -804,6 +816,11 @@ pub async fn reject_pengajuan_handler(
     claims: Claims,
     Json(request): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<PengajuanPakaianDinas>>, AppError> {
+    // These move a whole *campaign* — the record every satker responds to —
+    // and had no check at all: any authenticated caller could approve or
+    // reject a nationwide campaign. Campaigns are authored (and deleted) by
+    // validator_pusat, so that is who advances them.
+    claims.require_any_role(&["validator_pusat"])?;
     let catatan = request
         .get("catatan")
         .and_then(|v| v.as_str())

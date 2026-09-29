@@ -11,6 +11,15 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
+/// The engine's own internal actor (the scheduled expiry sweeper, system-side
+/// completion steps, and the audited break-glass path). It is the only role
+/// that bypasses a state's required role.
+///
+/// It is **not** a role a person can hold: `Claims` refuses to carry it out of a
+/// token (see `shared::middleware::RESERVED_ROLES`), because roles are database
+/// rows in authenc and nothing else would stop someone minting one by that name.
+pub const INTERNAL_ACTOR_ROLE: &str = "system";
+
 /// Workflow engine error types
 #[derive(Debug, thiserror::Error)]
 pub enum WorkflowError {

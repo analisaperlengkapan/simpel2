@@ -251,12 +251,16 @@ impl WorkflowEngine {
             return Ok(());
         };
 
-        // Admin/Superadmin bypass
+        // Only the engine's own internal actor bypasses the role table (the
+        // scheduled expiry sweeper, and the audited break-glass path).
+        //
+        // It used to also wave through `admin` / `superadmin` / `admin_pusat`,
+        // which let the system's administrator complete a workflow on behalf of
+        // whichever business role the state names. The handlers' policies were
+        // already refusing that; the engine must not be the back door around
+        // them. `system` cannot be asserted by a token (`Claims` strips it).
         let normalized_role = user_role.to_ascii_lowercase();
-        if matches!(
-            normalized_role.as_str(),
-            "admin" | "superadmin" | "admin_pusat" | "system"
-        ) {
+        if normalized_role == INTERNAL_ACTOR_ROLE {
             return Ok(());
         }
 

@@ -613,6 +613,13 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/audit", get(crate::audit::list_audit_trail))
         // ============ Admin Routes (audit + master data + templates) ============
         .route("/admin/audit", get(crate::admin::list_audit_logs))
+        // Audited emergency override (reason mandatory, logged before acting) and
+        // its review log — see `admin::break_glass`.
+        .route("/admin/break-glass", get(crate::admin::list_break_glass))
+        .route(
+            "/admin/break-glass/{module}/{id}/transition",
+            post(crate::admin::break_glass_transition),
+        )
         .route("/admin/master", get(crate::admin::list_master_sources))
         .route(
             "/admin/master/{source}",
