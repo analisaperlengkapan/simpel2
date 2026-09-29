@@ -253,3 +253,6 @@ recipe.json
 # dir can be re-included; a fully-ignored dir cannot.
 .claude/*
 !.claude/skills/
+
+# OpenHands agent memory (local working notes)
+.openhands/

@@ -153,6 +153,21 @@ export default defineConfig({
       dependencies: ['setup'],
       testMatch: ['**/bankaset-analitik-workflow.spec.ts'],
     },
+    // Pemakaian BMN monitoring — per-role data scoping on the six monitoring
+    // read endpoints (API tiers + the rendered table columns the stakeholder
+    // named). Needs the backend + the multi-satker fixture, like the other
+    // workflow projects. Per-role storageState from `setup`.
+    //
+    // This file existed on disk but was matched by NO project, so it never ran:
+    // `npx playwright test` only executes specs reachable from a project's
+    // `testMatch`. A spec that is never collected is indistinguishable from a
+    // spec that passes, which is how 8 scoping assertions sat dark.
+    {
+      name: 'perlengkapan-pemakaian-monitoring',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+      testMatch: ['**/pemakaian-monitoring.spec.ts'],
+    },
     // F-E2E E-5 — Bantuan (panduan/FAQ/helpdesk ticket lifecycle incl. staff
     // status flow), admin workflow config/monitoring/delegation, kebutuhan
     // buat (validator_pusat) + laporan exports, pakaian ukuran round-trip,
