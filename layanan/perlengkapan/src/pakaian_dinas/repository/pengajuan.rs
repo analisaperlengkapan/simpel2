@@ -1,4 +1,5 @@
 use super::PakaianDinasRepository;
+use super::laporan::AKTIVITAS_SELESAI;
 use crate::pakaian_dinas::models::*;
 use crate::pakaian_dinas::scope::campaign_visibility_condition;
 use crate::shared::error::{AppError, AppResult, bad_request};
@@ -72,7 +73,7 @@ impl PakaianDinasRepository {
                    COALESCE(a.deskripsi, a.nama) as aktivitas_label,
                    (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = p.id) as total_satker,
                    (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
-                    WHERE ps.pengajuan_id = p.id AND ps.aktivitas_id = 1008) as satker_selesai
+                    WHERE ps.pengajuan_id = p.id AND ps.aktivitas_id = {AKTIVITAS_SELESAI}) as satker_selesai
             FROM perlengkapan.pengajuan_pakaian_dinas p
             LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON p.jenis_pakaian_dinas_id = j.id
             LEFT JOIN perlengkapan.ms_aktivitas_bmn a ON p.aktivitas_id = a.kode
@@ -134,21 +135,24 @@ impl PakaianDinasRepository {
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
-        let row = client
-            .query_opt(
-                r#"
+        // `format!`, not a bare `r#"..."#`: a raw literal handed straight to
+        // `query_opt` keeps `{AKTIVITAS_SELESAI}` as literal characters, which
+        // compiles clean and then fails in Postgres at request time.
+        let sql = format!(
+            r#"
                 SELECT p.*, j.nama as jenis_pakaian_nama,
                        COALESCE(a.deskripsi, a.nama) as aktivitas_label,
                        (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = p.id) as total_satker,
                        (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
-                        WHERE ps.pengajuan_id = p.id AND ps.aktivitas_id = 1008) as satker_selesai
+                        WHERE ps.pengajuan_id = p.id AND ps.aktivitas_id = {AKTIVITAS_SELESAI}) as satker_selesai
                 FROM perlengkapan.pengajuan_pakaian_dinas p
                 LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON p.jenis_pakaian_dinas_id = j.id
                 LEFT JOIN perlengkapan.ms_aktivitas_bmn a ON p.aktivitas_id = a.kode
                 WHERE p.id = $1
-                "#,
-                &[&id],
-            )
+                "#
+        );
+        let row = client
+            .query_opt(&sql, &[&id])
             .await
             .map_err(|e| bad_request(&e.to_string()))?
             .ok_or_else(|| AppError::NotFound("Pengajuan tidak ditemukan".to_string()))?;
