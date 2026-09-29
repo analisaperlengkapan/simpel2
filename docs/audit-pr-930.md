@@ -29,8 +29,8 @@ Legenda: ✅ diperbaiki di branch ini · 🟡 sebagian / opt-in default OFF · �
 
 | # | Status | Catatan |
 |---|--------|---------|
-| C1 | ✅ | Pola jaringan dipersempit; kegagalan deterministik tak lagi dihitung HANG. Self-test 37 kasus (regresi false-green + kontrol positif). |
-| C2 | ✅ | Kegagalan sertifikat/TLS = **merah** (integritas, bukan ketersediaan). |
+| C1 | ✅ | Pola jaringan dipersempit; kegagalan deterministik tak lagi dihitung HANG. Self-test 40 kasus (regresi false-green + kontrol positif). |
+| C2 | ✅ | Kegagalan sertifikat/TLS = **merah** (integritas, bukan ketersediaan), hanya untuk proses yang gagal (non-nol/timeout). Implementasi awal salah: kata `schannel` (nama crate di pohon dependensi yang dicetak cargo-deny) membuat cargo-deny yang **lulus** dilaporkan merah di setiap commit; pola dipersempit dan kasus regresinya masuk self-test. |
 | C3 | ✅ | Job terjadwal fail-closed (`DEP_CHECK_HANG_IS_RED`); PR/push tetap hijau + `::warning`. `cargo-audit` dan Verus kini diverifikasi SHA-256 (trust-on-first-use, sama dengan `cargo-deny`); satu installer bersama untuk `security.yml` dan `maintenance.yml`. |
 | C4 | ✅ | Repair loop: `git fetch origin "$GITHUB_SHA"` eksplisit + pengecekan checkout sebelum `exit 0`. |
 | C5 | ✅ | Self-test memuat kasus false-green C1/C2. |
@@ -154,9 +154,11 @@ tooling screenshot + 73 PNG (14 MB).
 | C5 | Info | `self-test` wrapper (24 kasus) lulus; tetapi tidak memuat kasus false-green C1/C2. | [T] |
 
 ## D. Higiene PR
+
 PR memuat ≥6 topik independen; deskripsi tidak menyebut perubahan authz/IAM/nginx/FE. Reviewer tidak dapat menilai blast radius dari judulnya. Pertimbangkan pemecahan (perubahan authz/IAM = perlu review keamanan tersendiri).
 
 ## Rujukan standar
+
 - NIST/ANSI INCITS 359-2012 RBAC: Core, Hierarchical, SSD (saat penetapan), DSD (saat aktivasi role) — https://csrc.nist.gov/projects/role-based-access-control/faqs
 - OWASP Authorization Cheat Sheet (deny by default, least privilege, server-side) — https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html
 - OWASP Logging Cheat Sheet (aksi admin, perubahan privilege) — https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html
@@ -264,6 +266,7 @@ halaman Delegasi menawarkan "Buat Delegasi" untuk fitur tak berlaku; kolom NAMA 
 walau seed `mfa_policies` menyatakan enforce.
 
 ## Rujukan tambahan
+
 - PMK 153/PMK.06/2021 Perencanaan Kebutuhan BMN — https://jdih.kemenkeu.go.id/dok/153-pmk-06-2021/summary
 - PMK 83/PMK.06/2016 Pemusnahan & Penghapusan BMN — https://peraturan.bpk.go.id/Home/Details/121081/pmk-no-83pmk062016
 - Penyempurnaan regulasi pemusnahan/penghapusan — https://djpp.kemenkum.go.id/publikasi/indeks-berita/pemerintah-sempurnakan-regulasi-pemusnahan-dan-penghapusan-barang-milik-negara-untuk-optimalisasi-pengelolaan-aset

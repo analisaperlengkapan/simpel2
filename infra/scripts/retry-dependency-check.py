@@ -125,7 +125,7 @@ NETWORK_PATTERNS = [
     r"unexpected eof",
     r"connection closed before message completed",
     r"tls handshake",
-    # Kegagalan VERIFIKASI SERTIFIKAT (`certificate verify failed`, `schannel`,
+    # Kegagalan VERIFIKASI SERTIFIKAT (`certificate verify failed`, `schannel: `,
     # dll.) TIDAK ada di sini: itu kegagalan integritas — bisa MITM atau CA
     # rusak — bukan ketersediaan. Lihat TLS_INTEGRITY_PATTERNS: RED.
     # HTTP 5xx dari registry / releases API.
@@ -193,7 +193,12 @@ TLS_INTEGRITY_PATTERNS = [
     r"unknown ca",
     r"bad certificate",
     r"certificate (is )?not trusted",
-    r"schannel",
+    # Windows SChannel's verification failures. NOT the bare word `schannel`: it is
+    # also a crate in every dependency tree that has native-tls (`schannel v0.1.x`),
+    # and cargo-deny prints that whole tree. As a bare word it turned a PASSING
+    # cargo-deny run red on every commit.
+    r"schannel: ",
+    r"sec_e_(untrusted_root|cert_expired|wrong_principal|cert_unknown)",
 ]
 TLS_INTEGRITY_RE = re.compile("|".join(TLS_INTEGRITY_PATTERNS), re.I)
 
@@ -366,9 +371,14 @@ def classify(output: str, returncode: int, timed_out: bool) -> tuple[str, str]:
         return "RED", "output memuat sinyal temuan/konfigurasi — bukan kegagalan jaringan"
 
     # Sertifikat yang tak lolos verifikasi = integritas, bukan ketersediaan.
-    # Diperiksa SEBELUM timeout/return-code supaya tak bisa diselamatkan menjadi
-    # hijau oleh jalur mana pun di bawah.
-    if TLS_INTEGRITY_RE.search(output):
+    # Diperiksa SEBELUM timeout/jaringan supaya tak bisa diselamatkan menjadi
+    # HANG (hijau) oleh jalur di bawah.
+    #
+    # Hanya untuk proses yang GAGAL (non-nol atau timeout). Proses yang keluar 0
+    # sudah memutuskan bahwa ia lulus; teks di outputnya (pohon dependensi yang
+    # memuat nama crate, kutipan dokumentasi) bukan bukti kegagalan TLS. Tanpa
+    # syarat ini, cargo-deny yang LULUS dilaporkan merah.
+    if (timed_out or returncode != 0) and TLS_INTEGRITY_RE.search(output):
         return "RED", "verifikasi sertifikat TLS gagal — masalah integritas, bukan ketersediaan"
 
     if timed_out:
@@ -437,6 +447,17 @@ SELF_TESTS: list[tuple[str, str, int, bool, str]] = [
      "self signed certificate in certificate chain", 128, False, "RED"),
     ("TLS: sertifikat + timeout tak bisa diselamatkan jadi hijau",
      "error: certificate verify failed", 124, True, "RED"),
+    # Regresi: cargo-deny mencetak seluruh pohon dependensi, dan `schannel` adalah
+    # nama crate di dalamnya. Proses yang LULUS tidak boleh dibaca sebagai kegagalan TLS.
+    ("TLS: nama crate `schannel` di pohon dependensi, keluar 0 = GREEN",
+     "warning[duplicate]: found 2 duplicate entries for crate 'zip'\n"
+     "    └── native-tls v0.2.18\n        └── schannel v0.1.29\n"
+     "    └── rustls-native-certs v0.8.1\n", 0, False, "GREEN"),
+    ("TLS: `schannel` sebagai nama crate saja tidak mengubah kegagalan jaringan jadi RED",
+     "error: failed to fetch index: connection reset by peer\n"
+     "    └── schannel v0.1.29\n", 1, False, "HANG"),
+    ("TLS: kegagalan SChannel sungguhan = RED",
+     "curl: (35) schannel: SEC_E_UNTRUSTED_ROOT (0x80090325)", 35, False, "RED"),
     ("jaringan: registry 5xx",
      "Error response from daemon: received unexpected HTTP status: 503 Service Unavailable", 1, False, "HANG"),
     ("timeout", "connecting...", 124, True, "HANG"),
