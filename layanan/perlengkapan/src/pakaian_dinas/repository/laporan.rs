@@ -5,6 +5,23 @@ use crate::shared::satker_scope::SatkerScope;
 use tokio_postgres::types::ToSql;
 use uuid::Uuid;
 
+/// Every laporan query counts ONLY satker whose submission reached `Selesai`.
+///
+/// This is deliberate — a recap is a procurement figure, and counting sizes a
+/// wilayah validator has not yet accepted would order uniforms against numbers
+/// still being revised. But it was written as a bare `1008` in six separate
+/// query strings with nothing naming it — four here and two more in
+/// `pengajuan.rs`, which is where the campaign list computes the very counts
+/// the page now shows — and its effect is invisible from the
+/// outside: mid-campaign the report simply comes back small, or empty, and a
+/// recap covering 3 of 238 satker renders exactly like a complete one.
+///
+/// So the number is named here, and the page states its coverage — the
+/// campaign list already carries `satker_selesai` and `total_satker`, computed
+/// with this same predicate, and the report page had them in hand all along
+/// without ever showing them.
+pub(crate) const AKTIVITAS_SELESAI: i32 = AktivitasStatus::Selesai as i32;
+
 /// How a `jenis_pakaian_id` predicate has to be written, which depends on
 /// whether the clothing-item tables are in scope for the query being built.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -128,7 +145,8 @@ impl PakaianDinasRepository {
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
-        let mut query = r#"
+        let mut query = format!(
+            r#"
             SELECT
                 pp.spesifikasi_nama as pakaian_nama,
                 pp.spesifikasi_ukuran_group as ukuran_group,
@@ -141,9 +159,9 @@ impl PakaianDinasRepository {
             JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
             JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
             WHERE ps.pengajuan_id = $1
-              AND ps.aktivitas_id = 1008
+              AND ps.aktivitas_id = {AKTIVITAS_SELESAI}
         "#
-        .to_string();
+        );
 
         let mut params: Vec<Box<dyn ToSql + Sync + Send>> = vec![Box::new(pengajuan_id)];
         push_laporan_filters(
@@ -183,7 +201,8 @@ impl PakaianDinasRepository {
         let offset = (page - 1) * per_page;
 
         // Build dynamic filter with parameter binding
-        let mut where_clause = "WHERE ps.pengajuan_id = $1 AND ps.aktivitas_id = 1008".to_string();
+        let mut where_clause =
+            format!("WHERE ps.pengajuan_id = $1 AND ps.aktivitas_id = {AKTIVITAS_SELESAI}");
         let mut params: Vec<Box<dyn ToSql + Sync + Send>> = vec![Box::new(pengajuan_id)];
         let built = push_laporan_filters(
             &mut where_clause,
@@ -374,7 +393,8 @@ impl PakaianDinasRepository {
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
-        let mut where_clause = "WHERE ps.pengajuan_id = $1 AND ps.aktivitas_id = 1008".to_string();
+        let mut where_clause =
+            format!("WHERE ps.pengajuan_id = $1 AND ps.aktivitas_id = {AKTIVITAS_SELESAI}");
         let mut params: Vec<Box<dyn ToSql + Sync + Send>> = vec![Box::new(pengajuan_id)];
         let built = push_laporan_filters(
             &mut where_clause,
@@ -447,7 +467,8 @@ impl PakaianDinasRepository {
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
-        let mut query = r#"
+        let mut query = format!(
+            r#"
             SELECT
                 pp.spesifikasi_nama AS pakaian_nama,
                 pp.spesifikasi_ukuran_group AS ukuran_group,
@@ -461,9 +482,9 @@ impl PakaianDinasRepository {
             LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.kode_satker
             JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
             WHERE ps.pengajuan_id = $1
-              AND ps.aktivitas_id = 1008
+              AND ps.aktivitas_id = {AKTIVITAS_SELESAI}
         "#
-        .to_string();
+        );
 
         let mut params: Vec<Box<dyn ToSql + Sync + Send>> = vec![Box::new(pengajuan_id)];
         push_laporan_filters(

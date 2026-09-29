@@ -420,9 +420,13 @@ test.describe("Pakaian Dinas — laporan tabs & exports", () => {
     // Satker: keeps the group but leaves only the Jakarta Pusat employee, who
     // is male — so the Perempuan total goes to 0. Counting rows alone would not
     // catch a filter applied to the wrong column; the gender split does.
+    //
+    // `selectOption`, not `fill`: this control is the campaign's own satker
+    // list now. That change is why this test failed the moment the box became
+    // a dropdown — the element type IS part of the contract, and a test that
+    // types into it is asserting the old one.
     const bySatker = page.waitForResponse((r) => r.url().includes("/laporan/rekap-ukuran"));
-    await page.getByTestId("laporan-satker").fill(SATKER_JAKPUS);
-    await page.getByTestId("laporan-satker").blur();
+    await page.getByTestId("laporan-satker").selectOption(SATKER_JAKPUS);
     const satkerResp = await bySatker;
     expect(new URL(satkerResp.url()).search).toContain(`satker_id=${SATKER_JAKPUS}`);
     expect(satkerResp.ok(), `rekap-ukuran -> ${satkerResp.status()}`).toBeTruthy();
@@ -433,6 +437,56 @@ test.describe("Pakaian Dinas — laporan tabs & exports", () => {
       group.getByRole("row").filter({ hasText: "Perempuan (P)" }),
       "the only remaining employee is male",
     ).toContainText("0");
+  });
+
+  // The dropdown and the coverage line are the two halves of one answer: which
+  // satker this report can be narrowed to, and how much of the campaign the
+  // numbers already cover. The filter used to be a free-text `kode_satker` box
+  // with no coverage line beside it, so a recap over 3 of 238 satker rendered
+  // identically to a complete one.
+  test("the satker filter offers the campaign's own satker and states the coverage", async ({
+    page,
+  }) => {
+    await reachable(page, LAPORAN);
+
+    const satker = page.getByTestId("laporan-satker");
+    const cakupan = page.getByTestId("laporan-cakupan");
+
+    // Disabled rather than empty before a campaign is picked: an empty dropdown
+    // reads as "this campaign has no satker", which is a different fact.
+    await expect(satker).toBeDisabled();
+    await expect(cakupan, "nothing to state the coverage of yet").toHaveCount(0);
+
+    // 6b: both satker at 1008, so this report covers the campaign whole.
+    const loaded = page.waitForResponse((r) => r.url().includes("/laporan/rekap-ukuran"));
+    await page.getByTestId("laporan-pengajuan").selectOption(LAPORAN_CAMPAIGN);
+    await loaded;
+
+    await expect(satker).toBeEnabled();
+    // Count, not order — the list is whatever the campaign returns. Three
+    // options = the "Semua Satker" placeholder plus 6b's two satker, so a list
+    // leaking another campaign's satker fails here.
+    await expect(satker.locator("option")).toHaveCount(3);
+    await expect(satker.locator("option[value='0200010']")).toHaveText(
+      "KEJAKSAAN NEGERI JAKARTA PUSAT",
+    );
+    await expect(satker.locator("option[value='0200020']")).toHaveText(
+      "KEJAKSAAN NEGERI JAKARTA SELATAN",
+    );
+
+    await expect(cakupan).toHaveAttribute("data-lengkap", "true");
+    await expect(cakupan).toContainText("Seluruh 2 satker sudah Selesai");
+
+    // 6a is the other direction, and it is stable in both orders: its two
+    // satker never BOTH reach 1008 (the workflow tests move at most one), so
+    // whenever this runs the line must say the numbers are partial. Without
+    // this half, a banner hard-coded to "complete" passes the assertion above.
+    const reload = page.waitForResponse((r) => r.url().includes("/laporan/rekap-ukuran"));
+    await page.getByTestId("laporan-pengajuan").selectOption(CAMPAIGN);
+    await reload;
+
+    await expect(cakupan).toHaveAttribute("data-lengkap", "false");
+    await expect(cakupan).toContainText("dari 2 satker");
   });
 
   // The export must carry the same filters as the table above it, or the

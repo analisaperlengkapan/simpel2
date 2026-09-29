@@ -322,6 +322,15 @@ jobs:
       - name: Frontend/backend DTO drift guard self-test
         shell: bash
         run: python3 ./infra/scripts/check-fe-be-dto-drift.py --selftest
+
+      # Tailwind emits NOTHING for a shade its config does not define — no
+      # warning, no build error. `success/warning/danger/info` jumped 100 → 400
+      # while 115 classes asked for `-200`/`-300`, so every status message in
+      # perlengkapan rendered in plain slate on a correctly-coloured panel. Only
+      # a screenshot could catch it: the class is in the HTML either way.
+      - name: Tailwind colour shades used are defined
+        shell: bash
+        run: python3 ./infra/scripts/check-tailwind-shades-exist.py
       # The other half of the same wire contract: query parameters. serde DROPS
       # unknown query keys, so a frontend filter the backend never reads is a
       # 200 with the filter silently ignored. `GET /pakaian-dinas/spesifikasi`

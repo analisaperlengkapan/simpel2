@@ -48,9 +48,20 @@ module.exports = {
         },
         // Semantic status tokens (matching Tailwind defaults, named for
         // readability and so contract tests can enforce "no hex colors").
+        //
+        // The scales must stay CONTIGUOUS over what the tree actually uses.
+        // 200 and 300 were missing while 115 classes referenced them —
+        // `text-warning-300`, `text-danger-300` and friends — and Tailwind
+        // generates nothing for a shade it does not know, so the text simply
+        // inherited whatever colour was around it. Every status message in
+        // perlengkapan was rendering in plain slate on a correctly-coloured
+        // background. `check-tailwind-shades-exist.py` now derives the used
+        // set from the content globs and fails on the next gap.
         success: {
           50:  '#ecfdf5',
           100: '#d1fae5',
+          200: '#a7f3d0',
+          300: '#6ee7b7',
           400: '#34d399',
           500: '#10b981',
           600: '#059669',
@@ -60,6 +71,8 @@ module.exports = {
         warning: {
           50:  '#fffbeb',
           100: '#fef3c7',
+          200: '#fde68a',
+          300: '#fcd34d',
           400: '#fbbf24',
           500: '#f59e0b',
           600: '#d97706',
@@ -69,6 +82,8 @@ module.exports = {
         danger: {
           50:  '#fef2f2',
           100: '#fee2e2',
+          200: '#fecaca',
+          300: '#fca5a5',
           400: '#f87171',
           500: '#ef4444',
           600: '#dc2626',
@@ -78,6 +93,8 @@ module.exports = {
         info: {
           50:  '#eff6ff',
           100: '#dbeafe',
+          200: '#bfdbfe',
+          300: '#93c5fd',
           400: '#60a5fa',
           500: '#3b82f6',
           600: '#2563eb',
