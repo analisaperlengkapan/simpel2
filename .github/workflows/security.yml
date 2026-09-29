@@ -152,33 +152,11 @@ jobs:
         with:
           cache-key: audit
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      # Pinned + SHA-256 verified (shared with maintenance.yml): a checksum
+      # mismatch is a hard failure, a network failure falls back to a source build.
       - name: Install cargo-audit
         shell: bash
-        run: |
-          if ! command -v cargo-audit &>/dev/null; then
-            AUDIT_VERSION="0.22.1"
-            URL="https://github.com/rustsec/rustsec/releases/download/cargo-audit/v${AUDIT_VERSION}/cargo-audit-x86_64-unknown-linux-gnu-v${AUDIT_VERSION}.tgz"
-            # Tarball contains a top-level
-            # `cargo-audit-x86_64-unknown-linux-gnu-vX.Y.Z/` directory;
-            # `--strip-components=1` flattens it so the binary lands at
-            # `$CARGO_HOME/bin/cargo-audit` (in PATH) rather than buried
-            # in a subdirectory. CARGO_HOME is set by setup-rust action
-            # to a job-isolated path under runner.temp.
-            mkdir -p "$CARGO_HOME/bin"
-            # --retry: unduhan rilis GitHub sekali-tembak tanpa retry adalah
-            # pola yang sudah berkali-kali membuang build di repo ini (lihat
-            # #711 actionlint, plugin Blade bertag mengambang, dan catatan
-            # tailwindcss di Dockerfile FE). --max-time membatasi hang.
-            if curl -LsSf --retry 4 --retry-delay 2 --retry-all-errors \
-                 --connect-timeout 15 --max-time 180 \
-                 "$URL" | tar -xzf- --strip-components=1 -C "$CARGO_HOME/bin/" cargo-audit-x86_64-unknown-linux-gnu-v${AUDIT_VERSION}/cargo-audit 2>/dev/null; then
-              echo "Installed cargo-audit ${AUDIT_VERSION} from pre-built binary"
-              cargo-audit --version
-            else
-              echo "::warning::Pre-built binary unavailable, compiling from source"
-              cargo install cargo-audit --locked
-            fi
-          fi
+        run: ./infra/scripts/install-cargo-audit.sh
       # Beberapa entri ignore di .cargo/audit.toml dibenarkan HANYA karena
       # crate-nya tak pernah dikompilasi: ia dependency opsional yang tak
       # diaktifkan feature mana pun, dan cuma tercatat di Cargo.lock (lockfile
@@ -539,6 +517,9 @@ jobs:
           # naikkan saat perlu fitur/perbaikan Verus baru.
           VERUS_TAG="release/0.2026.05.31.5dd6d83"
           VERUS_VER="0.2026.05.31.5dd6d83"
+          # SHA-256 of the release asset as fetched when this pin was made
+          # (trust-on-first-use, same bar as cargo-deny). Bump with VERUS_TAG.
+          VERUS_SHA256="d234121e38718860e00edaadd2807278f720f9715f8d6c90e22f5d606be92cf1"
           ASSET="verus-${VERUS_VER}-x86-linux.zip"
           URL="https://github.com/verus-lang/verus/releases/download/${VERUS_TAG}/${ASSET}"
           dest="$HOME/.verus"
@@ -557,6 +538,13 @@ jobs:
           done
           if [ "$ok" -ne 1 ]; then
             echo "::error::tidak bisa mengunduh ${ASSET} setelah 4 percobaan (jaringan, bukan hasil verifikasi)"
+            exit 1
+          fi
+          got="$(sha256sum /tmp/verus.zip | awk '{print $1}')"
+          if [ "$got" != "$VERUS_SHA256" ]; then
+            # Not a network failure — the asset changed under a pinned tag. Fail
+            # rather than unzip and run an unverified binary.
+            echo "::error::sha256 ${ASSET} tidak cocok: dapat ${got}, mau ${VERUS_SHA256}"
             exit 1
           fi
           unzip -q -o /tmp/verus.zip -d "$dest"

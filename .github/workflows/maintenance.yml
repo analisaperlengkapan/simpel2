@@ -205,14 +205,7 @@ jobs:
         # tanpa ada yang menyadarinya.
         continue-on-error: true
         run: |
-          if ! command -v cargo-audit &>/dev/null; then
-            curl -LsSf --retry 4 --retry-delay 2 --retry-all-errors \
-              --connect-timeout 15 --max-time 180 \
-              "https://github.com/rustsec/rustsec/releases/download/cargo-audit/v0.22.1/cargo-audit-x86_64-unknown-linux-gnu-v0.22.1.tgz" \
-              | tar -xzf- --strip-components=1 -C "$CARGO_HOME/bin/" \
-                cargo-audit-x86_64-unknown-linux-gnu-v0.22.1/cargo-audit 2>/dev/null \
-              || cargo install cargo-audit --locked
-          fi
+          ./infra/scripts/install-cargo-audit.sh
           # Pembungkus menulis markdown-nya SENDIRI (heading + <details> + fence
           # + verdict). Jangan membungkusnya dengan fence lain di sini: fence
           # bersarang merusak render summary, dan verdict-nya justru menghilang
