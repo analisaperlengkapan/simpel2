@@ -353,6 +353,23 @@ impl AuthencService for AuthencGrpcService {
         // Verify JWT token
         match self.jwt_service.verify_token(&req.token) {
             Ok(claims) => {
+                // The password-only token issued while MFA is still owed
+                // (`mfa_pending=true`) proves one factor, not a session. gRPC
+                // callers are trusted services that gate on `valid`, so
+                // reporting it valid would let a stolen-password token pass
+                // every downstream check (AGENTS.md: protected endpoints MUST
+                // refuse `mfa_pending`).
+                if claims
+                    .custom
+                    .get("mfa_pending")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false)
+                {
+                    return Ok(Response::new(invalid_validation_response(
+                        "Token validation failed",
+                    )));
+                }
+
                 // Revocation check — a signature-valid, unexpired token may
                 // still have been revoked (logout, role change, deactivation).
                 // Fail closed: a revoked token, or a store error, is reported as

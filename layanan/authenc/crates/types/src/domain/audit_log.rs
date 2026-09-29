@@ -41,3 +41,24 @@ pub struct AuditLog {
     /// column NULL, so the admin table showed `-` for every event.
     pub ip_address: Option<String>,
 }
+
+/// The actor a handler or guard resolved while serving a request.
+///
+/// Audit attribution cannot be done from the monitoring middleware alone: on
+/// the login path the caller is *nobody* until the handler has verified the
+/// password, and on the IAM admin path only the admin guard has decoded the
+/// token. Whoever knows the subject puts this on the **response** extensions;
+/// the single audit writer (`security_monitoring_middleware`) reads it back.
+/// Absent — an unauthenticated or failed attempt — means "no actor yet", which
+/// is the truth and not a placeholder.
+///
+/// Lives here (not in the API crate) because two crates produce it — the login
+/// handler in `authenc-api` and the admin guard in `authenc-iam-api` — while
+/// `authenc-api` depends on `authenc-iam-api`, not the reverse.
+#[derive(Clone, Debug)]
+pub struct AuthenticatedActor {
+    /// The authenticated user's id.
+    pub user_id: String,
+    /// The OAuth2 client the request came through, when known.
+    pub client_id: Option<String>,
+}

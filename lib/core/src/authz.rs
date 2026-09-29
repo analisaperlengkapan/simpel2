@@ -52,6 +52,25 @@ pub fn is_admin_role(role: &str) -> bool {
     ADMIN_ROLES.contains(&normalized.as_str())
 }
 
+/// Roles that may administer the **identity provider** (authenc IAM: users,
+/// role assignment, MFA resets, OAuth clients, the audit trail).
+///
+/// Deliberately narrower than [`ADMIN_ROLES`]. Being the administrator of the
+/// *perlengkapan application* (master data, templates, workflow config) does
+/// not entitle anyone to create accounts, reset passwords, switch off another
+/// user's MFA or grant roles — the IdP is the root of trust for every other
+/// service, so its administrators are the smallest set that works. This is the
+/// pre-#930 behaviour of `admin_auth_middleware` (exact `admin`); PR #930 had
+/// widened it to the application-admin list, which let a role that does not
+/// even exist in the seed grant itself `admin`.
+pub const IAM_ADMIN_ROLES: &[&str] = &["admin"];
+
+/// Is `role` an IAM (identity-provider) administrator? Case-insensitive.
+pub fn is_iam_admin_role(role: &str) -> bool {
+    let normalized = role.trim().to_ascii_lowercase();
+    IAM_ADMIN_ROLES.contains(&normalized.as_str())
+}
+
 /// Roles that may read or act across satker boundaries.
 ///
 /// Superset of [`ADMIN_ROLES`]: verification and analysis roles see the whole
@@ -74,7 +93,22 @@ pub const CROSS_SATKER_ROLES: &[&str] = &[
 pub const VALIDATOR_ROLES: &[&str] = &["validator_satker", "validator_wilayah", "validator_pusat"];
 
 /// Operator (data-entry) roles, bound to a single satker.
-pub const OPERATOR_ROLES: &[&str] = &["operator", "operator_satker"];
+///
+/// Only the role that exists in the IAM seed. The list used to include a bare
+/// `operator` that nothing issues — a phantom that would have granted
+/// `Create` to whoever eventually minted the name.
+pub const OPERATOR_ROLES: &[&str] = &["operator_satker"];
+
+/// Satker-internal approval chain of the Pemakaian BMN workflow.
+///
+/// `validator_satker` forwards/returns a submission; `approver_satker` (the
+/// Kuasa Pengguna Barang's seat) approves, returns or revokes. Both are seeded
+/// by authenc migration 004 and are gated by `PemakaianBmnPolicy`, but had no
+/// place in this vocabulary — so they held **zero** capabilities and no
+/// display metadata.
+pub const SATKER_VALIDATOR_ROLES: &[&str] = &["validator_satker"];
+/// See [`SATKER_VALIDATOR_ROLES`].
+pub const SATKER_APPROVER_ROLES: &[&str] = &["approver_satker"];
 
 /// Roles in display-priority order: when a caller holds several, the first of
 /// these is the one identity surfaces show.
@@ -84,14 +118,18 @@ pub const OPERATOR_ROLES: &[&str] = &["operator", "operator_satker"];
 /// a spelling no issuer mints — while omitting the real `superadmin`. A
 /// superadmin therefore rendered as an ordinary operator in the profile badge
 /// and the dashboard scope wording.
+///
+/// This order is also what makes the backend deterministic for a caller who
+/// holds several roles: the primary role is the *first entry of this list that
+/// the caller holds*, never "whichever the database returned first".
 pub const PRIMARY_ROLE_PRIORITY: &[&str] = &[
     "admin",
     "superadmin",
     "admin_pusat",
     "validator_pusat",
     "validator_wilayah",
+    "approver_satker",
     "validator_satker",
-    "operator",
     "operator_satker",
 ];
 
@@ -145,9 +183,14 @@ pub const ROLE_CATALOG: &[RoleInfo] = &[
         description: "Verifikator di tingkat Kejaksaan Tinggi",
     },
     RoleInfo {
+        key: "approver_satker",
+        label: "Approver Satker",
+        description: "Kuasa Pengguna Barang: menyetujui, mengembalikan atau mencabut izin pemakaian BMN di Satuan Kerja",
+    },
+    RoleInfo {
         key: "validator_satker",
         label: "Validator Satker",
-        description: "Verifikator di tingkat Satuan Kerja",
+        description: "Memverifikasi usulan pemakaian BMN di dalam Satuan Kerja sebelum diteruskan ke Approver Satker",
     },
     RoleInfo {
         key: "operator_satker",
@@ -200,18 +243,31 @@ pub fn role_label(role: &str) -> String {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Capability {
-    /// Read data, including one's own satker's records.
+    /// Read data, including one's own satker's records. Held by **any**
+    /// authenticated caller that carries at least one role (see
+    /// [`Authorization::can`]); the row-level boundary is the backend's
+    /// `SatkerScope`, not this capability.
     View,
     /// Create and edit draft records (kebutuhan, pemakaian, penghapusan, …).
     Create,
+    /// Verify (forward/return) a Pemakaian BMN submission inside the satker.
+    ValidateSatker,
+    /// Approve, return or revoke a Pemakaian BMN permit as the satker's
+    /// Kuasa Pengguna Barang.
+    ApproveSatker,
     /// Verify or reject a submission as validator wilayah.
     ValidateWilayah,
     /// Verify or reject a submission as validator pusat, and issue final SK.
     ValidatePusat,
     /// See records across satker boundaries.
     ViewAllSatker,
-    /// Administration: users, roles, master data, templates, workflow config.
+    /// Administer the **perlengkapan application**: master data, templates,
+    /// workflow configuration. Does *not* imply any business approval and does
+    /// *not* imply [`Capability::AdministerIam`].
     Administer,
+    /// Administer the **identity provider**: users, role assignment, MFA
+    /// resets, OAuth clients (authenc IAM). See [`IAM_ADMIN_ROLES`].
+    AdministerIam,
     /// View audit logs and operational monitoring surfaces.
     ViewAudit,
     /// Triage helpdesk tickets on behalf of other users.
@@ -223,49 +279,51 @@ impl Capability {
     pub const ALL: &'static [Capability] = &[
         Capability::View,
         Capability::Create,
+        Capability::ValidateSatker,
+        Capability::ApproveSatker,
         Capability::ValidateWilayah,
         Capability::ValidatePusat,
         Capability::ViewAllSatker,
         Capability::Administer,
+        Capability::AdministerIam,
         Capability::ViewAudit,
         Capability::ManageTickets,
     ];
 
     /// The roles that grant this capability.
     ///
-    /// This table is the single mapping between roles and privileges. A role
-    /// absent from every list holds only [`Capability::View`] via
-    /// [`RoleSet::is_authenticated`] semantics — never implicitly more.
+    /// This table is the single mapping between roles and privileges. It is
+    /// **exact and additive**: a role holds precisely what is listed for it
+    /// here — an administrator is not silently a superset of the business
+    /// roles. That is a deliberate change from the pre-#930 "admin bypasses
+    /// every check" behaviour: the IT administrator of a system must not also
+    /// be able to approve the very requests the system routes to business
+    /// authorities (segregation of duties; NIST INCITS 359 SSD/DSD, OWASP
+    /// Authorization: least privilege). Emergency intervention goes through the
+    /// audited break-glass path, not through an implicit role.
+    ///
+    /// [`Capability::View`] is empty here on purpose: it is granted to any
+    /// caller holding at least one role by [`Authorization::can`], so a role
+    /// that appears in no list still reads its own satker's data.
     pub fn roles(self) -> &'static [&'static str] {
         match self {
             Capability::View => &[],
             Capability::Create => OPERATOR_ROLES,
+            Capability::ValidateSatker => SATKER_VALIDATOR_ROLES,
+            Capability::ApproveSatker => SATKER_APPROVER_ROLES,
             Capability::ValidateWilayah => &["validator_wilayah"],
             Capability::ValidatePusat => &["validator_pusat"],
             Capability::ViewAllSatker => CROSS_SATKER_ROLES,
-            // Deliberately ADMIN_ROLES only. `ViewAudit`/`ManageTickets` are
-            // carved out separately so an audit-log reader does not silently
-            // acquire user-administration rights.
+            // Application administration; also monitoring/audit surfaces and
+            // helpdesk triage, which are operational rather than business
+            // approvals. There is no dedicated auditor role yet, so these three
+            // share ADMIN_ROLES — see the audit report (A9) before adding a
+            // capability that claims to be separate but is not.
             Capability::Administer => ADMIN_ROLES,
             Capability::ViewAudit => ADMIN_ROLES,
             Capability::ManageTickets => ADMIN_ROLES,
+            Capability::AdministerIam => IAM_ADMIN_ROLES,
         }
-    }
-
-    /// Capabilities an admin holds implicitly, beyond their explicit list.
-    ///
-    /// An admin is a superset by construction: they can already act on every
-    /// satker, so withholding, say, `ValidatePusat` would make the admin UI
-    /// disagree with the API, which lets admins bypass role checks
-    /// (`policy.rs` logs exactly that bypass).
-    fn is_admin_implied(self) -> bool {
-        matches!(
-            self,
-            Capability::Create
-                | Capability::ValidateWilayah
-                | Capability::ValidatePusat
-                | Capability::View
-        )
     }
 
     /// The stable wire key for this capability.
@@ -276,10 +334,13 @@ impl Capability {
         match self {
             Capability::View => "view",
             Capability::Create => "create",
+            Capability::ValidateSatker => "validate_satker",
+            Capability::ApproveSatker => "approve_satker",
             Capability::ValidateWilayah => "validate_wilayah",
             Capability::ValidatePusat => "validate_pusat",
             Capability::ViewAllSatker => "view_all_satker",
             Capability::Administer => "administer",
+            Capability::AdministerIam => "administer_iam",
             Capability::ViewAudit => "view_audit",
             Capability::ManageTickets => "manage_tickets",
         }
@@ -448,15 +509,25 @@ impl Authorization {
         self.roles.primary()
     }
 
+    /// Administer the identity provider (authenc IAM). Exact `admin` only.
+    pub fn is_iam_admin(&self) -> bool {
+        self.roles.has_any(IAM_ADMIN_ROLES)
+    }
+
     /// True when the caller may exercise `capability`.
     ///
-    /// Admins are a superset for the operational capabilities, matching the
-    /// backend's documented "admin bypasses role checks" behaviour.
+    /// Exact and additive (see [`Capability::roles`]): there is no implicit
+    /// "admin can do everything" here, and the backend no longer has one
+    /// either, so the UI and the API cannot disagree about it. The single
+    /// exception is [`Capability::View`], granted to any caller holding at
+    /// least one role — before this, `can(View)` was `false` for every
+    /// non-admin because its role list is empty, the opposite of what the
+    /// variant's own documentation promises.
     pub fn can(&self, capability: Capability) -> bool {
-        if self.roles.has_any(capability.roles()) {
-            return true;
+        if capability == Capability::View {
+            return !self.roles.is_empty();
         }
-        self.is_admin() && capability.is_admin_implied()
+        self.roles.has_any(capability.roles())
     }
 
     /// Every capability the caller holds. Drives admin surfaces that render a
@@ -488,6 +559,9 @@ mod tests {
             realm_access: Some(crate::jwt_claims::RealmAccess {
                 roles: roles.iter().map(|r| r.to_string()).collect(),
             }),
+            assigned_roles: Vec::new(),
+            active_role: None,
+            groups: Vec::new(),
             resource_access: None,
             mfa_enabled: false,
             mfa_setup_required: false,
@@ -578,16 +652,106 @@ mod tests {
         assert!(!pusat.can(Capability::Administer));
     }
 
+    /// Segregation of duties, pinned. The pre-#930 model let an administrator
+    /// stand in for every business role (`is_admin_implied`), which is how an IT
+    /// admin could approve, reject and finalise a BMN disposal. An administrator
+    /// now holds administration — and *reads* — but none of the business
+    /// approval capabilities.
     #[test]
-    fn admin_implies_operational_capabilities() {
+    fn admin_does_not_imply_business_capabilities() {
         let admin = Authorization::from_csv("admin");
         for cap in [
             Capability::Create,
+            Capability::ValidateSatker,
+            Capability::ApproveSatker,
             Capability::ValidateWilayah,
             Capability::ValidatePusat,
-            Capability::View,
         ] {
-            assert!(admin.can(cap), "admin should hold {cap:?} implicitly");
+            assert!(
+                !admin.can(cap),
+                "admin must NOT hold {cap:?} implicitly (SoD); use break-glass"
+            );
+        }
+        assert!(admin.can(Capability::View));
+        assert!(admin.can(Capability::Administer));
+    }
+
+    /// `can(View)` used to be `false` for every non-admin: `View`'s role list is
+    /// empty and the only fallback was an admin-implied clause. Any caller with
+    /// at least one role reads; a caller with none reads nothing.
+    #[test]
+    fn view_is_held_by_any_caller_with_a_role() {
+        for role in [
+            "operator_satker",
+            "validator_satker",
+            "approver_satker",
+            "validator_wilayah",
+            "validator_pusat",
+            "some_future_role",
+        ] {
+            assert!(
+                Authorization::from_csv(role).can(Capability::View),
+                "'{role}' holds a role and must be able to View"
+            );
+        }
+        assert!(!Authorization::from_csv("").can(Capability::View));
+        assert!(!Authorization::default().can(Capability::View));
+    }
+
+    /// The Pemakaian BMN chain has two satker-internal seats that used to hold
+    /// zero capabilities. Each holds exactly its own step.
+    #[test]
+    fn satker_chain_roles_hold_their_own_step_only() {
+        let validator = Authorization::from_csv("validator_satker");
+        assert!(validator.can(Capability::ValidateSatker));
+        assert!(!validator.can(Capability::ApproveSatker));
+        assert!(!validator.can(Capability::Create));
+
+        let approver = Authorization::from_csv("approver_satker");
+        assert!(approver.can(Capability::ApproveSatker));
+        assert!(!approver.can(Capability::ValidateSatker));
+        assert!(!approver.can(Capability::Create));
+    }
+
+    /// IAM administration is a strictly smaller set than application
+    /// administration: the roles PR #930 admitted to the IdP console do not
+    /// administer the IdP.
+    #[test]
+    fn iam_admin_is_exact_admin_only() {
+        assert!(Authorization::from_csv("admin").can(Capability::AdministerIam));
+        assert!(Authorization::from_csv("admin").is_iam_admin());
+        for role in [
+            "superadmin",
+            "admin_pusat",
+            "admin_readonly",
+            "operator_satker",
+        ] {
+            let a = Authorization::from_csv(role);
+            assert!(
+                !a.can(Capability::AdministerIam),
+                "'{role}' must not administer the IdP"
+            );
+            assert!(!a.is_iam_admin());
+        }
+        // Still an application administrator, just not an IdP one.
+        assert!(Authorization::from_csv("admin_pusat").can(Capability::Administer));
+        assert!(is_iam_admin_role("ADMIN"));
+        assert!(!is_iam_admin_role("superadmin"));
+        assert!(IAM_ADMIN_ROLES.iter().all(|r| ADMIN_ROLES.contains(r)));
+    }
+
+    /// Every role that any capability names must be describable — a privileged
+    /// role must never render as a raw string on an identity surface — and no
+    /// capability may name a role the seed does not issue.
+    #[test]
+    fn every_role_named_by_a_capability_is_in_the_catalog() {
+        for cap in Capability::ALL {
+            for role in cap.roles() {
+                assert!(
+                    role_info(role).is_some(),
+                    "{cap:?} names role '{role}' which has no display metadata"
+                );
+            }
         }
     }
 

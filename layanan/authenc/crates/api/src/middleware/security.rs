@@ -13,26 +13,13 @@ use tracing::{error, info, warn};
 
 use authenc_core::services::pg_audit_log_store::PgAuditLogStore;
 
-/// The actor a handler resolved while serving a request.
-///
-/// Audit attribution cannot be done from the middleware alone. On the login
-/// path the caller is *nobody* until the handler has verified the password, and
-/// then the identity only exists inside the handler's `AuthResult`. Without a
-/// way to hand it back, `audit_logs.user_id` stayed NULL on every login row and
-/// the audit table's "User" column rendered as `-` for the most important event
-/// it records.
-///
-/// The split keeps one writer (the middleware owns the audit write) while
-/// letting the handler, which is the only party that knows, supply the subject.
-/// Absent — an unauthenticated or failed attempt — means "no actor yet", which
-/// is the truth and not a placeholder.
-#[derive(Clone, Debug)]
-pub struct AuthenticatedActor {
-    /// The authenticated user's id.
-    pub user_id: String,
-    /// The OAuth2 client the request came through, when known.
-    pub client_id: Option<String>,
-}
+/// The actor a handler or guard resolved while serving a request — see
+/// [`authenc_types::domain::audit_log::AuthenticatedActor`] for why this handoff
+/// exists. Re-exported so `crate::middleware::security::AuthenticatedActor`
+/// keeps working for the login handler; the type itself lives in
+/// `authenc-types` because the IAM admin guard (a different crate) produces it
+/// too.
+pub use authenc_types::domain::audit_log::AuthenticatedActor;
 
 /// Configuration for security monitoring
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -63,6 +50,14 @@ impl Default for SecurityMonitoringConfig {
                 "/api/v1/auth/logout".to_string(),
                 "/api/v1/auth/revoke".to_string(),
                 "/api/v1/iam/".to_string(),
+                // MFA lifecycle: enrolling, removing or re-issuing a second
+                // factor is exactly what an account-takeover does next.
+                // (`/mfa/status` is deliberately absent — it is polled.)
+                "/api/v1/auth/mfa/setup".to_string(),
+                "/api/v1/auth/mfa/backup-codes".to_string(),
+                "/api/v1/auth/totp/enable".to_string(),
+                "/api/v1/auth/totp/disable".to_string(),
+                "/api/v1/auth/me/password".to_string(),
             ],
             log_auth_attempts: true,
             log_authz_failures: true,
@@ -127,31 +122,24 @@ impl SecurityMonitoringState {
     }
 }
 
-/// The end user's address, read from the forwarding headers the ingress sets.
+/// The end user's address, resolved without letting the caller choose it.
 ///
-/// `ConnectInfo` only ever reports the immediate TCP peer, and in this
-/// deployment that is the proxy — so an audit trail built on it alone records
-/// the ingress as every user's address, which is worse than recording nothing
-/// because it looks plausible. The leftmost `X-Forwarded-For` entry is the
-/// original client; `X-Real-IP` is the single-value fallback some proxies send.
-///
-/// Returns `None` when neither header is present or parses, letting the caller
-/// fall back to the peer address rather than emitting a bogus one.
-fn forwarded_client_ip(request: &Request<Body>) -> Option<String> {
-    request
-        .headers()
-        .get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.split(',').next())
-        .or_else(|| {
-            request
-                .headers()
-                .get("x-real-ip")
-                .and_then(|v| v.to_str().ok())
-        })
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string)
+/// `ConnectInfo` only ever reports the immediate TCP peer, and behind the
+/// ingress that is the proxy — so an audit trail built on it alone records the
+/// ingress as every user's address. The forwarding headers carry the real client,
+/// **but only a proxy we operate may be believed about them**: the leftmost
+/// `X-Forwarded-For` entry is whatever the caller typed (the previous version
+/// recorded it verbatim, so an audit row could name any address the attacker
+/// liked). `lib_backend::client_ip` trusts the headers only from a peer listed in
+/// `TRUSTED_PROXY_CIDRS`, walks the list from the right, and returns something
+/// that is always a valid address — the audit column is a Postgres `inet`.
+fn client_ip_for(peer: SocketAddr, request: &Request<Body>) -> String {
+    let header = |name: &str| request.headers().get(name).and_then(|v| v.to_str().ok());
+    lib_backend::client_ip::client_ip_string(
+        peer.ip(),
+        header("x-forwarded-for"),
+        header("x-real-ip"),
+    )
 }
 
 /// Middleware for security monitoring and alerting
@@ -182,7 +170,7 @@ pub async fn security_monitoring_middleware(
     // one the admin table shows) stayed NULL, so every row displayed `-`.
     // Prefer the forwarded client, and record it in the column built for it.
     // Read BEFORE `next.run` consumes the request.
-    let client_ip = forwarded_client_ip(&request).unwrap_or_else(|| ip.clone());
+    let client_ip = client_ip_for(addr, &request);
 
     // Check for suspicious patterns
     let suspicious_indicators = detect_suspicious_activity(&request, &ip);
@@ -223,11 +211,7 @@ pub async fn security_monitoring_middleware(
 
         // Log authentication attempts
         if state.config.log_auth_attempts && path.contains("/auth/") {
-            let (event_type, status) = match status_code {
-                StatusCode::OK => ("AUTH_SUCCESS", "success"),
-                StatusCode::UNAUTHORIZED => ("AUTH_FAILURE", "failure"),
-                _ => ("AUTH_ATTEMPT", "warning"),
-            };
+            let (event_type, status) = auth_event(&path, status_code);
             state
                 .log_security_event(event_type, status, event_details.clone())
                 .await;
@@ -302,6 +286,31 @@ pub async fn security_monitoring_middleware(
     );
 
     response
+}
+
+/// Audit event name and outcome for a request under `/auth/`.
+///
+/// Most paths are a login/logout/revoke and read as `AUTH_*`. The MFA and
+/// password-change routes are *account-recovery* surface — labelling a backup
+/// code regeneration `AUTH_SUCCESS` would bury it among ordinary logins — so
+/// they get their own event names, and a 400 there (wrong step-up code) is a
+/// failure, not a generic `warning`.
+fn auth_event(path: &str, status: StatusCode) -> (&'static str, &'static str) {
+    let lifecycle = match path {
+        "/api/v1/auth/mfa/backup-codes" => Some("MFA_BACKUP_CODES"),
+        "/api/v1/auth/mfa/setup" | "/api/v1/auth/totp/enable" => Some("MFA_SETUP"),
+        "/api/v1/auth/totp/disable" => Some("MFA_DISABLE"),
+        "/api/v1/auth/me/password" => Some("PASSWORD_CHANGE"),
+        _ => None,
+    };
+    match (lifecycle, status) {
+        (Some(event), s) if s.is_success() => (event, "success"),
+        (Some(event), s) if s.is_client_error() => (event, "failure"),
+        (Some(event), _) => (event, "warning"),
+        (None, StatusCode::OK) => ("AUTH_SUCCESS", "success"),
+        (None, StatusCode::UNAUTHORIZED) => ("AUTH_FAILURE", "failure"),
+        (None, _) => ("AUTH_ATTEMPT", "warning"),
+    }
 }
 
 /// Detect suspicious activity patterns
@@ -556,6 +565,34 @@ mod tests {
         assert!(indicators.contains(&"multiple_proxy_headers".to_string()));
     }
 
+    /// A caller must not be able to choose the address an audit row records.
+    /// With no trusted proxy configured (the default), `X-Forwarded-For` is
+    /// ignored and the TCP peer is what gets attributed — including when the
+    /// header is not an address at all, which used to reach the `inet` column
+    /// and fail the whole audit INSERT.
+    #[tokio::test]
+    async fn forged_forwarding_headers_do_not_choose_the_audited_address() {
+        let peer: SocketAddr = ([203, 0, 113, 9], 4242).into();
+        for forged in [
+            "1.2.3.4",
+            "1.2.3.4, 5.6.7.8",
+            "x",
+            "1.2.3.4:80",
+            "[::1]:1",
+            "",
+        ] {
+            let request = Request::builder()
+                .uri("/api/v1/auth/login")
+                .header("x-forwarded-for", forged)
+                .header("x-real-ip", "9.9.9.9")
+                .body(Body::empty())
+                .unwrap();
+            let got = client_ip_for(peer, &request);
+            assert_eq!(got, "203.0.113.9", "header {forged:?} must not be believed");
+            assert!(got.parse::<std::net::IpAddr>().is_ok());
+        }
+    }
+
     #[tokio::test]
     async fn test_suspicious_activity_no_indicators() {
         let request = Request::builder()
@@ -604,5 +641,57 @@ mod tests {
         let indicators = detect_suspicious_activity(&request, "127.0.0.1");
         // TRACE method should not be flagged as suspicious for health endpoints
         assert!(!indicators.contains(&"trace_method".to_string()));
+    }
+
+    /// Every default monitored MFA path must be one `auth_event` knows by name,
+    /// and the polled `/mfa/status` must stay out of the audit trail.
+    #[test]
+    fn mfa_lifecycle_paths_have_their_own_audit_events() {
+        let config = SecurityMonitoringConfig::default();
+        assert!(
+            !config
+                .monitored_paths
+                .iter()
+                .any(|p| "/api/v1/auth/mfa/status".starts_with(p.as_str())),
+            "/mfa/status is polled; auditing it would drown real events"
+        );
+
+        for (path, event) in [
+            ("/api/v1/auth/mfa/backup-codes", "MFA_BACKUP_CODES"),
+            ("/api/v1/auth/mfa/setup", "MFA_SETUP"),
+            ("/api/v1/auth/totp/enable", "MFA_SETUP"),
+            ("/api/v1/auth/totp/disable", "MFA_DISABLE"),
+            ("/api/v1/auth/me/password", "PASSWORD_CHANGE"),
+        ] {
+            assert!(
+                config
+                    .monitored_paths
+                    .iter()
+                    .any(|p| path.starts_with(p.as_str())),
+                "{path} must be monitored"
+            );
+            assert_eq!(auth_event(path, StatusCode::OK), (event, "success"));
+            assert_eq!(
+                auth_event(path, StatusCode::BAD_REQUEST),
+                (event, "failure"),
+                "a wrong step-up code is a failure of {event}"
+            );
+        }
+    }
+
+    #[test]
+    fn ordinary_auth_paths_keep_the_login_event_names() {
+        assert_eq!(
+            auth_event("/api/v1/auth/login", StatusCode::OK),
+            ("AUTH_SUCCESS", "success")
+        );
+        assert_eq!(
+            auth_event("/api/v1/auth/login", StatusCode::UNAUTHORIZED),
+            ("AUTH_FAILURE", "failure")
+        );
+        assert_eq!(
+            auth_event("/api/v1/auth/login", StatusCode::TOO_MANY_REQUESTS),
+            ("AUTH_ATTEMPT", "warning")
+        );
     }
 }

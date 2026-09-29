@@ -14,6 +14,8 @@ authenc-storage = { path = "../storage" }
 # For `serde_query`: `ExportQuery` flattens `ListAuditLogsQuery`, and flatten
 # strips the type hint serde_urlencoded needs for `page`/`per_page`.
 lib-core = { workspace = true }
+# Trusted-proxy aware client address for admin audit rows (`client_ip`).
+lib-backend = { workspace = true }
 
 # External dependencies (from workspace)
 tokio = { workspace = true }

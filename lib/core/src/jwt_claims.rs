@@ -47,9 +47,35 @@ pub struct Claims {
     #[serde(default)]
     pub satker_nama: Option<String>,
 
-    /// Realm access (roles)
+    /// Realm access (roles).
+    ///
+    /// **This is the only claim any service may authorize on.** When the issuer
+    /// runs with session-scoped role activation
+    /// (`AUTHENC_ACTIVE_ROLE_ENFORCEMENT`), it holds exactly the one role the
+    /// caller activated for this session; otherwise all assigned roles.
     #[serde(default)]
     pub realm_access: Option<RealmAccess>,
+
+    /// Every role the user is *assigned*, whether or not active in this token.
+    ///
+    /// **Display/selection only — never authorize on it.** It exists so a
+    /// frontend can offer the role switcher (NIST RBAC "session": a user
+    /// activates a subset of assigned roles). Authority comes solely from
+    /// [`realm_access`](Self::realm_access), which the server re-derives.
+    #[serde(default)]
+    pub assigned_roles: Vec<String>,
+
+    /// The role activated for this session, when role activation is enforced.
+    #[serde(default)]
+    pub active_role: Option<String>,
+
+    /// Organisational groups the user belongs to, as slash-separated paths from
+    /// the root (`/kejagung/kejati-jakarta/kejari-jakarta-pusat`) — the
+    /// Keycloak group-path convention and the RFC 9068 `groups` claim. Derived
+    /// from the satker hierarchy (Pusat → Wilayah → Satker). Empty unless the
+    /// issuer runs with `AUTHENC_GROUPS_CLAIM`.
+    #[serde(default)]
+    pub groups: Vec<String>,
 
     /// Resource access (client specific roles)
     #[serde(default)]
@@ -166,6 +192,9 @@ mod tests {
             realm_access: Some(RealmAccess {
                 roles: roles.iter().map(|r| r.to_string()).collect(),
             }),
+            assigned_roles: Vec::new(),
+            active_role: None,
+            groups: Vec::new(),
             resource_access: None,
             mfa_enabled: false,
             mfa_setup_required: false,

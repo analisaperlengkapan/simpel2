@@ -114,14 +114,20 @@ NETWORK_PATTERNS = [
     r"network is unreachable",
     r"no route to host",
     r"i/o timeout",
-    r"timed? ?out",  # "timed out" / "timeout"
+    # Frasa timeout TRANSPORT, bukan substring "timeout". Pola `timed? ?out`
+    # sebelumnya cocok dengan NAMA CRATE (`hyper-timeout`, `tokio-io-timeout`
+    # ada di pohon dependensi ini) — sehingga kegagalan deterministik apa pun
+    # yang mencetak pohon itu terbaca "jaringan" dan lolos hijau.
+    r"\btimed out\b",
+    r"timeout was reached",  # libcurl/cargo "[28] Timeout was reached"
     r"operation was canceled",  # reqwest cancellation (koneksi putus)
     r"incomplete message",
     r"unexpected eof",
     r"connection closed before message completed",
     r"tls handshake",
-    r"certificate verify failed",
-    r"schannel",
+    # Kegagalan VERIFIKASI SERTIFIKAT (`certificate verify failed`, `schannel`,
+    # dll.) TIDAK ada di sini: itu kegagalan integritas — bisa MITM atau CA
+    # rusak — bukan ketersediaan. Lihat TLS_INTEGRITY_PATTERNS: RED.
     # HTTP 5xx dari registry / releases API.
     r"http server returned (5\d\d)",
     r"status code (5\d\d)",
@@ -136,16 +142,22 @@ NETWORK_PATTERNS = [
     # hijau palsu.
     r"failed to fetch (from|into|https?://|advisory|index|repository|remote)",
     r"could not resolve host",
-    r"unable to access '",
+    # `unable to access '<url>': <sebab>` — HANYA bila sebabnya transport. Tanpa
+    # syarat itu ia menelan 401/403/404 (repo hilang, izin dicabut) yang
+    # deterministik.
+    r"unable to access '[^']*':\s*(could not resolve host|failed to connect|"
+    r"recv failure|connection (reset|timed out|refused)|operation timed out|"
+    r"empty reply|http/2 stream|the requested url returned error: 5\d\d)",
     r"git protocol error",
     r"remote end hung up",
     r"early eof",
     r"the remote end hung up unexpectedly",
-    # Docker (composer audit menarik image PHP).
-    r"error response from daemon",
-    r"manifest unknown",  # registry tak menjawab / tag hilang sementara
+    # Docker (composer audit menarik image PHP). Hanya galat daemon yang sifatnya
+    # transport/registry-5xx; `manifest unknown` (tag terpin hilang/salah) dan
+    # `pull access denied` PERMANEN, jadi bukan di sini — pemeriksaan yang tak
+    # akan pernah berjalan tidak boleh tampak lulus.
+    r"error response from daemon:\s*(get|head|received unexpected http status)",
     r"failed to resolve source metadata",
-    r"docker: error",
     # Galat unduh yang eksplisit milik alat-alat ini.
     r"could not download",
     r"failed to download",
@@ -155,10 +167,35 @@ NETWORK_PATTERNS = [
     r"failed to fetch advisory",
     r"error updating index",
     r"failed to get (crate|index|registry)",
-    r"crates\.io",
+    # Bukan `crates.io` telanjang: hostname itu tercetak di banner rutin
+    # (`Updating crates.io index`) SETIAP jalan cargo, jadi kegagalan
+    # deterministik (mis. gagal memilih versi) ikut terbaca "jaringan".
     r"spurious network error",
-    r"the lock file needs to be updated but --locked was passed",  # crate baru, index tak terbaca
 ]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Kegagalan INTEGRITAS transport — RED, tanpa retry.
+#
+# Sertifikat TLS yang tidak lolos verifikasi bukan "server tidak menjawab":
+# server menjawab dengan identitas yang tak bisa dipercaya (MITM, CA korporat
+# berubah, sertifikat kedaluwarsa). Menghitungnya hijau berarti penyerang di
+# jalur jaringan bisa membisukan pemeriksaan advisory cukup dengan menyodorkan
+# sertifikat tak sah.
+# ─────────────────────────────────────────────────────────────────────────────
+TLS_INTEGRITY_PATTERNS = [
+    r"certificate verify failed",
+    r"unable to get local issuer certificate",
+    r"self[- ]signed certificate",
+    r"certificate has expired",
+    r"ssl certificate problem",
+    r"invalid peer certificate",
+    r"unknownissuer",
+    r"unknown ca",
+    r"bad certificate",
+    r"certificate (is )?not trusted",
+    r"schannel",
+]
+TLS_INTEGRITY_RE = re.compile("|".join(TLS_INTEGRITY_PATTERNS), re.I)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Pola SETUP/DECISIVE — diperiksa LEBIH DULU, dan menghasilkan RED tanpa retry.
@@ -328,6 +365,12 @@ def classify(output: str, returncode: int, timed_out: bool) -> tuple[str, str]:
     if DECISIVE_RE.search(scrubbed):
         return "RED", "output memuat sinyal temuan/konfigurasi — bukan kegagalan jaringan"
 
+    # Sertifikat yang tak lolos verifikasi = integritas, bukan ketersediaan.
+    # Diperiksa SEBELUM timeout/return-code supaya tak bisa diselamatkan menjadi
+    # hijau oleh jalur mana pun di bawah.
+    if TLS_INTEGRITY_RE.search(output):
+        return "RED", "verifikasi sertifikat TLS gagal — masalah integritas, bukan ketersediaan"
+
     if timed_out:
         return "HANG", "tidak ada jawaban dalam batas waktu"
 
@@ -381,7 +424,19 @@ SELF_TESTS: list[tuple[str, str, int, bool, str]] = [
     ("jaringan: DNS",
      "fatal: unable to access 'https://github.com/rustsec/advisory-db/': "
      "Could not resolve host: github.com", 128, False, "HANG"),
-    ("jaringan: TLS", "error: tls handshake failure: certificate verify failed", 1, False, "HANG"),
+    # Handshake yang putus di tengah = transport (HANG). Sertifikat yang GAGAL
+    # diverifikasi = integritas (RED): server menjawab, tapi identitasnya tak
+    # bisa dipercaya. Menghitungnya hijau membiarkan penyerang di jalur jaringan
+    # membisukan pemeriksaan advisory hanya dengan menyodorkan sertifikat palsu.
+    ("jaringan: TLS handshake terputus",
+     "error: tls handshake eof", 1, False, "HANG"),
+    ("TLS: sertifikat gagal diverifikasi = RED",
+     "error: tls handshake failure: certificate verify failed", 1, False, "RED"),
+    ("TLS: sertifikat self-signed = RED",
+     "fatal: unable to access 'https://github.com/x/y/': SSL certificate problem: "
+     "self signed certificate in certificate chain", 128, False, "RED"),
+    ("TLS: sertifikat + timeout tak bisa diselamatkan jadi hijau",
+     "error: certificate verify failed", 124, True, "RED"),
     ("jaringan: registry 5xx",
      "Error response from daemon: received unexpected HTTP status: 503 Service Unavailable", 1, False, "HANG"),
     ("timeout", "connecting...", 124, True, "HANG"),
@@ -404,6 +459,44 @@ SELF_TESTS: list[tuple[str, str, int, bool, str]] = [
      "error: 1 vulnerability found\n", 1, False, "RED"),
     ("temuan lalu mati karena timeout tetap RED",
      "error: 4 vulnerabilities found!\n", 124, True, "RED"),
+    # ── Regresi FALSE-GREEN (audit PR #930) ───────────────────────────────────
+    # Tiap kasus di bawah adalah kegagalan DETERMINISTIK yang dulu terbaca
+    # "jaringan" dan lolos hijau. Pemeriksaan yang tak pernah berjalan tak boleh
+    # tampak persis seperti pemeriksaan yang lulus.
+    ("banner crates.io + gagal pilih versi = RED",
+     "    Updating crates.io index\n"
+     "error: failed to select a version for the requirement `foo = \"^9\"`\n",
+     101, False, "RED"),
+    ("tag Docker terpin hilang (manifest unknown) = RED",
+     "Unable to find image 'composer:9.9.9' locally\n"
+     "docker: Error response from daemon: manifest unknown: manifest unknown.\n",
+     125, False, "RED"),
+    ("pull access denied = RED",
+     "docker: Error response from daemon: pull access denied for x/y, repository "
+     "does not exist or may require 'docker login'\n", 125, False, "RED"),
+    ("nama crate berisi 'timeout' + galat lain = RED",
+     "hyper-timeout v0.5.2\ntokio-io-timeout v1.2.0\n"
+     "error: failed to load manifest for workspace member `/w/lib/x`\n",
+     101, False, "RED"),
+    ("panic yang menyebut crates.io = RED",
+     "thread 'main' panicked at 'index out of bounds' "
+     "(see https://crates.io/crates/cargo-audit)\n", 101, False, "RED"),
+    ("git 404 (repo hilang) = RED, bukan jaringan",
+     "fatal: unable to access 'https://github.com/x/gone/': "
+     "The requested URL returned error: 404\n", 128, False, "RED"),
+    ("galat daemon non-transport (mount) = RED",
+     "docker: Error response from daemon: invalid mount config for type \"bind\"\n",
+     125, False, "RED"),
+    # Kontrol positif: transport yang SAH tetap HANG setelah penyempitan.
+    ("git 503 = HANG",
+     "fatal: unable to access 'https://github.com/x/y/': "
+     "The requested URL returned error: 503\n", 128, False, "HANG"),
+    ("libcurl [28] Timeout was reached = HANG",
+     "error: failed to download from `https://index.crates.io/config.json`\n"
+     "Caused by: [28] Timeout was reached\n", 101, False, "HANG"),
+    ("docker GET registry putus = HANG",
+     "docker: Error response from daemon: Get \"https://registry-1.docker.io/v2/\": "
+     "net/http: request canceled while waiting for connection\n", 125, False, "HANG"),
 ]
 
 
@@ -456,10 +549,10 @@ def selftest_capture() -> list[str]:
 
     failures: list[str] = []
 
-    def probe(script: str, tmp: str) -> int:
+    def probe(script: str, tmp: str, fail_closed: bool = False) -> int:
         args = argparse.Namespace(
             name="probe-uji", attempts=2, base_delay=0.01, timeout=10,
-            capture=os.path.join(tmp, "report.json"),
+            capture=os.path.join(tmp, "report.json"), hang_is_red=fail_closed,
         )
         return capture(["python3", "-c", script], args)
 
@@ -489,6 +582,20 @@ def selftest_capture() -> list[str]:
                             "hilir akan mem-parse kosong dan merah menyesatkan")
         else:
             print("  ok  capture: jaringan gagal = hijau tanpa berkas")
+
+    # 2b. Kontrol kompensasi: di mode fail-closed (job `schedule`) jaringan yang
+    #     tak pernah menjawab MERAH — kalau tidak, kebijakan "tak ada respons =
+    #     hijau" bisa membisukan pemeriksaan tanpa batas waktu.
+    with tempfile.TemporaryDirectory() as tmp:
+        rc = probe("import sys; sys.stderr.write('error: failed to update advisory database: "
+                   "error sending request: tcp connect error'); sys.exit(1)", tmp,
+                   fail_closed=True)
+        if rc != 1:
+            failures.append(f"capture: rc={rc}, mau 1 saat jaringan gagal di mode fail-closed")
+        elif os.path.exists(os.path.join(tmp, "report.json")):
+            failures.append("capture: berkas ditulis di mode fail-closed")
+        else:
+            print("  ok  capture: mode fail-closed — jaringan gagal = merah")
 
     # 3. Gagal BUKAN karena jaringan → merah, jangan ditelan.
     with tempfile.TemporaryDirectory() as tmp:
@@ -657,10 +764,22 @@ def capture(cmd: list[str], args) -> int:
                   flush=True)
             time.sleep(delay)
 
-    # Tak pernah menjawab: hijau sesuai kebijakan, TAPI berkasnya sengaja tidak
-    # ditulis supaya hilir bisa membedakan "tak bisa diperiksa" dari "bersih".
+    # Tak pernah menjawab. Di mode fail-closed (job `schedule`) itu MERAH; selain
+    # itu hijau sesuai kebijakan, TAPI berkasnya sengaja tidak ditulis supaya
+    # hilir bisa membedakan "tak bisa diperiksa" dari "bersih".
+    if hang_is_red(args):
+        print(f"[{args.name}] tidak ada laporan setelah {args.attempts} percobaan "
+              "— MERAH (mode fail-closed).", file=sys.stderr, flush=True)
+        _write_summary(
+            args.name, "RED",
+            f"Probe tidak pernah mendapat jawaban setelah {args.attempts} percobaan "
+            "dan dijalankan dalam mode **fail-closed** (job terjadwal): pemeriksaan "
+            "yang tak bisa dijalankan tidak boleh tampak lulus.",
+        )
+        return 1
     print(f"[{args.name}] tidak ada laporan setelah {args.attempts} percobaan "
           f"— dihitung hijau (jaringan), berkas tidak ditulis.", flush=True)
+    _annotate_hang(args.name)
     _write_summary(
         args.name, "HANG",
         f"Probe tidak pernah mendapat jawaban setelah {args.attempts} percobaan. "
@@ -669,6 +788,36 @@ def capture(cmd: list[str], args) -> int:
         "jujur — bukan seolah-olah ignore-nya sudah diverifikasi.",
     )
     return 0
+
+
+def hang_is_red(args) -> bool:
+    """Mode fail-closed: pemeriksaan yang tak pernah menjawab dihitung MERAH.
+
+    Kebijakan pemilik repo: tak ada respons = hijau. Kontrol kompensasinya
+    (audit PR #930): job `schedule` harian menjalankan mode ini, sehingga
+    pemeriksaan yang terus-menerus "tak menjawab" tidak bisa membisukan temuan
+    tanpa batas waktu — paling lama satu hari, lalu tampil merah di `main`.
+    Diaktifkan lewat `--hang-is-red` atau `DEP_CHECK_HANG_IS_RED=1` (diset
+    workflow untuk event `schedule`).
+    """
+    return bool(getattr(args, "hang_is_red", False)) or (
+        os.environ.get("DEP_CHECK_HANG_IS_RED", "").strip() == "1"
+    )
+
+
+def _annotate_hang(name: str) -> None:
+    """Anotasi workflow yang TERLIHAT untuk hijau-karena-jaringan.
+
+    Ringkasan step hanya terbaca bila seseorang membukanya; anotasi `warning`
+    muncul di halaman run dan di PR, jadi "hijau" dan "tak pernah berjalan"
+    tidak tampak identik.
+    """
+    print(
+        f"::warning title={name}: tidak pernah mendapat jawaban::"
+        "Dihitung hijau sesuai kebijakan (jaringan), tetapi TIDAK ada temuan "
+        "yang terverifikasi bebas. Jalankan ulang bila butuh kepastian; job "
+        "terjadwal harian berjalan fail-closed."
+    )
 
 
 def _write_summary(name: str, verdict: str, detail: str) -> None:
@@ -691,6 +840,12 @@ def main() -> int:
     ap.add_argument("--base-delay", type=float, default=5.0)
     ap.add_argument("--timeout", type=int, default=300)
     ap.add_argument("--allow-failure", action="store_true")
+    ap.add_argument(
+        "--hang-is-red",
+        action="store_true",
+        help="mode fail-closed: pemeriksaan yang tak pernah menjawab = MERAH "
+             "(juga via DEP_CHECK_HANG_IS_RED=1; dipakai job `schedule`)",
+    )
     ap.add_argument(
         "--capture",
         metavar="PATH",
@@ -747,6 +902,13 @@ def main() -> int:
             delay = args.base_delay * (2 ** (attempt - 1))
             print(f"[{args.name}] mencoba ulang dalam {delay:.0f}s...", flush=True)
             time.sleep(delay)
+
+    # Fail-closed (job `schedule`): tak pernah menjawab = MERAH, bukan hijau.
+    if verdict == "HANG" and hang_is_red(args):
+        verdict = "RED"
+        reason = f"tak pernah menjawab setelah {args.attempts} percobaan ({reason}); mode fail-closed"
+    elif verdict == "HANG":
+        _annotate_hang(args.name)
 
     # ── Ringkasan ────────────────────────────────────────────────────────────
     icons = {"GREEN": "✅ OK", "RED": "❌ FAIL", "HANG": "✅ OK (jaringan)"}

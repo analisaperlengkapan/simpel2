@@ -65,7 +65,7 @@ impl AuthError {
 /// would gain full access and MFA would provide no security.
 const MFA_PENDING_CLAIM: &str = "mfa_pending";
 
-fn claims_are_mfa_pending(claims: &authenc_crypto::jwt::TokenClaims) -> bool {
+pub(crate) fn claims_are_mfa_pending(claims: &authenc_crypto::jwt::TokenClaims) -> bool {
     claims
         .custom
         .get(MFA_PENDING_CLAIM)

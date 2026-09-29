@@ -10,6 +10,7 @@ pub use lib_core::error::{CommonError, Result};
 // Backend modules (always available with tokio)
 pub mod cache;
 pub mod cache_middleware;
+pub mod client_ip;
 pub mod memory;
 
 // Config loading from env

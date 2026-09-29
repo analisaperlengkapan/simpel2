@@ -148,6 +148,23 @@ impl MfaApiError {
         }
     }
 
+    /// A step-up action arrived without the re-authentication code.
+    pub fn step_up_required() -> Self {
+        Self {
+            error: "step_up_required".to_string(),
+            message: "Masukkan kode TOTP saat ini untuk membuat kode pemulihan baru.".to_string(),
+        }
+    }
+
+    /// The account has no MFA factor, so there is nothing to recover or step up.
+    pub fn not_enrolled() -> Self {
+        Self {
+            error: "mfa_not_enrolled".to_string(),
+            message: "MFA belum diaktifkan; aktifkan MFA sebelum membuat kode pemulihan."
+                .to_string(),
+        }
+    }
+
     pub fn internal(msg: impl Into<String>) -> Self {
         Self {
             error: "internal_error".to_string(),
@@ -168,7 +185,9 @@ impl IntoResponse for MfaApiError {
         let status = match self.error.as_str() {
             "unauthorized" => StatusCode::UNAUTHORIZED,
             "mfa_not_configured" => StatusCode::SERVICE_UNAVAILABLE,
-            "invalid_code" => StatusCode::BAD_REQUEST,
+            "invalid_code" | "step_up_required" | "mfa_not_enrolled" | "invalid_action" => {
+                StatusCode::BAD_REQUEST
+            }
             "not_found" => StatusCode::NOT_FOUND,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
@@ -419,6 +438,15 @@ pub async fn totp_verify_handler(
 pub struct BackupCodesRequest {
     /// Action: "generate" or "list"
     pub action: String,
+    /// Current TOTP code (or an unused backup code) — REQUIRED for `generate`.
+    ///
+    /// Regenerating replaces the recovery factor, so it is a step-up action
+    /// (OWASP ASVS V2.8 / NIST SP 800-63B §4.2.3 re-authentication): a bearer
+    /// access token alone — stolen from `localStorage`, an XSS, an unlocked
+    /// laptop — must not be enough to mint a fresh set of codes that outlives
+    /// the token. `list` only reveals a count and needs no step-up.
+    #[serde(default)]
+    pub code: Option<String>,
 }
 
 /// Response for backup codes operations
@@ -431,6 +459,15 @@ pub struct BackupCodesResponse {
     pub remaining: i32,
     /// Success message
     pub message: String,
+}
+
+/// The step-up code from a request body, or `None` when it is absent or blank.
+///
+/// Surrounding whitespace is dropped (authenticator apps group digits, users
+/// paste them with a trailing space); an all-blank string is "no code", not a
+/// code to be checked and rejected as `invalid_code`.
+fn step_up_code(code: Option<&str>) -> Option<&str> {
+    code.map(str::trim).filter(|c| !c.is_empty())
 }
 
 /// Recovery code verification request
@@ -447,15 +484,40 @@ pub struct RecoveryVerifyRequest {
 /// is ignored: reading the credential from the body is not a credential path
 /// this service supports, and `extract_user_from_token` only ever consults the
 /// header — which is why the frontend used to see a bare 401 here.
+///
+/// `generate` is a step-up action: it needs `code` (a current TOTP code) in the
+/// body in addition to the bearer token, and the audit row records the outcome
+/// against the authenticated user whether or not the code was right.
 pub async fn mfa_backup_codes_handler(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
     Json(request): Json<BackupCodesRequest>,
-) -> Result<Json<BackupCodesResponse>, MfaApiError> {
-    let user_id = auth_helpers::extract_user_from_token(&state, &headers)
-        .await
-        .map_err(|e| MfaApiError::unauthorized(e.message))?;
+) -> Response {
+    let user_id = match auth_helpers::extract_user_from_token(&state, &headers).await {
+        Ok(user_id) => user_id,
+        Err(e) => return MfaApiError::unauthorized(e.message).into_response(),
+    };
 
+    let mut response = match backup_codes_for(&state, user_id, request).await {
+        Ok(body) => body.into_response(),
+        Err(e) => e.into_response(),
+    };
+    // Attribute the audit row (`MFA_BACKUP_CODES`, success or failure) to the
+    // verified caller — see `AuthenticatedActor`.
+    response
+        .extensions_mut()
+        .insert(crate::middleware::security::AuthenticatedActor {
+            user_id: user_id.to_string(),
+            client_id: None,
+        });
+    response
+}
+
+async fn backup_codes_for(
+    state: &ApiState,
+    user_id: Uuid,
+    request: BackupCodesRequest,
+) -> Result<Json<BackupCodesResponse>, MfaApiError> {
     let mfa_service = state
         .mfa_service
         .as_ref()
@@ -463,6 +525,17 @@ pub async fn mfa_backup_codes_handler(
 
     match request.action.as_str() {
         "generate" => {
+            // Backup codes only mean something next to an enrolled factor; and
+            // without one there is nothing to step up *with*.
+            if !mfa_service.get_status(user_id).await?.enabled {
+                return Err(MfaApiError::not_enrolled());
+            }
+            let code =
+                step_up_code(request.code.as_deref()).ok_or_else(MfaApiError::step_up_required)?;
+            // A wrong code surfaces as `invalid_code` (400) — never a 401, which
+            // the portal reads as "session expired" and answers with a logout.
+            mfa_service.verify_code(user_id, code).await?;
+
             let codes = mfa_service.generate_backup_codes(user_id).await?;
             let remaining = codes.len() as i32;
             Ok(Json(BackupCodesResponse {
@@ -639,5 +712,49 @@ mod tests {
 
         let err = MfaApiError::unauthorized("bad token");
         assert_eq!(err.error, "unauthorized");
+    }
+
+    /// Regenerating backup codes replaces the recovery factor, so the request
+    /// must be able to carry the step-up code — and must stay parseable without
+    /// it, because `list` never sends one.
+    #[test]
+    fn backup_codes_request_carries_an_optional_step_up_code() {
+        let list: BackupCodesRequest = serde_json::from_str(r#"{"action":"list"}"#).unwrap();
+        assert!(list.code.is_none());
+
+        let generate: BackupCodesRequest =
+            serde_json::from_str(r#"{"action":"generate","code":"123456"}"#).unwrap();
+        assert_eq!(generate.code.as_deref(), Some("123456"));
+    }
+
+    #[test]
+    fn a_blank_step_up_code_counts_as_missing() {
+        assert_eq!(step_up_code(None), None);
+        assert_eq!(step_up_code(Some("")), None);
+        assert_eq!(step_up_code(Some("   \t")), None);
+        assert_eq!(step_up_code(Some(" 123456 ")), Some("123456"));
+    }
+
+    /// A missing code / missing enrolment are the caller's mistake (400). They
+    /// must NOT be 401: the portal answers 401 with "session expired → log out",
+    /// which would turn a forgotten field into a forced logout.
+    #[test]
+    fn step_up_failures_are_bad_requests_not_unauthorized() {
+        for err in [
+            MfaApiError::step_up_required(),
+            MfaApiError::not_enrolled(),
+            MfaApiError::invalid_code(),
+        ] {
+            let code = err.error.clone();
+            assert_eq!(
+                err.into_response().status(),
+                StatusCode::BAD_REQUEST,
+                "'{code}' must be a 400"
+            );
+        }
+        assert_eq!(
+            MfaApiError::unauthorized("x").into_response().status(),
+            StatusCode::UNAUTHORIZED
+        );
     }
 }

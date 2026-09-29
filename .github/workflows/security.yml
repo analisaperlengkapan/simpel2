@@ -24,6 +24,12 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # Kontrol kompensasi untuk kebijakan "pemeriksaan dependency yang tak pernah
+  # menjawab = hijau" (infra/scripts/retry-dependency-check.py): di job TERJADWAL
+  # harian, tak pernah menjawab = MERAH. Di PR/push tetap hijau (dengan
+  # anotasi ::warning::), tetapi tak bisa bertahan lebih dari sehari tanpa
+  # tampil merah di `main`.
+  DEP_CHECK_HANG_IS_RED: ${{ github.event_name == 'schedule' && '1' || '0' }}
 
 jobs:
   # ── Blocking checks ─────────────────────────────────
@@ -71,16 +77,31 @@ jobs:
             git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           for attempt in 1 2 3 4 5; do
             echo "::group::repair attempt ${attempt}/5"
-            git fetch --prune --no-tags origin '+refs/heads/*:refs/remotes/origin/*' && rc=0 || rc=$?
+            # Branches carry the history; the reviewed commit is fetched by SHA
+            # ON TOP of that. On `pull_request`, GITHUB_SHA is the synthetic
+            # merge commit (refs/pull/N/merge) which is not under refs/heads/*;
+            # relying on the server happening to include it in the pack is luck,
+            # so ask for it explicitly. (Verified against this repo's own PR
+            # merge ref: fetch-by-SHA succeeds.)
+            if git fetch --prune --no-tags origin '+refs/heads/*:refs/remotes/origin/*' \
+               && git fetch --no-tags origin "${GITHUB_SHA}"; then
+              rc=0
+            else
+              rc=$?
+            fi
             echo "::endgroup::"
             if [ "$rc" -eq 0 ]; then
               echo "fetch repaired on attempt ${attempt}"
               # Fetching refs alone leaves no working tree; the scanner reads
               # files literally, so check the reviewed commit out by SHA. Without
               # this the scan would run against a partial tree and could report
-              # "no findings" for code it never read.
-              git checkout -f --detach "${GITHUB_SHA}"
-              exit 0
+              # "no findings" for code it never read. This step runs without
+              # `set -e`, so a failed checkout must be caught HERE — falling
+              # through to `exit 0` would report a repaired tree that is empty.
+              if git checkout -f --detach "${GITHUB_SHA}"; then
+                exit 0
+              fi
+              echo "::warning::checkout of ${GITHUB_SHA} failed after a successful fetch"
             fi
             sleep $((attempt * 10))
           done
