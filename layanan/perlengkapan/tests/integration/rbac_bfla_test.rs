@@ -859,3 +859,466 @@ async fn a_token_cannot_assert_the_internal_system_role() {
     );
     teardown_test_db(&db_name).await;
 }
+
+// ---------------------------------------------------------------------------
+// Export: rows are confined to the caller's satker; jobs belong to their owner
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn an_export_contains_only_the_callers_own_satker() {
+    use layanan_perlengkapan::export::models::ExportQuery;
+    use layanan_perlengkapan::shared::satker_scope::SatkerScope;
+
+    let (app, db, db_name) = setup_test_app().await;
+    let _server = TestServer::new(app);
+    let client = db.pool().get().await.unwrap();
+    for (nip, nama, satker) in [
+        ("198501012010011001", "Pegawai A", "SKR001"),
+        ("198501012010011002", "Pegawai B", "SKR002"),
+    ] {
+        client
+            .execute(
+                "INSERT INTO perlengkapan.pegawai_pakaian_dinas (nip, nama, ukuran_baju, kode_satker, status)
+                 VALUES ($1, $2, 'L', $3, 'ACTIVE')",
+                &[&nip, &nama, &satker],
+            )
+            .await
+            .unwrap();
+    }
+
+    let query = |scope: SatkerScope| ExportQuery {
+        entity_type: "pakaian_dinas".to_string(),
+        filters: None,
+        limit: Some(100),
+        tahun_anggaran: None,
+        satker_id: None,
+        status: None,
+        scope,
+    };
+    let nips = |rows: Vec<Value>| -> Vec<String> {
+        rows.iter()
+            .map(|r| r["nip"].as_str().unwrap().to_string())
+            .collect()
+    };
+
+    // A satker-tier caller gets their own employees, and nobody else's.
+    let own = nips(
+        db.export_rows(&query(SatkerScope::Satker("SKR001".into())))
+            .await
+            .unwrap(),
+    );
+    assert_eq!(own, vec!["198501012010011001"]);
+
+    // No identity → nothing (the fail-closed default), not everything.
+    let none = db.export_rows(&query(SatkerScope::Denied)).await.unwrap();
+    assert!(
+        none.is_empty(),
+        "a denied scope must export nothing: {none:?}"
+    );
+
+    // A cross-satker role sees both.
+    let all = nips(db.export_rows(&query(SatkerScope::All)).await.unwrap());
+    assert_eq!(all.len(), 2);
+
+    drop(client);
+    teardown_test_db(&db_name).await;
+}
+
+#[tokio::test]
+async fn an_export_job_is_only_visible_to_its_owner_or_an_administrator() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+
+    // The unscopable legacy entities are cross-satker only.
+    let r = call(
+        &server,
+        "GET",
+        "/export/excel?entity_type=roadmap_sarpras",
+        "operator_satker",
+        OPERATOR,
+        None,
+    )
+    .await;
+    assert_eq!(
+        r.status_code(),
+        403,
+        "operator roadmap export: {:?}",
+        r.text()
+    );
+    let r = call(
+        &server,
+        "GET",
+        "/export/excel?entity_type=riwayat_pemenuhan&limit=5000",
+        "operator_satker",
+        OPERATOR,
+        None,
+    )
+    .await;
+    assert!(
+        r.status_code() == 403 || r.status_code() == 202,
+        "{}: {:?}",
+        r.status_code(),
+        r.text()
+    );
+
+    // Queue a large job as the operator...
+    let r = call(
+        &server,
+        "GET",
+        "/export/excel?entity_type=kebutuhan_bmn&limit=5000",
+        "operator_satker",
+        OPERATOR,
+        None,
+    )
+    .await;
+    assert_eq!(r.status_code(), 202, "queue: {:?}", r.text());
+    let job = r.json::<Value>()["job_id"].as_str().unwrap().to_string();
+
+    // ...someone else cannot see it, download it, or tell it exists...
+    for path in [
+        format!("/export/jobs/{job}/status"),
+        format!("/export/jobs/{job}/download"),
+    ] {
+        let r = call(&server, "GET", &path, "operator_satker", VALIDATOR, None).await;
+        assert_eq!(r.status_code(), 404, "stranger on {path}: {:?}", r.text());
+    }
+    // ...the owner and an administrator can.
+    let r = call(
+        &server,
+        "GET",
+        &format!("/export/jobs/{job}/status"),
+        "operator_satker",
+        OPERATOR,
+        None,
+    )
+    .await;
+    assert_eq!(r.status_code(), 200, "owner status: {:?}", r.text());
+    let r = call(
+        &server,
+        "GET",
+        &format!("/export/jobs/{job}/status"),
+        "admin",
+        ADMIN,
+        None,
+    )
+    .await;
+    assert_eq!(r.status_code(), 200, "admin status: {:?}", r.text());
+
+    teardown_test_db(&db_name).await;
+}
+
+// ---------------------------------------------------------------------------
+// Kebutuhan BMN: who may write what
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn kebutuhan_writes_have_owners() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let id = uuid::Uuid::new_v4();
+
+    // The campaign (periode RKBMN) is validator_pusat's to author, change,
+    // delete and populate. update/delete/add-satker had no check at all.
+    for role in ["operator_satker", "validator_wilayah", "admin"] {
+        for (method, path, body) in [
+            (
+                "PUT",
+                format!("/kebutuhan-bmn/pengajuan/{id}"),
+                Some(json!({"nama": "Nama baru", "version": 1})),
+            ),
+            (
+                "POST",
+                format!("/kebutuhan-bmn/pengajuan/{id}/satker"),
+                Some(json!({"satker_id": "SKR001"})),
+            ),
+        ] {
+            let r = call(&server, method, &path, role, VALIDATOR, body).await;
+            assert_eq!(
+                r.status_code(),
+                403,
+                "{role} {method} {path}: {:?}",
+                r.text()
+            );
+        }
+        let mut req = server.delete(&format!("/kebutuhan-bmn/pengajuan/{id}"));
+        for (k, v) in auth_headers(role, VALIDATOR, SATKER) {
+            req = req.add_header(k, v);
+        }
+        let r = req.await;
+        assert_eq!(
+            r.status_code(),
+            403,
+            "{role} delete campaign: {:?}",
+            r.text()
+        );
+    }
+
+    // The satker's line items are entered by that satker's operator.
+    for role in ["validator_pusat", "validator_wilayah", "admin"] {
+        let r = call(
+            &server,
+            "POST",
+            &format!("/kebutuhan-bmn/satker/{id}/barang"),
+            role,
+            PUSAT,
+            Some(json!({"nama": "Meja", "jumlah": 1})),
+        )
+        .await;
+        assert_eq!(r.status_code(), 403, "{role} adds barang: {:?}", r.text());
+    }
+
+    // The verdict on them (`jml_setuju`) and the ranking are the validators' — and
+    // nobody else's, an operator least of all.
+    for role in ["operator_satker", "admin", "approver_satker"] {
+        let r = call(
+            &server,
+            "PUT",
+            &format!("/kebutuhan-bmn/barang/{id}/approval"),
+            role,
+            OPERATOR,
+            Some(json!({"jml_setuju": 1})),
+        )
+        .await;
+        assert_eq!(
+            r.status_code(),
+            403,
+            "{role} sets jml_setuju: {:?}",
+            r.text()
+        );
+        let r = call(
+            &server,
+            "POST",
+            "/kebutuhan-bmn/prioritas",
+            role,
+            OPERATOR,
+            Some(json!({"items": []})),
+        )
+        .await;
+        assert_eq!(
+            r.status_code(),
+            403,
+            "{role} sets prioritas: {:?}",
+            r.text()
+        );
+    }
+
+    // The bulk endpoints reached the engine with no handler-side check.
+    for role in ["approver_satker", "admin", "validator_satker"] {
+        for path in ["approve", "reject", "update-status"] {
+            let r = call(&server, "POST", &format!("/kebutuhan-bmn/batch/{path}"), role, OPERATOR,
+                Some(json!({"kebutuhan_ids": [id], "target_status": 2003, "komentar": "Alasan yang cukup panjang"}))).await;
+            assert_eq!(r.status_code(), 403, "{role} batch {path}: {:?}", r.text());
+        }
+    }
+    teardown_test_db(&db_name).await;
+}
+
+#[tokio::test]
+async fn pakaian_roster_writes_are_the_operators() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let id = uuid::Uuid::new_v4();
+
+    for role in ["validator_pusat", "validator_wilayah", "admin"] {
+        let r = call(
+            &server,
+            "POST",
+            "/pakaian-dinas/pegawai-profile",
+            role,
+            PUSAT,
+            Some(json!({"nip": "198501012010011001", "kode_satker": "SKR001"})),
+        )
+        .await;
+        assert_eq!(
+            r.status_code(),
+            403,
+            "{role} profile upsert: {:?}",
+            r.text()
+        );
+        let r = call(
+            &server,
+            "POST",
+            "/pakaian-dinas/pegawai-profile/bulk",
+            role,
+            PUSAT,
+            Some(json!([])),
+        )
+        .await;
+        assert_eq!(r.status_code(), 403, "{role} bulk upsert: {:?}", r.text());
+        let r = call(
+            &server,
+            "PUT",
+            &format!("/pakaian-dinas/pengajuan/{id}/satker/SKR001/pegawai/198501012010011001"),
+            role,
+            PUSAT,
+            Some(json!({"with_hijab": false, "ukuran": []})),
+        )
+        .await;
+        assert_eq!(r.status_code(), 403, "{role} sizes: {:?}", r.text());
+    }
+    teardown_test_db(&db_name).await;
+}
+
+// ---------------------------------------------------------------------------
+// Data that cannot be confined to a satker is for the roles that see all of them
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn national_analytics_and_monitoring_are_not_for_everyone() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+
+    for path in [
+        "/forecast",
+        "/forecast/summary",
+        "/forecast/compare",
+        "/forecast/export",
+    ] {
+        let r = call(&server, "GET", path, "operator_satker", OPERATOR, None).await;
+        assert_eq!(r.status_code(), 403, "operator {path}: {:?}", r.text());
+    }
+    for path in [
+        "/workflow/monitoring/metrics",
+        "/workflow/monitoring/active",
+        "/workflow/monitoring/sla-breaches",
+        "/workflow/monitoring/bottlenecks",
+    ] {
+        for role in ["operator_satker", "validator_wilayah"] {
+            let r = call(&server, "GET", path, role, OPERATOR, None).await;
+            assert_eq!(r.status_code(), 403, "{role} {path}: {:?}", r.text());
+        }
+        let r = call(&server, "GET", path, "admin", ADMIN, None).await;
+        assert_eq!(r.status_code(), 200, "admin {path}: {:?}", r.text());
+    }
+    teardown_test_db(&db_name).await;
+}
+
+#[tokio::test]
+async fn an_analysis_belongs_to_the_satker_that_wrote_it() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let body = json!({
+        "judul": "Analisis milik SKR001", "kategori": "TIK", "prioritas": "tinggi",
+        "estimasi_biaya": 1000000, "justifikasi": "Perangkat sudah usang"
+    });
+
+    // Written by an operator of SKR001...
+    let mut req = server.post("/analisis").json(&body);
+    for (k, v) in auth_headers("operator_satker", OPERATOR, "SKR001") {
+        req = req.add_header(k, v);
+    }
+    let created = req.await;
+    assert_eq!(created.status_code(), 201, "create: {:?}", created.text());
+    let id = created.json::<Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    // ...not by anyone else.
+    let r = call(
+        &server,
+        "POST",
+        "/analisis",
+        "validator_pusat",
+        PUSAT,
+        Some(body.clone()),
+    )
+    .await;
+    assert_eq!(r.status_code(), 403, "pusat create: {:?}", r.text());
+
+    let get_as = |role: &'static str, user: &'static str, satker: &'static str, path: String| {
+        let server = &server;
+        async move {
+            let mut req = server.get(&path);
+            for (k, v) in auth_headers(role, user, satker) {
+                req = req.add_header(k, v);
+            }
+            req.await
+        }
+    };
+
+    // An operator of another satker neither lists it nor reads it by id.
+    let r = get_as(
+        "operator_satker",
+        VALIDATOR,
+        "SKR002",
+        "/analisis?page=1&per_page=50".into(),
+    )
+    .await;
+    assert_eq!(r.status_code(), 200);
+    assert!(
+        r.json::<Value>()["data"].as_array().unwrap().is_empty(),
+        "leaked into SKR002's list"
+    );
+    let r = get_as(
+        "operator_satker",
+        VALIDATOR,
+        "SKR002",
+        format!("/analisis/{id}"),
+    )
+    .await;
+    assert_eq!(r.status_code(), 404, "other satker by id: {:?}", r.text());
+
+    // The owner and a cross-satker role do.
+    let r = get_as(
+        "operator_satker",
+        OPERATOR,
+        "SKR001",
+        "/analisis?page=1&per_page=50".into(),
+    )
+    .await;
+    assert_eq!(r.json::<Value>()["data"].as_array().unwrap().len(), 1);
+    let r = get_as(
+        "validator_pusat",
+        PUSAT,
+        "PUSAT001",
+        format!("/analisis/{id}"),
+    )
+    .await;
+    assert_eq!(r.status_code(), 200, "pusat by id: {:?}", r.text());
+    teardown_test_db(&db_name).await;
+}
+
+// ---------------------------------------------------------------------------
+// Stored links and uploaded files
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn a_stored_document_link_must_be_a_web_url() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let id = create_permit(&server).await;
+
+    // `javascript:` stored as a link runs when the reviewing validator clicks it.
+    for bad in [
+        "javascript:alert(document.cookie)",
+        "data:text/html;base64,PHNjcmlwdD4=",
+        "file:///etc/passwd",
+        "//evil.example/x.pdf",
+    ] {
+        let r = call(
+            &server,
+            "POST",
+            &format!("/pemakaian-bmn/{id}/upload-signed-pdf"),
+            "operator_satker",
+            OPERATOR,
+            Some(json!({"signed_pdf_url": bad})),
+        )
+        .await;
+        assert_eq!(r.status_code(), 400, "{bad}: {:?}", r.text());
+    }
+    // (A well-formed URL passes validation; whether the permit is in a state to
+    // receive it is a separate, later check.)
+    let r = call(
+        &server,
+        "POST",
+        &format!("/pemakaian-bmn/{id}/upload-signed-pdf"),
+        "operator_satker",
+        OPERATOR,
+        Some(json!({"signed_pdf_url": "https://storage.example.com/s.pdf"})),
+    )
+    .await;
+    assert_ne!(r.status_code(), 403, "{:?}", r.text());
+    assert_ne!(r.status_code(), 401);
+    teardown_test_db(&db_name).await;
+}

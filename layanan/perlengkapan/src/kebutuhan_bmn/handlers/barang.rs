@@ -26,6 +26,9 @@ pub async fn create_barang(
     claims: Claims,
     Json(request): Json<CreateBarangRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<PengajuanKebutuhanBmnBarang>>), AppError> {
+    // The satker's own operator fills in the requested items — no other role,
+    // and no other satker (the scoped read in the service settles that).
+    claims.require_role("operator_satker")?;
     info!("Creating barang for satker {}: {}", satker_id, request.nama);
 
     let user_id = Some(claims.user_id);
@@ -56,11 +59,20 @@ pub async fn update_barang_approval(
     claims: Claims,
     Json(request): Json<UpdateBarangApprovalRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmnBarang>>, AppError> {
+    // `jml_setuju` is the validators' verdict on what a satker asked for. It had no
+    // role check and no scope: any authenticated caller could set the approved
+    // quantity of any satker's line item.
+    claims.require_any_role(&["validator_wilayah", "validator_pusat"])?;
     info!("Updating barang approval: {}", barang_id);
 
     let user_id = Some(claims.user_id);
     let barang = service
-        .update_barang_approval(barang_id, request, user_id)
+        .update_barang_approval(
+            barang_id,
+            request,
+            user_id,
+            &SatkerScope::from_claims(&claims),
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -75,6 +87,7 @@ pub async fn delete_barang(
     Path(barang_id): Path<Uuid>,
     claims: Claims,
 ) -> Result<Json<ApiResponse<()>>, AppError> {
+    claims.require_role("operator_satker")?;
     info!("Deleting barang: {}", barang_id);
 
     let user_id = Some(claims.user_id);
@@ -95,13 +108,18 @@ pub async fn set_barang_prioritas(
     claims: Claims,
     Json(request): Json<SetPrioritasRequest>,
 ) -> Result<Json<ApiResponse<()>>, AppError> {
+    // Ranking what gets funded is the validators' call, and only over the
+    // satkers they may see (each item is checked against the scope below).
+    claims.require_any_role(&["validator_wilayah", "validator_pusat"])?;
     info!(
         "Setting prioritas for {} items by user {}",
         request.items.len(),
         claims.user_id
     );
 
-    service.set_barang_prioritas(request).await?;
+    service
+        .set_barang_prioritas(request, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         (),

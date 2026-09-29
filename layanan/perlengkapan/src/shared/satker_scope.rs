@@ -71,6 +71,13 @@ pub enum SatkerScope {
 }
 
 impl SatkerScope {
+    /// The fail-closed scope: sees nothing. The `Default` for anything that must
+    /// be filled in from the caller's claims and is not — a forgotten scope then
+    /// yields zero rows instead of every row.
+    pub fn denied() -> Self {
+        Self::Denied
+    }
+
     /// Derive the visibility scope from the authenticated caller's claims.
     pub fn from_claims(claims: &Claims) -> Self {
         if claims.is_cross_satker_role() {

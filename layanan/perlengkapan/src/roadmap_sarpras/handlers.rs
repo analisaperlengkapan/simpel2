@@ -1,6 +1,12 @@
 //! Predictive Analytics HTTP handlers
 //!
 //! All endpoints are GET-only (read-only forecast dashboard).
+//!
+//! The forecast is computed over `roadmap_sarpras`, which is keyed by a legacy
+//! satker *uuid* that no claim carries — so it cannot be confined to a satker.
+//! It is the national picture, and is therefore for callers who may see every
+//! satker (`Capability::ViewAllSatker`). No frontend calls it, and before this it
+//! answered anyone authenticated, with `satker_id` as a client-chosen filter.
 
 use axum::{
     Json,
@@ -24,8 +30,9 @@ use super::services::RoadmapService;
 pub async fn get_forecast(
     State(service): State<RoadmapService>,
     Query(query): Query<ForecastQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
+    claims.require_capability(lib_core::authz::Capability::ViewAllSatker)?;
     let request = query.into_request();
     let result = service.generate_forecast(request).await?;
     Ok(Json(result))
@@ -37,8 +44,9 @@ pub async fn get_forecast(
 pub async fn get_forecast_summary(
     State(service): State<RoadmapService>,
     Query(query): Query<ForecastSummaryQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
+    claims.require_capability(lib_core::authz::Capability::ViewAllSatker)?;
     let summary = service
         .get_summary(query.satker_id, query.kode_barang.as_deref())
         .await?;
@@ -51,8 +59,9 @@ pub async fn get_forecast_summary(
 pub async fn get_forecast_compare(
     State(service): State<RoadmapService>,
     Query(query): Query<ForecastCompareQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
+    claims.require_capability(lib_core::authz::Capability::ViewAllSatker)?;
     let current_request = lib_perlengkapan::models::ForecastRequest {
         satker_id: query.satker_id,
         kode_barang: query.kode_barang.clone(),
@@ -82,8 +91,9 @@ pub async fn get_forecast_compare(
 pub async fn export_forecast(
     State(service): State<RoadmapService>,
     Query(query): Query<ForecastExportQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
+    claims.require_capability(lib_core::authz::Capability::ViewAllSatker)?;
     let csv_bytes = service
         .export_csv(query.satker_id, query.kode_barang.as_deref())
         .await?;

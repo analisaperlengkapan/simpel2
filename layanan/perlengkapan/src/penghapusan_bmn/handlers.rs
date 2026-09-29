@@ -91,6 +91,10 @@ pub async fn create_penghapusan_bmn(
     // authenticated caller — a validator, a caller from another satker — could
     // create one; the policy's `Create` action existed and was never consulted.
     claims.require_any_role(&["operator_satker"])?;
+    crate::shared::upload::validate_document_url(
+        "lampiran_persyaratan",
+        &request.lampiran_persyaratan,
+    )?;
 
     // Derive the authoritative satker from identity (#66), not from client input,
     // and confine the SIMAN lookup to the caller's own satker's assets.
@@ -522,6 +526,8 @@ pub async fn upload_signed_sk(
     Json(body): Json<UploadSignedSKRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     claims.require_any_role(PenghapusanBmnStatus::SKSigned.actor_roles())?;
+    // Stored and later rendered as a link for other users: web URLs only.
+    crate::shared::upload::validate_document_url("signed_sk_pdf_url", &body.signed_sk_pdf_url)?;
     let penghapusan = service
         .upload_signed_sk(
             id,
@@ -556,7 +562,20 @@ pub async fn upload_lampiran(
     // Verifikasi entity ada DAN dalam scope pemanggil — lookup ini juga
     // memastikan FK constraint nantinya tidak gagal di insert.
     let scope = SatkerScope::from_claims(&claims);
-    let _existing = service.get_by_id(id, &scope).await?;
+    let existing = service.get_by_id(id, &scope).await?;
+
+    // Lampiran adalah bagian dari usulan yang disusun OPERATOR satker, dan hanya
+    // selama usulan masih di tangannya. Sebelumnya tak ada cek peran maupun state:
+    // validator (scope wilayah/pusat) — atau siapa pun dalam scope — bisa
+    // menambah berkas ke usulan yang sedang diperiksa.
+    claims.require_role("operator_satker")?;
+    if !matches!(existing.status.as_str(), "DRAFT" | "RETURNED_TO_OPERATOR") {
+        return Err(AppError::Conflict(format!(
+            "Lampiran hanya dapat ditambahkan saat usulan berstatus Draft atau Dikembalikan (status saat ini: {})",
+            existing.status
+        )));
+    }
+    let mut files_seen = 0usize;
 
     // Presigned URL TTL: 1 tahun. FilesystemStorage abaikan TTL & emit
     // static URL; S3 adapter akan rotate sendiri.
@@ -583,6 +602,27 @@ pub async fn upload_lampiran(
         let size = bytes.len() as i64;
         let safe_name = sanitize_filename(&original_name);
 
+        // Content decides what a file is, not the client's label (see
+        // `shared::upload`): allowlisted extension, matching magic bytes, a size
+        // ceiling, a per-request file cap — and the stored `Content-Type` is the
+        // one WE derive. Unknown form fields are skipped, not validated.
+        let validated = if matches!(field_name.as_str(), "surat_usulan" | "lampiran") {
+            files_seen += 1;
+            if files_seen > crate::shared::upload::MAX_FILES_PER_REQUEST {
+                return Err(AppError::BadRequest(format!(
+                    "Maksimal {} file per unggahan",
+                    crate::shared::upload::MAX_FILES_PER_REQUEST
+                )));
+            }
+            Some(crate::shared::upload::validate_upload(
+                &original_name,
+                content_type.as_deref(),
+                &bytes,
+            )?)
+        } else {
+            None
+        };
+
         match field_name.as_str() {
             "surat_usulan" => {
                 let key = format!(
@@ -591,14 +631,12 @@ pub async fn upload_lampiran(
                     Uuid::new_v4(),
                     safe_name
                 );
+                let stored_type = validated
+                    .as_ref()
+                    .map(|v| v.content_type)
+                    .unwrap_or("application/octet-stream");
                 let handle = storage
-                    .put(
-                        &key,
-                        bytes,
-                        content_type
-                            .as_deref()
-                            .unwrap_or("application/octet-stream"),
-                    )
+                    .put(&key, bytes, stored_type)
                     .await
                     .map_err(|e| AppError::Internal(format!("Storage put: {}", e)))?;
                 let url = storage
@@ -615,14 +653,12 @@ pub async fn upload_lampiran(
                     Uuid::new_v4(),
                     safe_name
                 );
+                let stored_type = validated
+                    .as_ref()
+                    .map(|v| v.content_type)
+                    .unwrap_or("application/octet-stream");
                 let handle = storage
-                    .put(
-                        &key,
-                        bytes,
-                        content_type
-                            .as_deref()
-                            .unwrap_or("application/octet-stream"),
-                    )
+                    .put(&key, bytes, stored_type)
                     .await
                     .map_err(|e| AppError::Internal(format!("Storage put: {}", e)))?;
                 let url = storage
@@ -635,7 +671,7 @@ pub async fn upload_lampiran(
                         LampiranUpload {
                             nama: &original_name,
                             file_url: &url,
-                            content_type: content_type.as_deref(),
+                            content_type: validated.as_ref().map(|v| v.content_type),
                             size_bytes: Some(size),
                             uploaded_by: Some(claims.user_id),
                         },
@@ -728,6 +764,7 @@ pub async fn upload_signed_sk_wilayah(
     Json(body): Json<UploadSignedSKRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     require_validator_wilayah(&claims)?;
+    crate::shared::upload::validate_document_url("signed_sk_pdf_url", &body.signed_sk_pdf_url)?;
     let penghapusan = service
         .upload_signed_sk_wilayah(
             id,

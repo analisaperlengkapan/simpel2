@@ -400,6 +400,8 @@ pub async fn upload_signed_pdf(
         PemakaianBmnAction::UploadSigned,
         Some(permit_now.status.as_str()),
     )?;
+    // Stored and later served as a link: web URLs only (no `javascript:`/`file:`).
+    crate::shared::upload::validate_document_url("signed_pdf_url", &body.signed_pdf_url)?;
     let permit = service
         .upload_signed_pdf(id, body.signed_pdf_url, claims.user_id, &scope)
         .await?;

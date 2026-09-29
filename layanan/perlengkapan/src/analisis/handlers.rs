@@ -13,15 +13,22 @@ use super::services::AnalisisService;
 use crate::shared::error::AppError;
 use crate::shared::middleware::Claims;
 use crate::shared::pagination::PaginationQuery;
+use crate::shared::satker_scope::SatkerScope;
 
 pub async fn get_all_analisis(
     State(service): State<AnalisisService>,
     Query(pagination): Query<PaginationQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<PaginatedResponse<AnalisisKebutuhan>>, AppError> {
     pagination.validate()?;
+    // Own satker for the satker tier, the wilayah for validator_wilayah, all for
+    // cross-satker roles. This list used to be the whole country's, for anyone.
     let (analisis, total) = service
-        .get_all_analisis(pagination.page, pagination.per_page)
+        .get_all_analisis(
+            pagination.page,
+            pagination.per_page,
+            &SatkerScope::from_claims(&claims),
+        )
         .await?;
 
     Ok(Json(PaginatedResponse::new(
@@ -36,9 +43,11 @@ pub async fn get_all_analisis(
 pub async fn get_analisis_by_id(
     State(service): State<AnalisisService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<AnalisisKebutuhan>>, AppError> {
-    let analisis = service.get_analisis_by_id(id).await?;
+    let analisis = service
+        .get_analisis_by_id(id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         analisis,
@@ -51,8 +60,13 @@ pub async fn create_analisis(
     claims: Claims,
     Json(request): Json<CreateAnalisisRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<AnalisisKebutuhan>>), AppError> {
+    // An analysis is written by the satker's own operator; its satker comes from
+    // the token, never from the body, so it cannot be filed under someone else's.
+    claims.require_role("operator_satker")?;
     let user_id = Some(claims.user_id);
-    let analisis = service.create_analisis(request, user_id).await?;
+    let analisis = service
+        .create_analisis(request, user_id, claims.satker_code.clone())
+        .await?;
 
     Ok((
         StatusCode::CREATED,

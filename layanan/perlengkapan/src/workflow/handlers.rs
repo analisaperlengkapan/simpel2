@@ -32,8 +32,9 @@ pub use lib_perlengkapan::response::ApiResponse;
 /// Get overall workflow metrics for monitoring dashboard
 pub async fn get_workflow_metrics(
     State(state): State<AppState>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
+    require_monitoring(&claims)?;
     let monitor = WorkflowMonitor::new(state.db_pool.clone());
 
     let metrics = monitor
@@ -47,13 +48,22 @@ pub async fn get_workflow_metrics(
     ))
 }
 
+/// Operational monitoring is cross-module and cross-satker (queues, bottlenecks,
+/// per-satker dwell times) and is not confined to any satker; it is the
+/// administrators' console (`/admin/workflow-monitoring`). It answered any
+/// authenticated caller before.
+fn require_monitoring(claims: &Claims) -> Result<(), AppError> {
+    claims.require_capability(lib_core::authz::Capability::ViewAudit)
+}
+
 /// GET /api/v1/workflow/monitoring/active
 ///
 /// Get list of active workflows
 pub async fn get_active_workflows(
     State(state): State<AppState>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
+    require_monitoring(&claims)?;
     let monitor = WorkflowMonitor::new(state.db_pool.clone());
 
     // One query over every non-terminal state, instead of six queries over a
@@ -79,8 +89,9 @@ pub async fn get_active_workflows(
 /// Get list of workflows that have breached SLA
 pub async fn get_sla_breaches(
     State(state): State<AppState>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
+    require_monitoring(&claims)?;
     let monitor = WorkflowMonitor::new(state.db_pool.clone());
 
     let metrics = monitor
@@ -106,8 +117,9 @@ pub async fn get_sla_breaches(
 /// Get list of workflow bottlenecks
 pub async fn get_bottlenecks(
     State(state): State<AppState>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
+    require_monitoring(&claims)?;
     let monitor = WorkflowMonitor::new(state.db_pool.clone());
 
     let bottlenecks = monitor

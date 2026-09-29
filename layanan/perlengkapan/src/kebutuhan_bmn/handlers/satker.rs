@@ -21,6 +21,8 @@ pub async fn add_satker_to_pengajuan(
     claims: Claims,
     Json(request): Json<AddSatkerRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<PengajuanKebutuhanBmnSatker>>), AppError> {
+    // Choosing which satkers take part in a campaign is the campaign author's.
+    claims.require_role("validator_pusat")?;
     info!(
         "Adding satker {} to pengajuan {}",
         request.satker_id, pengajuan_id

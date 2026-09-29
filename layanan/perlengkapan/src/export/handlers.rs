@@ -10,10 +10,13 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::export::models::{ExportJobResponse, ExportJobStatusResponse, ExportQuery};
+use crate::export::models::{
+    ExportCaller, ExportJobResponse, ExportJobStatusResponse, ExportQuery,
+};
 use crate::export::services::ExportService;
 use crate::shared::error::*;
 use crate::shared::middleware::Claims;
+use crate::shared::satker_scope::SatkerScope;
 use lib_perlengkapan::response::ApiResponse;
 
 /// Export to Excel handler
@@ -22,11 +25,33 @@ use lib_perlengkapan::response::ApiResponse;
 /// For large datasets (>=1000 rows), queues an async export job.
 pub async fn export_to_excel(
     State(service): State<ExportService>,
-    Query(query): Query<ExportQuery>,
-    _claims: Claims,
+    Query(mut query): Query<ExportQuery>,
+    claims: Claims,
 ) -> Result<Response, AppError> {
     // Validate entity type
     validate_entity_type(&query.entity_type)?;
+
+    // What this caller may export is decided by their claims, never by the query
+    // string (`scope` is `#[serde(skip)]`, so a client cannot even name it).
+    // This endpoint used to serve the whole country — every satker's kebutuhan
+    // and every named employee's uniform sizes — to any authenticated caller.
+    let caller = export_caller(&claims);
+    query.scope = caller.scope.clone();
+
+    // The roadmap and fulfilment-history tables cannot be confined to a satker
+    // (legacy uuid keys), so they are for cross-satker callers only. Refused up
+    // front: a large export is queued and would otherwise "succeed" with a 202
+    // and fail invisibly in the background.
+    if matches!(
+        query.entity_type.as_str(),
+        "roadmap_sarpras" | "riwayat_pemenuhan"
+    ) && !matches!(query.scope, SatkerScope::All)
+    {
+        return Err(AppError::Authorization(format!(
+            "Ekspor '{}' hanya tersedia untuk peran lintas-satker",
+            query.entity_type
+        )));
+    }
 
     // Limit export size to 50,000 rows maximum
     let limit = query.limit.unwrap_or(50000).min(50000);
@@ -34,7 +59,7 @@ pub async fn export_to_excel(
     // Check if async export needed (>1000 rows)
     if limit > 1000 {
         // Queue async export job
-        let job_id = service.queue_export_job(query).await?;
+        let job_id = service.queue_export_job(query, &caller).await?;
 
         return Ok((
             StatusCode::ACCEPTED,
@@ -74,9 +99,11 @@ pub async fn export_to_excel(
 pub async fn get_export_job_status(
     State(service): State<ExportService>,
     Path(job_id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<ExportJobStatusResponse>>, AppError> {
-    let status = service.get_export_job_status(job_id).await?;
+    let status = service
+        .get_export_job_status(job_id, &export_caller(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         status,
@@ -88,9 +115,11 @@ pub async fn get_export_job_status(
 pub async fn download_export_job(
     State(service): State<ExportService>,
     Path(job_id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Response, AppError> {
-    let (filename, data) = service.download_export_job(job_id).await?;
+    let (filename, data) = service
+        .download_export_job(job_id, &export_caller(&claims))
+        .await?;
 
     Ok((
         StatusCode::OK,
@@ -107,6 +136,15 @@ pub async fn download_export_job(
         data,
     )
         .into_response())
+}
+
+/// The export-relevant view of a caller, from verified claims.
+fn export_caller(claims: &Claims) -> ExportCaller {
+    ExportCaller {
+        user_id: claims.user_id,
+        is_admin: claims.can(lib_core::authz::Capability::ViewAudit),
+        scope: SatkerScope::from_claims(claims),
+    }
 }
 
 /// Validate entity type

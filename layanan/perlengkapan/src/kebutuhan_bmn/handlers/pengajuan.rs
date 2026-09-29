@@ -108,6 +108,9 @@ pub async fn update_pengajuan(
     claims: Claims,
     Json(request): Json<UpdatePengajuanRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmn>>, AppError> {
+    // A campaign (periode RKBMN) is authored by Validator Pusat — create already
+    // said so; update and delete did not check anything.
+    claims.require_role("validator_pusat")?;
     info!("Updating pengajuan kebutuhan BMN: {}", id);
 
     let user_id = Some(claims.user_id);
@@ -125,6 +128,7 @@ pub async fn delete_pengajuan(
     Path(id): Path<Uuid>,
     claims: Claims,
 ) -> Result<Json<ApiResponse<()>>, AppError> {
+    claims.require_role("validator_pusat")?;
     info!(
         "Deleting pengajuan kebutuhan BMN: {} by user {}",
         id, claims.user_id

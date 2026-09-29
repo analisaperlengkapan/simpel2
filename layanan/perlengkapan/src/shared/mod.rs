@@ -45,3 +45,4 @@ pub mod satker_scope;
 pub mod search_db;
 pub mod siman_columns;
 pub mod status_tone;
+pub mod upload;

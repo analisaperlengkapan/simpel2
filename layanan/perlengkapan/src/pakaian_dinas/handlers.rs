@@ -580,6 +580,10 @@ pub async fn upsert_pegawai_profile(
     claims: Claims,
     Json(request): Json<UpsertPegawaiProfileRequest>,
 ) -> Result<Json<ApiResponse<PegawaiPakaianDinas>>, AppError> {
+    // Filling in a satker's roster is that satker's operator's job. Scope decides
+    // WHICH satker; with no role gate a validator_pusat (scope `All`) could
+    // rewrite any employee's record in the country.
+    claims.require_role("operator_satker")?;
     // The request used to carry `kode_satker`, and nothing checked it: one
     // satker's operator could overwrite another satker's employee — measured
     // on staging, 200 with the row rewritten. The satker now comes from the
@@ -602,6 +606,10 @@ pub async fn bulk_upsert_pegawai_profiles(
     claims: Claims,
     Json(requests): Json<Vec<UpsertPegawaiProfileRequest>>,
 ) -> Result<Json<ApiResponse<usize>>, AppError> {
+    // Filling in a satker's roster is that satker's operator's job. Scope decides
+    // WHICH satker; with no role gate a validator_pusat (scope `All`) could
+    // rewrite any employee's record in the country.
+    claims.require_role("operator_satker")?;
     let count = service
         .repository
         .bulk_upsert_pegawai_profiles(&requests, &SatkerScope::from_claims(&claims))
@@ -1020,6 +1028,10 @@ pub async fn simpan_ukuran_pegawai(
     claims: Claims,
     Json(request): Json<SimpanUkuranPegawaiRequest>,
 ) -> Result<Json<ApiResponse<RosterPengisian>>, AppError> {
+    // Filling in a satker's roster is that satker's operator's job. Scope decides
+    // WHICH satker; with no role gate a validator_pusat (scope `All`) could
+    // rewrite any employee's record in the country.
+    claims.require_role("operator_satker")?;
     let scope = SatkerScope::from_claims(&claims);
     service
         .repository
@@ -1043,6 +1055,10 @@ pub async fn hapus_pegawai_dari_pengajuan(
     Path((pengajuan_id, satker_code, nip)): Path<(Uuid, String, String)>,
     claims: Claims,
 ) -> Result<Json<ApiResponse<RosterPengisian>>, AppError> {
+    // Filling in a satker's roster is that satker's operator's job. Scope decides
+    // WHICH satker; with no role gate a validator_pusat (scope `All`) could
+    // rewrite any employee's record in the country.
+    claims.require_role("operator_satker")?;
     let scope = SatkerScope::from_claims(&claims);
     service
         .repository
