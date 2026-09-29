@@ -434,11 +434,11 @@ export async function bankAsetDetail(request: APIRequestContext, token: string, 
 
 /**
  * Call `GET /api/v1/perlengkapan/admin/master` with an optional Bearer token.
- * The backend `/admin/*` endpoints enforce `require_admin` = `is_cross_satker_role`
- * server-side: cross-satker roles (admin/pusat/validator_pusat) → 200; satker-bound
- * roles → 403; no token → 401. NOTE this differs from the FE `/admin/*` UI guard,
- * which uses the narrower `is_admin()` (so validator_pusat is denied the UI but
- * allowed the API).
+ * The backend `/admin/*` endpoints enforce `require_admin` =
+ * `Capability::Administer` (`lib_core::authz::ADMIN_ROLES`) server-side, the
+ * same allowlist the FE `/admin/*` UI guard uses: an application administrator
+ * → 200; every business role (cross-satker or satker-bound) → 403; no token →
+ * 401.
  */
 export async function adminMasterList(request: APIRequestContext, token: string | null) {
   const headers: Record<string, string> = {};

@@ -210,12 +210,11 @@ test.describe('Perlengkapan RBAC data-scoping (bank_aset)', () => {
 });
 
 test.describe('Perlengkapan admin API authZ — server-side (administrator only)', () => {
-  // The backend `/admin/*` gate is `require_admin` = the exact `admin` role
-  // (`lib_core::authz::is_admin_role`). It used to be `is_cross_satker_role`, so
+  // The backend `/admin/*` gate is `require_admin` = `Capability::Administer`
+  // (`lib_core::authz::ADMIN_ROLES`). It used to be `is_cross_satker_role`, so
   // validator_pusat could reach the admin console API — wider than the FE `/admin`
   // guard and wider than "administer the system" means. Every business role,
-  // cross-satker or not, is now refused; the CI seed has no `admin` user, so the
-  // positive half is covered by the backend unit/integration tests (rbac_bfla_test).
+  // cross-satker or not, is now refused.
   for (const user of TEST_USERS) {
     test(`${user.key} (${user.role}) is forbidden (403) at the admin API`, async ({ request }) => {
       const { accessToken } = await apiLogin(request, credsFor(user));
@@ -223,6 +222,14 @@ test.describe('Perlengkapan admin API authZ — server-side (administrator only)
       expect(resp.status(), `${user.key} must be forbidden at /admin/master`).toBe(403);
     });
   }
+
+  // The positive half: the all-role seed user holds `admin`, so it passes the
+  // gate (`tokenFor` resolves "admin" to that identity). Asserting it here keeps
+  // the gate from degenerating into "deny everyone" unnoticed.
+  test('the admin identity is allowed (200) at the admin API', async ({ request }) => {
+    const resp = await adminMasterList(request, await tokenFor(request, 'admin'));
+    expect(resp.status(), 'admin must reach /admin/master').toBe(200);
+  });
 
   test('admin API rejects an unauthenticated request (401)', async ({ request }) => {
     const resp = await adminMasterList(request, null);

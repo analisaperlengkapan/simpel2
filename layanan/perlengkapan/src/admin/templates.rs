@@ -6,7 +6,7 @@
 //! frontend can render a live PDF/DOCX/HTML preview in an iframe without
 //! persisting an artifact.
 //!
-//! Auth: cross-satker/admin only — mirrors the rest of `/admin/*`.
+//! Auth: `Capability::Administer` only — mirrors the rest of `/admin/*`.
 
 use axum::{
     Json,
