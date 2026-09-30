@@ -454,6 +454,24 @@ jobs:
       - name: Screenshot coverage guard canaries
         shell: bash
         run: python3 ./infra/scripts/check-screenshot-coverage.py --self-test
+      # `npx playwright test` only runs specs a *project* collects: matched by
+      # its `testMatch` and NOT excluded by a `testIgnore` (project-level, or the
+      # inherited top-level one). A spec on disk that no project collects is
+      # never collected — silently skipped, and a suite that never runs looks
+      # exactly like a suite that passes. `pemakaian-monitoring.spec.ts` (8
+      # assertions over the six per-role monitoring read endpoints) sat in that
+      # state: `cargo` does not know the file, TypeScript only checks what is
+      # loaded, and `route-coverage.mjs` greps spec *text* for route strings
+      # rather than asking whether the spec is collected. Same failure shape as
+      # orphaned Cargo `tests/` sub-dirs (`lint-orphan-tests`), one toolchain
+      # over. Derives specs from disk and the collected set from each project's
+      # effective (testMatch minus testIgnore); the self-test proves it goes red
+      # on each of the twelve ways a spec can stop being collected.
+      - name: Every Playwright spec is collected by a project
+        shell: bash
+        run: |
+          python3 ./infra/scripts/check-playwright-projects-cover-specs.py --self-test
+          python3 ./infra/scripts/check-playwright-projects-cover-specs.py
       # Image runner ARC memakai Python polos, jadi `import yaml` LULUS di mesin
       # pengembang dan GAGAL di runner — skrip keluar non-nol karena alasan yang
       # tak ada hubungannya dengan yang diperiksanya, dan temuan yang jadi
@@ -2159,6 +2177,44 @@ jobs:
             -e PERLENGKAPAN_API_URL=http://layanan-perlengkapan:3020 \
             simpel-e2e-smoke \
             npx playwright test --project=perlengkapan-admin-bantuan
+      # Pemakaian BMN monitoring — per-role scoping on the six monitoring read
+      # endpoints (API tiers nest satker ⊂ wilayah ⊆ nasional; the rendered
+      # table columns). The spec file predates this step: it sat on disk matched
+      # by no project, so it was never collected and its 8 assertions never ran.
+      # `check-playwright-projects-cover-specs.py` now fails CI if that recurs.
+      - name: Run Playwright Pemakaian monitoring (perlengkapan-pemakaian-monitoring)
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          docker run --rm --network "$NET" \
+            -e BASE_URL=http://perlengkapan:8080 \
+            -e PERLENGKAPAN_URL=http://perlengkapan:8080 \
+            -e AUTHENC_URL=http://authenc:8088 \
+            -e PERLENGKAPAN_API_URL=http://layanan-perlengkapan:3020 \
+            simpel-e2e-smoke \
+            npx playwright test --project=perlengkapan-pemakaian-monitoring
+      # Pin the static model to Playwright's own answer. The invariants job can
+      # only run the static parse (no Node there), so parser drift — the guard
+      # deciding a spec is collected when Playwright disagrees — would otherwise
+      # reach the merge gate unseen. Both `node` and `python3` are in the e2e
+      # image, so the same script compares itself against `--list` here.
+      #
+      # `--cross-check-strict`, not `--cross-check`: here the toolchain is
+      # guaranteed, so a `--list` that cannot be obtained (non-zero exit, no
+      # JSON, empty listing) must FAIL rather than be skipped. The lenient form
+      # exists for callers without Node; using it here would let the step go
+      # green while comparing nothing, which is the failure mode the step was
+      # added to prevent.
+      #
+      # Piped in via stdin rather than bind-mounted: under ARC dind a bind mount
+      # resolves against the dind daemon's filesystem, not this checkout, so the
+      # script would not be there (same reason the specs are COPY'd into the
+      # image). `--e2e-dir` is absolute because `__file__` is `<stdin>`.
+      - name: Cross-check the spec-coverage model against Playwright --list
+        run: |
+          docker run --rm -i --entrypoint sh simpel-e2e-smoke -c \
+            'python3 - --e2e-dir /e2e --cross-check-strict' \
+            < infra/scripts/check-playwright-projects-cover-specs.py
       # `--tail=200` was useless for diagnosis: the backend logs at DEBUG with
       # every h2 frame and every SQL statement, so 200 lines covered 1.2 seconds
       # of a run that had been going for five minutes. Two passes instead — an
