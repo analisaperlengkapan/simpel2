@@ -164,8 +164,11 @@ elif [ -f .env.example ]; then
   note ".env.example found but no .env; creating a disposable local .env"
 fi
 if [ ! -f .env ]; then
-  umask 077
-  cat >.env <<'EOF'
+  # umask scoped to the write: a credentials file should not be world-readable,
+  # and leaving the umask changed would affect everything created afterwards.
+  (
+    umask 077
+    cat >.env <<'EOF'
 # Disposable LOCAL test credentials, created by .openhands/setup.sh.
 # Not secrets: they only ever reach a throwaway compose stack. Production and
 # staging get theirs from Secreton (see infra/AGENTS.md).
@@ -173,6 +176,7 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=e2e_test_pw
 SIMPELV1_APP_KEY=base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz
 EOF
+  )
   note "wrote .env (POSTGRES_USER/POSTGRES_PASSWORD/SIMPELV1_APP_KEY)"
   note "ignored by git, so it will not be committed"
 fi
