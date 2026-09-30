@@ -464,9 +464,9 @@ jobs:
       # loaded, and `route-coverage.mjs` greps spec *text* for route strings
       # rather than asking whether the spec is collected. Same failure shape as
       # orphaned Cargo `tests/` sub-dirs (`lint-orphan-tests`), one toolchain
-      # over. Derives specs from disk and the collected set from the project
-      # `testMatch`/`testIgnore` pairs; the self-test proves it goes red on each
-      # of the six ways a spec can stop being collected.
+      # over. Derives specs from disk and the collected set from each project's
+      # effective (testMatch minus testIgnore); the self-test proves it goes red
+      # on each of the twelve ways a spec can stop being collected.
       - name: Every Playwright spec is collected by a project
         shell: bash
         run: |
@@ -2193,6 +2193,21 @@ jobs:
             -e PERLENGKAPAN_API_URL=http://layanan-perlengkapan:3020 \
             simpel-e2e-smoke \
             npx playwright test --project=perlengkapan-pemakaian-monitoring
+      # Pin the static model to Playwright's own answer. The invariants job can
+      # only run the static parse (no Node there), so parser drift — the guard
+      # deciding a spec is collected when Playwright disagrees — would otherwise
+      # reach the merge gate unseen. Both `node` and `python3` are in the e2e
+      # image, so the same script compares itself against `--list` here.
+      #
+      # Piped in via stdin rather than bind-mounted: under ARC dind a bind mount
+      # resolves against the dind daemon's filesystem, not this checkout, so the
+      # script would not be there (same reason the specs are COPY'd into the
+      # image). `--e2e-dir` is absolute because `__file__` is `<stdin>`.
+      - name: Cross-check the spec-coverage model against Playwright --list
+        run: |
+          docker run --rm -i --entrypoint sh simpel-e2e-smoke -c \
+            'python3 - --e2e-dir /e2e --cross-check' \
+            < infra/scripts/check-playwright-projects-cover-specs.py
       # `--tail=200` was useless for diagnosis: the backend logs at DEBUG with
       # every h2 frame and every SQL statement, so 200 lines covered 1.2 seconds
       # of a run that had been going for five minutes. Two passes instead — an

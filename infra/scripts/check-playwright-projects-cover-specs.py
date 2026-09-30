@@ -2,14 +2,14 @@
 """Every Playwright spec on disk must actually be collected by some project.
 
 `npx playwright test` only executes specs matched by a project's `testMatch`
-*and not excluded by a `testIgnore`*. A spec file that no project collects is
-skipped silently, and a suite that never runs is indistinguishable from a suite
-that passes. Nothing else notices: the file compiles (TypeScript is only checked
-when the file is loaded), the route-coverage gate greps spec *text* for route
-strings (it never asks whether the spec is collected), and `cargo` does not know
-the file exists.
+*and not excluded by that project's effective `testIgnore`*. A spec file that no
+project collects is skipped silently, and a suite that never runs is
+indistinguishable from a suite that passes. Nothing else notices: the file
+compiles (TypeScript is only checked when the file is loaded), the
+route-coverage gate greps spec *text* for route strings (it never asks whether
+the spec is collected), and `cargo` does not know the file exists.
 
-Demonstrated, not hypothesised: `antarmuka/perlengkapan/tests/e2e/
+Demonstrated, not hypothesised: `antemuka/perlengkapan/tests/e2e/
 pemakaian-monitoring.spec.ts` — 8 assertions over the six per-role monitoring
 read endpoints (the exact scoping bug class the file was written to catch) — sat
 on disk matched by no project. Same failure shape as the orphaned `tests/`
@@ -18,27 +18,34 @@ over.
 
 Derives both sides rather than trusting either to be maintained:
   * specs on disk = `*.spec.ts` / `*.setup.ts` under each e2e dir
-  * collected     = (union of project `testMatch`) minus `testIgnore`, where a
-                    project inherits the top-level `testIgnore` when it does not
-                    declare its own
+  * collected     = union over projects of (its `testMatch` minus its effective
+                    `testIgnore`), where a project's effective ignore is its own
+                    `testIgnore` if declared, else the top-level one
 
-Three details decide whether this guard is real or decorative, each learned from
-a way it was wrong:
+The model is per-project and the source is masked before it is parsed. Both are
+load-bearing, and each was a bug first:
 
-  1. **`testMatch` alone is not "collected".** Playwright drops files matching a
-     `testIgnore` even when a project's `testMatch` selects them, so a guard
-     reading only `testMatch` calls an ignored spec covered. Both scopes must be
-     modelled. (Top-level `testMatch` is still *not* coverage — treating it as
-     such would let `**/*.spec.ts` mark everything covered, which is the bug.)
-  2. **Comments are not configuration.** A commented-out project must not count.
-     The config source is run through a scanner that blanks comments *and string
-     literals* before anything is parsed, so `'**/a.spec.ts'` cannot be mistaken
-     for code and a `// { name: ... }` cannot be mistaken for a project.
-  3. **The set is only trustworthy if it is verifiable.** `--list` is the ground
-     truth, but the invariants job that runs this has no Node toolchain and a
-     checkout with no `node_modules` cannot install one. So the static model is
-     pinned by an independent cross-check against `--list` when the toolchain
-     happens to be present (see `cross_check_against_list`).
+  1. **Per project, not two flat sets.** Playwright evaluates `testMatch` and
+     `testIgnore` once per project and collects the union. Pooling all match
+     patterns and all ignore patterns loses the association in both directions:
+     an unrelated project's `testIgnore` cancels a valid match (false failure),
+     and a project-level `testIgnore: []` cannot switch off the inherited
+     top-level ignore (false pass). A spec is covered when *some* project
+     matches it and that same project does not ignore it.
+  2. **Top-level `testMatch` is not coverage.** Only the `projects:` array
+     collects; treating the top-level `testMatch` as coverage would let
+     `**/*.spec.ts` mark everything covered, which is the original bug.
+  3. **Comments are not configuration.** The source is masked — comments blanked,
+     strings blanked *separately* — before anything is parsed, so a
+     commented-out project is not read as live config and a quoted pattern
+     *inside a comment* is not read as a pattern. Two masks are needed because
+     the glob patterns themselves are strings: reading literals from the
+     comment-masked-but-string-intact text is the only way to get the patterns,
+     and reading structure from the fully-masked text is the only way to avoid
+     seeing `projects:` inside a comment.
+  4. **A bare-string `testMatch` is still a `testMatch`.** Strings mask to NUL
+     (not whitespace) so a value lookup cannot walk *through* a blanked literal
+     and miss it.
 
 Usage:  check-playwright-projects-cover-specs.py [--self-test] [--cross-check]
 """
@@ -51,7 +58,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2]
+try:
+    REPO: Path | None = Path(__file__).resolve().parents[2]
+except IndexError:
+    # Piped in as `python3 -` from stdin: `__file__` is `<stdin>`, which has no
+    # parents. Only relative suite paths need the repo root, and callers that
+    # pipe the script in pass an absolute `--e2e-dir`.
+    REPO = None
 
 # (label, e2e dir relative to repo root)
 SUITES = [
@@ -59,26 +72,27 @@ SUITES = [
     ("portal", "antarmuka/portal/tests/e2e"),
 ]
 
+# Overridable via `--e2e-dir`, so the same script can run inside the Playwright
+# image (where /e2e already holds the config, the specs and node_modules) and
+# compare itself against `--list`. `__file__` is `<stdin>` when piped in, so REPO
+# is only a default — an absolute `--e2e-dir` does not need it.
+ACTIVE_SUITES = list(SUITES)
+
 SPEC_GLOBS = ("*.spec.ts", "*.setup.ts")
 SKIP_PREFIXES = ("node_modules/", "results/", "test-results/", "playwright-report/")
 
 
-# ── source scanning ───────────────────────────────────────────────────────────
+# ── masking ───────────────────────────────────────────────────────────────────
+# Two masks, same length as the source, so every offset is valid in both:
+#   * structural mask: comments AND strings blanked. Used to find structure, so
+#     `projects:` inside a comment or a string cannot be mistaken for config.
+#   * literal mask:    comments only blanked, strings kept. Used to read the glob
+#     patterns, which are strings by nature.
+# Comments always blank to spaces. Strings blank to NUL in the structural mask so
+# that whitespace-skipping cannot pass through a blanked literal and miss a
+# bare-string value.
 
-
-def strip_comments_and_strings(src: str) -> str:
-    """Blank comments and string literals, preserving offsets and newlines.
-
-    Comments are blanked to spaces (so `// { name: ... }` cannot be read as a
-    project) and strings to NUL (so `'**/a.spec.ts'` cannot be read as code, and
-    — crucially — whitespace-skipping after a `key:` cannot walk *through* a
-    blanked literal and miss a bare-string value like `testMatch: '**/x.ts'`).
-
-    Both matter. Comments because a commented-out project must not be read as
-    configuration. Strings because the patterns being parsed *are* strings:
-    scanning raw text for `testMatch` finds the ones inside a `//` note, and
-    scanning for project braces finds the ones inside a `'**/{a,b}.spec.ts'`.
-    """
+def _mask(src: str, *, keep_strings: bool) -> str:
     out = list(src)
     i, n = 0, len(src)
     while i < n:
@@ -100,29 +114,42 @@ def strip_comments_and_strings(src: str) -> str:
             continue
         if c in "'\"`":
             quote = c
-            out[i] = "\x00"
+            if not keep_strings:
+                out[i] = "\x00"
             i += 1
             while i < n and src[i] != quote:
                 if src[i] == "\\" and i + 1 < n:
-                    out[i] = out[i + 1] = "\x00"
+                    if not keep_strings:
+                        out[i] = out[i + 1] = "\x00"
                     i += 2
                     continue
-                out[i] = "\n" if src[i] == "\n" else "\x00"
+                if not keep_strings:
+                    out[i] = "\n" if src[i] == "\n" else "\x00"
                 i += 1
             if i < n:
-                out[i] = "\x00"
+                if not keep_strings:
+                    out[i] = "\x00"
                 i += 1
             continue
         i += 1
     return "".join(out)
 
 
+def structural_mask(src: str) -> str:
+    """Comments and strings blanked (strings to NUL)."""
+    return _mask(src, keep_strings=False)
+
+
+def literal_mask(src: str) -> str:
+    """Comments blanked, strings left intact."""
+    return _mask(src, keep_strings=True)
+
+
 def _match_bracket(src: str, open_idx: int) -> int:
-    """Index just past the bracket matching `src[open_idx]` (strings pre-blanked)."""
+    """Index just past the bracket matching `src[open_idx]` (strings pre-masked)."""
     pairs = {"[": "]", "{": "}", "(": ")"}
     close = pairs[src[open_idx]]
-    depth = 0
-    i = open_idx
+    depth, i = 0, open_idx
     while i < len(src):
         if src[i] == src[open_idx]:
             depth += 1
@@ -134,22 +161,30 @@ def _match_bracket(src: str, open_idx: int) -> int:
     return len(src)
 
 
-def _object_spans(src: str) -> list[tuple[int, int]]:
+def _projects_array_span(structural: str) -> tuple[int, int] | None:
+    """Span of the `[...]` array assigned to `projects:`."""
+    m = re.search(r"\bprojects\s*:\s*\[", structural)
+    if not m:
+        return None
+    arr_start = structural.index("[", m.start())
+    return arr_start, _match_bracket(structural, arr_start)
+
+
+def _object_spans(structural: str) -> list[tuple[int, int]]:
     """Spans of the brace objects that sit *directly* in the `projects: [...]` array.
 
     Deliberately shallow: only the array's own elements are projects. Scanning
-    for `name:` anywhere would also pick up the nested `use: { ... }`, and
+    for `name:` anywhere would also pick up a nested `use: { ... }`, and
     scanning for every `{` would pick up objects inside a project.
     """
-    m = re.search(r"\bprojects\s*:\s*\[", src)
-    if not m:
+    span = _projects_array_span(structural)
+    if span is None:
         return []
-    arr_start = src.index("[", m.start())
-    arr_end = _match_bracket(src, arr_start)
+    arr_start, arr_end = span
     spans, i = [], arr_start + 1
     while i < arr_end:
-        if src[i] == "{":
-            end = _match_bracket(src, i)
+        if structural[i] == "{":
+            end = _match_bracket(structural, i)
             spans.append((i, end))
             i = end
             continue
@@ -157,71 +192,52 @@ def _object_spans(src: str) -> list[tuple[int, int]]:
     return spans
 
 
-def _key_value_extent(scan: str, key: str, start: int, end: int) -> tuple[int, int] | None:
-    """Span of the value assigned to `key` inside [start, end) of the scan.
+def _literals_in(literal: str, structural: str, start: int, end: int) -> list[str]:
+    """Glob literals in `[start, end)`, ignoring anything inside a comment.
 
-    Handles both `key: ['a','b']` and `key: 'a'`. Returns offsets into `scan`,
-    which line up with the raw source because blanking preserves offsets.
+    Strings are read from the literal mask (where they survive), but a span that
+    the structural mask shows as blanked-to-spaces — i.e. a comment — is dropped
+    first. That is what stops `testMatch: [/* '**/x.spec.ts' */]` from counting:
+    the quoted pattern is real text, but it sits in a comment.
     """
-    m = re.search(r"\b" + re.escape(key) + r"\s*:\s*", scan[start:end])
+    out: list[str] = []
+    for m in re.finditer(r"'([^'\\]*)'|\"([^\"\\]*)\"", literal[start:end]):
+        if structural[start + m.start()] == " ":
+            continue  # inside a comment
+        out.append(m.group(1) or m.group(2))
+    return out
+
+
+def _key_extent(structural: str, key: str, start: int, end: int) -> tuple[int, int] | None:
+    """Span of the value assigned to `key` within [start, end)."""
+    m = re.search(r"\b" + re.escape(key) + r"\s*:\s*", structural[start:end])
     if not m:
         return None
     vstart = start + m.end()
-    while vstart < end and scan[vstart] in " \t\r\n":
+    while vstart < end and structural[vstart] in " \t\r\n":
         vstart += 1
     if vstart >= end:
         return None
-    if scan[vstart] in "[{(":
-        return vstart, _match_bracket(scan, vstart)
-    # A bare string literal: run to the end of that literal in the raw source.
+    if structural[vstart] in "[{(":
+        return vstart, _match_bracket(structural, vstart)
     return vstart, vstart
 
 
-def _literal_extent(raw_src: str, vstart: int, vend: int) -> list[str]:
-    """String literals of a value, taken from the RAW source at the same offsets."""
+def _value_literals(literal: str, structural: str, vstart: int, vend: int) -> list[str]:
+    """Literals of a value span; a zero-length span means a bare string literal."""
     if vend <= vstart:
-        # Bare literal: scan forward to the closing quote in the raw text.
-        if vstart < len(raw_src) and raw_src[vstart] in "'\"":
-            quote = raw_src[vstart]
+        if vstart < len(literal) and literal[vstart] in "'\"":
+            quote = literal[vstart]
             j = vstart + 1
-            while j < len(raw_src) and raw_src[j] != quote:
-                j += 2 if raw_src[j] == "\\" else 1
+            while j < len(literal) and literal[j] != quote:
+                j += 2 if literal[j] == "\\" else 1
             vend = j + 1
         else:
             return []
-    return [a or b for a, b in re.findall(r"'([^'\\]*)'|\"([^\"\\]*)\"", raw_src[vstart:vend])]
+    return _literals_in(literal, structural, vstart, vend)
 
 
-def config_model(raw_src: str) -> tuple[list[re.Pattern[str]], list[re.Pattern[str]]]:
-    """(project match globs, effective ignore globs) — comments/strings respected.
-
-    A project that declares its own `testIgnore` replaces the inherited one;
-    otherwise the top-level `testIgnore` applies. Both scopes are honoured, and
-    ignore globs are applied across the collected set (what Playwright does).
-    """
-    scan = strip_comments_and_strings(raw_src)
-
-    top_ignore: list[str] = []
-    m = re.search(r"\btestIgnore\s*:\s*\[", scan)
-    if m:
-        arr_start = scan.index("[", m.start())
-        top_ignore = _literal_extent(raw_src, arr_start, _match_bracket(scan, arr_start))
-
-    matches: list[str] = []
-    ignores: list[str] = list(top_ignore)
-    for start, end in _object_spans(scan):
-        tm = _key_value_extent(scan, "testMatch", start, end)
-        if tm is None:
-            continue
-        matches.extend(_literal_extent(raw_src, *tm))
-        ti = _key_value_extent(scan, "testIgnore", start, end)
-        if ti is not None:
-            ignores.extend(_literal_extent(raw_src, *ti))
-
-    return (
-        [glob_to_regex(p) for p in _dedupe(matches)],
-        [glob_to_regex(p) for p in _dedupe(ignores)],
-    )
+# ── globs ─────────────────────────────────────────────────────────────────────
 
 
 def glob_to_regex(pattern: str) -> re.Pattern[str]:
@@ -250,16 +266,42 @@ def glob_to_regex(pattern: str) -> re.Pattern[str]:
     return re.compile("^" + "".join(out) + "$")
 
 
-# ── the model of what Playwright collects ─────────────────────────────────────
+def config_model(raw_src: str) -> list[tuple[list[re.Pattern[str]], list[re.Pattern[str]]]]:
+    """One `(matches, ignores)` pair per project, ignores already effective.
 
+    Keeping the pairs together is what makes overlapping projects and
+    `testIgnore` overrides come out right; see the module docstring.
+    """
+    structural = structural_mask(raw_src)
+    literal = literal_mask(raw_src)
 
-def _dedupe(xs: list[str]) -> list[str]:
-    seen, out = set(), []
-    for x in xs:
-        if x not in seen:
-            seen.add(x)
-            out.append(x)
-    return out
+    # The top-level `testIgnore` is the one OUTSIDE the projects array. Searching
+    # the whole file would also match the first project that declares its own,
+    # which then reads as "the inherited ignore" and silently becomes every other
+    # project's ignore too.
+    top_ignore: list[re.Pattern[str]] = []
+    span = _projects_array_span(structural)
+    if span is None:
+        ti = _key_extent(structural, "testIgnore", 0, len(structural))
+    else:
+        head = _key_extent(structural, "testIgnore", 0, span[0])
+        tail = _key_extent(structural, "testIgnore", span[1], len(structural))
+        ti = head or tail
+    if ti is not None:
+        top_ignore = [glob_to_regex(p) for p in _value_literals(literal, structural, *ti)]
+
+    projects: list[tuple[list[re.Pattern[str]], list[re.Pattern[str]]]] = []
+    for start, end in _object_spans(structural):
+        tm = _key_extent(structural, "testMatch", start, end)
+        if tm is None:
+            continue
+        matches = [glob_to_regex(p) for p in _value_literals(literal, structural, *tm)]
+        own = _key_extent(structural, "testIgnore", start, end)
+        ignores = top_ignore if own is None else [
+            glob_to_regex(p) for p in _value_literals(literal, structural, *own)
+        ]
+        projects.append((matches, ignores))
+    return projects
 
 
 def specs_on_disk(e2e_dir: Path) -> list[str]:
@@ -275,12 +317,14 @@ def specs_on_disk(e2e_dir: Path) -> list[str]:
 
 
 def uncovered_specs(raw_src: str, specs: list[str]) -> list[str]:
-    matches, ignores = config_model(raw_src)
+    """Specs no single project both matches and refrains from ignoring."""
+    projects = config_model(raw_src)
     out = []
     for s in specs:
-        if not any(r.match(s) for r in matches):
-            out.append(s)
-        elif any(r.match(s) for r in ignores):
+        if not any(
+            any(r.match(s) for r in matches) and not any(r.match(s) for r in ignores)
+            for matches, ignores in projects
+        ):
             out.append(s)
     return out
 
@@ -288,10 +332,22 @@ def uncovered_specs(raw_src: str, specs: list[str]) -> list[str]:
 # ── checks ────────────────────────────────────────────────────────────────────
 
 
+def suite_dir(rel_dir: str) -> Path:
+    """Absolute e2e dir for a suite entry (honours the `--e2e-dir` override)."""
+    p = Path(rel_dir)
+    if p.is_absolute():
+        return p
+    if REPO is None:
+        raise SystemExit(
+            "relative suite paths need the repo root; pass an absolute --e2e-dir"
+        )
+    return REPO / p
+
+
 def check() -> bool:
     ok = True
-    for label, rel_dir in SUITES:
-        e2e_dir = REPO / rel_dir
+    for label, rel_dir in ACTIVE_SUITES:
+        e2e_dir = suite_dir(rel_dir)
         config = e2e_dir / "playwright.config.ts"
         if not config.is_file():
             print(f"  ✗ {label}: no playwright.config.ts at {rel_dir}")
@@ -330,8 +386,8 @@ def cross_check_against_list() -> bool | None:
     Node, so this must never be the thing that makes the guard fail.
     """
     checked = 0
-    for label, rel_dir in SUITES:
-        e2e_dir = REPO / rel_dir
+    for label, rel_dir in ACTIVE_SUITES:
+        e2e_dir = suite_dir(rel_dir)
         if not (e2e_dir / "node_modules").is_dir():
             print(f"  .. {label}: skipped (no node_modules — cannot run --list)")
             continue
@@ -370,8 +426,6 @@ def cross_check_against_list() -> bool | None:
             uncovered_specs((e2e_dir / "playwright.config.ts").read_text(encoding="utf8"), specs)
         )
 
-        # --list can report a nested path prefix; compare on the file basename set
-        # plus relative path so either form matches.
         def norm(paths: set[str]) -> set[str]:
             return {p.split("tests/e2e/")[-1] for p in paths}
 
@@ -391,95 +445,194 @@ def cross_check_against_list() -> bool | None:
 def self_test() -> bool:
     """Prove the guard goes red on each regression it claims to catch."""
     ok = True
-    _, rel_dir = SUITES[0]
-    e2e_dir = REPO / rel_dir
+    _, rel_dir = ACTIVE_SUITES[0]
+    e2e_dir = suite_dir(rel_dir)
     config_src = (e2e_dir / "playwright.config.ts").read_text(encoding="utf8")
     specs = specs_on_disk(e2e_dir)
+    victim = "pemakaian-monitoring.spec.ts"
 
     if uncovered_specs(config_src, specs):
         print("  ✗ self-test: baseline already red")
         return False
     print("  ok detects: nothing (healthy baseline is green)")
-
-    def caught(name: str, mutated: str, victim: str) -> None:
-        nonlocal ok
-        if mutated == config_src:
-            print(f"  ✗ self-test: could not construct mutation for {name}")
-            ok = False
-            return
-        if victim in uncovered_specs(mutated, specs):
-            print(f"  ok detects: {name}")
-        else:
-            print(f"  ✗ self-test: guard did NOT notice {name}")
-            ok = False
-
-    victim = "pemakaian-monitoring.spec.ts"
     if victim not in specs:
         print(f"  ✗ self-test: expected {victim} on disk to use as the canary")
         return False
 
+    def expect(name: str, got: list[str], want: list[str]) -> None:
+        nonlocal ok
+        if got == want:
+            print(f"  ok detects: {name}")
+        else:
+            print(f"  ✗ self-test: {name} — got {got}, want {want}")
+            ok = False
+
+    others = sorted(set(specs) - {victim})
+
     # 1. The original bug: the project's testMatch goes away.
-    caught(
+    expect(
         f"a spec whose project's testMatch was removed ({victim})",
-        re.sub(r"testMatch\s*:\s*\[\s*'\*\*/" + re.escape(victim) + r"'\s*\]",
-               "testMatch: []", config_src),
-        victim,
+        uncovered_specs(
+            re.sub(r"testMatch\s*:\s*\[\s*'\*\*/" + re.escape(victim) + r"'\s*\]",
+                   "testMatch: []", config_src),
+            specs,
+        ),
+        [victim],
     )
 
     # 2. A brand-new spec file no project mentions.
-    if "brand-new-orphan.spec.ts" in uncovered_specs(config_src, specs + ["brand-new-orphan.spec.ts"]):
-        print("  ok detects: a newly added spec file with no project")
-    else:
-        print("  ✗ self-test: guard did NOT notice a newly added orphan spec")
-        ok = False
+    expect(
+        "a newly added spec file with no project",
+        uncovered_specs(config_src, specs + ["brand-new-orphan.spec.ts"]),
+        ["brand-new-orphan.spec.ts"],
+    )
 
     # 3. testIgnore wins over testMatch — the spec is selected AND excluded.
-    caught(
+    expect(
         f"a spec excluded by a project-level testIgnore ({victim})",
-        config_src.replace(
-            f"      testMatch: ['**/{victim}'],",
-            f"      testMatch: ['**/{victim}'],\n      testIgnore: ['**/{victim}'],",
-            1,
+        uncovered_specs(
+            config_src.replace(
+                f"      testMatch: ['**/{victim}'],",
+                f"      testMatch: ['**/{victim}'],\n      testIgnore: ['**/{victim}'],",
+                1,
+            ),
+            specs,
         ),
-        victim,
+        [victim],
     )
 
     # 4. A top-level testIgnore that swallows the spec (inherited by the project).
-    caught(
+    expect(
         f"a spec excluded by the inherited top-level testIgnore ({victim})",
-        config_src.replace(
-            "  testIgnore: [\n",
-            f"  testIgnore: [\n    '**/{victim}',\n", 1),
-        victim,
+        uncovered_specs(
+            config_src.replace("  testIgnore: [\n", f"  testIgnore: [\n    '**/{victim}',\n", 1),
+            specs,
+        ),
+        [victim],
     )
 
-    # 5. The project is commented out (must NOT count as configuration).
+    # 5. The project is line-commented out (must NOT count as configuration).
+    #    Line comments rather than /* */ because the block contains a glob with
+    #    `*/` in it, which would terminate a block comment early and make the
+    #    mutation invalid JS rather than a disabled project.
     block = re.search(
-        r"\{\s*\n\s*name: 'perlengkapan-pemakaian-monitoring',.*?\n    \},", config_src, re.S)
-    caught(
+        r"    \{\s*\n\s*name: 'perlengkapan-pemakaian-monitoring',.*?\n    \},", config_src, re.S)
+    expect(
         "a commented-out project (its spec is no longer collected)",
-        config_src.replace(block.group(0), "/* " + block.group(0) + " */") if block else config_src,
-        victim,
+        uncovered_specs(
+            config_src.replace(
+                block.group(0),
+                "\n".join("// " + ln for ln in block.group(0).splitlines()),
+            ) if block else config_src,
+            specs,
+        ),
+        [victim],
     )
 
     # 6. A `//`-commented testMatch must not be read as live configuration.
-    caught(
+    expect(
         "a `//`-commented testMatch (line comments are not configuration)",
-        config_src.replace(
-            f"      testMatch: ['**/{victim}'],",
-            f"      // testMatch: ['**/{victim}'],", 1),
-        victim,
+        uncovered_specs(
+            config_src.replace(
+                f"      testMatch: ['**/{victim}'],",
+                f"      // testMatch: ['**/{victim}'],", 1),
+            specs,
+        ),
+        [victim],
     )
 
+    # 7. A quoted pattern inside an array comment is text, not a pattern.
+    #    The quoted glob here deliberately has no `**/` — a `*/` inside a block
+    #    comment would end the comment, which is valid JS but a different case.
+    expect(
+        "a quoted pattern inside an array comment (text, not configuration)",
+        uncovered_specs(
+            config_src.replace(
+                f"      testMatch: ['**/{victim}'],",
+                f"      testMatch: [/* '{victim}' */],", 1),
+            specs,
+        ),
+        [victim],
+    )
+
+    # 8. A second project may still collect what the first one ignores.
+    expect(
+        "an unrelated project ignoring a spec another project collects",
+        uncovered_specs(
+            "export default defineConfig({ projects: ["
+            "{ name: 'p1', testMatch: ['**/*.spec.ts'], testIgnore: ['**/b.spec.ts'] },"
+            "{ name: 'p2', testMatch: ['**/b.spec.ts'] },"
+            "]});",
+            ["a.spec.ts", "b.spec.ts"],
+        ),
+        [],
+    )
+
+    # 9. A project-level `testIgnore: []` overrides the inherited top-level one.
+    expect(
+        "a project-level testIgnore overriding the top-level ignore",
+        uncovered_specs(
+            "export default defineConfig({ testIgnore: ['**/a.spec.ts'], projects: ["
+            "{ name: 'p', testMatch: ['**/a.spec.ts'], testIgnore: [] },"
+            "]});",
+            ["a.spec.ts"],
+        ),
+        [],
+    )
+
+    # 10. Bare-string testMatch is still a testMatch.
+    expect(
+        "a bare-string testMatch",
+        uncovered_specs(
+            "export default defineConfig({ projects: [{ name: 'p', testMatch: '**/a.spec.ts' }] });",
+            ["a.spec.ts", "b.spec.ts"],
+        ),
+        ["b.spec.ts"],
+    )
+
+    # 11. A top-level testMatch is NOT coverage.
+    expect(
+        "a top-level testMatch (only `projects:` collects)",
+        uncovered_specs(
+            "export default defineConfig({ testMatch: ['**/*.spec.ts'], projects: ["
+            "{ name: 'p' }] });",
+            ["a.spec.ts"],
+        ),
+        ["a.spec.ts"],
+    )
+
+    # 12. A pattern inside a STRING is not configuration.
+    expect(
+        "a testMatch-looking pattern inside a string literal",
+        uncovered_specs(
+            "export default defineConfig({ projects: [{ name: 'p', "
+            "use: { note: \"testMatch: ['**/a.spec.ts']\" } }] });",
+            ["a.spec.ts"],
+        ),
+        ["a.spec.ts"],
+    )
+
+    del others  # kept for readability of the expectations above
     return ok
 
 
 def main() -> int:
-    if "--self-test" in sys.argv:
+    global ACTIVE_SUITES
+    argv = list(sys.argv[1:])
+    if "--e2e-dir" in argv:
+        i = argv.index("--e2e-dir")
+        try:
+            ACTIVE_SUITES = [("e2e", argv[i + 1])]
+        except IndexError:
+            print("--e2e-dir needs a path", file=sys.stderr)
+            return 2
+        del argv[i : i + 2]
+
+    if "--self-test" in argv:
         return 0 if self_test() else 1
 
     ok = check()
-    if "--cross-check" in sys.argv:
+    if "--cross-check" in argv:
         cross = cross_check_against_list()
         if cross is False:
             ok = False

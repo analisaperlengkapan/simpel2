@@ -26,8 +26,28 @@ COMPOSE="docker compose -f docker-compose.yml -f docker-compose.e2e.yml"
 # Compose interpolates ${POSTGRES_PASSWORD:?...} and ${SIMPELV1_APP_KEY:?...}
 # for every service in the merged files — including ones we never start — so a
 # fresh checkout with no `.env` fails at interpolation time before anything
-# runs. These are disposable local test credentials (the same values CI passes);
-# an explicitly supplied value always wins.
+# runs. Supply disposable local test credentials (the same values CI passes).
+#
+# Order matters, and getting it wrong breaks an EXISTING local database: Compose
+# reads `.env` for interpolation only when the shell does not already define the
+# variable, so an unconditional `export` would override a developer's own
+# `.env`. The postgres volume keeps whatever password it was initialised with
+# (Postgres does not reset the role on an existing data dir), so the migrate and
+# seed containers would then authenticate with the wrong password and `up` would
+# stop. Read `.env` first and only fall back when it says nothing. An explicitly
+# exported value still wins, because we never overwrite what is already set.
+_env_value() {
+  [ -f .env ] || return 1
+  sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" .env | tail -1 \
+    | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'$/\1/"
+}
+for _v in POSTGRES_PASSWORD SIMPELV1_APP_KEY; do
+  if [ -z "${!_v:-}" ]; then
+    if _val="$(_env_value "$_v")" && [ -n "$_val" ]; then
+      export "$_v=$_val"
+    fi
+  fi
+done
 : "${POSTGRES_PASSWORD:=e2e_test_pw}"
 : "${SIMPELV1_APP_KEY:=base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz}"
 export POSTGRES_PASSWORD SIMPELV1_APP_KEY
