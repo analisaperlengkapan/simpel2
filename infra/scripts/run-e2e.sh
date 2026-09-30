@@ -34,20 +34,49 @@ COMPOSE="docker compose -f docker-compose.yml -f docker-compose.e2e.yml"
 # `.env`. The postgres volume keeps whatever password it was initialised with
 # (Postgres does not reset the role on an existing data dir), so the migrate and
 # seed containers would then authenticate with the wrong password and `up` would
-# stop. Read `.env` first and only fall back when it says nothing. An explicitly
-# exported value still wins, because we never overwrite what is already set.
-_env_value() {
+# stop. So: take the value Compose itself would use, and fall back only when
+# there is none. An explicitly exported value still wins, because we never
+# overwrite what is already set.
+#
+# The value comes from Compose rather than a `sed` pass over `.env`. `.env`
+# syntax has rules a line-based read gets wrong — `POSTGRES_PASSWORD=localpw #
+# local database` is `localpw` to Compose (an unquoted ` #` starts a comment) but
+# `localpw # local database` to a naive parse. Compose would then initialise the
+# role with the short value while the harness handed the long one to migrate and
+# seed, and every run would fail authentication. Quoted values keep their `#`,
+# and `key#x` (no space) is not a comment at all — matching Compose exactly means
+# not re-implementing it.
+#
+# `config --environment` prints the interpolation environment as `KEY=value`
+# lines. Two rules decide who supplies a value, and they are Compose's, not
+# ours: an explicitly exported value wins over `.env`, and `.env` wins over the
+# fallback. So the fallback is exported only for a key `.env` does not mention —
+# exporting it earlier would make it win over `.env` and silently ignore a
+# developer's own credentials. Whether `.env` mentions a key is a presence check
+# (no value parsing, so no comment rules to get wrong); the value itself is read
+# back from Compose.
+_dotenv_has() {
   [ -f .env ] || return 1
-  sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" .env | tail -1 \
-    | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'$/\1/"
+  grep -qE "^[[:space:]]*(export[[:space:]]+)?$1[[:space:]]*=" .env
 }
 for _v in POSTGRES_PASSWORD SIMPELV1_APP_KEY; do
-  if [ -z "${!_v:-}" ]; then
-    if _val="$(_env_value "$_v")" && [ -n "$_val" ]; then
-      export "$_v=$_val"
-    fi
-  fi
+  [ -n "${!_v:-}" ] && continue # explicit export wins
+  _dotenv_has "$_v" && continue  # `.env` wins; Compose will read it
+  case "$_v" in
+    POSTGRES_PASSWORD) export POSTGRES_PASSWORD=e2e_test_pw ;;
+    SIMPELV1_APP_KEY)
+      export SIMPELV1_APP_KEY=base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz
+      ;;
+  esac
 done
+if [ -f .env ]; then
+  _compose_env="$($COMPOSE config --environment 2>/dev/null || true)"
+  for _v in POSTGRES_PASSWORD SIMPELV1_APP_KEY; do
+    _val="$(printf '%s\n' "$_compose_env" | sed -n "s/^$_v=//p" | tail -1)"
+    [ -n "$_val" ] && export "$_v=$_val"
+  done
+fi
+# `.env` may still leave a key empty, and a fresh checkout has no `.env` at all.
 : "${POSTGRES_PASSWORD:=e2e_test_pw}"
 : "${SIMPELV1_APP_KEY:=base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz}"
 export POSTGRES_PASSWORD SIMPELV1_APP_KEY

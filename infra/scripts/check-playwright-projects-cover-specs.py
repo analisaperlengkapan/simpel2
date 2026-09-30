@@ -9,7 +9,7 @@ compiles (TypeScript is only checked when the file is loaded), the
 route-coverage gate greps spec *text* for route strings (it never asks whether
 the spec is collected), and `cargo` does not know the file exists.
 
-Demonstrated, not hypothesised: `antemuka/perlengkapan/tests/e2e/
+Demonstrated, not hypothesised: `antarmuka/perlengkapan/tests/e2e/
 pemakaian-monitoring.spec.ts` — 8 assertions over the six per-role monitoring
 read endpoints (the exact scoping bug class the file was written to catch) — sat
 on disk matched by no project. Same failure shape as the orphaned `tests/`
@@ -372,7 +372,7 @@ def check() -> bool:
     return ok
 
 
-def cross_check_against_list() -> bool | None:
+def cross_check_against_list(strict: bool = False) -> bool | None:
     """Compare the static model to `npx playwright test --list` for the WHOLE suite.
 
     `--list` is the ground truth; this exists because a hand-maintained glob
@@ -382,14 +382,24 @@ def cross_check_against_list() -> bool | None:
     calls collected. A one-directional check would miss the model silently
     *dropping* a spec (which is the failure this whole guard is about).
 
-    Returns None (skip) when the toolchain is absent: the invariants job has no
-    Node, so this must never be the thing that makes the guard fail.
+    Without `strict`, a suite that cannot be compared returns None (skip): the
+    invariants job has no Node, so this must never be the thing that makes that
+    job fail.
+
+    With `strict`, "could not verify" is a FAILURE, never a skip. CI's e2e job
+    asks for that, because it runs inside the image where the toolchain is
+    guaranteed — and because the alternative fails silently: a `--list` that
+    exits non-zero (config error, bad flag, missing browser) prints a diagnostic
+    instead of JSON, and treating that as a skip makes the step green while
+    proving nothing. Non-zero exit, unparseable JSON, an empty listing, and zero
+    suites compared are each a failure under `strict`.
     """
     checked = 0
+    unverified: list[str] = []
     for label, rel_dir in ACTIVE_SUITES:
         e2e_dir = suite_dir(rel_dir)
         if not (e2e_dir / "node_modules").is_dir():
-            print(f"  .. {label}: skipped (no node_modules — cannot run --list)")
+            unverified.append(f"{label}: no node_modules — cannot run --list")
             continue
         try:
             proc = subprocess.run(
@@ -397,12 +407,20 @@ def cross_check_against_list() -> bool | None:
                 cwd=e2e_dir, capture_output=True, text=True, timeout=600,
             )
         except (OSError, subprocess.SubprocessError) as e:
-            print(f"  .. {label}: skipped (--list unavailable: {e})")
+            unverified.append(f"{label}: --list unavailable: {e}")
+            continue
+        if proc.returncode != 0:
+            # Without this the exit status is never consulted and a failed
+            # `--list` reads as "no JSON", i.e. a skip.
+            lines = (proc.stderr or proc.stdout or "").strip().splitlines()
+            unverified.append(
+                f"{label}: --list exited {proc.returncode}: {lines[-1] if lines else 'no output'}"
+            )
             continue
         try:
             data = json.loads(proc.stdout)
         except json.JSONDecodeError:
-            print(f"  .. {label}: skipped (--list produced no JSON)")
+            unverified.append(f"{label}: --list produced no JSON")
             continue
 
         listed: set[str] = set()
@@ -418,7 +436,7 @@ def cross_check_against_list() -> bool | None:
 
         walk(data.get("suites", []))
         if not listed:
-            print(f"  .. {label}: skipped (--list reported no tests)")
+            unverified.append(f"{label}: --list reported no tests")
             continue
 
         specs = specs_on_disk(e2e_dir)
@@ -439,11 +457,20 @@ def cross_check_against_list() -> bool | None:
             return False
         checked += 1
         print(f"  ok {label}: static model == --list ({len(listed_n)} file(s))")
+
+    if unverified:
+        for msg in unverified:
+            print(f"  {'✗' if strict else '..'} {msg}")
+    if strict and (unverified or not checked):
+        if not unverified:
+            print("  ✗ no suite was compared — the cross-check verified nothing")
+        return False
     return True if checked else None
 
 
 def self_test() -> bool:
     """Prove the guard goes red on each regression it claims to catch."""
+    global ACTIVE_SUITES
     ok = True
     _, rel_dir = ACTIVE_SUITES[0]
     e2e_dir = suite_dir(rel_dir)
@@ -612,6 +639,34 @@ def self_test() -> bool:
         ["a.spec.ts"],
     )
 
+    # 13-14. Strict cross-check: "could not verify" must be a failure, not a
+    # skip. Exercised against a temp dir that has a config but no node_modules,
+    # which is the shape of every unverifiable suite.
+    saved = ACTIVE_SUITES
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "playwright.config.ts").write_text(
+            "export default defineConfig({ projects: [{ name: 'p', testMatch: ['**/*.spec.ts'] }] });",
+            encoding="utf8",
+        )
+        (tmp_path / "a.spec.ts").write_text("// x\n", encoding="utf8")
+        ACTIVE_SUITES = [("e2e", str(tmp_path))]
+        try:
+            if cross_check_against_list(strict=False) is not None:
+                print("  ✗ self-test: lenient cross-check should skip without node_modules")
+                ok = False
+            else:
+                print("  ok detects: lenient cross-check skips an unverifiable suite")
+            if cross_check_against_list(strict=True) is not False:
+                print("  ✗ self-test: strict cross-check should FAIL when nothing was compared")
+                ok = False
+            else:
+                print("  ok detects: strict cross-check fails when it cannot verify")
+        finally:
+            ACTIVE_SUITES = saved
+
     del others  # kept for readability of the expectations above
     return ok
 
@@ -632,8 +687,11 @@ def main() -> int:
         return 0 if self_test() else 1
 
     ok = check()
-    if "--cross-check" in argv:
-        cross = cross_check_against_list()
+    if "--cross-check" in argv or "--cross-check-strict" in argv:
+        # `--cross-check-strict` is what CI uses: a suite that cannot be
+        # compared is a failure, so the step cannot go green having verified
+        # nothing. Plain `--cross-check` still skips when Node is absent.
+        cross = cross_check_against_list(strict="--cross-check-strict" in argv)
         if cross is False:
             ok = False
     if ok:

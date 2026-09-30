@@ -2199,6 +2199,13 @@ jobs:
       # reach the merge gate unseen. Both `node` and `python3` are in the e2e
       # image, so the same script compares itself against `--list` here.
       #
+      # `--cross-check-strict`, not `--cross-check`: here the toolchain is
+      # guaranteed, so a `--list` that cannot be obtained (non-zero exit, no
+      # JSON, empty listing) must FAIL rather than be skipped. The lenient form
+      # exists for callers without Node; using it here would let the step go
+      # green while comparing nothing, which is the failure mode the step was
+      # added to prevent.
+      #
       # Piped in via stdin rather than bind-mounted: under ARC dind a bind mount
       # resolves against the dind daemon's filesystem, not this checkout, so the
       # script would not be there (same reason the specs are COPY'd into the
@@ -2206,7 +2213,7 @@ jobs:
       - name: Cross-check the spec-coverage model against Playwright --list
         run: |
           docker run --rm -i --entrypoint sh simpel-e2e-smoke -c \
-            'python3 - --e2e-dir /e2e --cross-check' \
+            'python3 - --e2e-dir /e2e --cross-check-strict' \
             < infra/scripts/check-playwright-projects-cover-specs.py
       # `--tail=200` was useless for diagnosis: the backend logs at DEBUG with
       # every h2 frame and every SQL statement, so 200 lines covered 1.2 seconds
