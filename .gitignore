@@ -16,6 +16,12 @@
 *.pem
 **/private.key
 
+# ===============================
+# 🤖 OpenHands
+# ===============================
+# `.openhands/` is ignored further down; see the note there for why the
+# exception for `setup.sh` has to be written as a directory-content ignore.
+
 # ============================
 # 🐳 Docker Artifacts & Images
 # ============================
@@ -255,4 +261,13 @@ recipe.json
 !.claude/skills/
 
 # OpenHands agent memory (local working notes)
-.openhands/
+#
+# Memory is per-developer and stays local, so it is ignored — but as
+# `.openhands/*` rather than `.openhands/`. A directory-level ignore excludes
+# the directory itself, and git never descends into an excluded directory, so
+# `!.openhands/setup.sh` has no effect under `.openhands/`. Ignoring the
+# contents instead lets the negation below re-include the one file that is
+# shared environment setup rather than working notes — without it, a fresh
+# sandbox cannot obtain setup.sh unless it already exists on that machine.
+.openhands/*
+!.openhands/setup.sh
