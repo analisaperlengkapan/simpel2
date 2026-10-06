@@ -11,7 +11,7 @@
 # Pin eksplisit, bukan appVersion chart (12.1.0 default-nya 1.18.1).
 image:
   repository: velero/velero
-  tag: v1.18.3
+  tag: v1.18.4
   pullPolicy: IfNotPresent
 
 # Plugin AWS = yang bicara protokol S3; MinIO adalah endpoint S3-compatible,
