@@ -371,7 +371,12 @@ leptos-node-ref = "0.2.0"
 # leptos_animate intentionally not pinned at workspace level — see
 # `.claude/plans/coba-kritisi-uraian-berikut-pure-rossum.md` Phase 5c.
 # 0.1.x requires `--cfg=web_sys_unstable_apis`; revisit at 0.2+.
-tracing-subscriber-wasm = "0.1.0"
+#
+# `tracing-subscriber-wasm` was removed (2026-10-07): its only remaining
+# dependency path is `gloo 0.8` → `gloo-worker 0.2` → `anymap2`, which is
+# unmaintained (RUSTSEC-2026-0319, no fixed version) and dragged a second,
+# stale `gloo` into every WASM bundle. The browser writer now lives in
+# `lib/ui/src/utils/console_writer.rs` and uses `web-sys` directly.
 
 # WASM specific - Latest Stable Versions (Updated)
 wasm-bindgen = "0.2.122"
