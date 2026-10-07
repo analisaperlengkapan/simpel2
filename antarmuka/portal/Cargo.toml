@@ -55,7 +55,6 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true, default-features = false, features = [
   "fmt",
 ] }
-tracing-subscriber-wasm = { workspace = true }
 uuid = { workspace = true, features = ["v4", "js", "fast-rng"] }
 url = { workspace = true }
 urlencoding = { workspace = true }

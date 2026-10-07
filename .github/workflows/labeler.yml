@@ -2,7 +2,13 @@ name: Labeler
 
 on:
   pull_request_target:
-    types: [opened, reopened, synchronize, edited, ready_for_review]
+    # `labeled`/`unlabeled` ada di sini BUKAN untuk pelabelan itu sendiri,
+    # melainkan karena PR-title gate punya `ignoreLabels` (lihat job
+    # `pr-title-check`): action-nya membaca label saat ia berjalan, jadi label
+    # yang mendarat SESUDAH check berjalan akan meninggalkan merah yang tak
+    # pernah dihitung ulang. Perubahan label memicu ulang evaluasi — itulah
+    # alasan action-nya mendokumentasikan kedua tipe event ini.
+    types: [opened, reopened, synchronize, edited, ready_for_review, labeled, unlabeled]
   issues:
     types: [opened, edited, reopened]
 
@@ -95,6 +101,26 @@ jobs:
             Subject judul PR harus diawali huruf kecil/digit. Contoh:
               feat(layanan-authenc): tambah dukungan WebAuthn
               fix(simpelv1): atasi NPE di laporan BMN
+          # Dependabot menulis judulnya sendiri — "<prefix>: Bump <crate> from
+          # X to Y" — dan subject-nya selalu diawali huruf BESAR ("Bump").
+          # Pola di atas menuntut huruf kecil/digit, jadi SETIAP PR bot
+          # MUSTAHIL lulus; merahnya tak pernah bisa diperbaiki dari sisi repo
+          # (judulnya di-regenerate bot tiap rebase, dan subject-nya di luar
+          # kendali `commit-message.prefix` di dependabot.yml — prefix hanya
+          # mengisi type/scope, bukan subject). Hasilnya ~10 PR bot merah
+          # permanen pada satu job yang isinya cuma membaca judul.
+          #
+          # Lewatkan lewat LABEL, bukan dengan melonggarkan pola: melonggarkan
+          # `^[a-z0-9]` demi bot akan mematikan aturan itu untuk manusia juga,
+          # padahal konvensi subject huruf-kecil itulah tujuannya. Label
+          # `dependencies` hanya dipasang Dependabot (lihat dependabot.yml).
+          #
+          # Aman untuk riwayat: squash-merge tetap memakai judul PR
+          # ("deps(deps): Bump …") yang SUDAH sah sebagai Conventional Commit —
+          # type/scope-nya dijaga terpisah oleh maintenance.yml
+          # ("Dependabot prefixes match the PR-title gate").
+          ignoreLabels: |
+            dependencies
 
   issue-label-by-content:
     name: Issue Label by Content
