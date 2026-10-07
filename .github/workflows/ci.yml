@@ -1851,8 +1851,9 @@ jobs:
         run: |
           NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
           echo "stack network: ${NET:?simpel-network not found}"
-          docker build -t simpel-e2e-portal \
-            -f antarmuka/portal/tests/e2e/Dockerfile.e2e \
+          bash infra/scripts/docker-build-with-retry.sh \
+            simpel-e2e-portal \
+            antarmuka/portal/tests/e2e/Dockerfile.e2e \
             antarmuka/portal/tests/e2e
           docker run --rm --network "$NET" \
             -e BASE_URL=http://portal:8080 \
@@ -2037,8 +2038,9 @@ jobs:
         run: |
           NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
           echo "stack network: ${NET:?simpel-network not found}"
-          docker build -t simpel-e2e-smoke \
-            -f antarmuka/perlengkapan/tests/e2e/Dockerfile.e2e \
+          bash infra/scripts/docker-build-with-retry.sh \
+            simpel-e2e-smoke \
+            antarmuka/perlengkapan/tests/e2e/Dockerfile.e2e \
             antarmuka/perlengkapan/tests/e2e
           docker run --rm --network "$NET" \
             -e BASE_URL=http://perlengkapan:8080 \
@@ -2345,8 +2347,9 @@ jobs:
         run: |
           NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
           echo "stack network: ${NET:?simpel-network not found}"
-          docker build -t simpel-e2e-portal \
-            -f antarmuka/portal/tests/e2e/Dockerfile.e2e \
+          bash infra/scripts/docker-build-with-retry.sh \
+            simpel-e2e-portal \
+            antarmuka/portal/tests/e2e/Dockerfile.e2e \
             antarmuka/portal/tests/e2e
           # baseURL = the single-origin ingress; the spec uses relative /portal,
           # /perlengkapan and /api paths so the SSO handoff stays same-origin.
@@ -2458,8 +2461,9 @@ jobs:
           NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
           echo "stack network: ${NET:?simpel-network not found}"
           cp layanan/integrasi/proto/integrasi.proto antarmuka/portal/tests/e2e/integrasi.proto
-          docker build -t simpel-e2e-portal \
-            -f antarmuka/portal/tests/e2e/Dockerfile.e2e \
+          bash infra/scripts/docker-build-with-retry.sh \
+            simpel-e2e-portal \
+            antarmuka/portal/tests/e2e/Dockerfile.e2e \
             antarmuka/portal/tests/e2e
           docker run --rm --network "$NET" \
             -e AUTHENC_URL=http://authenc:8088 \
