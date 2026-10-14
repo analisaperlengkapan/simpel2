@@ -37,14 +37,12 @@ fn resolve_perlengkapan_redirect_target() -> Option<String> {
 /// Hand the freshly minted token back to v1 when this login began as a v1
 /// bounce. Returns `true` once the form has been submitted — the browser is
 /// leaving this document, so no further navigation should be attempted.
+///
+/// The account-policy guard (password change / MFA setup) lives inside
+/// `legacy_handoff::complete_handoff_if_pending`, so every caller gets it; see
+/// the note there for why the decision is centralised rather than repeated.
 fn complete_legacy_handoff_if_pending(session: &UserSession) -> bool {
-    let Some(handoff) = legacy_handoff::take_handoff() else {
-        return false;
-    };
-    let Some(token) = session.access_token.clone().or_else(AuthService::get_token) else {
-        return false;
-    };
-    legacy_handoff::complete_handoff(&token, &handoff)
+    legacy_handoff::complete_handoff_if_pending(session)
 }
 
 /// Login page
@@ -78,15 +76,41 @@ pub fn LoginPage(
     // v1 has no login page: it bounces here with `?return_to=…&callback=…&state=…`
     // and expects the JWT back. Park the request before anything can navigate
     // away (MFA, forced password change), and complete it straight away when a
-    // session already exists.
+    // session already exists AND no account-policy step is outstanding.
+    //
+    // The policy check is not redundant with the one inside
+    // `try_immediate_handoff`: without it here, a user who is already logged in
+    // with `require_password_change` set would fall through to the login form
+    // (the handoff is parked, nothing navigates), when the correct move is to
+    // send them to `/password` and let that page finish the handoff. Note the
+    // return URL is persisted for exactly that: `/password` navigates by URL,
+    // so the v1 query string — and the parked handoff with it — would otherwise
+    // be lost before the round trip completes.
     let (legacy_redirecting, set_legacy_redirecting) = signal(false);
     {
         let handoff = legacy_handoff::parse_handoff();
         if let Some(handoff) = handoff {
+            // Park it in `sessionStorage`: that survives the detour navigation
+            // below (MFA setup / password change navigate by URL and drop this
+            // query string), so the detour page can still complete the handoff.
             legacy_handoff::save_handoff(&handoff);
+            let nav = navigate.clone();
             Effect::new(move |_| {
-                if AuthService::get_token().is_some() && legacy_handoff::try_immediate_handoff() {
+                if AuthService::get_token().is_none() {
+                    return;
+                }
+                if legacy_handoff::try_immediate_handoff() {
                     set_legacy_redirecting.set(true);
+                    return;
+                }
+                // The handoff was parked because an account-policy step is still
+                // outstanding (see `try_immediate_handoff`). Send the user
+                // through it rather than showing a login form they do not need —
+                // the detour page completes the handoff once the step is done.
+                if let Some(session) = AuthService::load_session()
+                    && let Some(step) = legacy_handoff::blocking_policy_step(&session)
+                {
+                    nav(step.route(), Default::default());
                 }
             });
         }

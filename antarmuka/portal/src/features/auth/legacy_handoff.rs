@@ -21,6 +21,8 @@ use serde::{Deserialize, Serialize};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 
+use super::{AuthService, UserSession};
+
 /// Query parameters v1's `TokenToOAuthMiddleware` sends on a bounce.
 pub const RETURN_TO_PARAM: &str = "return_to";
 pub const CALLBACK_PARAM: &str = "callback";
@@ -222,6 +224,41 @@ pub fn complete_handoff(_token: &str, _handoff: &LegacyHandoff) -> bool {
     false
 }
 
+/// Hand the freshly minted token back to v1 when this login began as a v1
+/// bounce. Returns `true` once the form has been submitted — the browser is
+/// leaving this document, so no further navigation should be attempted.
+///
+/// This is the choke point for every post-login path (password, passkey, MFA
+/// verify, backup code). Each caller already decides whether to detour to
+/// `/password` first, but that is a per-call-site check; re-asserting the policy
+/// here means a future login path that forgets it cannot hand a
+/// password-change-pending token to v1. The parked handoff is deliberately left
+/// in place when a step blocks, so the detour can still complete it.
+pub fn complete_handoff_if_pending(session: &UserSession) -> bool {
+    let Some(handoff) = take_handoff() else {
+        return false;
+    };
+    if let Some(step) = blocking_policy_step(session) {
+        leptos::logging::debug_warn!(
+            "v1 handoff deferred: {} still required before the token can be handed back",
+            step.label()
+        );
+        save_handoff(&handoff);
+        return false;
+    }
+    let Some(token) = session.access_token.clone().or_else(AuthService::get_token) else {
+        save_handoff(&handoff);
+        return false;
+    };
+    if complete_handoff(&token, &handoff) {
+        return true;
+    }
+    // The form could not be submitted; keep the request parked so a retry can
+    // still complete it rather than dropping the user's original destination.
+    save_handoff(&handoff);
+    false
+}
+
 /// If the browser arrived with a v1 handoff and already holds a valid session,
 /// complete it immediately instead of showing the login form again.
 ///
@@ -232,7 +269,7 @@ pub fn try_immediate_handoff() -> bool {
     let Some(handoff) = current_handoff() else {
         return false;
     };
-    let Some(token) = crate::features::auth::AuthService::get_token() else {
+    let Some(token) = AuthService::get_token() else {
         // No session yet — park the handoff for after login.
         save_handoff(&handoff);
         return false;
@@ -241,12 +278,83 @@ pub fn try_immediate_handoff() -> bool {
     // its TTL). Posting that to v1 would "succeed" here and then fail there with
     // a 401 the user cannot explain, so require a live token and let the login
     // form mint a fresh one instead.
-    let fresh = crate::features::auth::AuthService::decode_jwt_claims(&token)
-        .map(|session| crate::features::auth::AuthService::is_session_valid(&session))
-        .unwrap_or(false);
-    if !fresh {
+    let Some(session) = AuthService::decode_jwt_claims(&token)
+        .ok()
+        .filter(AuthService::is_session_valid)
+    else {
+        save_handoff(&handoff);
+        return false;
+    };
+    // Never hand a token to v1 while an account-policy step is still outstanding.
+    //
+    // v1's callback (`AuthController::oauthCallback`) logs the user straight in
+    // once the JWT verifies — it does not read `require_password_change` (or
+    // `mfa_setup_required`) from the claims. So posting a token that still
+    // carries either flag creates a full v1 session and bypasses the step: the
+    // user reaches the v1 dashboard with the password they were told to change
+    // (CWE-841). Parking the handoff is what makes the detour work — the login
+    // page re-runs this on the next render, and the portal routes the user
+    // through `/password` (or MFA setup) first.
+    if let Some(step) = blocking_policy_step(&session) {
+        leptos::logging::debug_warn!(
+            "v1 handoff deferred: {} still required before the token can be handed back",
+            step.label()
+        );
         save_handoff(&handoff);
         return false;
     }
     complete_handoff(&token, &handoff)
+}
+
+/// An account-policy step that must complete before a token may be handed to
+/// v1.
+///
+/// v1's callback logs the user straight in once the JWT verifies — it reads
+/// neither `require_password_change` nor `mfa_setup_required` from the claims.
+/// Posting a token that still carries either flag therefore creates a full v1
+/// session and bypasses the step (CWE-841: the user reaches the v1 dashboard
+/// with the password they were told to change). The portal must finish the step
+/// first, and this enum is what names it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PolicyStep {
+    /// The user must change an expired/temporary password.
+    PasswordChange,
+    /// The user must enrol a second factor.
+    MfaSetup,
+}
+
+impl PolicyStep {
+    /// Human-readable name, for logs.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::PasswordChange => "password change",
+            Self::MfaSetup => "MFA setup",
+        }
+    }
+
+    /// Portal route that completes the step.
+    pub fn route(self) -> &'static str {
+        match self {
+            Self::PasswordChange => "/password",
+            Self::MfaSetup => "/mfa/setup",
+        }
+    }
+}
+
+/// The account-policy step that must complete before a token may be handed to
+/// v1, if any.
+///
+/// This is the single place that decides which session flags block the handoff.
+/// The portal's login/passkey flows already test `require_password_change`
+/// before navigating, but that check is per-call-site: a new login path that
+/// forgets it would silently reintroduce the bypass. Routing the handoff
+/// decision through one predicate keeps the rule in a single place.
+pub fn blocking_policy_step(session: &UserSession) -> Option<PolicyStep> {
+    if session.require_password_change {
+        return Some(PolicyStep::PasswordChange);
+    }
+    if session.mfa_setup_required {
+        return Some(PolicyStep::MfaSetup);
+    }
+    None
 }

@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
 """Fail when a simpelv1 `APP_KEY` literal is not a usable AES-256 key.
 
-Laravel's `Encrypter` accepts only 16- or 32-byte keys (AES-128/256). An
-`APP_KEY` of any other length makes EVERY request 500 with
+`config/app.php` pins the cipher to `AES-256-CBC`, so the key MUST be exactly
+**32** bytes. Laravel's `Encrypter` accepts 16 or 32 in the general case
+(AES-128/256), which is why an earlier revision of this guard allowed both --
+but simpelv1 hard-codes the 256 variant, so a 16-byte key is accepted by
+`Encrypter`'s length check and then rejected when the cipher is resolved:
 
     RuntimeException - Unsupported cipher or incorrect key length.
 
-and it fails at container boot, before any application code runs -- so it
+That failure is at container boot, before any application code runs -- so it
 looks like a broken app rather than a bad env var.
 
-That is exactly what happened: the shared e2e key used by CI, `run-e2e.sh` and
-the agent setup script decoded to **30** bytes ("testkey32bytesssssssssssssssss"
--- 30 characters, despite the name). Every e2e job that booted simpelv1 got
-500s from nginx+php-fpm, and the cross-app SSO job never passed. It survived
-because the PHPUnit job uses `phpunit.xml`'s own key, which IS 32 bytes, so the
-one job that exercised v1 code never touched the broken literal.
+The concrete incident: the shared e2e key used by CI, `run-e2e.sh` and the agent
+setup script decoded to **30** bytes ("testkey32bytesssssssssssssssss" -- 30
+characters, despite the name). Every e2e job that booted simpelv1 got 500s from
+nginx+php-fpm, and the cross-app SSO job never passed. It survived because the
+PHPUnit job uses `phpunit.xml`'s own key, which IS 32 bytes, so the one job that
+exercised v1 code never touched the broken literal.
 
 Why a guard rather than a fix alone: the value is a hand-written base64 literal
 copy-pasted in 20+ places (ci.yml env blocks, the compose harness, setup.sh).
@@ -23,7 +26,7 @@ other check -- YAML, actionlint, `compose config` and Laravel's own config cache
 all accept it.
 
 WHAT THIS CHECKS: every `APP_KEY: base64:...` / `SIMPELV1_APP_KEY=base64:...`
-literal in the files that boot simpelv1 decodes to 16 or 32 bytes.
+literal in the files that boot simpelv1 decodes to exactly 32 bytes.
 
 WHAT IT DOES NOT CHECK: whether the key is SECRET, or whether production values
 in Secreton are valid -- those are not in the repo. It only reads literals that
@@ -55,7 +58,11 @@ PATTERN = re.compile(
     r"""(?:SIMPELV1_)?APP_KEY\s*[:=]\s*["']?base64:([A-Za-z0-9+/=]+)"""
 )
 
-VALID_LENGTHS = (16, 32)
+# `config/app.php` pins `'cipher' => 'AES-256-CBC'`, so the only usable length is
+# 32. Allowing 16 (Laravel's AES-128 length) would let a key through that
+# `Encrypter` accepts and the cipher then rejects -- the exact silent-failure
+# mode this guard exists to prevent.
+VALID_LENGTHS = (32,)
 
 
 def main() -> int:
@@ -83,8 +90,8 @@ def main() -> int:
                 if len(raw) not in VALID_LENGTHS:
                     problems.append(
                         f"{rel}:{lineno}: APP_KEY decodes to {len(raw)} bytes, "
-                        f"but Laravel needs {VALID_LENGTHS[0]} or "
-                        f"{VALID_LENGTHS[1]} -- every request would 500 with "
+                        f"but simpelv1 pins AES-256-CBC and needs exactly "
+                        f"{VALID_LENGTHS[0]} -- every request would 500 with "
                         f"'Unsupported cipher or incorrect key length'"
                     )
 

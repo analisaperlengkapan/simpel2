@@ -480,6 +480,36 @@ class AuthController extends Controller
                     ->with('error', 'Token tidak valid');
             }
 
+            // Enforce account-policy flags carried by the token.
+            //
+            // The Portal already refuses to hand a token back while one of
+            // these steps is outstanding (see `legacy_handoff.rs`), but that is
+            // a client-side check: nothing stops a caller from POSTing the
+            // token straight at this callback. Enforcing it here as well means
+            // a token that still owes a password change or MFA enrolment cannot
+            // create a full v1 session by skipping the Portal (CWE-841).
+            //
+            // Deliberately before any DB lookup: this is a property of the
+            // token, so a rejected caller must not reach `Pengguna::where(...)`
+            // (nor the auto-provisioning below).
+            if (! empty($claims['require_password_change'])) {
+                Log::warning('OAuth callback rejected: password change required', [
+                    'ip' => $request->ip(),
+                ]);
+
+                return redirect()->route('login')
+                    ->with('error', 'Anda harus mengganti kata sandi terlebih dahulu melalui Portal');
+            }
+
+            if (! empty($claims['mfa_setup_required'])) {
+                Log::warning('OAuth callback rejected: MFA enrolment required', [
+                    'ip' => $request->ip(),
+                ]);
+
+                return redirect()->route('login')
+                    ->with('error', 'Anda harus mengaktifkan autentikasi dua faktor terlebih dahulu melalui Portal');
+            }
+
             // Resolve the v1 user from the token.
             //
             // The token's `sub` is the authenc user UUID (see

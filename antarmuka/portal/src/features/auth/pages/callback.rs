@@ -27,7 +27,14 @@ pub fn CallbackPage() -> impl IntoView {
         use leptos::prelude::Effect;
         use leptos::task::spawn_local;
 
+        // Router-aware navigation for the policy detour. `set_href` with a
+        // bare `/password` would drop the router's `/portal` base and 404;
+        // `use_navigate` resolves relative to it. It must be called at render
+        // time (inside the reactive Owner), not inside the task below.
+        let navigate = leptos_router::hooks::use_navigate();
+
         Effect::new(move |_| {
+            let navigate = navigate.clone();
             spawn_local(async move {
                 match process_oauth_callback().await {
                     Ok(session) => {
@@ -42,6 +49,26 @@ pub fn CallbackPage() -> impl IntoView {
 
                         // Redirect after short delay to show success message
                         gloo_timers::future::TimeoutFuture::new(1000).await;
+
+                        // Honour an outstanding account-policy step before
+                        // going anywhere else.
+                        //
+                        // This page is reached by exchanging an authorization
+                        // code, and the resulting session carries the same
+                        // `require_password_change` / `mfa_setup_required`
+                        // claims as a password login. Redirecting straight to
+                        // the return URL skipped both: the route guards would
+                        // have bounced the user to `/password`, but the full
+                        // page navigation below bypasses the SPA guard for one
+                        // hop — long enough to land on the target page with a
+                        // policy step still open. Treat it the same way the
+                        // login form does.
+                        if let Some(step) =
+                            crate::features::auth::legacy_handoff::blocking_policy_step(&session)
+                        {
+                            navigate(step.route(), Default::default());
+                            return;
+                        }
 
                         if let Some(window) = web_sys::window() {
                             let _ = window.location().set_href(&return_url);

@@ -291,10 +291,19 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                                                 set_is_loading.set(false);
                                                                 gloo_timers::future::TimeoutFuture::new(2000).await;
                                                                 if is_mounted.load(Ordering::SeqCst) {
-                                                                    if session.require_password_change {
-                                                                        nav("/password", Default::default());
-                                                                    } else {
-                                                                        nav("/dashboard", Default::default());
+                                                                    // A v1 bounce parked during MFA
+                                                                    // recovery can now complete: hand the
+                                                                    // fresh token back rather than landing
+                                                                    // on the Portal dashboard.
+                                                                    let handed_back = !session
+                                                                        .require_password_change
+                                                                        && crate::features::auth::legacy_handoff::complete_handoff_if_pending(&session);
+                                                                    if !handed_back {
+                                                                        if session.require_password_change {
+                                                                            nav("/password", Default::default());
+                                                                        } else {
+                                                                            nav("/dashboard", Default::default());
+                                                                        }
                                                                     }
                                                                 }
                                                             }
