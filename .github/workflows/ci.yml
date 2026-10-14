@@ -2351,18 +2351,23 @@ jobs:
           # origin serves everything the SSO flow needs.
           docker run --rm --network "$NET" curlimages/curl:8.11.1 sh -c '
             for i in $(seq 1 60); do
-              # `/perlengkapan/simpel/v1/dashboard` answers 302 (the SSO
-              # bounce) once v1 is up, so a non-5xx/000 status is the signal;
-              # `curl -sf` would treat the 302 as failure.
+              # v1 is *routed* once it answers anything but 000 (connection
+              # refused). It cannot answer 302 yet: the SSO bounce needs
+              # dbsimpelv1 seeded, which is the next step — so asserting the
+              # bounce here would deadlock the gate against its own
+              # prerequisite (observed: v1 500s on an empty schema while the
+              # gate waits for a 302). Readiness means "up and routed"; the 302
+              # and the full round trip are asserted by the spec, after seeding.
               #
               # Double quotes (not single) inside this body: it is already
               # wrapped in single quotes for `sh -c`, so a single-quoted
               # `%{http_code}` would close that quote and leave the braces to
               # the outer bash parse (actionlint SC1083).
+              v1=$(curl -s -o /dev/null -w "%{http_code}" http://cross-app-ingress:8080/perlengkapan/simpel/v1/dashboard)
               if curl -sf http://cross-app-ingress:8080/health >/dev/null \
                  && curl -sf http://cross-app-ingress:8080/portal/ >/dev/null \
                  && curl -sf http://cross-app-ingress:8080/perlengkapan/ >/dev/null \
-                 && curl -s -o /dev/null -w "%{http_code}" http://cross-app-ingress:8080/perlengkapan/simpel/v1/dashboard | grep -q "^302$" \
+                 && [ "$v1" != "000" ] \
                  && curl -sf http://authenc:8088/health >/dev/null; then
                 echo "ingress routing both FEs + v1 after $i tries"; exit 0; fi
               sleep 5
