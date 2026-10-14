@@ -333,6 +333,11 @@ services:
     build:
       context: .
       dockerfile: monolith/simpelv1/Dockerfile
+    # Explicit, like every sibling service: without it compose names the built
+    # image `simpel2-simpelv1:latest`, while the e2e jobs push/pull
+    # `simpel2-simpelv1:local` — so the pull silently missed and compose rebuilt
+    # from source, blowing the 600s bring-up bound.
+    image: simpel2-simpelv1:local
     container_name: simpelv1
     ports:
       - "${SIMPELV1_HOST_PORT:-8000}:8080"
