@@ -97,10 +97,13 @@ pub fn parse_handoff() -> Option<LegacyHandoff> {
 
         let callback = resolve_v1_url(&params.get(CALLBACK_PARAM)?)?;
 
-        return Some(LegacyHandoff {
+        // Tail expression, not `return`: on wasm32 the sibling
+        // `#[cfg(not(target_arch = "wasm32"))]` block below is compiled out, so
+        // this block *is* the function's tail (clippy::needless_return).
+        Some(LegacyHandoff {
             callback,
             state: params.get(STATE_PARAM),
-        });
+        })
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
