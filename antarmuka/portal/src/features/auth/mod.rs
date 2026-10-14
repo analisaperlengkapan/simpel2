@@ -2,6 +2,8 @@
 //!
 //! Provides authentication state management and user session handling
 
+pub mod legacy_handoff;
+
 use serde::{Deserialize, Serialize};
 
 /// Authentication state

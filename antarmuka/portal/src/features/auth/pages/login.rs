@@ -4,6 +4,7 @@
 //! plus traditional username+password with CAPTCHA as fallback.
 
 use crate::components::layout::AuthLayout;
+use crate::features::auth::legacy_handoff;
 use crate::features::auth::{AuthService, LoginCredentials, LoginResult, UserSession};
 use crate::utils::app_state::{AppState, use_api_client, use_app_state};
 use crate::utils::webauthn;
@@ -33,6 +34,19 @@ fn resolve_perlengkapan_redirect_target() -> Option<String> {
     None
 }
 
+/// Hand the freshly minted token back to v1 when this login began as a v1
+/// bounce. Returns `true` once the form has been submitted — the browser is
+/// leaving this document, so no further navigation should be attempted.
+fn complete_legacy_handoff_if_pending(session: &UserSession) -> bool {
+    let Some(handoff) = legacy_handoff::take_handoff() else {
+        return false;
+    };
+    let Some(token) = session.access_token.clone().or_else(AuthService::get_token) else {
+        return false;
+    };
+    legacy_handoff::complete_handoff(&token, &handoff)
+}
+
 /// Login page
 #[component]
 pub fn LoginPage(
@@ -59,6 +73,24 @@ pub fn LoginPage(
     let navigate = leptos_router::hooks::use_navigate();
     let api = use_api_client();
     let app_state = use_app_state();
+
+    // ── SIMPEL v1 SSO handoff ─────────────────────────────────────────────
+    // v1 has no login page: it bounces here with `?return_to=…&callback=…&state=…`
+    // and expects the JWT back. Park the request before anything can navigate
+    // away (MFA, forced password change), and complete it straight away when a
+    // session already exists.
+    let (legacy_redirecting, set_legacy_redirecting) = signal(false);
+    {
+        let handoff = legacy_handoff::parse_handoff();
+        if let Some(handoff) = handoff {
+            legacy_handoff::save_handoff(&handoff);
+            Effect::new(move |_| {
+                if AuthService::get_token().is_some() && legacy_handoff::try_immediate_handoff() {
+                    set_legacy_redirecting.set(true);
+                }
+            });
+        }
+    }
 
     // ── Passkey authentication trigger ────────────────────────────────────
     let (passkey_trigger, set_passkey_trigger) = signal(0u32);
@@ -117,6 +149,10 @@ pub fn LoginPage(
                                                 // via the dashboard route guard.
                                                 if session.require_password_change {
                                                     nav("/password", Default::default());
+                                                } else if complete_legacy_handoff_if_pending(
+                                                    &session,
+                                                ) {
+                                                    set_legacy_redirecting.set(true);
                                                 } else if let Some(target) = &redirect_target {
                                                     if let Some(window) = web_sys::window() {
                                                         let _ = window.location().set_href(target);
@@ -233,6 +269,10 @@ pub fn LoginPage(
                     AuthService::save_session(&session);
                     app_state.set(AppState::from_session((*session).clone()));
                     let needs_password_change = session.require_password_change;
+                    // Handoff decision is made BEFORE the session is moved into
+                    // the context signal — it needs the token, and the signal
+                    // owns the only copy.
+                    let legacy_handoff = complete_legacy_handoff_if_pending(&session);
                     on_login_success.set(Some(*session));
 
                     // Hide loading spinner before navigating
@@ -242,6 +282,9 @@ pub fn LoginPage(
                     // takes priority over any redirect target.
                     if needs_password_change {
                         nav("/password", Default::default());
+                    } else if legacy_handoff {
+                        // v1 bounce: the token goes back to v1 via a form POST.
+                        set_legacy_redirecting.set(true);
                     } else if let Some(target) = &redirect_target {
                         // Hard redirect to requested Perlengkapan path
                         if let Some(window) = web_sys::window() {
@@ -304,7 +347,27 @@ pub fn LoginPage(
 
     view! {
         <AuthLayout>
-            <div class="max-w-md mx-auto">
+            // Shown while the token is handed back to SIMPEL v1. The form POST
+            // replaces the document, so this is only visible for an instant —
+            // but without it the user sees a login form that appears to have
+            // done nothing.
+            {move || {
+                legacy_redirecting
+                    .get()
+                    .then(|| {
+                        view! {
+                            <div class="max-w-md mx-auto text-center py-16">
+                                <h1 class="text-xl font-bold text-white">
+                                    "Mengalihkan ke " <span class="text-gold-400">"SIMPEL v1"</span>
+                                </h1>
+                                <p class="text-slate-300 text-sm mt-2">
+                                    "Sesi Anda sedang diteruskan ke aplikasi tujuan."
+                                </p>
+                            </div>
+                        }
+                    })
+            }}
+            <div class="max-w-md mx-auto" class:hidden=move || legacy_redirecting.get()>
                 // Logo dan Header
                 <div class="text-center mb-6">
                     <div class="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-4 animate-float">

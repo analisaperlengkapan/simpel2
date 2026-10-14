@@ -480,8 +480,18 @@ class AuthController extends Controller
                     ->with('error', 'Token tidak valid');
             }
 
-            // Cari atau buat user di database
-            $username = $claims['sub'] ?? null;
+            // Resolve the v1 user from the token.
+            //
+            // The token's `sub` is the authenc user UUID (see
+            // `build_user_custom_claims` / `validate_token` in
+            // layanan/authenc), NOT a username — so `username`/`nip` are the
+            // only fields that can key a v1 row. Reading `sub` directly
+            // matched nothing and every real login dead-ended at "User tidak
+            // ditemukan di sistem".
+            //
+            // v1 keys users by NIP, so prefer `nip` and fall back to
+            // `username` for tokens minted before the claim existed.
+            $username = $claims['nip'] ?? $claims['username'] ?? null;
             if (! $username) {
                 return redirect()->route('login')
                     ->with('error', 'Username tidak ditemukan di token');

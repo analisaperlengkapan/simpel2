@@ -387,6 +387,7 @@ gloo-net = { version = "0.7.0", features = ["http"] }
 gloo-utils = { version = "0.3.0", features = ["serde"] }
 web-sys = { version = "0.3.99", features = [
   "HtmlInputElement",
+  "HtmlFormElement",
   "Window",
   "Document",
   "Node",
@@ -403,6 +404,7 @@ web-sys = { version = "0.3.99", features = [
   "Blob",
   "BlobPropertyBag",
   "Url",
+  "UrlSearchParams",
   "MouseEvent",
   "KeyboardEvent",
   "Event",

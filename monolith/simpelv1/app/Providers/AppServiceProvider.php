@@ -57,11 +57,16 @@ class AppServiceProvider extends ServiceProvider
         try {
             $request = request();
             $scheme = $request->getScheme() ?: ($parsed['scheme'] ?? 'http');
-            $host = $request->getHost() ?: ($parsed['host'] ?? 'localhost');
+            // getHttpHost() (not getHost()) so a non-default port survives:
+            // the cross-app e2e ingress listens on :8080, and dropping it made
+            // every redirect point at port 80.
+            $host = $request->getHttpHost() ?: ($parsed['host'] ?? 'localhost');
         } catch (\Throwable $e) {
             // Fallback ke APP_URL kalau request() not bound (edge case).
             $scheme = $parsed['scheme'] ?? 'http';
-            $host = $parsed['host'] ?? 'localhost';
+            $host = isset($parsed['port'])
+                ? "{$parsed['host']}:{$parsed['port']}"
+                : ($parsed['host'] ?? 'localhost');
         }
 
         URL::forceRootUrl("{$scheme}://{$host}{$path}");
