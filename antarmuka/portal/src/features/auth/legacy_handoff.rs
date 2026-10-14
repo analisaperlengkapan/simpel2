@@ -186,7 +186,10 @@ pub fn complete_handoff(token: &str, handoff: &LegacyHandoff) -> bool {
     let _ = form.set_attribute("method", "post");
     let _ = form.set_attribute("action", &handoff.callback);
 
-    for (name, value) in [("token", token), ("state", handoff.state.as_deref().unwrap_or(""))] {
+    for (name, value) in [
+        ("token", token),
+        ("state", handoff.state.as_deref().unwrap_or("")),
+    ] {
         let Ok(input) = document.create_element("input") else {
             return false;
         };
