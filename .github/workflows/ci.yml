@@ -322,6 +322,18 @@ jobs:
       - name: Frontend/backend DTO drift guard self-test
         shell: bash
         run: python3 ./infra/scripts/check-fe-be-dto-drift.py --selftest
+      # A simpelv1 APP_KEY of the wrong length makes every request 500 at boot,
+      # before any application code runs — so it reads as a broken app, not a
+      # bad env var. The shared e2e key was 30 bytes (needs 16 or 32) and sat in
+      # 22 literals across ci.yml, the compose harness and the agent setup
+      # script. Nothing decoded it: YAML, actionlint, `compose config` and
+      # Laravel's config cache all accept a key that "looks like a key". The
+      # PHPUnit job never caught it because phpunit.xml carries its own VALID
+      # key, so the one job that ran v1 code never touched the broken literal.
+      # Found only by booting simpelv1 for real in the cross-app SSO job.
+      - name: simpelv1 APP_KEY literals decode to a usable AES key
+        shell: bash
+        run: python3 ./infra/scripts/check-simpelv1-app-key.py
 
       # Tailwind emits NOTHING for a shade its config does not define — no
       # warning, no build error. `success/warning/danger/info` jumped 100 → 400
@@ -1731,7 +1743,7 @@ jobs:
       - name: Build every e2e image once
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           # Union of what the six e2e jobs consume. Both compose files, so the
           # authenc image gets the CAPTCHA_DEBUG=1 build arg the e2e suites need.
@@ -1792,7 +1804,7 @@ jobs:
       - name: Pull shared e2e images (authenc + portal + integrasi)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           # layanan-integrasi must be built too: the `up` below starts
           # integrasi-migrate, which runs `image: simpel2-integrasi:local`
@@ -1810,7 +1822,7 @@ jobs:
       - name: Bring up e2e stack (bounded)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           if ! timeout 600 docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d \
               postgres redis integrasi-migrate authenc-migrate authenc portal; then
@@ -1839,7 +1851,7 @@ jobs:
       - name: Seed e2e multi-satker fixtures
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml run -T --rm e2e-seed \
             -v ON_ERROR_STOP=1 -h postgres -U postgres -d dbsimpelv2 -f - \
@@ -1872,7 +1884,7 @@ jobs:
         if: failure()
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           echo "::group::warn/error digest (all services, unbounded)"
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
@@ -1892,7 +1904,7 @@ jobs:
         if: always()
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v || true
       - name: Upload Playwright report
@@ -1961,7 +1973,7 @@ jobs:
       - name: Pull shared e2e images
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           # Images come from the shared `e2e-build-images` job (#111); this job
           # used to rebuild them itself, which is why one PR issued up to six
@@ -1974,7 +1986,7 @@ jobs:
       - name: Bring up e2e stack (bounded)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           if ! timeout 600 docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d \
               postgres redis authenc secreton layanan-integrasi layanan-perlengkapan perlengkapan; then
@@ -2025,7 +2037,7 @@ jobs:
       - name: Seed e2e multi-satker + perlengkapan workflow fixtures
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           for f in tests/fixtures/e2e/seed-multisatker.sql \
                    tests/fixtures/e2e/seed-perlengkapan-workflow.sql; do
@@ -2229,7 +2241,7 @@ jobs:
         if: failure()
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           echo "::group::warn/error digest (all services, unbounded)"
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
@@ -2249,7 +2261,7 @@ jobs:
         if: always()
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v || true
       - name: Upload Playwright report
@@ -2303,7 +2315,7 @@ jobs:
     timeout-minutes: 120
     env:
       POSTGRES_PASSWORD: e2e_test_pw
-      SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+      SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
     steps:
       - uses: actions/checkout@v7
       - name: Pull shared e2e images (both FEs + backend)
@@ -2451,7 +2463,7 @@ jobs:
       - name: Pull shared e2e images (authenc + secreton + layanan-integrasi)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           # Images come from the shared `e2e-build-images` job (#111); this job
           # used to rebuild them itself, which is why one PR issued up to six
@@ -2464,7 +2476,7 @@ jobs:
       - name: Bring up e2e stack (bounded)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           if ! timeout 600 docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d \
               postgres redis secreton integrasi-migrate authenc-migrate authenc layanan-integrasi; then
@@ -2492,7 +2504,7 @@ jobs:
       - name: Seed e2e multi-satker fixtures
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml run -T --rm e2e-seed \
             -v ON_ERROR_STOP=1 -h postgres -U postgres -d dbsimpelv2 -f - \
@@ -2525,7 +2537,7 @@ jobs:
         if: failure()
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           echo "::group::warn/error digest (all services, unbounded)"
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
@@ -2545,7 +2557,7 @@ jobs:
         if: always()
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v || true
       - name: Upload Playwright report
@@ -2587,7 +2599,7 @@ jobs:
     timeout-minutes: 120
     env:
       POSTGRES_PASSWORD: e2e_test_pw
-      SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+      SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
     steps:
       - uses: actions/checkout@v7
       - name: Build images (secreton + gateway + authenc + layanan-integrasi)
@@ -2673,7 +2685,7 @@ jobs:
     timeout-minutes: 120
     env:
       POSTGRES_PASSWORD: e2e_test_pw
-      SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+      SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
     steps:
       - uses: actions/checkout@v7
       - name: Build images (authenc + secreton + layanan-integrasi + gateway)
