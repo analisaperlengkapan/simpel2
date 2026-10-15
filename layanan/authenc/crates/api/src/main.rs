@@ -484,10 +484,23 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         rate_limit.requests_per_minute = n;
     }
 
+    // MFA-specific rate limiting — per-IP/per-user verify budgets, progressive
+    // delay and account lockout. Secure defaults (10/min per IP, 5/min per
+    // user, 5-strike lockout) that production/staging keep by leaving these
+    // unset. `AUTHENC_MFA_RATE_LIMIT_ENABLED=false` relaxes it for the e2e
+    // stack for the same reason as the general limiter above: the Playwright
+    // suite drives many MFA flows from a single runner IP.
+    let mut mfa_rate_limit = authenc_api::MfaRateLimitConfig::default();
+    if let Ok(v) = std::env::var("AUTHENC_MFA_RATE_LIMIT_ENABLED") {
+        mfa_rate_limit.enabled =
+            !matches!(v.trim().to_ascii_lowercase().as_str(), "false" | "0" | "no");
+    }
+
     // App config - development CORS + disabled CSRF for API service
     let config = AppConfig {
         cors: CorsConfig::new(Environment::Development),
         rate_limit,
+        mfa_rate_limit,
         csrf: CsrfConfig {
             enabled: false,
             ..Default::default()

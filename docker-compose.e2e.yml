@@ -41,6 +41,10 @@ services:
       # the secure default. Nothing in the suite asserts 429 behaviour. Honoured
       # by layanan/authenc/crates/api/src/main.rs (AUTHENC_RATE_LIMIT_ENABLED).
       AUTHENC_RATE_LIMIT_ENABLED: "false"
+      # Same reasoning for the MFA-specific limiter (per-IP/per-user verify
+      # budgets, progressive delay, account lockout). Honoured by
+      # layanan/authenc/crates/api/src/main.rs (AUTHENC_MFA_RATE_LIMIT_ENABLED).
+      AUTHENC_MFA_RATE_LIMIT_ENABLED: "false"
     ports:
       # Host port parameterised for the same reason as docker-compose.yml (#111):
       # concurrent e2e stacks on one shared Docker daemon collided on fixed

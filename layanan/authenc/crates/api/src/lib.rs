@@ -58,9 +58,9 @@ pub use handlers::{
 
 pub use middleware::{
     AUTH_USER_KEY, AdaptiveRateLimiter, AuthState, AuthUser, AuthUserExt, CorsConfig, CsrfConfig,
-    CsrfState, Environment, RateLimitConfig, RateLimiterState, RequireAuth, apply_auth_layer,
-    apply_csrf_layer, auth_middleware, csrf_protection_middleware, development_cors,
-    generate_csrf_token_response, production_cors, rate_limit_middleware,
+    CsrfState, Environment, MfaRateLimitConfig, RateLimitConfig, RateLimiterState, RequireAuth,
+    apply_auth_layer, apply_csrf_layer, auth_middleware, csrf_protection_middleware,
+    development_cors, generate_csrf_token_response, production_cors, rate_limit_middleware,
 };
 
 pub use router::{create_authenticated_router, create_development_router, create_unified_router};
