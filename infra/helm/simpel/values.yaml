@@ -730,8 +730,16 @@ simpelv1:
     # bisa dijangkau browser — bukan nama Service di dalam cluster. Nilai lama
     # `http://portal:3000/portal` salah dua kali: browser di luar cluster tak
     # bisa me-resolve `portal`, dan VirtualService pun mengarahkan portal ke
-    # port 8080, bukan 3000. Tiap environment menimpanya seperti `appUrl`.
-    PORTAL_URL: "http://localhost:3000/portal"
+    # port 8080, bukan 3000.
+    #
+    # Default-nya RELATIF (`/portal`) karena portal dan v1 selalu satu origin
+    # (VirtualService; ingress cross-app di e2e). Middleware menyelesaikannya
+    # terhadap origin request, jadi nilai ini benar di alamat mana pun browser
+    # benar-benar mendarat. Nilai absolut tetap dihormati apa adanya — itulah
+    # yang dipakai staging (`http://10.1.7.121/portal`) dan production.
+    # Placeholder `http://localhost:3000/portal` yang dulu ada di sini tak bisa
+    # benar di environment mana pun: ia menunjuk host compose, bukan cluster.
+    PORTAL_URL: "/portal"
     # All three point at the single gateway sidecar (127.0.0.1:8090); the sidecar
     # fans out to the right upstream gRPC service per path. See simpelv1.gateway.
     AUTHENC_GATEWAY_URL: "http://127.0.0.1:8090"

@@ -314,6 +314,105 @@ export async function loginViaUi(
 }
 
 /**
+ * Start tracking the captcha challenges a login page issues, and return a
+ * getter that resolves the latest one's answer.
+ *
+ * MUST be called BEFORE navigating to the login page. The WASM requests a
+ * challenge as the page loads, so a listener attached after `goto` (or after an
+ * `isVisible` probe) can miss it entirely and then wait forever on an empty
+ * list — the failure mode is a 10s timeout, not a wrong answer. Returning a
+ * getter rather than a value is what lets the caller attach early and read
+ * late.
+ *
+ * Answers come from the debug endpoint, which only exists in a captcha-debug
+ * build; `skipUnlessCaptchaDebug` is the caller's guard.
+ */
+export function trackCaptchaChallenges(page: Page): () => Promise<string | null> {
+  const challengeIds: string[] = [];
+  page.on('response', async (resp) => {
+    if (resp.url().includes('/api/captcha/challenge') && resp.request().method() === 'POST') {
+      try {
+        const body = await resp.json();
+        if (body?.challenge_id) challengeIds.push(body.challenge_id);
+      } catch {
+        /* ignore non-JSON */
+      }
+    }
+  });
+
+  return async () => {
+    for (let i = 0; i < 50 && challengeIds.length === 0; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    if (challengeIds.length === 0) return null;
+    const challengeId = challengeIds[challengeIds.length - 1];
+    const dbg = await page.request.get(`/api/captcha/debug/${challengeId}`);
+    if (!dbg.ok()) return null;
+    return (await dbg.json()).answer as string;
+  };
+}
+
+/**
+ * Full UI login against a SINGLE-ORIGIN stack (the cross-app ingress), where
+ * the WASM's origin-relative `/api/**` calls already reach authenc — so no
+ * `page.route` proxy is needed.
+ *
+ * Distinct from `loginViaUi`, which needs `setupAllProxies` because the compose
+ * two-origin stack would otherwise send `/api/**` to the FE container. Both
+ * live here so the specs that drive a real login form share one implementation
+ * — the login form is the most selector-fragile surface in the suite, and a
+ * second copy drifts.
+ *
+ * `getCaptchaAnswer` must come from `trackCaptchaChallenges(page)` called
+ * before the navigation that lands on the login page.
+ *
+ * Leaves the browser wherever the app decides to go (dashboard, or a handoff
+ * target); the caller asserts the destination.
+ */
+export async function loginViaSameOriginUi(
+  page: Page,
+  user: { username: string; password: string },
+  getCaptchaAnswer: () => Promise<string | null>,
+): Promise<void> {
+  await expect(page.getByText('Masuk ke Sistem')).toBeVisible({ timeout: 30000 });
+  const passwordToggle = page.getByText('Atau masuk dengan password');
+  if (await passwordToggle.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await passwordToggle.click();
+  }
+
+  const captchaInput = page.locator('input[placeholder="Masukkan teks..."]');
+  await expect(captchaInput).toBeVisible({ timeout: 15000 });
+
+  const answer = await getCaptchaAnswer();
+  expect(answer, 'captcha answer from the debug endpoint').toBeTruthy();
+
+  await page.locator('#username').fill(user.username);
+  await page.locator('#password').fill(user.password);
+  await captchaInput.fill(answer!);
+
+  const [verify] = await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes('/api/captcha/verify') && r.request().method() === 'POST',
+      { timeout: 15000 },
+    ),
+    page.locator('.captcha-container button', { hasText: 'Kirim' }).click(),
+  ]);
+  expect(verify.status()).toBe(200);
+  await page.waitForTimeout(500); // let the captcha_token signal propagate
+
+  const loginBtn = page.getByRole('button', { name: /Masuk ke Portal/i });
+  await expect(loginBtn).toBeEnabled({ timeout: 10000 });
+  const [loginResp] = await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes('/login') && r.request().method() === 'POST',
+      { timeout: 15000 },
+    ),
+    loginBtn.click(),
+  ]);
+  expect(loginResp.status()).toBe(200);
+}
+
+/**
  * API login (no browser): solve captcha via debug endpoint, POST login,
  * return the tokens. Used for backend cross-checks and to mint additional
  * sessions.

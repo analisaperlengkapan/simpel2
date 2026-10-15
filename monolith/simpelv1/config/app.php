@@ -91,9 +91,16 @@ return [
     | PORTAL_URL env var (set in .env, docker-compose, and K8s
     | ConfigMaps) actually takes effect.
     |
+    | The default is RELATIVE (`/portal`) and the middleware resolves it
+    | against the request's own origin: portal and v1 are always served from
+    | one origin (VirtualService in prod, the cross-app ingress in e2e), so a
+    | path is correct wherever the browser actually landed. An absolute
+    | default here would be a hard-coded host that is wrong for every
+    | deployment but the one it was written on.
+    |
     */
 
-    'portal_url' => env('PORTAL_URL', 'http://localhost:3000/portal'),
+    'portal_url' => env('PORTAL_URL', '/portal'),
 
     /*
     |--------------------------------------------------------------------------

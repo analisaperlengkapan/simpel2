@@ -222,6 +222,17 @@ pub fn PasswordChangePage() -> impl IntoView {
                     // timer (e.g. user navigated away), skip the navigation.
                     gloo_timers::future::TimeoutFuture::new(1_500).await;
                     if is_mounted.load(Ordering::SeqCst) {
+                        // A v1 bounce that was parked while this password change
+                        // was outstanding now has a token that no longer carries
+                        // `require_password_change` — hand it back instead of
+                        // dropping the user on the Portal dashboard.
+                        if let Some(session) = crate::features::auth::AuthService::load_session()
+                            && crate::features::auth::legacy_handoff::complete_handoff_if_pending(
+                                &session,
+                            )
+                        {
+                            return;
+                        }
                         if let Some(target) =
                             crate::features::auth::AuthService::take_post_login_redirect()
                         {

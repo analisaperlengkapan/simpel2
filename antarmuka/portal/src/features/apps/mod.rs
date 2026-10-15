@@ -1,4 +1,11 @@
-//! Applications page — microfrontend launcher with submenu support
+//! Applications page — microfrontend launcher.
+//!
+//! Every entry is a first-class card. SIMPEL v1 (legacy Laravel) and SIMPEL v2
+//! (Rust/WASM) are listed as two separate applications rather than one entry
+//! with a version dropdown: the user picks a system to open, they do not
+//! configure a setting inside one. See `features/microfrontends.rs` for the
+//! registry and `monolith/simpelv1/AGENTS.md` → "v1 ↔ v2 Boundary" for why both
+//! are live at once.
 
 use crate::components::layout::MainLayout;
 use crate::features::microfrontends::{AppCategory, MicrofrontendRegistry};
@@ -9,7 +16,6 @@ use leptos::prelude::*;
 pub fn AppsPage() -> impl IntoView {
     let (search_query, set_search_query) = signal(String::new());
     let (selected_category, set_selected_category) = signal(None::<AppCategory>);
-    let (expanded_app, set_expanded_app) = signal(Option::<String>::None);
 
     let all_apps = MicrofrontendRegistry::get_all_apps();
     let categories = MicrofrontendRegistry::get_all_categories();
@@ -95,9 +101,7 @@ pub fn AppsPage() -> impl IntoView {
                         .collect_view()}
                 </div>
 
-                // Apps Grid with Submenu Support.
-                // Apps that have a submenu render as a full-width expandable card,
-                // while regular apps fill a responsive grid alongside them.
+                // Apps Grid
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {move || {
                         let query = search_query.get().to_lowercase();
@@ -115,7 +119,6 @@ pub fn AppsPage() -> impl IntoView {
                             })
                             .collect();
                         if filtered.is_empty() {
-
                             view! {
                                 <div class="col-span-full text-center py-16">
                                     <span class="text-4xl block mb-3">"🔍"</span>
@@ -133,173 +136,58 @@ pub fn AppsPage() -> impl IntoView {
                                     let status_text = app.status.badge_text();
                                     let is_beta = app.status
                                         == crate::features::microfrontends::AppStatus::Beta;
-                                    let has_submenu = app.submenu.is_some();
-                                    let app_id = app.id.clone();
-                                    let app_id_expanded = app_id.clone();
-                                    let is_expanded = Memo::new(move |_| {
-                                        expanded_app.get().as_ref() == Some(&app_id_expanded)
-                                    });
-                                    if has_submenu {
-                                        // Memo is Copy → bisa dipakai di multiple `move ||` closures
-                                        // tanpa "use of moved value" error. Sebelumnya `let is_expanded = move ||`
-                                        // adalah unique closure (FnOnce-ish) yang tidak Copy.
-
-                                        // App with submenu — span full grid width so the dropdown
-                                        // doesn't break the responsive layout.
-                                        view! {
-                                            <div class="sm:col-span-2 lg:col-span-3 rounded-xl border border-slate-100 dark:border-navy-700 overflow-hidden bg-white dark:bg-navy-800">
-                                                <button
-                                                    on:click=move |_| {
-                                                        if is_expanded.get() {
-                                                            set_expanded_app.set(None);
-                                                        } else {
-                                                            set_expanded_app.set(Some(app_id.clone()));
-                                                        }
-                                                    }
-                                                    class="w-full text-left p-5 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors border-b border-slate-100 dark:border-navy-700"
-                                                >
-                                                    <div class="flex items-start justify-between">
-                                                        <div class="flex items-start gap-4 flex-1">
-                                                            <div class=format!(
-                                                                "w-12 h-12 rounded-xl bg-gradient-to-br {} flex items-center justify-center flex-shrink-0 transition-transform",
-                                                                color_classes,
-                                                            )>
-                                                                <span class="text-xl text-white">{app.icon.clone()}</span>
-                                                            </div>
-                                                            <div class="flex-1 min-w-0">
-                                                                <div class="flex items-center gap-2">
-                                                                    <h3 class="text-sm font-semibold text-slate-800 dark:text-white">
-                                                                        {app.name.clone()}
-                                                                    </h3>
-                                                                    {is_beta
-                                                                        .then(|| {
-                                                                            view! {
-                                                                                <span class="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded">
-                                                                                    {status_text}
-                                                                                </span>
-                                                                            }
-                                                                        })}
-                                                                </div>
-                                                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                                                    {app.description.clone()}
-                                                                </p>
-                                                                <p class="text-xs text-slate-400 dark:text-slate-500 mt-2">
-                                                                    {app.category.display_name()}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                        <svg
-                                                            class=move || {
-                                                                format!(
-                                                                    "w-5 h-5 text-slate-400 flex-shrink-0 transition-transform duration-300 {}",
-                                                                    if is_expanded.get() { "rotate-180" } else { "" },
-                                                                )
-                                                            }
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            viewBox="0 0 24 24"
-                                                        >
-                                                            <path
-                                                                stroke-linecap="round"
-                                                                stroke-linejoin="round"
-                                                                stroke-width="2"
-                                                                d="M19 14l-7 7m0 0l-7-7m7 7V3"
-                                                            />
-                                                        </svg>
-                                                    </div>
-                                                </button>
-
-                                                // Submenu with smooth animation
-                                                <div class=move || {
-                                                    format!(
-                                                        "transition-all duration-300 overflow-hidden {}",
-                                                        if is_expanded.get() { "max-h-96" } else { "max-h-0" },
-                                                    )
-                                                }>
-                                                    <div class="p-4 space-y-2">
-                                                        {app
-                                                            .submenu
-                                                            .as_ref()
-                                                            .map(|submenu| {
-                                                                submenu
-                                                                    .iter()
-                                                                    .map(|sub| {
-                                                                        let sub_url = sub.url.clone();
-                                                                        view! {
-                                                                            <a
-                                                                                href=sub_url
-                                                                                class="block p-4 bg-slate-50 dark:bg-navy-900 rounded-lg border border-slate-200 dark:border-navy-700 hover:bg-slate-100 dark:hover:bg-navy-800 hover:border-navy-300 dark:hover:border-gold-500 transition-all group/sub"
-                                                                            >
-                                                                                <h4 class="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover/sub:text-navy-600 dark:group-hover/sub:text-gold-400 transition-colors">
-                                                                                    {sub.name.clone()}
-                                                                                </h4>
-                                                                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                                                                    {sub.description.clone()}
-                                                                                </p>
-                                                                            </a>
-                                                                        }
-                                                                    })
-                                                                    .collect_view()
+                                    view! {
+                                        <a
+                                            href=app.url.clone()
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="block bg-white dark:bg-navy-800 rounded-xl p-5 shadow-sm border border-slate-100 dark:border-navy-700 hover:shadow-lg hover:border-navy-200 dark:hover:border-gold-600 transition-all group"
+                                        >
+                                            <div class="flex items-start gap-4">
+                                                <div class=format!(
+                                                    "w-12 h-12 rounded-xl bg-gradient-to-br {} flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform",
+                                                    color_classes,
+                                                )>
+                                                    <span class="text-xl text-white">{app.icon.clone()}</span>
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="flex items-center gap-2">
+                                                        <h3 class="text-sm font-semibold text-slate-800 dark:text-white">
+                                                            {app.name.clone()}
+                                                        </h3>
+                                                        {is_beta
+                                                            .then(|| {
+                                                                view! {
+                                                                    <span class="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded">
+                                                                        {status_text}
+                                                                    </span>
+                                                                }
                                                             })}
                                                     </div>
+                                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
+                                                        {app.description.clone()}
+                                                    </p>
+                                                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-2">
+                                                        {app.category.display_name()}
+                                                    </p>
                                                 </div>
+                                                <svg
+                                                    class="w-4 h-4 text-slate-400 group-hover:text-navy-600 dark:group-hover:text-gold-400 transition-colors flex-shrink-0 mt-1"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                                    />
+                                                </svg>
                                             </div>
-                                        }
-                                            .into_any()
-                                    } else {
-                                        // App without submenu - regular card
-                                        view! {
-                                            <a
-                                                href=app.url.clone()
-                                                target="_blank"
-                                                class="block bg-white dark:bg-navy-800 rounded-xl p-5 shadow-sm border border-slate-100 dark:border-navy-700 hover:shadow-lg hover:border-navy-200 dark:hover:border-gold-600 transition-all group"
-                                            >
-                                                <div class="flex items-start gap-4">
-                                                    <div class=format!(
-                                                        "w-12 h-12 rounded-xl bg-gradient-to-br {} flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform",
-                                                        color_classes,
-                                                    )>
-                                                        <span class="text-xl text-white">{app.icon.clone()}</span>
-                                                    </div>
-                                                    <div class="flex-1 min-w-0">
-                                                        <div class="flex items-center gap-2">
-                                                            <h3 class="text-sm font-semibold text-slate-800 dark:text-white">
-                                                                {app.name.clone()}
-                                                            </h3>
-                                                            {is_beta
-                                                                .then(|| {
-                                                                    view! {
-                                                                        <span class="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded">
-                                                                            {status_text}
-                                                                        </span>
-                                                                    }
-                                                                })}
-                                                        </div>
-                                                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
-                                                            {app.description.clone()}
-                                                        </p>
-                                                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-2">
-                                                            {app.category.display_name()}
-                                                        </p>
-                                                    </div>
-                                                    <svg
-                                                        class="w-4 h-4 text-slate-400 group-hover:text-navy-600 dark:group-hover:text-gold-400 transition-colors flex-shrink-0 mt-1"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <path
-                                                            stroke-linecap="round"
-                                                            stroke-linejoin="round"
-                                                            stroke-width="2"
-                                                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                                                        />
-                                                    </svg>
-                                                </div>
-                                            </a>
-                                        }
-                                            .into_any()
+                                        </a>
                                     }
+                                        .into_any()
                                 })
                                 .collect_view()
                                 .into_any()

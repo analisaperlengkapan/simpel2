@@ -273,14 +273,26 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                                                 }
                                                                 AuthService::clear_temp_token();
                                                                 if is_mounted.load(Ordering::SeqCst) {
-                                                                    if session.require_password_change {
-                                                                        nav("/password", Default::default());
-                                                                    } else if let Some(target) = AuthService::take_post_login_redirect() {
-                                                                        if let Some(window) = web_sys::window() {
-                                                                            let _ = window.location().set_href(&target);
+                                                                    // A v1 bounce parked during MFA can
+                                                                    // now complete: the token is
+                                                                    // full-strength, so hand it back
+                                                                    // instead of going to the dashboard.
+                                                                    // Skipped while a password change is
+                                                                    // still due, so the handoff stays
+                                                                    // parked for `/password` to finish.
+                                                                    let handed_back = !session
+                                                                        .require_password_change
+                                                                        && crate::features::auth::legacy_handoff::complete_handoff_if_pending(&session);
+                                                                    if !handed_back {
+                                                                        if session.require_password_change {
+                                                                            nav("/password", Default::default());
+                                                                        } else if let Some(target) = AuthService::take_post_login_redirect() {
+                                                                            if let Some(window) = web_sys::window() {
+                                                                                let _ = window.location().set_href(&target);
+                                                                            }
+                                                                        } else {
+                                                                            nav("/dashboard", Default::default());
                                                                         }
-                                                                    } else {
-                                                                        nav("/dashboard", Default::default());
                                                                     }
                                                                 }
                                                             }
