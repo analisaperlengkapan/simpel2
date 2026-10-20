@@ -44,6 +44,14 @@ pub struct ValidateTokenResponse {
     /// Error message (if invalid)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    /// Whether the user must change their password before using the system.
+    /// Downstream callers (simpelv1) enforce this; the portal reads the same
+    /// flag off the JWT.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub require_password_change: Option<bool>,
+    /// Whether the user must still enrol a second factor.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mfa_setup_required: Option<bool>,
 }
 
 /// POST /api/v1/auth/validate - Validate JWT token
@@ -98,6 +106,14 @@ pub async fn validate_token_handler(
                 .custom
                 .get("email")
                 .and_then(|v| v.as_str().map(|s| s.to_string()));
+            let require_password_change = claims
+                .custom
+                .get("require_password_change")
+                .and_then(|v| v.as_bool());
+            let mfa_setup_required = claims
+                .custom
+                .get("mfa_setup_required")
+                .and_then(|v| v.as_bool());
 
             Ok(Json(ValidateTokenResponse {
                 valid: true,
@@ -109,6 +125,8 @@ pub async fn validate_token_handler(
                 exp: Some(claims.exp),
                 iat: Some(claims.iat),
                 error: None,
+                require_password_change,
+                mfa_setup_required,
             }))
         }
         Err(e) => {
@@ -137,6 +155,8 @@ fn invalid_response(error: &str) -> ValidateTokenResponse {
         exp: None,
         iat: None,
         error: Some(error.to_string()),
+        require_password_change: None,
+        mfa_setup_required: None,
     }
 }
 
@@ -436,6 +456,8 @@ mod tests {
             exp: Some(1234567890),
             iat: Some(1234567800),
             error: None,
+            require_password_change: None,
+            mfa_setup_required: None,
         };
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("\"valid\":true"));
@@ -454,6 +476,8 @@ mod tests {
             exp: None,
             iat: None,
             error: Some("Token expired".to_string()),
+            require_password_change: None,
+            mfa_setup_required: None,
         };
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("\"valid\":false"));
@@ -525,6 +549,8 @@ mod tests {
             exp: Some(claims.exp),
             iat: Some(claims.iat),
             error: None,
+            require_password_change: None,
+            mfa_setup_required: None,
         };
 
         assert!(resp.valid);

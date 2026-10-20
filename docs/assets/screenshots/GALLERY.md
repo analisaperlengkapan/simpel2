@@ -76,13 +76,13 @@ Titik masuk SSO dan hasil akhir sebuah sesi.
 
 ![/portal/login](docs/assets/screenshots/portal__portal__login.png)
 
-<sub>1600×1000 piksel</sub>
+<sub>1600×1217 piksel</sub>
 
 **`/portal/login (anon)`**
 
 ![/portal/login (anon)](docs/assets/screenshots/portal__anon__portal__login.png)
 
-<sub>1600×1000 piksel</sub>
+<sub>1600×1217 piksel</sub>
 
 ### Autentikasi Dua Faktor
 
@@ -92,7 +92,7 @@ Enrolment, verifikasi, dan kode pemulihan.
 
 ![/portal/mfa/backup-codes](docs/assets/screenshots/portal__portal__mfa__backup-codes.png)
 
-<sub>1600×1089 piksel</sub>
+<sub>1600×1099 piksel</sub>
 
 **`/portal/mfa/backup-verify`**
 
@@ -138,7 +138,7 @@ Identitas dan pengaturan akun pengguna.
 
 ![/portal/sessions](docs/assets/screenshots/portal__portal__sessions.png)
 
-<sub>1600×1095 piksel</sub>
+<sub>1600×1089 piksel</sub>
 
 **`/portal/settings`**
 
@@ -160,7 +160,7 @@ IAM: pengguna, peran, klien OAuth2, audit.
 
 ![/portal/admin/audit](docs/assets/screenshots/portal__portal__admin__audit.png)
 
-<sub>1600×1089 piksel</sub>
+<sub>1600×1139 piksel</sub>
 
 **`/portal/admin/clients`**
 
@@ -222,7 +222,7 @@ Katalog BMN: daftar, dashboard, sebaran, dan QR.
 
 ![/perlengkapan/simpel/v2/bank-aset/daftar](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__bank-aset__daftar.png)
 
-<sub>1600×1131 piksel</sub>
+<sub>1600×1132 piksel</sub>
 
 **`/perlengkapan/simpel/v2/bank-aset/daftar/:id`**
 
@@ -354,7 +354,7 @@ Izin pemakaian beserta rantai persetujuannya.
 
 ![/perlengkapan/simpel/v2/pengelolaan/pemakaian/buat](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian__buat.png)
 
-<sub>1600×1619 piksel</sub>
+<sub>1600×1620 piksel</sub>
 
 **`/perlengkapan/simpel/v2/pengelolaan/pemakaian/detail/:id`**
 
@@ -366,7 +366,7 @@ Izin pemakaian beserta rantai persetujuannya.
 
 ![/perlengkapan/simpel/v2/pengelolaan/pemakaian/monitoring](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian__monitoring.png)
 
-<sub>1600×1196 piksel</sub>
+<sub>1600×1262 piksel</sub>
 
 ### Penghapusan BMN
 
@@ -388,7 +388,7 @@ Usulan penghapusan sampai Konsep SK.
 
 ![/perlengkapan/simpel/v2/pengelolaan/penghapusan/detail/:id](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pengelolaan__penghapusan__detail__id.png)
 
-<sub>1600×1585 piksel</sub>
+<sub>1600×1399 piksel</sub>
 
 ### Analitik & Roadmap
 
@@ -424,13 +424,13 @@ Panduan, FAQ, dan helpdesk.
 
 ![/perlengkapan/simpel/v2/bantuan/faq](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__bantuan__faq.png)
 
-<sub>1600×1031 piksel</sub>
+<sub>1600×1000 piksel</sub>
 
 **`/perlengkapan/simpel/v2/bantuan/helpdesk`**
 
 ![/perlengkapan/simpel/v2/bantuan/helpdesk](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__bantuan__helpdesk.png)
 
-<sub>1600×1223 piksel</sub>
+<sub>1600×1224 piksel</sub>
 
 **`/perlengkapan/simpel/v2/bantuan/panduan`**
 
@@ -458,7 +458,7 @@ Peran dan hak akses.
 
 ![/perlengkapan/simpel/v2/admin/roles](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__admin__roles.png)
 
-<sub>1600×1153 piksel</sub>
+<sub>1600×1487 piksel</sub>
 
 **`/perlengkapan/simpel/v2/admin/roles (operator)` — ditolak oleh guard**
 
@@ -488,4 +488,4 @@ Peran dan hak akses.
 
 ![/perlengkapan/simpel/v2/admin/workflow-monitoring](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__admin__workflow-monitoring.png)
 
-<sub>1600×1338 piksel</sub>
+<sub>1600×1335 piksel</sub>

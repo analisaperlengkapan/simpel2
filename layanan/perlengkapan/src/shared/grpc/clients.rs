@@ -252,6 +252,8 @@ impl AuthencClient {
                 jabatan: None,
                 satker_code,
                 realm_roles: vec![role],
+                require_password_change: None,
+                mfa_setup_required: None,
             })
         }
     }

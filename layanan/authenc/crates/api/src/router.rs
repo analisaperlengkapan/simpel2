@@ -52,6 +52,7 @@ pub fn create_unified_router(
     state: Arc<ApiState>,
     cors_config: middleware::CorsConfig,
     _rate_limit_config: middleware::RateLimitConfig,
+    mfa_rate_limit_config: middleware::MfaRateLimitConfig,
     csrf_config: middleware::CsrfConfig,
 ) -> Router {
     // Create the base router with all routes
@@ -74,6 +75,13 @@ pub fn create_unified_router(
     // Apply CSRF protection (wraps router directly)
     let router = middleware::apply_csrf_layer(router, csrf_config);
 
+    // MFA-specific limiter (per-IP/per-user budgets, progressive delay,
+    // account lockout). It is a `from_fn_with_state` layer, so it rides on the
+    // same router that already gets `ConnectInfo` from
+    // `into_make_service_with_connect_info` in `main.rs`.
+    let mfa_rate_limit_state =
+        Arc::new(middleware::MfaRateLimiterState::new(mfa_rate_limit_config));
+
     // Apply remaining middleware layers (outermost to innermost)
     router
         // 1. Compression (outermost)
@@ -93,6 +101,11 @@ pub fn create_unified_router(
         .layer(tower_http::trace::TraceLayer::new_for_http())
         // Apply rate limit middleware (inner)
         .layer(middleware::rate_limit_layer(_rate_limit_config))
+        // Apply MFA-specific rate limiting (progressive delay + lockout)
+        .layer(axum::middleware::from_fn_with_state(
+            mfa_rate_limit_state,
+            middleware::mfa_rate_limit_middleware,
+        ))
         // Apply input validation middleware
         .layer(axum::middleware::from_fn(move |req, next| {
             middleware::input_validation_middleware(validation_config.clone(), req, next)

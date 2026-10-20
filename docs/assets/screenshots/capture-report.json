@@ -1,5 +1,5 @@
 {
-  "app_origin": "http://127.0.0.1:18099",
+  "app_origin": "http://cross-app-ingress:8080",
   "captured": 70,
   "unresolved": [],
   "capturedRoutes": [
@@ -427,7 +427,7 @@
   "findings": [
     {
       "file": "portal__portal__.png",
-      "url": "http://127.0.0.1:18099/portal/",
+      "url": "http://cross-app-ingress:8080/portal/",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -438,16 +438,16 @@
     },
     {
       "file": "portal__portal__login.png",
-      "url": "http://127.0.0.1:18099/portal/login",
+      "url": "http://cross-app-ingress:8080/portal/login",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Masuk ke SIMPEL\n\nKejaksaan Agung Republik Indonesia\n\nMasuk ke Sistem\nMasuk dengan Passkey\n\nGunakan sidik jari, wajah, atau kunci keamanan\n\nAtau masuk dengan password"
+      "textPreview": "Masuk ke SIMPEL\n\nKejaksaan Agung Republik Indonesia\n\nMasuk ke Sistem\nUsername\nPassword\nUse Tab to navigate, Enter or Space to activate, Escape to clear focus\nVerifikasi Keamanan\n\nSelesaikan tantangan di bawah ini\n\nKetik karakter yang ditampilkan di bawah ini\nJ\n4\nB\nc\n3\nKetik karakter yang Anda lihat di atas (perhatikan huruf besar/kecil):\nKirim\nSelesaikan Verifikasi Keamanan\n\nLupa password? Hubungi administrator unit kerja Anda."
     },
     {
       "file": "portal__portal__callback.png",
-      "url": "http://127.0.0.1:18099/portal/callback",
+      "url": "http://cross-app-ingress:8080/portal/callback",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -456,7 +456,7 @@
     },
     {
       "file": "portal__portal__logged-out.png",
-      "url": "http://127.0.0.1:18099/portal/logged-out",
+      "url": "http://cross-app-ingress:8080/portal/logged-out",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -465,7 +465,7 @@
     },
     {
       "file": "portal__portal__mfa__setup.png",
-      "url": "http://127.0.0.1:18099/portal/mfa/setup",
+      "url": "http://cross-app-ingress:8080/portal/mfa/setup",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -474,7 +474,7 @@
     },
     {
       "file": "portal__portal__mfa__verify.png",
-      "url": "http://127.0.0.1:18099/portal/mfa/verify",
+      "url": "http://cross-app-ingress:8080/portal/mfa/verify",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -483,7 +483,7 @@
     },
     {
       "file": "portal__portal__mfa__backup-verify.png",
-      "url": "http://127.0.0.1:18099/portal/mfa/backup-verify",
+      "url": "http://cross-app-ingress:8080/portal/mfa/backup-verify",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -492,25 +492,25 @@
     },
     {
       "file": "portal__portal__dashboard.png",
-      "url": "http://127.0.0.1:18099/portal/dashboard",
+      "url": "http://cross-app-ingress:8080/portal/dashboard",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Selamat Pagi\n\nE2E Admin Pusat\nAdministrator Global\nNIP: 200000000000000005\nAdministrator\nRingkasan Akun\n\nEmail\n\n200000000000000005@kejaksaan.go.id\n\nMFA\n\nBelum Aktif\n\nEmail Verifikasi\n\nTerverifikasi\n\nStatistik Sistem\n\nTOTAL PENGGUNA\n\n9\n\nPENGGUNA AKTIF\n\n9\n\nSESI AKTIF\n\n6\n\nTOTAL REALM\n\n1\n\nEVENT KEAMANAN HARI INI\n\n6\n\nLOGIN GAGAL\n\n0\n\nMenu Utama\n\nAplikasi\n\nAkses layanan\n\nProfil\n\nData pegawai\n\nPengaturan\n\nPreferensi akun\n\nNotifikasi\n\nPemberitahuan"
+      "textPreview": "Selamat Pagi\n\nE2E Admin Pusat\nAdministrator Global\nNIP: 200000000000000005\nAdministrator\nRingkasan Akun\n\nEmail\n\n200000000000000005@kejaksaan.go.id\n\nMFA\n\nBelum Aktif\n\nEmail Verifikasi\n\nTerverifikasi\n\nStatistik Sistem\n\nTOTAL PENGGUNA\n\n9\n\nPENGGUNA AKTIF\n\n9\n\nSESI AKTIF\n\n14\n\nTOTAL REALM\n\n1\n\nEVENT KEAMANAN HARI INI\n\n17\n\nLOGIN GAGAL\n\n1\n\nMenu Utama\n\nAplikasi\n\nAkses layanan\n\nProfil\n\nData pegawai\n\nPengaturan\n\nPreferensi akun\n\nNotifikasi\n\nPemberitahuan"
     },
     {
       "file": "portal__portal__apps.png",
-      "url": "http://127.0.0.1:18099/portal/apps",
+      "url": "http://cross-app-ingress:8080/portal/apps",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Aplikasi\n\nDaftar layanan dan aplikasi terintegrasi SIMPEL\n\nSemua\nPengelolaan Aset\n📦\nPerlengkapan\n\nManajemen Aset dan Logistik\n\nPengelolaan Aset\n\nSIMPEL v2 (Modern)\n\nVersi terbaru berbasis Rust & WebAssembly\n\nSIMPEL v1 (Legacy)\n\nVersi sebelumnya berbasis Laravel"
+      "textPreview": "Aplikasi\n\nDaftar layanan dan aplikasi terintegrasi SIMPEL\n\nSemua\nPengelolaan Aset\n📦\nSIMPEL v2\n\nManajemen Aset dan Logistik — Rust & WebAssembly\n\nPengelolaan Aset\n\n🗄️\nSIMPEL v1\n\nManajemen Aset dan Logistik — Laravel (versi lama)\n\nPengelolaan Aset"
     },
     {
       "file": "portal__portal__notifications.png",
-      "url": "http://127.0.0.1:18099/portal/notifications",
+      "url": "http://cross-app-ingress:8080/portal/notifications",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -519,16 +519,16 @@
     },
     {
       "file": "portal__portal__settings.png",
-      "url": "http://127.0.0.1:18099/portal/settings",
+      "url": "http://cross-app-ingress:8080/portal/settings",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Pengaturan\n\nKelola preferensi dan kustomisasi tampilan\n\nTampilan\n\nTema dan warna\n\nEditor Tema\n\nMode gelap/terang dan warna\n\nCustom Branding\n\nLogo dan warna unit kerja\n\nAkun\n\nInformasi profil\n\nNIP\n\n200000000000000005\n\nNAMA\n\nE2E Admin Pusat\n\nJABATAN\n\nAdministrator\n\nSATUAN KERJA\n\n0100000\n\nROLE\n\nAdministrator Global\n\nKeamanan\n\nAutentikasi dan akses\n\nAutentikasi Multi-Faktor\n\nMFA belum aktif\n\nAktifkan\n\nUbah Password\n\nGanti password akun"
+      "textPreview": "Pengaturan\n\nKelola preferensi dan kustomisasi tampilan\n\nTampilan\n\nTema dan warna\n\nEditor Tema\n\nMode gelap/terang dan warna\n\nCustom Branding\n\nLogo dan warna unit kerja\n\nAkun\n\nInformasi profil\n\nNIP\n\n200000000000000005\n\nNAMA\n\nE2E Admin Pusat\n\nJABATAN\n\nAdministrator\n\nSATUAN KERJA\n\nKEJAKSAAN AGUNG REPUBLIK INDONESIA\n\nROLE\n\nAdministrator Global\n\nKeamanan\n\nAutentikasi dan akses\n\nAutentikasi Multi-Faktor\n\nMFA belum aktif\n\nAktifkan\n\nUbah Password\n\nGanti password akun"
     },
     {
       "file": "portal__portal__mfa__backup-codes.png",
-      "url": "http://127.0.0.1:18099/portal/mfa/backup-codes",
+      "url": "http://cross-app-ingress:8080/portal/mfa/backup-codes",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -537,25 +537,25 @@
     },
     {
       "file": "portal__portal__profile.png",
-      "url": "http://127.0.0.1:18099/portal/profile",
+      "url": "http://cross-app-ingress:8080/portal/profile",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Profil Pengguna\n\nInformasi akun dan data kepegawaian Anda\n\nEA\n\nE2E Admin Pusat\n\n200000000000000005\n\nIdentitas\n\nNIP\n\n200000000000000005\n\nNAMA LENGKAP\n\nE2E Admin Pusat\n\nJABATAN\n\nAdministrator\n\nSATUAN KERJA\n\n0100000\n\nAkun\n\nEMAIL\n\n200000000000000005@kejaksaan.go.id\n\nTELEPON\n\n-\n\nROLE\n\nadmin\n\nEMAIL TERVERIFIKASI\n\nYa\n\nKeamanan\n\nMFA\n\nBelum Aktif\n\nPASSWORD\n\nUbah Password"
+      "textPreview": "Profil Pengguna\n\nInformasi akun dan data kepegawaian Anda\n\nEA\n\nE2E Admin Pusat\n\n200000000000000005\n\nIdentitas\n\nNIP\n\n200000000000000005\n\nNAMA LENGKAP\n\nE2E Admin Pusat\n\nJABATAN\n\nAdministrator\n\nSATUAN KERJA\n\nKEJAKSAAN AGUNG REPUBLIK INDONESIA\n\nAkun\n\nEMAIL\n\n200000000000000005@kejaksaan.go.id\n\nTELEPON\n\n-\n\nROLE\n\nadmin\n\nEMAIL TERVERIFIKASI\n\nYa\n\nKeamanan\n\nMFA\n\nBelum Aktif\n\nPASSWORD\n\nUbah Password"
     },
     {
       "file": "portal__portal__passkeys.png",
-      "url": "http://127.0.0.1:18099/portal/passkeys",
+      "url": "http://cross-app-ingress:8080/portal/passkeys",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Kelola Passkey\n\nPasskey memungkinkan Anda login dengan sidik jari, wajah, atau kunci keamanan tanpa kata sandi.\n\n🔑\nTambah Passkey\n🔐\nBelum Ada Passkey\n\nPasskey memungkinkan login yang lebih aman dan cepat menggunakan sidik jari, pengenalan wajah, atau kunci keamanan fisik.\n\n🔑\nDaftarkan Passkey Pertama\nℹ️ Tentang Passkey\nPasskey menggantikan kata sandi dengan autentikasi biometrik atau kunci keamanan\nLebih aman dari kata sandi - tahan terhadap phishing\nTersinkronisasi otomatis melalui iCloud, G"
+      "textPreview": "Kelola Passkey\n\nPasskey memungkinkan Anda login dengan sidik jari, wajah, atau kunci keamanan tanpa kata sandi.\n\n⚠️ Browser Anda tidak mendukung WebAuthn/Passkey\n🔐\nBelum Ada Passkey\n\nPasskey memungkinkan login yang lebih aman dan cepat menggunakan sidik jari, pengenalan wajah, atau kunci keamanan fisik.\n\nℹ️ Tentang Passkey\nPasskey menggantikan kata sandi dengan autentikasi biometrik atau kunci keamanan\nLebih aman dari kata sandi - tahan terhadap phishing\nTersinkronisasi otomatis melalui iCloud,"
     },
     {
       "file": "portal__portal__password.png",
-      "url": "http://127.0.0.1:18099/portal/password",
+      "url": "http://cross-app-ingress:8080/portal/password",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -564,25 +564,25 @@
     },
     {
       "file": "portal__portal__sessions.png",
-      "url": "http://127.0.0.1:18099/portal/sessions",
+      "url": "http://cross-app-ingress:8080/portal/sessions",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Sesi Aktif\n\nKelola perangkat dan sesi login yang aktif.\n\n💻\nChrome di Linux\nSesi ini\n\nIP: 172.18.0.1\n\nLogin: 28 Sep 2026, 04:01\n\nAktif terakhir: 28 Sep 2026, 04:01\n\n💻\nPerangkat tidak dikenal\n\nIP: 172.18.0.1\n\nLogin: 28 Sep 2026, 04:01\n\nAktif terakhir: 28 Sep 2026, 04:01\n\nHentikan\n💻\nPerangkat tidak dikenal\n\nIP: 172.18.0.1\n\nLogin: 28 Sep 2026, 03:00\n\nAktif terakhir: 28 Sep 2026, 03:00\n\nHentikan\n💻\nPerangkat tidak dikenal\n\nIP: 172.18.0.1\n\nLogin: 28 Sep 2026, 03:00\n\nAktif terakhir: 28 Sep 2026, 03:"
+      "textPreview": "Sesi Aktif\n\nKelola perangkat dan sesi login yang aktif.\n\n💻\nChrome di Linux\nSesi ini\n\nIP: 172.18.0.13\n\nLogin: 14 Okt 2026, 07:18\n\nAktif terakhir: 14 Okt 2026, 07:18\n\nℹ️ Tentang Sesi\n\nJika Anda melihat sesi yang tidak Anda kenali, segera hentikan sesi tersebut dan ubah kata sandi Anda."
     },
     {
       "file": "portal__portal__admin.png",
-      "url": "http://127.0.0.1:18099/portal/admin",
+      "url": "http://cross-app-ingress:8080/portal/admin",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Dasbor Administrasi\n\nAdministrasi Identitas dan Manajemen Akses\n\n👥\nManajemen Pengguna\n\nKelola pengguna, buat akun baru, atur peran\n\n🛡️\nPeran & Hak Akses\n\nKelola peran dan izin\n\n🔑\nKlien OAuth2\n\nLihat aplikasi klien terdaftar\n\n📋\nAudit Log\n\nLihat log aktivitas dan keamanan\n\nStatistik Sistem\n👤\nTotal Pengguna\n\n9\n\n✅\nPengguna Aktif\n\n9\n\n📱\nSesi Aktif\n\n6\n\n🔑\nKlien OAuth2\n\n1"
+      "textPreview": "Dasbor Administrasi\n\nAdministrasi Identitas dan Manajemen Akses\n\n👥\nManajemen Pengguna\n\nKelola pengguna, buat akun baru, atur peran\n\n🛡️\nPeran & Hak Akses\n\nKelola peran dan izin\n\n🔑\nKlien OAuth2\n\nLihat aplikasi klien terdaftar\n\n📋\nAudit Log\n\nLihat log aktivitas dan keamanan\n\nStatistik Sistem\n👤\nTotal Pengguna\n\n9\n\n✅\nPengguna Aktif\n\n9\n\n📱\nSesi Aktif\n\n14\n\n🔑\nKlien OAuth2\n\n1"
     },
     {
       "file": "portal__portal__admin__users.png",
-      "url": "http://127.0.0.1:18099/portal/admin/users",
+      "url": "http://cross-app-ingress:8080/portal/admin/users",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -591,16 +591,16 @@
     },
     {
       "file": "portal__portal__admin__users__id.png",
-      "url": "http://127.0.0.1:18099/portal/admin/users/11111111-1111-4111-8111-111111111111",
+      "url": "http://cross-app-ingress:8080/portal/admin/users/11111111-1111-4111-8111-111111111111",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Admin / Pengguna / Detail\n2\n200000000000000001\n\n200000000000000001 · 200000000000000001@kejaksaan.go.id\n\nAktif\n\nID Internal\n\n11111111-1111-4111-8111-111111111111\n\nPeran\n\n1\n\nDibuat\n\n28 Sep 2026, 02:51\n\nLogin Terakhir\n\n—\n\n👤\nDetail\n🏷\nAtribut\n🔑\nKredensial\n🛡\nPemetaan Peran\nEmail\nUsername\nNama Depan\nNama Belakang\nAkun Aktif\nSimpan"
+      "textPreview": "Admin / Pengguna / Detail\n2\n200000000000000001\n\n200000000000000001 · 200000000000000001@kejaksaan.go.id\n\nAktif\n\nID Internal\n\n11111111-1111-4111-8111-111111111111\n\nPeran\n\n1\n\nDibuat\n\n14 Okt 2026, 05:51\n\nLogin Terakhir\n\n—\n\n👤\nDetail\n🏷\nAtribut\n🔑\nKredensial\n🛡\nPemetaan Peran\nEmail\nUsername\nNama Depan\nNama Belakang\nAkun Aktif\nSimpan"
     },
     {
       "file": "portal__portal__admin__clients.png",
-      "url": "http://127.0.0.1:18099/portal/admin/clients",
+      "url": "http://cross-app-ingress:8080/portal/admin/clients",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -609,7 +609,7 @@
     },
     {
       "file": "portal__portal__admin__clients__id.png",
-      "url": "http://127.0.0.1:18099/portal/admin/clients/1e1d4de9-7d1c-4739-8e39-483fa7dfd9f6",
+      "url": "http://cross-app-ingress:8080/portal/admin/clients/1e1d4de9-7d1c-4739-8e39-483fa7dfd9f6",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -618,61 +618,61 @@
     },
     {
       "file": "portal__portal__admin__roles.png",
-      "url": "http://127.0.0.1:18099/portal/admin/roles",
+      "url": "http://cross-app-ingress:8080/portal/admin/roles",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Admin / Peran\nManajemen Peran & Hak Akses\n\nPenetapan peran per pengguna dilakukan dari halaman detail pengguna\n\nadmin\n\nAdministrator role with full access\n\n🛡️ 14 permission\n👤 3 pengguna\napprover_satker\n\nApprover Satker Perlengkapan (Pengguna Barang Satker) - Menyetujui atau mencabut izin pemakaian BMN di satuan kerja\n\n🛡️ 1 permission\n👤 1 pengguna\noperator_satker\n\nOperator Satker Perlengkapan - Input data kebutuhan BMN, pemakaian, pemeliharaan, pakaian dinas di tingkat satuan kerja\n\n🛡️ 9 per"
+      "textPreview": "Admin / Peran\nManajemen Peran & Hak Akses\n\nPenetapan peran per pengguna dilakukan dari halaman detail pengguna\n\nAdministrator\n\nadmin\n\nAdministrator role with full access\n\n🛡️ 14 permission\n👤 3 pengguna\nApprover Satker\n\napprover_satker\n\nApprover Satker Perlengkapan (Pengguna Barang Satker) - Menyetujui atau mencabut izin pemakaian BMN di satuan kerja\n\n🛡️ 1 permission\n👤 1 pengguna\nOperator Satker\n\noperator_satker\n\nOperator Satker Perlengkapan - Input data kebutuhan BMN, pemakaian, pemeliharaan,"
     },
     {
       "file": "portal__portal__admin__audit.png",
-      "url": "http://127.0.0.1:18099/portal/admin/audit",
+      "url": "http://cross-app-ingress:8080/portal/admin/audit",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Admin / Audit Log\nAudit Log\nSemua Event\nLogin\nLogout\nLogin Gagal\nToken Refresh\nUbah Password\nMFA Enable\nMFA Disable\nUser Create\nUser Update\nUser Delete\nWebAuthn Register\n🔍 Filter\nWAKTU\tEVENT\tUSER\tIP\tDETAIL\n28 Sep 2026, 04:01\tLogin berhasil\t200000000000000005\t172.18.0.1\tduration_ms: 126 · method: POST · path: /api/v1/auth/login · status_code: 200\n28 Sep 2026, 04:01\tLogin berhasil\t200000000000000005\t172.18.0.1\tduration_ms: 127 · method: POST · path: /api/v1/auth/login · status_code: 200\n28 Sep 20"
+      "textPreview": "Admin / Audit Log\nAudit Log\nSemua Event\nLogin\nLogout\nLogin Gagal\nToken Refresh\nUbah Password\nMFA Enable\nMFA Disable\nUser Create\nUser Update\nUser Delete\nWebAuthn Register\n🔍 Filter\nWAKTU\tEVENT\tUSER\tIP\tDETAIL\n14 Okt 2026, 07:18\tKode pemulihan MFA dibuat ulang\t200000000000000005\t172.18.0.12\tduration_ms: 1 · method: POST · path: /api/v1/auth/mfa/backup-codes · status_code: 200\n14 Okt 2026, 07:18\tMFA disiapkan\t-\t172.18.0.12\tduration_ms: 13 · method: POST · path: /api/v1/auth/mfa/setup · status_code: "
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__login.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/login",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/login",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Perlengkapan · Kejaksaan RI\nRingkasan Nasional\n\nAset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI.\n\nRole: Administrator\nTahun Anggaran 2026\nCakupan:\n3\nsatuan kerja\nDiperbarui\n04:02:28\nMuat ulang\nWILAYAH\nSeluruh wilayah\nKEJAKSAAN TINGGI DKI JAKARTA (4)\nKEJAKSAAN TINGGI JAWA BARAT (1)\nSATUAN KERJA\nSeluruh satuan kerja\nKEJAKSAAN NEGERI JAKARTA PUSAT (2)\nKEJAKSAAN NEGERI JAKARTA SELATAN (2)\nKEJAKSAAN NEGERI BANDUNG (1)\nJENIS ASET\nSeluruh jenis\nAlat Angkutan Bermotor (2)\nPe"
+      "textPreview": "Perlengkapan · Kejaksaan RI\nRingkasan Nasional\n\nAset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI.\n\nRole: Administrator\nTahun Anggaran 2026\nCakupan:\n3\nsatuan kerja\nDiperbarui\n07:19:01\nMuat ulang\nWILAYAH\nSeluruh wilayah\nKEJAKSAAN TINGGI DKI JAKARTA (4)\nKEJAKSAAN TINGGI JAWA BARAT (1)\nSATUAN KERJA\nSeluruh satuan kerja\nKEJAKSAAN NEGERI JAKARTA PUSAT (2)\nKEJAKSAAN NEGERI JAKARTA SELATAN (2)\nKEJAKSAAN NEGERI BANDUNG (1)\nJENIS ASET\nSeluruh jenis\nAlat Angkutan Bermotor (2)\nPe"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Perlengkapan · Kejaksaan RI\nRingkasan Nasional\n\nAset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI.\n\nRole: Administrator\nTahun Anggaran 2026\nCakupan:\n3\nsatuan kerja\nDiperbarui\n04:02:30\nMuat ulang\nWILAYAH\nSeluruh wilayah\nKEJAKSAAN TINGGI DKI JAKARTA (4)\nKEJAKSAAN TINGGI JAWA BARAT (1)\nSATUAN KERJA\nSeluruh satuan kerja\nKEJAKSAAN NEGERI JAKARTA PUSAT (2)\nKEJAKSAAN NEGERI JAKARTA SELATAN (2)\nKEJAKSAAN NEGERI BANDUNG (1)\nJENIS ASET\nSeluruh jenis\nAlat Angkutan Bermotor (2)\nPe"
+      "textPreview": "Perlengkapan · Kejaksaan RI\nRingkasan Nasional\n\nAset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI.\n\nRole: Administrator\nTahun Anggaran 2026\nCakupan:\n3\nsatuan kerja\nDiperbarui\n07:19:03\nMuat ulang\nWILAYAH\nSeluruh wilayah\nKEJAKSAAN TINGGI DKI JAKARTA (4)\nKEJAKSAAN TINGGI JAWA BARAT (1)\nSATUAN KERJA\nSeluruh satuan kerja\nKEJAKSAAN NEGERI JAKARTA PUSAT (2)\nKEJAKSAAN NEGERI JAKARTA SELATAN (2)\nKEJAKSAAN NEGERI BANDUNG (1)\nJENIS ASET\nSeluruh jenis\nAlat Angkutan Bermotor (2)\nPe"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__dashboard.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/dashboard",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/dashboard",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Perlengkapan · Kejaksaan RI\nRingkasan Nasional\n\nAset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI.\n\nRole: Administrator\nTahun Anggaran 2026\nCakupan:\n3\nsatuan kerja\nDiperbarui\n04:02:32\nMuat ulang\nWILAYAH\nSeluruh wilayah\nKEJAKSAAN TINGGI DKI JAKARTA (4)\nKEJAKSAAN TINGGI JAWA BARAT (1)\nSATUAN KERJA\nSeluruh satuan kerja\nKEJAKSAAN NEGERI JAKARTA PUSAT (2)\nKEJAKSAAN NEGERI JAKARTA SELATAN (2)\nKEJAKSAAN NEGERI BANDUNG (1)\nJENIS ASET\nSeluruh jenis\nAlat Angkutan Bermotor (2)\nPe"
+      "textPreview": "Perlengkapan · Kejaksaan RI\nRingkasan Nasional\n\nAset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI.\n\nRole: Administrator\nTahun Anggaran 2026\nCakupan:\n3\nsatuan kerja\nDiperbarui\n07:19:05\nMuat ulang\nWILAYAH\nSeluruh wilayah\nKEJAKSAAN TINGGI DKI JAKARTA (4)\nKEJAKSAAN TINGGI JAWA BARAT (1)\nSATUAN KERJA\nSeluruh satuan kerja\nKEJAKSAAN NEGERI JAKARTA PUSAT (2)\nKEJAKSAAN NEGERI JAKARTA SELATAN (2)\nKEJAKSAAN NEGERI BANDUNG (1)\nJENIS ASET\nSeluruh jenis\nAlat Angkutan Bermotor (2)\nPe"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__dashboard.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/bank-aset/dashboard",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/bank-aset/dashboard",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Dashboard\nBank Aset\nDashboard Bank Aset\n\nRingkasan data BMN dari hasil sinkronisasi SIMAN.\n\nDaftar Aset\nSebaran\nRingkasan\n\nAgregat BMN lintas kategori dan satuan kerja.\n\nTOTAL ASET\n\n5\n\nunit tercatat\n\nNILAI PEROLEHAN\n\nRp 5.291.000.000\n\nakumulasi rupiah\n\nSATUAN KERJA\n\n3\n\nsatker dengan aset\n\nKATEGORI\n\n3\n\nklasifikasi SIMAN\n\nSumber data: SIMAN — sinkron terakhir: 28 Sep 2026, 02:51\n\nKondisi Aset\n\nDistribusi aset berdasarkan kondisi.\n\nBaik\n4 (80.0%)\nRusak Ringan\n1 (20.0%)\nKategori Aset\n\n10 kategori te"
+      "textPreview": "Dashboard\nBank Aset\nDashboard Bank Aset\n\nRingkasan data BMN dari hasil sinkronisasi SIMAN.\n\nDaftar Aset\nSebaran\nRingkasan\n\nAgregat BMN lintas kategori dan satuan kerja.\n\nTOTAL ASET\n\n5\n\nunit tercatat\n\nNILAI PEROLEHAN\n\nRp 5.291.000.000\n\nakumulasi rupiah\n\nSATUAN KERJA\n\n3\n\nsatker dengan aset\n\nKATEGORI\n\n3\n\nklasifikasi SIMAN\n\nSumber data: SIMAN — sinkron terakhir: 14 Okt 2026, 05:51\n\nKondisi Aset\n\nDistribusi aset berdasarkan kondisi.\n\nBaik\n4 (80.0%)\nRusak Ringan\n1 (20.0%)\nKategori Aset\n\n10 kategori te"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__daftar.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/bank-aset/daftar",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/bank-aset/daftar",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -681,16 +681,16 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__daftar__id.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/bank-aset/daftar/1",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/bank-aset/daftar/1",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Dashboard\nBank Aset\nDaftar\nDetail\nDetail Aset\n\nInformasi lengkap aset beserta riwayat pemakaian, penghapusan, dan kebutuhan.\n\nKembali ke Daftar\nStation Wagon\n\nAlat Angkutan Bermotor · No. Aset E2E-A-1\n\nKODE BARANG\n3020101003\nNUP\nE2E-A-1\nMERK\nToyota\nTIPE\nAvanza 1.3\nKONDISI\nBaik\nTANGGAL PEROLEHAN\n2020-01-15\nNILAI PEROLEHAN\nRp 250.000.000\nSATKER\nKEJAKSAAN NEGERI JAKARTA PUSAT\nKODE SATKER\n006019999010001KD\nLOKASI\nJl. Sunda Kelapa No.1\nDIPERBARUI\n28 Sep 2026, 02:51\nRiwayat\n\nHubungan aset dengan modul"
+      "textPreview": "Dashboard\nBank Aset\nDaftar\nDetail\nDetail Aset\n\nInformasi lengkap aset beserta riwayat pemakaian, penghapusan, dan kebutuhan.\n\nKembali ke Daftar\nStation Wagon\n\nAlat Angkutan Bermotor · No. Aset E2E-A-1\n\nKODE BARANG\n3020101003\nNUP\nE2E-A-1\nMERK\nToyota\nTIPE\nAvanza 1.3\nKONDISI\nBaik\nTANGGAL PEROLEHAN\n2020-01-15\nNILAI PEROLEHAN\nRp 250.000.000\nSATKER\nKEJAKSAAN NEGERI JAKARTA PUSAT\nKODE SATKER\n006019999010001KD\nLOKASI\nJl. Sunda Kelapa No.1\nDIPERBARUI\n14 Okt 2026, 05:51\nRiwayat\n\nHubungan aset dengan modul"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__sebaran.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/bank-aset/sebaran",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/bank-aset/sebaran",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -699,7 +699,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__bank-aset__qrcode.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/bank-aset/qrcode",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/bank-aset/qrcode",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -708,7 +708,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__periode.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/periode",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/kebutuhan-bmn/periode",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -717,7 +717,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__daftar.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/daftar",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/kebutuhan-bmn/daftar",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -726,7 +726,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__buat.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/buat",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/kebutuhan-bmn/buat",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -735,7 +735,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__id__edit.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/c1000000-0000-4c00-8c00-000000000001/edit",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/kebutuhan-bmn/c1000000-0000-4c00-8c00-000000000001/edit",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -744,7 +744,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__detail__id.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/detail/c1000000-0000-4c00-8c00-000000000001",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/kebutuhan-bmn/detail/c1000000-0000-4c00-8c00-000000000001",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -753,16 +753,16 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__satker__satker_id.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/satker/c1000000-0000-4c00-8c00-0000000a0003",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/kebutuhan-bmn/satker/c1000000-0000-4c00-8c00-0000000a0003",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Detail Satker — Kebutuhan BMN\n\nDetail pengajuan kebutuhan BMN per satker\n\nKembali\nKEJAKSAAN NEGERI BANDUNG\n\nKode Satker: 0300010\n\nAnalisis Kelayakan\nTotal Barang\n1\nTotal Jumlah Diminta\n1\nPrioritas\n0\nRiwayat Proses\n\nPengajuan Dibuat\n\n28 Sep 2026, 02:53\n\nAnalisis Kelayakan\n\nKeputusan Validator Pusat\nSetujui\nTolak\nDaftar Barang\nAnalisis Kelayakan\nRiwayat Aktivitas\nDaftar Barang\nTambah Barang\nNAMA BARANG\tKODE\tJUMLAH\tDISETUJUI\tPRIORITAS\tALASAN\tAKSI\nE2E Barang Seed C\t3.10.01.05.010\t1 Unit\t0\t0\tSeed jus"
+      "textPreview": "Detail Satker — Kebutuhan BMN\n\nDetail pengajuan kebutuhan BMN per satker\n\nKembali\nKEJAKSAAN NEGERI BANDUNG\n\nKode Satker: 0300010\n\nAnalisis Kelayakan\nTotal Barang\n1\nTotal Jumlah Diminta\n1\nPrioritas\n0\nRiwayat Proses\n\nPengajuan Dibuat\n\n14 Okt 2026, 07:17\n\nAnalisis Kelayakan\n\nKeputusan Validator Pusat\nSetujui\nTolak\nDaftar Barang\nAnalisis Kelayakan\nRiwayat Aktivitas\nDaftar Barang\nTambah Barang\nNAMA BARANG\tKODE\tJUMLAH\tDISETUJUI\tPRIORITAS\tALASAN\tAKSI\nE2E Barang Seed C\t3.10.01.05.010\t1 Unit\t0\t0\tSeed jus"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__laporan.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/kebutuhan-bmn/laporan",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/kebutuhan-bmn/laporan",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -771,16 +771,16 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__jenis.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pakaian-dinas/jenis",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/pakaian-dinas/jenis",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Jenis Pakaian Dinas\n\nKelola master data jenis pakaian dinas\n\nTambah Jenis\nDaftar Jenis\nNO\tNAMA JENIS\tKETERANGAN\tDIBUAT\tAKSI\n1\tBatik\tPakaian Batik Dinas\t2026-06-09\t\n\n2\tJas Almamater\tJas Almamater Kejaksaan\t2026-06-09\t\n\n3\tPDH\tPakaian Dinas Harian\t2026-06-09\t\n\n4\tPDH E2E\tSeed F-E2E pakaian dinas\t2026-09-28\t\n\n5\tPDL\tPakaian Dinas Lapangan\t2026-06-09\t\n\n6\tPDL E2E\tSeed F-E2E pakaian dinas (jenis kedua)\t2026-09-28\t\n\n7\tPDU-I 2023\tPakaian Dinas Upacara I (2023)\t2026-09-28\t\n\n8\tToga Jaksa\tToga untuk Jaksa\t202"
+      "textPreview": "Jenis Pakaian Dinas\n\nKelola master data jenis pakaian dinas\n\nTambah Jenis\nDaftar Jenis\nNO\tNAMA JENIS\tKETERANGAN\tDIBUAT\tAKSI\n1\tBatik\tPakaian Batik Dinas\t2026-06-09\t\n\n2\tJas Almamater\tJas Almamater Kejaksaan\t2026-06-09\t\n\n3\tPDH\tPakaian Dinas Harian\t2026-06-09\t\n\n4\tPDH E2E\tSeed F-E2E pakaian dinas\t2026-10-14\t\n\n5\tPDL\tPakaian Dinas Lapangan\t2026-06-09\t\n\n6\tPDL E2E\tSeed F-E2E pakaian dinas (jenis kedua)\t2026-10-14\t\n\n7\tPDU-I 2023\tPakaian Dinas Upacara I (2023)\t2026-10-14\t\n\n8\tToga Jaksa\tToga untuk Jaksa\t202"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__jenis__id__spesifikasi.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pakaian-dinas/jenis/c5f67a58-9779-42a9-8a2b-3f0d026a33db/spesifikasi",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/pakaian-dinas/jenis/c5f67a58-9779-42a9-8a2b-3f0d026a33db/spesifikasi",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -789,7 +789,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__pengajuan.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pakaian-dinas/pengajuan",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/pakaian-dinas/pengajuan",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -798,7 +798,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__pengajuan__pengajuan_id__satker.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pakaian-dinas/pengajuan/d1000000-0000-4d00-8d00-0000000000c1/satker",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/pakaian-dinas/pengajuan/d1000000-0000-4d00-8d00-0000000000c1/satker",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -807,7 +807,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__pengajuan__pengajuan_id__satker__satker_code__isi.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pakaian-dinas/pengajuan/d1000000-0000-4d00-8d00-0000000000c1/satker/0200010/isi",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/pakaian-dinas/pengajuan/d1000000-0000-4d00-8d00-0000000000c1/satker/0200010/isi",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -816,7 +816,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__ukuran.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pakaian-dinas/ukuran",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/pakaian-dinas/ukuran",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -825,16 +825,16 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__laporan.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pakaian-dinas/laporan",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/pakaian-dinas/laporan",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Laporan Pakaian Dinas\n\nRekap dan daftar pegawai berdasarkan ukuran pakaian dinas\n\nRekap Ukuran\nDaftar Pegawai\nFilter Laporan\nPeriode Pengajuan\n— Pilih Periode —\nE2E Pengajuan Pakaian Dinas 2026 (2026)\nE2E Laporan Pakaian Dinas 2026 (2026)\nJenis Pakaian\nSemua Jenis\nBatik\nJas Almamater\nPDH\nPDH E2E\nPDL\nPDL E2E\nPDU-I 2023\nToga Jaksa\nToga TU\nSatker\nJenis Kelamin\nSemua\nLaki-laki\nPerempuan\nJenis Pegawai\nSemua\nJaksa\nTata Usaha\nEselon\nSemua Eselon\nEselon I\nEselon II\nEselon III\nEselon IV\nCetak Excel\nCetak"
+      "textPreview": "Laporan Pakaian Dinas\n\nRekap dan daftar pegawai berdasarkan ukuran pakaian dinas\n\nRekap Ukuran\nDaftar Pegawai\nFilter Laporan\nPeriode Pengajuan\n— Pilih Periode —\nE2E Pengajuan Pakaian Dinas 2026 (2026)\nE2E Laporan Pakaian Dinas 2026 (2026)\nJenis Pakaian\nSemua Jenis\nBatik\nJas Almamater\nPDH\nPDH E2E\nPDL\nPDL E2E\nPDU-I 2023\nToga Jaksa\nToga TU\nSatker\nPilih periode dulu\nJenis Kelamin\nSemua\nLaki-laki\nPerempuan\nJenis Pegawai\nSemua\nJaksa\nTata Usaha\nEselon\nSemua Eselon\nEselon I\nEselon II\nEselon III\nEselon I"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pengelolaan/pemakaian",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/pengelolaan/pemakaian",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -843,7 +843,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian__buat.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pengelolaan/pemakaian/buat",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/pengelolaan/pemakaian/buat",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -852,25 +852,25 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian__detail__id.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pengelolaan/pemakaian/detail/e2000000-0000-4e00-8e00-0000000b0001",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/pengelolaan/pemakaian/detail/e2000000-0000-4e00-8e00-0000000b0001",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Dashboard\nPemakaian BMN\nDetail\nDetail Izin Pemakaian\n\nKelola aksi lifecycle: perpanjang, cabut, dan pantau sisa waktu.\n\nKembali\nLifecycle\n\nStatus dan sisa waktu izin.\n\nPerpanjang\nCabut Izin\n\nSTATUS\n\nAktif\n\nPERIODE\n\n2026-01-01 → 2026-12-31\n\nSISA WAKTU\n\n94 hari lagi\n\nIzin #E2E-IZIN-001\n\nInformasi umum permohonan.\n\nPEMOHON\nE2E Operator Jakpus\nNIP\n200000000000000001\nSATKER\nKEJAKSAAN NEGERI JAKARTA PUSAT\nBMN\nE2E Laptop Dinas Pinjam\nNUP\nE2E-A-2\nKODE BARANG\n3100102003\nPERIODE\n2026-01-01 → 2026-12-31\nLO"
+      "textPreview": "Dashboard\nPemakaian BMN\nDetail\nDetail Izin Pemakaian\n\nKelola aksi lifecycle: perpanjang, cabut, dan pantau sisa waktu.\n\nKembali\nLifecycle\n\nStatus dan sisa waktu izin.\n\nPerpanjang\nCabut Izin\n\nSTATUS\n\nAktif\n\nPERIODE\n\n2026-01-01 → 2026-12-31\n\nSISA WAKTU\n\n78 hari lagi\n\nIzin #E2E-IZIN-001\n\nInformasi umum permohonan.\n\nPEMOHON\nE2E Operator Jakpus\nNIP\n200000000000000001\nSATKER\nKEJAKSAAN NEGERI JAKARTA PUSAT\nBMN\nE2E Laptop Dinas Pinjam\nNUP\nE2E-A-2\nKODE BARANG\n3100102003\nPERIODE\n2026-01-01 → 2026-12-31\nLO"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian__monitoring.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pengelolaan/pemakaian/monitoring",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/pengelolaan/pemakaian/monitoring",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Monitoring Pemakaian BMN\n\nPantau penggunaan dan riwayat pemakaian BMN\n\nBMN Sedang Dipakai\n\n3\n\nIzin pemakaian aktif\n\nBMN Tidak Dipakai\n\n0\n\nBMN berkondisi baik tanpa izin aktif\n\nAkan Expired (30 hari)\n\n0\n\nIzin berakhir ≤ 30 hari\n\nDaftar Pemakaian BMN\nSatker\tNama Barang\tNUP\tPegawai Pemakai\tJangka Waktu\tStatus\tAksi\n\nKEJAKSAAN NEGERI JAKARTA SELATAN\n0200020\n\t\nE2E Laptop Jaksel\n3020104001\n\tE2E-B-1\t\nE2E Operator Jaksel\n200000000000000002\nOperator Satker\n\t\n2026-03-01 s.d. 2026-10-31\n244 hari\nsisa 33 har"
+      "textPreview": "Monitoring Pemakaian BMN\n\nPantau penggunaan dan riwayat pemakaian BMN\n\nBMN Sedang Dipakai\n\n3\n\nIzin pemakaian aktif\n\nBMN Tidak Dipakai\n\n0\n\nBMN berkondisi baik tanpa izin aktif\n\nAkan Expired (30 hari)\n\n2\n\nIzin berakhir ≤ 30 hari\n\nDaftar Pemakaian BMN\nSatker\tNama Barang\tNUP\tPegawai Pemakai\tJangka Waktu\tStatus\tAksi\n\nKEJAKSAAN NEGERI JAKARTA SELATAN\n0200020\n\t\nE2E Laptop Jaksel\n3020104001\n\tE2E-B-1\t\nE2E Operator Jaksel\n200000000000000002\nOperator Satker\n\t\n2026-03-01 s.d. 2026-10-31\n244 hari\nsisa 17 har"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__penghapusan.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pengelolaan/penghapusan",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/pengelolaan/penghapusan",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -879,7 +879,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__penghapusan__buat.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pengelolaan/penghapusan/buat",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/pengelolaan/penghapusan/buat",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -888,7 +888,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__pengelolaan__penghapusan__detail__id.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/pengelolaan/penghapusan/detail/e1000000-0000-4e00-8e00-0000000a0001",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/pengelolaan/penghapusan/detail/e1000000-0000-4e00-8e00-0000000a0001",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -897,7 +897,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__analitik__roadmap.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/analitik/roadmap",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/analitik/roadmap",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -906,7 +906,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__analitik__roadmap__buat.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/analitik/roadmap/buat",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/analitik/roadmap/buat",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -915,7 +915,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__notifikasi.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/notifikasi",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/notifikasi",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -924,7 +924,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__bantuan__panduan.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/bantuan/panduan",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/bantuan/panduan",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -933,7 +933,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__bantuan__faq.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/bantuan/faq",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/bantuan/faq",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -942,7 +942,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__bantuan__helpdesk.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/bantuan/helpdesk",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/bantuan/helpdesk",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -951,16 +951,16 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__admin__roles.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/admin/roles",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/admin/roles",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Pengaturan Role\n\nKonfigurasi role dan hak akses perlengkapan\n\nOperator Satker\n\nPengelola perlengkapan di tingkat Satuan Kerja\n\nHak Akses:\nKebutuhan BMN: Buat, Edit, Hapus, Submit\nPemakaian BMN: Buat, Edit, Submit\nPenghapusan BMN: Buat, Submit\nPakaian Dinas: Input Ukuran\nPemeliharaan: Buat, Edit\nValidator Wilayah\n\nVerifikator di tingkat Kejaksaan Tinggi\n\nHak Akses:\nKebutuhan BMN: Validasi, Kembalikan, Teruskan\nPemakaian BMN: Monitor (read-only)\nPenghapusan BMN: Validasi, Teruskan; Generate & Uplo"
+      "textPreview": "Pengaturan Role\n\nKonfigurasi role dan hak akses perlengkapan\n\nOperator Satker\n\nPengelola perlengkapan di tingkat Satuan Kerja\n\nHak Akses:\nKebutuhan BMN: Buat, Edit, Hapus, Submit\nPemakaian BMN: Buat, Edit, Submit\nPenghapusan BMN: Buat, Submit\nPakaian Dinas: Input Ukuran\nPemeliharaan: Buat, Edit\nValidator Satker\n\nMemverifikasi usulan pemakaian BMN di dalam Satuan Kerja\n\nHak Akses:\nPemakaian BMN: Teruskan ke Approver Satker, Kembalikan untuk Revisi\nBukan pengusul usulan yang sama (pemisahan tugas)"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__admin__audit.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/admin/audit",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/admin/audit",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -969,16 +969,16 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__admin__master.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/admin/master",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/admin/master",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Dashboard\nAdmin\nMaster Data\nMaster Data\n\nKelola data referensi sistem: aktivitas BMN, jenis pakaian, spesifikasi, ukuran standar, kode barang.\n\nSumber Data\n43 record\nAktivitas BMN\n\nStatus workflow untuk pengajuan BMN dan pakaian dinas\n\nDiperbarui: 9 Jun 2026, 12:10\nKelola\n9 record\nJenis Pakaian Dinas\n\nKategori pakaian dinas (PDH, PDL, Toga, dll)\n\nDiperbarui: 28 Sep 2026, 02:53\nKelola\n7 record\nSpesifikasi Pakaian\n\nSpesifikasi per jenis pakaian dengan kategori ukuran\n\nDiperbarui: 28 Sep 2026, 02:5"
+      "textPreview": "Dashboard\nAdmin\nMaster Data\nMaster Data\n\nKelola data referensi sistem: aktivitas BMN, jenis pakaian, spesifikasi, ukuran standar, kode barang.\n\nSumber Data\n43 record\nAktivitas BMN\n\nStatus workflow untuk pengajuan BMN dan pakaian dinas\n\nDiperbarui: 9 Jun 2026, 12:10\nKelola\n9 record\nJenis Pakaian Dinas\n\nKategori pakaian dinas (PDH, PDL, Toga, dll)\n\nDiperbarui: 14 Okt 2026, 07:17\nKelola\n7 record\nSpesifikasi Pakaian\n\nSpesifikasi per jenis pakaian dengan kategori ukuran\n\nDiperbarui: 14 Okt 2026, 06:2"
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__admin__templates.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/admin/templates",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/admin/templates",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -987,7 +987,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__admin__workflow.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/admin/workflow",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/admin/workflow",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -996,7 +996,7 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__admin__workflow-monitoring.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/admin/workflow-monitoring",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/admin/workflow-monitoring",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -1005,25 +1005,25 @@
     },
     {
       "file": "perlengkapan__perlengkapan__simpel__v2__admin__workflow-delegation.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/admin/workflow-delegation",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/admin/workflow-delegation",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Delegasi Workflow\n\nLihat dan kelola pendelegasian role workflow ke pengguna lain.\n\nBuat Delegasi\nRefresh\nSaya Delegasikan\nUntuk Saya\nDaftar Delegasi\nBelum ada delegasi\n\nBelum ada pendelegasian yang tercatat pada tab ini."
+      "textPreview": "Delegasi Workflow\n\nLihat dan kelola pendelegasian role workflow ke pengguna lain.\n\nBuat Delegasi\nRefresh\nBelum berlaku. Delegasi tercatat tetapi belum berlaku sebagai kewenangan: penerima belum dapat bertindak atas nama pemberi.\nSaya Delegasikan\nUntuk Saya\nDaftar Delegasi\nBelum ada delegasi\n\nBelum ada pendelegasian yang tercatat pada tab ini."
     },
     {
       "file": "portal__anon__portal__login.png",
-      "url": "http://127.0.0.1:18099/portal/login",
+      "url": "http://cross-app-ingress:8080/portal/login",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
       "pageErrors": [],
-      "textPreview": "Masuk ke SIMPEL\n\nKejaksaan Agung Republik Indonesia\n\nMasuk ke Sistem\nMasuk dengan Passkey\n\nGunakan sidik jari, wajah, atau kunci keamanan\n\nAtau masuk dengan password"
+      "textPreview": "Masuk ke SIMPEL\n\nKejaksaan Agung Republik Indonesia\n\nMasuk ke Sistem\nUsername\nPassword\nUse Tab to navigate, Enter or Space to activate, Escape to clear focus\nVerifikasi Keamanan\n\nSelesaikan tantangan di bawah ini\n\nKetik karakter yang ditampilkan di bawah ini\n8\nN\nj\nb\nj\nKetik karakter yang Anda lihat di atas (perhatikan huruf besar/kecil):\nKirim\nSelesaikan Verifikasi Keamanan\n\nLupa password? Hubungi administrator unit kerja Anda."
     },
     {
       "file": "portal__anon__portal__logged-out.png",
-      "url": "http://127.0.0.1:18099/portal/logged-out",
+      "url": "http://cross-app-ingress:8080/portal/logged-out",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -1032,7 +1032,7 @@
     },
     {
       "file": "perlengkapan__anon__perlengkapan__simpel__v2__login.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/login",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/login",
       "flags": [],
       "expected": [],
       "consoleErrors": [],
@@ -1041,7 +1041,7 @@
     },
     {
       "file": "guard__operator__perlengkapan__simpel__v2__admin__roles.png",
-      "url": "http://127.0.0.1:18099/perlengkapan/simpel/v2/admin/roles",
+      "url": "http://cross-app-ingress:8080/perlengkapan/simpel/v2/admin/roles",
       "flags": [],
       "expected": [
         "AKSES-DITOLAK",
@@ -1053,7 +1053,7 @@
     },
     {
       "file": "guard__operator__portal__admin__users.png",
-      "url": "http://127.0.0.1:18099/portal/admin/users",
+      "url": "http://cross-app-ingress:8080/portal/admin/users",
       "flags": [],
       "expected": [
         "AKSES-DITOLAK"

@@ -44,6 +44,7 @@ impl AxumApp {
             state.clone(),
             config.cors,
             config.rate_limit,
+            config.mfa_rate_limit,
             config.csrf,
         );
 
@@ -107,6 +108,11 @@ pub struct AppConfig {
 
     /// Rate limiting configuration
     pub rate_limit: middleware::RateLimitConfig,
+
+    /// MFA-specific rate limiting configuration (per-IP / per-user verify
+    /// budgets, progressive delay, account lockout). Mounted in
+    /// `create_unified_router`.
+    pub mfa_rate_limit: middleware::MfaRateLimitConfig,
 
     /// CSRF protection configuration
     pub csrf: middleware::CsrfConfig,

@@ -120,10 +120,19 @@ Unit Tests dan Integration Tests berada di dalam *crate* masing-masing, bukan di
   Proto integrasi ADA DI LUAR konteks image e2e → di-copy ke build context +
   `INTEGRASI_PROTO_PATH` (env-override di spec). Gate `E2E_INTEGRATION_ENABLED`
   / dispatch `run_e2e`.
-- **Cross-app SSO e2e (portal↔perlengkapan):** job `e2e-portal-cross-app`
-  (project `portal-cross-app`, spec `auth-login-flow`) — SSO NYATA lewat
+- **Cross-app SSO e2e (portal↔perlengkapan↔simpelv1):** job
+  `e2e-portal-cross-app` (project `portal-cross-app`, spec `auth-login-flow` +
+  `v1-sso-flow`) — SSO NYATA lewat
   **single-origin `cross-app-ingress`** (`infra/nginx/e2e-cross-app-ingress.conf`,
-  meniru Istio VS prod: `/portal`+`/perlengkapan`+`/api/*` satu origin). Alur =
+  meniru Istio VS prod: `/portal`+`/perlengkapan`+`/perlengkapan/simpel/v1`+
+  `/api/*` satu origin). `v1-sso-flow` menutup leg legacy: v1 **tidak punya
+  halaman login** — `TokenToOAuthMiddleware` memantulkan rute v1 yang belum
+  terautentikasi ke `{origin}/portal/login?return_to=…&callback=…&state=…`,
+  portal mengembalikan JWT lewat **form POST** ke `auth/oauth-callback` v1, lalu
+  v1 redirect ke `return_to`. Stack job ini sekarang membawa `simpelv1` +
+  `gateway` dan meng-seed `dbsimpelv1` dari
+  `tests/fixtures/e2e/seed-simpelv1-schema.sql` (skema legacy dibuat KOSONG oleh
+  chart; tanpa seed ini callback mati di "User tidak ditemukan di sistem"). Alur =
   **dua-hop**: `/perlengkapan/` → login-page perlengkapan sendiri → link "Masuk
   via Portal" (`/portal/login?redirect_uri=…dashboard`) → login authenc nyata →
   portal honor redirect_uri → dashboard perlengkapan mount dari JWT same-origin
@@ -158,7 +167,7 @@ via `E2E_PORTAL_ENABLED`/`E2E_PERLENGKAPAN_ENABLED`).
 | authenc → integrasi (resolve-satker gRPC) + integrasi gRPC/REST | `e2e-integrasi-authenc` | ✅ | opt-in |
 | secreton ↔ gateway (bootstrap + dynamic-lease) | `e2e-secreton-gateway` | ✅ | opt-in |
 | simpelv1 → gateway → {authenc, secreton, integrasi} | `e2e-simpelv1-integration` | ✅ | opt-in |
-| portal → simpelv1 (SSO + gateway) | — | — | **staging-only** (F5-E / #35) |
+| portal → simpelv1 (SSO + gateway) | `e2e-portal-cross-app` | ✅ | opt-in |
 | simpelv1 → integrasi (data-plane pegawai/BMN) | — | — | **belum ada** (#41 FDW+REST, pasca-F5) |
 | authenc ↔ secreton (MFA-opt fetch) | — | — | **staging-only** (tak ter-wire di compose) |
 | integrasi ↔ secreton (app gRPC) | — | — | **N/A** (integrasi 0 secreton gRPC ref → `SECRETON_GRPC_URL` vestigial, dibuang. Token API eksternal disuntik via SA-token @prod = concern platform, bukan integrasi app, lihat `layanan/integrasi/AGENTS.md`) |

@@ -11,6 +11,7 @@ use axum::{
     extract::{ConnectInfo, Request, State},
     http::{Response, StatusCode},
     middleware::Next,
+    response::IntoResponse,
 };
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
@@ -24,6 +25,8 @@ use authenc_types::AuthencError;
 /// Configuration for MFA-specific rate limiting
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MfaRateLimitConfig {
+    /// Whether MFA-specific rate limiting is applied at all
+    pub enabled: bool,
     /// Maximum MFA verification attempts per minute per IP
     pub max_attempts_per_minute_per_ip: u32,
     /// Maximum MFA verification attempts per minute per user
@@ -47,6 +50,7 @@ pub struct MfaRateLimitConfig {
 impl Default for MfaRateLimitConfig {
     fn default() -> Self {
         Self {
+            enabled: true,
             max_attempts_per_minute_per_ip: 10,
             max_attempts_per_minute_per_user: 5,
             max_setup_attempts_per_hour_per_ip: 3,
@@ -119,11 +123,16 @@ pub struct AccountLockout {
 #[derive(Clone)]
 pub struct MfaRateLimiterState {
     config: MfaRateLimitConfig,
-    // IP-based counters for different MFA operations
-    ip_verify_counters: Arc<DashMap<String, RwLock<RateLimitCounter>>>,
-    ip_setup_counters: Arc<DashMap<String, RwLock<RateLimitCounter>>>,
+    // IP-based counters for different MFA operations. Each inner lock is held
+    // behind an `Arc` so the caller can clone it out and drop the `DashMap`
+    // entry guard *before* awaiting the lock. Holding a `DashMap` guard across
+    // an `.await` makes the enclosing future `!Send`, which the router refuses
+    // to accept as a `Service` (and which the unit tests below cannot catch —
+    // they exercise these methods directly, never through tower).
+    ip_verify_counters: Arc<DashMap<String, Arc<RwLock<RateLimitCounter>>>>,
+    ip_setup_counters: Arc<DashMap<String, Arc<RwLock<RateLimitCounter>>>>,
     // User-based counters
-    user_verify_counters: Arc<DashMap<Uuid, RwLock<RateLimitCounter>>>,
+    user_verify_counters: Arc<DashMap<Uuid, Arc<RwLock<RateLimitCounter>>>>,
     // Account lockout tracking
     locked_accounts: Arc<DashMap<Uuid, AccountLockout>>,
     // Progressive delay tracking per IP
@@ -241,10 +250,13 @@ impl MfaRateLimiterState {
 
     /// Check MFA setup rate limits
     pub async fn check_mfa_setup_rate_limit(&self, ip: &str) -> Result<(), AuthencError> {
-        let counter_ref = self
-            .ip_setup_counters
-            .entry(ip.to_string())
-            .or_insert_with(|| RwLock::new(RateLimitCounter::new()));
+        let counter_ref = {
+            let entry = self
+                .ip_setup_counters
+                .entry(ip.to_string())
+                .or_insert_with(|| Arc::new(RwLock::new(RateLimitCounter::new())));
+            Arc::clone(&entry)
+        };
 
         let mut counter = counter_ref.write().await;
         counter.reset_if_expired(Duration::from_secs(3600)); // 1 hour window
@@ -266,10 +278,13 @@ impl MfaRateLimiterState {
         user_id: Uuid,
     ) -> Result<(), AuthencError> {
         // Record failed attempt for user
-        let user_counter_ref = self
-            .user_verify_counters
-            .entry(user_id)
-            .or_insert_with(|| RwLock::new(RateLimitCounter::new()));
+        let user_counter_ref = {
+            let entry = self
+                .user_verify_counters
+                .entry(user_id)
+                .or_insert_with(|| Arc::new(RwLock::new(RateLimitCounter::new())));
+            Arc::clone(&entry)
+        };
 
         let user_counter = user_counter_ref.write().await;
         let failed_count = user_counter.increment_failed();
@@ -348,10 +363,13 @@ impl MfaRateLimiterState {
 
     /// Check IP-based verification rate limit
     async fn check_ip_verify_rate_limit(&self, ip: &str) -> Result<(), AuthencError> {
-        let counter_ref = self
-            .ip_verify_counters
-            .entry(ip.to_string())
-            .or_insert_with(|| RwLock::new(RateLimitCounter::new()));
+        let counter_ref = {
+            let entry = self
+                .ip_verify_counters
+                .entry(ip.to_string())
+                .or_insert_with(|| Arc::new(RwLock::new(RateLimitCounter::new())));
+            Arc::clone(&entry)
+        };
 
         let mut counter = counter_ref.write().await;
         counter.reset_if_expired(Duration::from_secs(60)); // 1 minute window
@@ -368,10 +386,13 @@ impl MfaRateLimiterState {
 
     /// Check user-based verification rate limit
     async fn check_user_verify_rate_limit(&self, user_id: Uuid) -> Result<(), AuthencError> {
-        let counter_ref = self
-            .user_verify_counters
-            .entry(user_id)
-            .or_insert_with(|| RwLock::new(RateLimitCounter::new()));
+        let counter_ref = {
+            let entry = self
+                .user_verify_counters
+                .entry(user_id)
+                .or_insert_with(|| Arc::new(RwLock::new(RateLimitCounter::new())));
+            Arc::clone(&entry)
+        };
 
         let mut counter = counter_ref.write().await;
         counter.reset_if_expired(Duration::from_secs(60)); // 1 minute window
@@ -397,20 +418,43 @@ impl MfaRateLimiterState {
     }
 }
 
+/// Resolve the client address for rate-limit bucketing.
+///
+/// Plain function (not a closure) so the `&Request<Body>` borrow cannot outlive
+/// this call — see the call site for why that matters.
+fn client_ip_for(peer: SocketAddr, request: &Request<Body>) -> String {
+    let header = |name: &str| request.headers().get(name).and_then(|v| v.to_str().ok());
+    lib_backend::client_ip::client_ip_string(
+        peer.ip(),
+        header("x-forwarded-for"),
+        header("x-real-ip"),
+    )
+}
+
 /// Middleware for MFA-specific rate limiting
 pub async fn mfa_rate_limit_middleware(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(state): State<Arc<MfaRateLimiterState>>,
     request: Request,
     next: Next,
-) -> Result<Response<Body>, StatusCode> {
+) -> Response<Body> {
     let path = request.uri().path();
-    let ip = addr.ip().to_string();
 
     // Only apply MFA rate limiting to MFA endpoints
-    if !path.contains("/mfa/") {
-        return Ok(next.run(request).await);
+    if !state.config.enabled || !path.contains("/mfa/") {
+        return next.run(request).await;
     }
+
+    // `ConnectInfo` reports the immediate TCP peer, which behind the ingress is
+    // the proxy — every caller would share one bucket. Resolve the real client
+    // the same way the audit path does: trust forwarding headers only from a
+    // peer listed in `TRUSTED_PROXY_CIDRS`, walking them from the right.
+    //
+    // Done through a plain (non-async) helper, not a closure: a closure here
+    // borrows `&Request<Body>`, `Body` is not `Sync`, and anything holding that
+    // borrow across the `next.run(..).await` below makes the whole future
+    // `!Send` — which tower rejects with "Service is not implemented".
+    let ip = client_ip_for(addr, &request);
 
     // Apply progressive delay before processing request
     state.apply_progressive_delay(&ip).await;
@@ -426,21 +470,21 @@ pub async fn mfa_rate_limit_middleware(
     };
 
     match rate_limit_result {
-        Ok(_) => Ok(next.run(request).await),
+        Ok(_) => next.run(request).await,
         Err(AuthencError::RateLimitExceeded) => {
             warn!(%ip, %path, "MFA rate limit exceeded");
-            Err(StatusCode::TOO_MANY_REQUESTS)
+            StatusCode::TOO_MANY_REQUESTS.into_response()
         }
         Err(AuthencError::AccountLocked {
             username,
             locked_until: _,
         }) => {
             warn!(%ip, %path, %username, "Account locked");
-            Err(StatusCode::LOCKED)
+            StatusCode::LOCKED.into_response()
         }
         Err(_) => {
             error!(%ip, %path, "Unexpected error in MFA rate limiting");
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }

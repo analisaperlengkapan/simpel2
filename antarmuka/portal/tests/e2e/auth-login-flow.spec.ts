@@ -1,5 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
-import { skipUnlessCaptchaDebug } from './helpers/real-auth';
+import {
+  loginViaSameOriginUi,
+  skipUnlessCaptchaDebug,
+  trackCaptchaChallenges,
+} from './helpers/real-auth';
 
 /**
  * Cross-app SSO — REAL end-to-end (F-GW PR-E), no mock token.
@@ -40,67 +44,6 @@ import { skipUnlessCaptchaDebug } from './helpers/real-auth';
 // require_password_change=false, shared Argon2id password = the NIP string.
 const USER = { username: '200000000000000004', password: '199203142014031001' };
 
-/** Perform a real portal-UI login on the current (login) page. Captures the
- *  captcha challenge the WASM issues, resolves it via the debug endpoint, then
- *  submits credentials. Assumes the page is already on `/portal/login`. */
-async function loginViaPortalUI(page: Page): Promise<void> {
-  // Collect captcha challenge ids as the WASM requests them (same-origin — the
-  // ingress proxies /api/captcha to authenc, so no page.route proxy is needed).
-  const challengeIds: string[] = [];
-  page.on('response', async (resp) => {
-    if (resp.url().includes('/api/captcha/challenge') && resp.request().method() === 'POST') {
-      try {
-        const body = await resp.json();
-        if (body?.challenge_id) challengeIds.push(body.challenge_id);
-      } catch {
-        /* ignore non-JSON */
-      }
-    }
-  });
-
-  await expect(page.getByText('Masuk ke Sistem')).toBeVisible({ timeout: 30000 });
-  const passwordToggle = page.getByText('Atau masuk dengan password');
-  if (await passwordToggle.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await passwordToggle.click();
-  }
-
-  const captchaInput = page.locator('input[placeholder="Masukkan teks..."]');
-  await expect(captchaInput).toBeVisible({ timeout: 15000 });
-
-  // Wait for the WASM's captcha challenge to have landed, then fetch its answer.
-  await expect.poll(() => challengeIds.length, { timeout: 10000 }).toBeGreaterThan(0);
-  const challengeId = challengeIds[challengeIds.length - 1];
-  const dbg = await page.request.get(`/api/captcha/debug/${challengeId}`);
-  expect(dbg.ok()).toBeTruthy();
-  const answer = (await dbg.json()).answer as string;
-  expect(answer).toBeTruthy();
-
-  await page.locator('#username').fill(USER.username);
-  await page.locator('#password').fill(USER.password);
-  await captchaInput.fill(answer);
-
-  const [verify] = await Promise.all([
-    page.waitForResponse(
-      (r) => r.url().includes('/api/captcha/verify') && r.request().method() === 'POST',
-      { timeout: 15000 },
-    ),
-    page.locator('.captcha-container button', { hasText: 'Kirim' }).click(),
-  ]);
-  expect(verify.status()).toBe(200);
-  await page.waitForTimeout(500); // let the captcha_token signal propagate
-
-  const loginBtn = page.getByRole('button', { name: /Masuk ke Portal/i });
-  await expect(loginBtn).toBeEnabled({ timeout: 10000 });
-  const [loginResp] = await Promise.all([
-    page.waitForResponse(
-      (r) => r.url().includes('/login') && r.request().method() === 'POST',
-      { timeout: 15000 },
-    ),
-    loginBtn.click(),
-  ]);
-  expect(loginResp.status()).toBe(200);
-}
-
 test.describe('Cross-app SSO (real, single-origin ingress)', () => {
   // NOTE: do NOT clear storage with page.addInitScript — that init script re-runs
   // on EVERY navigation, so it would wipe the portal-issued auth_token on the hard
@@ -112,7 +55,10 @@ test.describe('Cross-app SSO (real, single-origin ingress)', () => {
   /** Land on perlengkapan unauthenticated → its own login page → follow the
    *  "Masuk via Portal" link to the portal login. Leaves the page on the portal
    *  login with the `redirect_uri` back to the perlengkapan dashboard. */
-  async function reachPortalLoginViaPerlengkapan(page: Page): Promise<void> {
+  async function reachPortalLoginViaPerlengkapan(
+    page: Page,
+    getCaptchaAnswer: () => Promise<string | null>,
+  ): Promise<void> {
     await page.goto('/perlengkapan/', { waitUntil: 'domcontentloaded' });
     // Perlengkapan bounces the unauthenticated user to ITS OWN login page
     // (it delegates auth to the portal rather than redirecting there directly).
@@ -145,10 +91,13 @@ test.describe('Cross-app SSO (real, single-origin ingress)', () => {
   }) => {
     await skipUnlessCaptchaDebug(page.request, '');
     // 1. perlengkapan → its own login → follow the SSO link to the portal login.
-    await reachPortalLoginViaPerlengkapan(page);
+    //    The tracker must attach BEFORE the navigation: the captcha challenge
+    //    fires as the login page loads.
+    const getCaptchaAnswer = trackCaptchaChallenges(page);
+    await reachPortalLoginViaPerlengkapan(page, getCaptchaAnswer);
 
     // 2. Real login (authenc + captcha-debug).
-    await loginViaPortalUI(page);
+    await loginViaSameOriginUi(page, USER, getCaptchaAnswer);
 
     // 3. Portal honored the redirect_uri: it saved auth_token (same origin) and
     //    redirected back to the perlengkapan dashboard, which mounts from that
@@ -165,8 +114,9 @@ test.describe('Cross-app SSO (real, single-origin ingress)', () => {
     page,
   }) => {
     await skipUnlessCaptchaDebug(page.request, '');
-    await reachPortalLoginViaPerlengkapan(page);
-    await loginViaPortalUI(page);
+    const getCaptchaAnswer = trackCaptchaChallenges(page);
+    await reachPortalLoginViaPerlengkapan(page, getCaptchaAnswer);
+    await loginViaSameOriginUi(page, USER, getCaptchaAnswer);
     await page.waitForURL(/\/perlengkapan\/.*dashboard/, { timeout: 30000 });
 
     await page.locator('button[title="Profil"]').click();
