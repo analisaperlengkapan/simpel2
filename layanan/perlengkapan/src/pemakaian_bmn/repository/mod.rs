@@ -31,33 +31,19 @@ impl PemakaianBmnRepository {
             pegawai_nama: row.get("pegawai_nama"),
             pegawai_satker_id: row.get("pegawai_satker_id"),
             pegawai_satker_nama: row.get("pegawai_satker_nama"),
+            satker_code: row.try_get("satker_code").ok().flatten(),
             pegawai_jabatan: row.get("pegawai_jabatan"),
             pegawai_golongan: row.try_get("pegawai_golongan").ok().flatten(),
             pegawai_pangkat: row.try_get("pegawai_pangkat").ok().flatten(),
             pegawai_unit_kerja: row.try_get("pegawai_unit_kerja").ok().flatten(),
             foto_pegawai: row.try_get("foto_pegawai").ok().flatten(),
-            jenis_bmn: row.get("jenis_bmn"),
-            bmn_nup: row.get("bmn_nup"),
-            bmn_kode_barang: row.get("bmn_kode_barang"),
-            bmn_nama_barang: row.get("bmn_nama_barang"),
-            bmn_merk: row.get("bmn_merk"),
-            bmn_tahun_perolehan: row.get("bmn_tahun_perolehan"),
-            no_polisi: row.get("no_polisi"),
-            no_bpkb: row.get("no_bpkb"),
-            no_stnk: row.get("no_stnk"),
-            no_rangka: row.get("no_rangka"),
-            no_mesin: row.get("no_mesin"),
-            alamat: row.get("alamat"),
-            luas_tanah: row.get("luas_tanah"),
-            luas_bangunan: row.get("luas_bangunan"),
-            serial_number: row.get("serial_number"),
-            spesifikasi: row.get("spesifikasi"),
             tanggal_mulai: row.get("tanggal_mulai"),
             tanggal_selesai: row.get("tanggal_selesai"),
             keperluan: row.get("keperluan"),
-            lokasi_pemakaian: row.get("lokasi_pemakaian"),
             is_renewal: row.get("is_renewal"),
             previous_permit_id: row.get("previous_permit_id"),
+            superseded_by_id: row.try_get("superseded_by_id").ok().flatten(),
+            superseded_at: row.try_get("superseded_at").ok().flatten(),
             file_pendukung: row.get("file_pendukung"),
             document_id: row.get("document_id"),
             document_url: row.get("document_url"),
@@ -106,6 +92,7 @@ impl PemakaianBmnRepository {
 
 mod crud;
 mod history;
+mod items;
 mod items_docs;
 mod lifecycle;
 mod listing;
