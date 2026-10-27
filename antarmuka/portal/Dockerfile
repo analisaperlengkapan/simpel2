@@ -71,6 +71,25 @@ RUN mkdir -p /root/.cache/trunk/tailwindcss-3.3.5 && \
       https://github.com/tailwindlabs/tailwindcss/releases/download/v3.3.5/tailwindcss-linux-x64 && \
     chmod +x /root/.cache/trunk/tailwindcss-3.3.5/tailwindcss
 
+# Same treatment for wasm-opt, the sibling the tailwind fix above missed.
+# `data-wasm-opt="1"` in index.html makes trunk fetch binaryen (a ~100 MB
+# archive) after the compile, with a ~30 s budget and no retry; on 2026-10-27
+# GitHub's release CDN was slow enough that every FE build failed there with
+# "failed downloading release archive". The version comes from Trunk.toml
+# `[tools] wasm_opt` (this RUN executes in the FE dir after `COPY . .`), so the
+# pre-seeded path is exactly the one trunk looks up — `{name}-{version}/bin/`.
+RUN set -eu; \
+    v=$(sed -n 's/^wasm_opt *= *"\(.*\)"$/\1/p' Trunk.toml); \
+    test -n "$v"; \
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 \
+      -o /tmp/binaryen.tgz \
+      "https://github.com/WebAssembly/binaryen/releases/download/$v/binaryen-$v-x86_64-linux.tar.gz"; \
+    tar -xzf /tmp/binaryen.tgz -C /tmp "binaryen-$v/bin/wasm-opt"; \
+    mkdir -p "/root/.cache/trunk/wasm-opt-$v/bin"; \
+    install -m 0755 "/tmp/binaryen-$v/bin/wasm-opt" "/root/.cache/trunk/wasm-opt-$v/bin/wasm-opt"; \
+    rm -rf /tmp/binaryen.tgz "/tmp/binaryen-$v"; \
+    "/root/.cache/trunk/wasm-opt-$v/bin/wasm-opt" --version
+
 # Set build-time environment variables for WASM baking
 # Build-time fake values, not used anymore but just to keep Trunk happy if still using env!
 ARG PORTAL_URL="PORTAL_URL_PLACEHOLDER"
