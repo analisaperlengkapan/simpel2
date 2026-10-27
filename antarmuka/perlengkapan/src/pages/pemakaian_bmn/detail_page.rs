@@ -259,14 +259,10 @@ fn DetailBody(
     let pemohon_nama = izin.pegawai_nama.clone();
     let pemohon_nip = izin.pegawai_nip.clone();
     let pemohon_satker = izin.pegawai_satker_nama.clone();
-    let bmn_nama = izin.bmn_nama_barang.clone();
-    let bmn_nup = izin.bmn_nup.clone();
-    let bmn_kode = izin.bmn_kode_barang.clone();
     let keperluan = izin.keperluan.clone();
-    let lokasi = izin
-        .lokasi_pemakaian
-        .clone()
-        .unwrap_or_else(|| "-".to_string());
+    let items = izin.bmn_items.clone();
+    let jumlah_bmn = items.len();
+    let diganti_oleh = izin.superseded_by_id.clone();
 
     let days = detail.days_until_expiry;
     let expiring_soon = detail.is_expiring_soon;
@@ -302,18 +298,98 @@ fn DetailBody(
                 <InfoField label="Pemohon" value=pemohon_nama />
                 <InfoField label="NIP" value=pemohon_nip />
                 <InfoField label="Satker" value=pemohon_satker />
-                <InfoField label="BMN" value=bmn_nama />
-                <InfoField label="NUP" value=bmn_nup />
-                <InfoField label="Kode Barang" value=bmn_kode />
-                <InfoField label="Periode" value=periode.clone() />
-                <InfoField label="Lokasi Pemakaian" value=lokasi />
+                <InfoField label="Periode Izin" value=periode.clone() />
+                <InfoField label="Jumlah BMN" value=jumlah_bmn.to_string() />
             </div>
+            {diganti_oleh
+                .map(|id| {
+                    let href = crate::routes::url::pemakaian_detail(&id);
+                    view! {
+                        // A renewal that became ACTIVE revoked this permit as
+                        // replaced (V014). Say so, and point at the one in force.
+                        <p
+                            data-testid="izin-digantikan"
+                            class="mt-4 rounded-lg border border-warning-500/20 bg-warning-500/10 p-3 text-sm text-warning-300"
+                        >
+                            "Izin ini telah digantikan oleh perpanjangannya. "
+                            <a href=href class="underline">"Lihat izin yang berlaku"</a>
+                        </p>
+                    }
+                })}
             <div class="mt-4 rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
                 <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"Keperluan"</p>
                 <p class="mt-1 text-sm text-slate-200">{keperluan}</p>
             </div>
         </SectionCard>
+
+        // Every BMN on the permit, in SK order. It used to be three fields
+        // naming the first asset only — the rest were held with nothing on
+        // screen, the same way the SK printed only the first.
+        <SectionCard
+            title="Daftar BMN".to_string()
+            description="BMN yang diizinkan, dengan urutan yang sama seperti di halaman 2 SK."
+            icon="fas fa-boxes-stacked"
+        >
+            <div class="overflow-x-auto">
+                <table data-testid="tabel-bmn-izin" class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-white/[0.06] text-left text-xs uppercase tracking-wide text-slate-500">
+                            <th class="px-3 py-2">"No"</th>
+                            <th class="px-3 py-2">"BMN"</th>
+                            <th class="px-3 py-2">"Jenis"</th>
+                            <th class="px-3 py-2">"Kode Barang / NUP"</th>
+                            <th class="px-3 py-2">"Keterangan"</th>
+                            <th class="px-3 py-2">"Jangka Waktu"</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {items
+                            .into_iter()
+                            .map(|it| {
+                                let keterangan = keterangan_item(&it);
+                                view! {
+                                    <tr class="border-b border-white/[0.04] text-slate-200">
+                                        <td class="px-3 py-2 tabular-nums">{it.urutan}</td>
+                                        <td class="px-3 py-2">
+                                            <div>{it.bmn_nama_barang.clone()}</div>
+                                            {it.bmn_merk.clone().map(|m| view! {
+                                                <div class="text-xs text-slate-500">{m}</div>
+                                            })}
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            {lib_perlengkapan::jenis_bmn::label_jenis_bmn(&it.jenis_bmn)}
+                                        </td>
+                                        <td class="px-3 py-2 tabular-nums">
+                                            {format!("{} / {}", it.bmn_kode_barang, it.bmn_nup)}
+                                        </td>
+                                        <td class="px-3 py-2 text-slate-400">{keterangan}</td>
+                                        <td class="px-3 py-2 tabular-nums">
+                                            {format!("{} → {}", it.tanggal_mulai, it.tanggal_selesai)}
+                                        </td>
+                                    </tr>
+                                }
+                            })
+                            .collect_view()}
+                    </tbody>
+                </table>
+            </div>
+        </SectionCard>
     }
+}
+
+/// The kind-specific identifiers of one item, as one line: plate and BPKB for a
+/// vehicle, address and area for housing, serial number for IT, then where it
+/// is used. Blank parts are skipped rather than printed as "-".
+fn keterangan_item(it: &crate::api::pemakaian_bmn::PemakaianBmnItem) -> String {
+    let mut bagian: Vec<String> = Vec::new();
+    if let Some(v) = &it.no_polisi { bagian.push(format!("No. Polisi {v}")); }
+    if let Some(v) = &it.no_bpkb { bagian.push(format!("BPKB {v}")); }
+    if let Some(v) = &it.alamat { bagian.push(v.clone()); }
+    if let Some(v) = it.luas_tanah { bagian.push(format!("Tanah {v} m²")); }
+    if let Some(v) = it.luas_bangunan { bagian.push(format!("Bangunan {v} m²")); }
+    if let Some(v) = &it.serial_number { bagian.push(format!("SN {v}")); }
+    if let Some(v) = &it.lokasi_pemakaian { bagian.push(format!("Lokasi: {v}")); }
+    if bagian.is_empty() { "-".to_string() } else { bagian.join(" · ") }
 }
 
 /// The satker-internal approval chain, rendered from what the backend says

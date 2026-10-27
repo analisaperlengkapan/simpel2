@@ -373,8 +373,8 @@ fn render_table(items: Vec<IzinPemakaianBmn>) -> impl IntoView + use<> {
             let no = p.nomor_izin.clone().unwrap_or_else(|| "-".to_string());
             let nama = p.pegawai_nama.clone();
             let nip = p.pegawai_nip.clone();
-            let bmn = p.bmn_nama_barang.clone();
-            let nup = p.bmn_nup.clone();
+            let bmn = p.ringkasan_bmn();
+            let bmn_ket = p.keterangan_bmn();
             let periode = format!("{} → {}", p.tanggal_mulai, p.tanggal_selesai);
             let countdown = countdown_label(&p.tanggal_selesai, &p.status);
             let status_label = p.status_label.clone();
@@ -391,7 +391,7 @@ fn render_table(items: Vec<IzinPemakaianBmn>) -> impl IntoView + use<> {
                     </td>
                     <td class="py-3 pr-3">
                         <p class="text-sm text-slate-100">{bmn}</p>
-                        <p class="mt-0.5 text-[0.7rem] text-slate-500">{format!("NUP: {}", nup)}</p>
+                        <p class="mt-0.5 text-[0.7rem] text-slate-500">{bmn_ket}</p>
                     </td>
                     <td class="py-3 pr-3">
                         <span class=format!(

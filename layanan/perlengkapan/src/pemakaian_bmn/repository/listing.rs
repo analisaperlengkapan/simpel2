@@ -36,8 +36,17 @@ impl PemakaianBmnRepository {
             params.push(Box::new(status.clone()));
         }
 
+        // `jenis_bmn` is an ITEM property since V014, and a permit can hold
+        // several kinds — so the filter is "holds at least one asset of this
+        // kind". The old `jenis_bmn = $n` named a parent column V014 dropped;
+        // it lived in a fragment that never mentions the table, which is how a
+        // census of SQL naming `izin_pemakaian_bmn` walked straight past it.
         if let Some(ref jenis_bmn) = query.jenis_bmn {
-            where_clauses.push(format!("jenis_bmn = ${}", param_count));
+            where_clauses.push(format!(
+                "EXISTS (SELECT 1 FROM perlengkapan.pemakaian_bmn_items ij \
+                 WHERE ij.izin_pemakaian_id = izin_pemakaian_bmn.id AND ij.jenis_bmn = ${})",
+                param_count
+            ));
             param_count += 1;
             params.push(Box::new(jenis_bmn.clone()));
         }
@@ -61,9 +70,13 @@ impl PemakaianBmnRepository {
                 .replace('%', "\\%")
                 .replace('_', "\\_");
             let search_pattern = format!("%{}%", escaped);
+            // The asset name is searched across ALL the permit's items.
             where_clauses.push(format!(
-                "(bmn_nama_barang ILIKE ${} OR pegawai_nama ILIKE ${} OR nomor_izin ILIKE ${})",
-                param_count, param_count, param_count
+                "(EXISTS (SELECT 1 FROM perlengkapan.pemakaian_bmn_items ic \
+                  WHERE ic.izin_pemakaian_id = izin_pemakaian_bmn.id \
+                    AND ic.bmn_nama_barang ILIKE ${p}) \
+                  OR pegawai_nama ILIKE ${p} OR nomor_izin ILIKE ${p})",
+                p = param_count
             ));
             param_count += 1;
             params.push(Box::new(search_pattern));
@@ -111,10 +124,13 @@ impl PemakaianBmnRepository {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        let data = rows
+        let mut data: Vec<IzinPemakaianBmn> = rows
             .into_iter()
             .map(|row| self.row_to_permit(row))
             .collect();
+
+        // Each row's assets, in one query for the whole page (V014).
+        Self::attach_items(&**client, &mut data).await?;
 
         let total_pages = (total as f64 / per_page as f64).ceil() as i64;
 
