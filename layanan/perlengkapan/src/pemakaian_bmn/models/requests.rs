@@ -22,17 +22,43 @@ pub struct CreateIzinPemakaianRequest {
     pub pegawai_unit_kerja: Option<String>,
     pub foto_pegawai: Option<String>,
 
+    /// Default period. It pre-fills each item that does not state its own —
+    /// the authority for "until when may this asset be held" is the item.
+    pub tanggal_mulai: NaiveDate,
+    pub tanggal_selesai: NaiveDate,
+
+    #[validate(length(min = 10, message = "Keperluan minimal 10 karakter"))]
+    pub keperluan: String,
+
+    pub file_pendukung: Option<serde_json::Value>,
+
+    // Renewal
+    pub is_renewal: Option<bool>,
+    pub previous_permit_id: Option<Uuid>,
+
+    /// Every BMN on this permit, in the order they appear on the SK. There is
+    /// no privileged first asset any more (V014): the old shape kept asset #1
+    /// in columns on the permit and #2.. in a side table, so the SK printed
+    /// one row, the conflict check could not see the rest, and renewal dropped
+    /// them. One list, one code path.
+    pub items: Vec<CreateBmnItemRequest>,
+}
+/// One BMN on a permit. Carries every field the asset kind can need — the old
+/// item row had none of them, so a second vehicle had nowhere to record its
+/// plate.
+#[derive(Debug, Clone, Deserialize, Validate)]
+pub struct CreateBmnItemRequest {
     #[validate(length(min = 1, message = "Jenis BMN harus diisi"))]
     pub jenis_bmn: String,
 
-    // Primary BMN (kept for backward compat + single-BMN cases)
     #[validate(length(min = 1, message = "NUP BMN harus diisi"))]
     pub bmn_nup: String,
-
     pub bmn_kode_barang: String,
     pub bmn_nama_barang: String,
     pub bmn_merk: Option<String>,
+    pub bmn_tipe: Option<String>,
     pub bmn_tahun_perolehan: Option<i32>,
+    pub bmn_kondisi: Option<String>,
 
     // Vehicle-specific
     pub no_polisi: Option<String>,
@@ -50,33 +76,12 @@ pub struct CreateIzinPemakaianRequest {
     pub serial_number: Option<String>,
     pub spesifikasi: Option<serde_json::Value>,
 
-    pub tanggal_mulai: NaiveDate,
-    pub tanggal_selesai: NaiveDate,
-
-    #[validate(length(min = 10, message = "Keperluan minimal 10 karakter"))]
-    pub keperluan: String,
-
     pub lokasi_pemakaian: Option<String>,
-    pub file_pendukung: Option<serde_json::Value>,
+    /// `None` means "use the permit's default period". Resolved once, in the
+    /// repository, so the stored row always states its own dates.
+    pub tanggal_mulai: Option<NaiveDate>,
+    pub tanggal_selesai: Option<NaiveDate>,
 
-    // Renewal
-    pub is_renewal: Option<bool>,
-    pub previous_permit_id: Option<Uuid>,
-
-    // Additional BMN items (multi-BMN per pegawai)
-    #[serde(default)]
-    pub additional_bmn_items: Vec<CreateBmnItemRequest>,
-}
-/// Request to add a BMN item to a permit
-#[derive(Debug, Clone, Deserialize, Validate)]
-pub struct CreateBmnItemRequest {
-    #[validate(length(min = 1, message = "NUP BMN harus diisi"))]
-    pub bmn_nup: String,
-    pub bmn_kode_barang: String,
-    pub bmn_nama_barang: String,
-    pub bmn_merk: Option<String>,
-    pub bmn_tahun_perolehan: Option<i32>,
-    pub bmn_kondisi: Option<String>,
     pub detail_bmn: Option<serde_json::Value>,
     pub keterangan: Option<String>,
 }
@@ -118,8 +123,16 @@ pub struct UpdateIzinPemakaianRequest {
     #[validate(length(min = 10, message = "Keperluan minimal 10 karakter"))]
     pub keperluan: Option<String>,
 
-    pub lokasi_pemakaian: Option<String>,
     pub file_pendukung: Option<serde_json::Value>,
+
+    /// The whole asset list, or `None` to leave it alone.
+    ///
+    /// Whole-list, not a diff: the client sends what the permit should hold
+    /// and the server makes it so. A partial update would need a per-item id
+    /// the form does not have, and `Some(vec![])` stays meaningful — it is a
+    /// request to hold nothing, which the service rejects with a sentence
+    /// rather than silently writing an assetless permit.
+    pub items: Option<Vec<CreateBmnItemRequest>>,
 }
 /// Request to transition workflow status
 #[derive(Debug, Clone, Deserialize)]
