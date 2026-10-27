@@ -85,20 +85,33 @@ impl PemakaianBmnRepository {
 
         // Get history entries. `id` breaks the created_at tie so paging and
         // repeat reads stay stable.
+        //
+        // Its OWN parameter list. The stats query above binds the scope twice
+        // (outer `p`, subquery `p2`), so its list is one entry longer than
+        // this query's placeholders; handing it the same list fails in
+        // Postgres with "bind message supplies 3 parameters, but prepared
+        // statement requires 2" — a 500 that compiles clean, and that only the
+        // scope integration test caught.
+        let mut hist_params: Vec<BoxedParam> = vec![Box::new(bmn_nup.to_string())];
+        let hist_scope = scope_and(scope, "p", &mut hist_params);
+        let hist_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = hist_params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
         let history_query = format!(
             r#"
             SELECT p.id, p.nomor_izin, i.tanggal_mulai, i.tanggal_selesai,
                    p.status, p.created_at
             FROM perlengkapan.pemakaian_bmn_items i
             JOIN perlengkapan.izin_pemakaian_bmn p ON p.id = i.izin_pemakaian_id
-            WHERE i.bmn_nup = $1{scope_sql}
+            WHERE i.bmn_nup = $1{hist_scope}
             ORDER BY p.created_at DESC, p.id ASC
             LIMIT 10
         "#
         );
 
         let history_rows = client
-            .query(&history_query, &refs)
+            .query(&history_query, &hist_refs)
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
