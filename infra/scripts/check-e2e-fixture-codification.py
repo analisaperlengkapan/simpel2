@@ -28,11 +28,16 @@ What it CAN enforce is the shape the source has, plus the agreement between the
 two seed files that a human currently maintains by hand:
 
   (1) `kd_brg -> ur_sskel` is a function across every seeded siman_aset row.
-  (2) Every permit in `izin_pemakaian_bmn` names a seeded asset: its
-      (`bmn_nup`, `bmn_kode_barang`) pair must match that asset's
-      (`no_aset`, `kd_brg`). A permit that disagrees is a permit for a
-      different asset than the one the picker and the availability check
-      resolve, and the two seed files drift apart silently.
+  (2) Every permit asset names a seeded asset. Since V014 a permit's assets
+      live in `pemakaian_bmn_items` (one row per BMN, keyed to the permit by
+      `izin_pemakaian_id`), so each item's (`bmn_nup`, `bmn_kode_barang`)
+      pair must match a seeded asset's (`no_aset`, `kd_brg`). An item that
+      disagrees is a permit for a different asset than the one the picker
+      and the availability check resolve, and the two seed files drift
+      apart silently.
+  (3) Every seeded permit has at least one item, and every item belongs to a
+      seeded permit. A permit with no asset is not a permit, and the header
+      alone gives a reader no way to tell.
 
 `penghapusan_bmn` is deliberately EXCLUDED from (2): its H2 fixture exists to
 exercise the "NUP found here but under a different barang code" branch, so a
@@ -246,22 +251,40 @@ def check(multisatker_sql: str, workflow_sql: str, harness_src: str = "") -> lis
                 f"but the fixture calls it {name!r}."
             )
 
-    # (2) every permit names a seeded asset.
-    permits = parse_insert(strip_comments(workflow_sql), "perlengkapan.izin_pemakaian_bmn")
-    for row in permits:
+    # (2) every permit asset names a seeded asset.
+    wf = strip_comments(workflow_sql)
+    permits = parse_insert(wf, "perlengkapan.izin_pemakaian_bmn")
+    nomor_of = {row.get("id"): row.get("nomor_izin") for row in permits}
+    items = parse_insert(wf, "perlengkapan.pemakaian_bmn_items")
+    for row in items:
+        izin = nomor_of.get(row.get("izin_pemakaian_id"), row.get("izin_pemakaian_id"))
         nup = row.get("bmn_nup") or ""
         kode = norm_kode(row.get("bmn_kode_barang"))
         seeded = by_nup.get(nup)
         if seeded is None:
             problems.append(
-                f"izin {row.get('nomor_izin')!r} names NUP {nup!r}, which no seeded "
+                f"izin {izin!r} names NUP {nup!r}, which no seeded "
                 f"siman_aset row carries — the permit is for an asset that does not exist."
             )
         elif seeded != kode:
             problems.append(
-                f"izin {row.get('nomor_izin')!r} claims kode barang {kode!r} for NUP "
+                f"izin {izin!r} claims kode barang {kode!r} for NUP "
                 f"{nup!r}, but the seeded asset carries {seeded!r} — the two seed files "
                 f"disagree about which asset this permit is for."
+            )
+
+    # (3) permits and items agree with each other.
+    with_items = {row.get("izin_pemakaian_id") for row in items}
+    for row in permits:
+        if row.get("id") not in with_items:
+            problems.append(
+                f"izin {row.get('nomor_izin')!r} has no item — a permit with no asset."
+            )
+    for row in items:
+        if row.get("izin_pemakaian_id") not in nomor_of:
+            problems.append(
+                f"item for NUP {row.get('bmn_nup')!r} belongs to permit "
+                f"{row.get('izin_pemakaian_id')!r}, which is not seeded."
             )
     return problems
 
@@ -282,9 +305,13 @@ def main() -> int:
     permits = parse_insert(
         strip_comments(WORKFLOW.read_text()), "perlengkapan.izin_pemakaian_bmn"
     )
+    items = parse_insert(
+        strip_comments(WORKFLOW.read_text()), "perlengkapan.pemakaian_bmn_items"
+    )
     print(
         f"check-e2e-fixture-codification: {len(aset)} seeded assets, one name per "
-        f"barang code; {len(permits)} permits all name a seeded asset "
+        f"barang code; {len(permits)} permits / {len(items)} items, every item "
+        f"names a seeded asset and every permit holds one "
         f"(penghapusan_bmn excluded by design); names pinned to the "
         f"{VERIFIED_AGAINST}"
     )
@@ -332,15 +359,15 @@ def _canaries() -> int:
         "detects: a permit whose kode barang drifts from its asset",
         ms,
         wf.replace(
-            "'E2E-IZIN-002', 'LAPTOP', 'E2E-A-1', '3020101003'",
-            "'E2E-IZIN-002', 'LAPTOP', 'E2E-A-1', '3050104001'",
+            "1, 'LAPTOP', 'E2E-A-1', '3020101003'",
+            "1, 'LAPTOP', 'E2E-A-1', '3050104001'",
         ),
         should_fail=True,
     )
     expect(
         "detects: a permit for a NUP no asset carries",
         ms,
-        wf.replace("'E2E-IZIN-003', 'LAPTOP', 'E2E-B-1'", "'E2E-IZIN-003', 'LAPTOP', 'E2E-Z-9'"),
+        wf.replace("1, 'LAPTOP', 'E2E-B-1'", "1, 'LAPTOP', 'E2E-Z-9'"),
         should_fail=True,
     )
     # The dotted/undotted split must NOT be reported: both spellings are the
@@ -356,10 +383,21 @@ def _canaries() -> int:
         "tolerates: the dotted presentation spelling of the same code",
         ms,
         wf.replace(
-            "'E2E-IZIN-001', 'LAPTOP', 'E2E-A-2', '3100102003'",
-            "'E2E-IZIN-001', 'LAPTOP', 'E2E-A-2', '3.10.01.02.003'",
+            "1, 'LAPTOP', 'E2E-A-2', '3100102003'",
+            "1, 'LAPTOP', 'E2E-A-2', '3.10.01.02.003'",
         ),
         should_fail=False,
+    )
+    # Point permit 4's only item at a permit that is not seeded: permit 4 is
+    # left with no asset AND an item dangles. Both halves of (3) must fire.
+    expect(
+        "detects: a permit left with no item (and an item with no permit)",
+        ms,
+        wf.replace(
+            "('e2000000-0000-4e00-8e00-0000000b0004', 1, 'LAPTOP'",
+            "('e2000000-0000-4e00-8e00-0000000b0099', 1, 'LAPTOP'",
+        ),
+        should_fail=True,
     )
     return failures
 

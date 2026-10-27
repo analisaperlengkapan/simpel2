@@ -10,7 +10,7 @@ use super::PemakaianBmnRepository;
 use crate::pemakaian_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
 use chrono::NaiveDate;
-use tokio_postgres::{Row, Transaction};
+use tokio_postgres::{GenericClient, Row, Transaction};
 use uuid::Uuid;
 
 impl PemakaianBmnRepository {
@@ -92,6 +92,39 @@ impl PemakaianBmnRepository {
             hasil.push(PemakaianBmnItem::from_row(&row));
         }
         Ok(hasil)
+    }
+
+    /// Fill `bmn_items` for a page of permits with ONE query.
+    ///
+    /// Every read that returns several permits goes through here. Since V014 a
+    /// permit holds its BMN only as items, so a list row without them cannot
+    /// say what the permit is for — and loading them per row would be N+1.
+    pub(crate) async fn attach_items<C: GenericClient>(
+        client: &C,
+        permits: &mut [IzinPemakaianBmn],
+    ) -> AppResult<()> {
+        let ids: Vec<Uuid> = permits.iter().map(|p| p.id).collect();
+        if ids.is_empty() {
+            return Ok(());
+        }
+        let rows = client
+            .query(
+                "SELECT * FROM perlengkapan.pemakaian_bmn_items \
+                 WHERE izin_pemakaian_id = ANY($1) ORDER BY izin_pemakaian_id, urutan",
+                &[&ids],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        let mut per_izin: std::collections::HashMap<Uuid, Vec<PemakaianBmnItem>> =
+            std::collections::HashMap::new();
+        for row in &rows {
+            let item = PemakaianBmnItem::from_row(row);
+            per_izin.entry(item.izin_pemakaian_id).or_default().push(item);
+        }
+        for permit in permits.iter_mut() {
+            permit.bmn_items = per_izin.remove(&permit.id).unwrap_or_default();
+        }
+        Ok(())
     }
 
     /// Replace a permit's whole asset list. Delete-then-insert rather than a

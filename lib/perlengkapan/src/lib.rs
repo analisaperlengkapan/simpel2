@@ -29,6 +29,7 @@
 pub mod audit;
 pub mod error;
 pub mod gap_analysis;
+pub mod jenis_bmn;
 pub mod kode_barang;
 pub mod models;
 pub mod pagination;

@@ -24,35 +24,69 @@ use crate::api::pemakaian_bmn::CekPegawaiResponse;
 use crate::components::reference_picker::{AsetPicker, PegawaiPicker, merk_tipe};
 use leptos_router::hooks::use_navigate;
 use lib_ui::components::icon::AppIcon;
+use lib_perlengkapan::jenis_bmn::{jenis_bmn_dari_jenis_aset, label_jenis_bmn};
 use phosphor_leptos::{CHECK_CIRCLE, PAPER_PLANE_TILT, PLUS, SPINNER, WARNING_CIRCLE, X};
 
-/// Satu baris "BMN tambahan".
+/// Satu BMN dalam permohonan.
 ///
-/// Isi baris tinggal di sinyalnya sendiri dan daftar hanya menyimpan kuncinya.
-/// Sebelumnya daftar dan isi berbagi satu `Vec` yang dirender lewat indeks
-/// posisi, dan itu bisa dibuktikan salah: isi dua baris "AAA" dan "BBB", lalu
-/// hapus baris pertama — baris yang tersisa TETAP MENAMPILKAN "AAA", padahal
-/// yang dikirim ke server adalah "BBB". Layar dan muatan berbeda. (Leptos
-/// memakai ulang simpul DOM saat membangun ulang, dan kotak-kotak itu tak
-/// punya `prop:value`, jadi tak ada yang menimpa teks baris yang dihapus.)
-/// Dengan `For` berkunci, identitas melekat pada barisnya, bukan pada
-/// posisinya.
+/// Sejak V014 tidak ada lagi "BMN utama" dan "BMN tambahan": permohonan adalah
+/// satu pegawai dengan DAFTAR BMN, dan baris pertama sama kedudukannya dengan
+/// baris kelima. Dulu BMN pertama punya formulirnya sendiri (jenis, nomor
+/// polisi, serial number, lokasi) sementara BMN tambahan hanya bisa memilih
+/// aset — jadi kendaraan kedua tak punya tempat untuk nomor polisinya, dan
+/// tiap fitur yang menyentuh izin hanya pernah mengenal BMN pertama.
+///
+/// Isi baris tinggal di sinyalnya sendiri dan daftar hanya menyimpan kuncinya:
+/// dengan `For` berkunci, identitas melekat pada barisnya, bukan posisinya.
+/// Merender lewat indeks posisi pernah terbukti salah di sini — hapus baris
+/// pertama dari "AAA","BBB", dan baris tersisa TETAP MENAMPILKAN "AAA"
+/// sementara muatan yang dikirim berisi "BBB".
 #[derive(Clone, Copy)]
-struct BarisBmnTambahan {
+struct BarisBmn {
     kunci: usize,
     isi: RwSignal<CreateBmnItemRequest>,
+    ketersediaan: RwSignal<Option<BmnAvailabilityResponse>>,
+    memeriksa: RwSignal<bool>,
+    galat: RwSignal<Option<String>>,
 }
 
-/// Baris kosong — bentuknya sama dengan yang dikirim ke server saat baris baru
-/// ditambahkan dan saat pilihannya dibatalkan.
+impl BarisBmn {
+    fn baru(kunci: usize) -> Self {
+        Self {
+            kunci,
+            isi: RwSignal::new(baris_kosong()),
+            ketersediaan: RwSignal::new(None),
+            memeriksa: RwSignal::new(false),
+            galat: RwSignal::new(None),
+        }
+    }
+}
+
+/// Baris kosong. `jenis_bmn` kosong sampai aset dipilih — jenisnya diturunkan
+/// dari aset itu, bukan dipilih terpisah.
 fn baris_kosong() -> CreateBmnItemRequest {
     CreateBmnItemRequest {
+        jenis_bmn: String::new(),
         bmn_nup: String::new(),
         bmn_kode_barang: String::new(),
         bmn_nama_barang: String::new(),
         bmn_merk: None,
+        bmn_tipe: None,
         bmn_tahun_perolehan: None,
         bmn_kondisi: None,
+        no_polisi: None,
+        no_bpkb: None,
+        no_stnk: None,
+        no_rangka: None,
+        no_mesin: None,
+        alamat: None,
+        luas_tanah: None,
+        luas_bangunan: None,
+        serial_number: None,
+        spesifikasi: None,
+        lokasi_pemakaian: None,
+        tanggal_mulai: None,
+        tanggal_selesai: None,
         detail_bmn: None,
         keterangan: None,
     }
@@ -64,22 +98,280 @@ fn bukan_kosong(s: String) -> Option<String> {
     if s.is_empty() { None } else { Some(s) }
 }
 
+const KELAS_ISIAN: &str = "w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40";
+
+/// Satu isian teks/angka/tanggal yang membaca dan menulis satu field baris.
+///
+/// `id` WAJIB unik per baris: label `for` yang kembar membuat label baris kedua
+/// memfokuskan kotak baris pertama.
+fn isian(
+    id: String,
+    label: &'static str,
+    tipe: &'static str,
+    wajib: bool,
+    nilai: impl Fn() -> String + Send + Sync + 'static,
+    tulis: impl Fn(String) + Send + Sync + 'static,
+) -> impl IntoView {
+    view! {
+        <div>
+            <label for=id.clone() class="block text-sm font-medium text-slate-200 mb-1">
+                {label}
+                {wajib.then(|| view! { <span class="text-danger-400">" *"</span> })}
+            </label>
+            <input
+                id=id
+                type=tipe
+                step=(tipe == "number").then_some("0.01")
+                class=KELAS_ISIAN
+                prop:value=nilai
+                on:input=move |ev| tulis(event_target_value(&ev))
+                required=wajib
+            />
+        </div>
+    }
+}
+
+/// Satu kartu BMN: pemilih aset, ketersediaannya, dan isian yang dibutuhkan
+/// jenis asetnya.
+#[component]
+fn KartuBmn(
+    baris: BarisBmn,
+    /// Nomor urut 1-based — urutan ini pula yang dicetak di halaman 2 SK.
+    #[prop(into)]
+    nomor: Signal<usize>,
+    #[prop(into)] bisa_dihapus: Signal<bool>,
+    #[prop(into)] on_hapus: Callback<usize>,
+) -> impl IntoView {
+    let BarisBmn {
+        kunci,
+        isi,
+        ketersediaan,
+        memeriksa,
+        galat,
+    } = baris;
+    let slug = format!("aset-{kunci}");
+    let id = move |nama: &str| format!("{nama}-{kunci}");
+
+    // Aset dipilih dari SIMAN, lalu ketersediaannya diperiksa — berurutan,
+    // karena cek ketersediaan butuh kode barang yang baru diketahui setelah
+    // aset dipilih. NUP saja tidak mengidentifikasi aset: 44.017 aset di 553
+    // satker sama-sama ber-NUP 1.
+    let on_pick = Callback::new(move |picked: Option<BankAsetItem>| {
+        galat.set(None);
+        ketersediaan.set(None);
+        let Some(aset) = picked else {
+            isi.update(|it| {
+                // Kosongkan identitas aset, pertahankan jangka waktu khusus
+                // yang mungkin sudah diisi untuk baris ini.
+                let (mulai, selesai) = (it.tanggal_mulai.take(), it.tanggal_selesai.take());
+                *it = baris_kosong();
+                it.tanggal_mulai = mulai;
+                it.tanggal_selesai = selesai;
+            });
+            return;
+        };
+
+        let nup = aset.no_aset.clone();
+        let kode_barang = aset.kode_barang.clone().unwrap_or_default();
+        let jenis = jenis_bmn_dari_jenis_aset(&aset.kategori_aset).to_string();
+        isi.update(|it| {
+            it.jenis_bmn = jenis.clone();
+            it.bmn_nup = nup.clone();
+            it.bmn_kode_barang = kode_barang.clone();
+            it.bmn_nama_barang = aset.nama_aset.clone().unwrap_or_default();
+            it.bmn_merk = bukan_kosong(merk_tipe(&aset));
+            it.bmn_tahun_perolehan = tahun_perolehan(&aset).parse().ok();
+            it.bmn_kondisi = aset.kondisi.clone().and_then(bukan_kosong);
+            // SIMAN mencatat alamat aset; untuk rumah negara itulah alamat
+            // izinnya, jadi diisikan alih-alih diketik ulang (tetap bisa
+            // dikoreksi). Field khusus jenis lain dikosongkan — mereka milik
+            // aset yang baru saja diganti.
+            it.alamat = if jenis == "RUMAH_NEGARA" {
+                aset.lokasi.clone().and_then(bukan_kosong)
+            } else {
+                None
+            };
+            it.no_polisi = None;
+            it.no_bpkb = None;
+            it.no_stnk = None;
+            it.no_rangka = None;
+            it.no_mesin = None;
+            it.luas_tanah = None;
+            it.luas_bangunan = None;
+            it.serial_number = None;
+        });
+
+        if kode_barang.is_empty() {
+            // Tanpa kode barang asetnya tak bisa dipastikan, dan menebak lebih
+            // berbahaya daripada berhenti.
+            galat.set(Some(
+                "Data SIMAN untuk aset ini tidak memuat kode barang, sehingga asetnya \
+                 tidak dapat dipastikan. Hubungi pengelola BMN satker."
+                    .to_string(),
+            ));
+            return;
+        }
+
+        memeriksa.set(true);
+        leptos::task::spawn_local(async move {
+            match check_bmn_availability(&nup, &kode_barang).await {
+                Ok(response) => ketersediaan.set(Some(response.data)),
+                Err(e) => galat.set(Some(format!("Gagal memeriksa ketersediaan: {e}"))),
+            }
+            memeriksa.set(false);
+        });
+    });
+
+    let jenis = Memo::new(move |_| isi.with(|it| it.jenis_bmn.clone()));
+    let sudah_dipilih = move || isi.with(|it| !it.bmn_nup.is_empty());
+
+    view! {
+        <div
+            data-testid=format!("kartu-bmn-{kunci}")
+            class="relative rounded-lg border border-white/10 bg-white/[0.03] p-4 space-y-4"
+        >
+            <div class="flex items-center justify-between">
+                <h4 class="text-sm font-semibold text-slate-200">
+                    {move || format!("BMN {}", nomor.get())}
+                    <Show when=move || !jenis.get().is_empty()>
+                        <span
+                            data-testid=format!("jenis-bmn-{kunci}")
+                            class="ml-2 rounded-full bg-info-500/15 px-2 py-0.5 text-xs font-medium text-info-300"
+                        >
+                            {move || label_jenis_bmn(&jenis.get())}
+                        </span>
+                    </Show>
+                </h4>
+                <Show when=move || bisa_dihapus.get()>
+                    <button
+                        type="button"
+                        aria-label="Hapus BMN"
+                        class="text-danger-400 hover:text-danger-300"
+                        on:click=move |_| on_hapus.run(kunci)
+                    >
+                        <AppIcon icon=X />
+                    </button>
+                </Show>
+            </div>
+
+            <AsetPicker slug=slug label="Cari BMN".to_string() on_pick=on_pick />
+
+            <Show when=move || memeriksa.get()>
+                <p class="flex items-center gap-2 text-sm text-slate-400">
+                    <span class="fa-spin">
+                        <AppIcon icon=SPINNER />
+                    </span>
+                    "Memeriksa ketersediaan…"
+                </p>
+            </Show>
+            <Show when=move || galat.get().is_some()>
+                <p class="text-sm text-danger-300">{move || galat.get()}</p>
+            </Show>
+            {move || {
+                ketersediaan
+                    .get()
+                    .map(|k| {
+                        let testid = format!("bmn-ketersediaan-{kunci}");
+                        if k.is_available {
+                            view! {
+                                <div
+                                    data-testid=testid
+                                    class="p-3 bg-success-500/10 text-success-300 rounded-lg border border-success-500/20 flex items-center gap-2"
+                                >
+                                    <AppIcon icon=CHECK_CIRCLE />
+                                    "BMN tersedia untuk digunakan"
+                                </div>
+                            }
+                                .into_any()
+                        } else {
+                            view! {
+                                <div
+                                    data-testid=testid
+                                    class="p-3 bg-danger-500/10 text-danger-300 rounded-lg border border-danger-500/20"
+                                >
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <AppIcon icon=WARNING_CIRCLE />
+                                        <span class="font-semibold">"BMN sedang digunakan"</span>
+                                    </div>
+                                    <p class="text-sm">
+                                        "Pemegang: " {k.active_permit_holder.unwrap_or_default()}
+                                    </p>
+                                    <p class="text-sm">
+                                        "Berlaku hingga: " {k.active_permit_expires.unwrap_or_default()}
+                                    </p>
+                                </div>
+                            }
+                                .into_any()
+                        }
+                    })
+            }}
+
+            // Isian yang dibutuhkan jenis asetnya. Hanya yang TIDAK dicatat
+            // SIMAN: nomor polisi, BPKB, serial number, dan luas tidak ada di
+            // `integrasi.siman_aset`, jadi memang harus diisi di sini.
+            <Show when=move || jenis.get() == "KENDARAAN_BERMOTOR">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {isian(id("no-polisi"), "Nomor Polisi", "text", true,
+                        move || isi.with(|it| it.no_polisi.clone().unwrap_or_default()),
+                        move |v| isi.update(|it| it.no_polisi = bukan_kosong(v)))}
+                    {isian(id("no-bpkb"), "Nomor BPKB", "text", true,
+                        move || isi.with(|it| it.no_bpkb.clone().unwrap_or_default()),
+                        move |v| isi.update(|it| it.no_bpkb = bukan_kosong(v)))}
+                    {isian(id("no-stnk"), "Nomor STNK", "text", false,
+                        move || isi.with(|it| it.no_stnk.clone().unwrap_or_default()),
+                        move |v| isi.update(|it| it.no_stnk = bukan_kosong(v)))}
+                    {isian(id("no-rangka"), "Nomor Rangka", "text", false,
+                        move || isi.with(|it| it.no_rangka.clone().unwrap_or_default()),
+                        move |v| isi.update(|it| it.no_rangka = bukan_kosong(v)))}
+                    {isian(id("no-mesin"), "Nomor Mesin", "text", false,
+                        move || isi.with(|it| it.no_mesin.clone().unwrap_or_default()),
+                        move |v| isi.update(|it| it.no_mesin = bukan_kosong(v)))}
+                </div>
+            </Show>
+            <Show when=move || jenis.get() == "RUMAH_NEGARA">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        {isian(id("alamat"), "Alamat", "text", true,
+                            move || isi.with(|it| it.alamat.clone().unwrap_or_default()),
+                            move |v| isi.update(|it| it.alamat = bukan_kosong(v)))}
+                    </div>
+                    {isian(id("luas-tanah"), "Luas Tanah (m²)", "number", true,
+                        move || isi.with(|it| it.luas_tanah.map(|n| n.to_string()).unwrap_or_default()),
+                        move |v| isi.update(|it| it.luas_tanah = v.trim().parse().ok()))}
+                    {isian(id("luas-bangunan"), "Luas Bangunan (m²)", "number", true,
+                        move || isi.with(|it| it.luas_bangunan.map(|n| n.to_string()).unwrap_or_default()),
+                        move |v| isi.update(|it| it.luas_bangunan = v.trim().parse().ok()))}
+                </div>
+            </Show>
+            <Show when=move || jenis.get() == "LAPTOP">
+                {isian(id("serial-number"), "Serial Number", "text", true,
+                    move || isi.with(|it| it.serial_number.clone().unwrap_or_default()),
+                    move |v| isi.update(|it| it.serial_number = bukan_kosong(v)))}
+            </Show>
+
+            <Show when=sudah_dipilih>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="md:col-span-3">
+                        {isian(id("lokasi"), "Lokasi Pemakaian", "text", false,
+                            move || isi.with(|it| it.lokasi_pemakaian.clone().unwrap_or_default()),
+                            move |v| isi.update(|it| it.lokasi_pemakaian = bukan_kosong(v)))}
+                    </div>
+                    // Kosong = mengikuti periode izin. Diisi bila BMN ini
+                    // dipakai dalam jangka waktu berbeda dari yang lain.
+                    {isian(id("mulai"), "Mulai (jika berbeda)", "date", false,
+                        move || isi.with(|it| it.tanggal_mulai.clone().unwrap_or_default()),
+                        move |v| isi.update(|it| it.tanggal_mulai = bukan_kosong(v)))}
+                    {isian(id("selesai"), "Selesai (jika berbeda)", "date", false,
+                        move || isi.with(|it| it.tanggal_selesai.clone().unwrap_or_default()),
+                        move |v| isi.update(|it| it.tanggal_selesai = bukan_kosong(v)))}
+                </div>
+            </Show>
+        </div>
+    }
+}
+
 #[component]
 pub fn PemakaianBmnForm() -> impl IntoView {
-    // Form state
-    let (jenis_bmn, set_jenis_bmn) = signal("KENDARAAN_BERMOTOR".to_string());
-    let (bmn_nup, set_bmn_nup) = signal("".to_string());
-    let (bmn_availability, set_bmn_availability) = signal(None::<BmnAvailabilityResponse>);
-    let (checking_availability, set_checking_availability) = signal(false);
-
-    // Auto-filled from `GET /bank-aset/lookup?nup=...` when the operator enters
-    // a NUP; pre-loaded into the request payload so the operator doesn't have
-    // to retype the catalog data.
-    let (bmn_kode_barang, set_bmn_kode_barang) = signal(String::new());
-    let (bmn_nama_barang, set_bmn_nama_barang) = signal(String::new());
-    let (bmn_merk, set_bmn_merk) = signal(String::new());
-    let (bmn_tahun_perolehan, set_bmn_tahun_perolehan) = signal(String::new());
-
     // Satu-satunya sumber identitas pegawai di formulir ini: apa pun yang
     // dipilih di `PegawaiPicker` mengisi sinyal-sinyal di bawah, dan tidak ada
     // kotak untuk mengetiknya sendiri.
@@ -89,27 +381,18 @@ pub fn PemakaianBmnForm() -> impl IntoView {
     // dari 21.328 baris di staging, 21.141 berpola "Pangkat / (Gol)" sementara
     // 187 sisanya justru KEBALIKANNYA ("III/d (Sena Wira)"). Memecahnya berarti
     // menebak, dan tebakan yang salah menaruh golongan di kolom pangkat pada
-    // ratusan pegawai. Nilainya dikirim utuh sebagai pangkat, dan layar
-    // menamainya "Pangkat / Golongan" — sesuai sumbernya.
-    // Pegawai info
-    let (pegawai_nip, set_pegawai_nip) = signal("".to_string());
-    let (pegawai_nama, set_pegawai_nama) = signal("".to_string());
-    let (pegawai_golongan, set_pegawai_golongan) = signal("".to_string());
-    let (pegawai_pangkat, set_pegawai_pangkat) = signal("".to_string());
-    let (pegawai_unit_kerja, set_pegawai_unit_kerja) = signal("".to_string());
-
-    let (foto_pegawai, set_foto_pegawai) = signal("".to_string());
+    // ratusan pegawai. Nilainya dikirim utuh sebagai pangkat.
+    let (pegawai_nip, set_pegawai_nip) = signal(String::new());
+    let (pegawai_nama, set_pegawai_nama) = signal(String::new());
+    let (pegawai_pangkat, set_pegawai_pangkat) = signal(String::new());
+    let (pegawai_unit_kerja, set_pegawai_unit_kerja) = signal(String::new());
+    let (foto_pegawai, set_foto_pegawai) = signal(String::new());
 
     let on_pick_pegawai = Callback::new(move |picked: Option<CekPegawaiResponse>| {
         let p = picked.map(|r| r.pegawai);
         set_pegawai_nip.set(p.as_ref().map(|p| p.nip.clone()).unwrap_or_default());
         set_pegawai_nama.set(p.as_ref().and_then(|p| p.nama.clone()).unwrap_or_default());
-        set_pegawai_pangkat.set(
-            p.as_ref()
-                .and_then(|p| p.pangkat.clone())
-                .unwrap_or_default(),
-        );
-        set_pegawai_golongan.set(String::new());
+        set_pegawai_pangkat.set(p.as_ref().and_then(|p| p.pangkat.clone()).unwrap_or_default());
         set_pegawai_unit_kerja.set(
             p.as_ref()
                 .and_then(|p| p.nama_satker.clone())
@@ -118,120 +401,80 @@ pub fn PemakaianBmnForm() -> impl IntoView {
         set_foto_pegawai.set(p.as_ref().and_then(|p| p.foto.clone()).unwrap_or_default());
     });
 
-    // Additional BMN items (multi-BMN per pegawai)
-    let baris_tambahan = RwSignal::new(Vec::<BarisBmnTambahan>::new());
-    // Kunci baris harus tetap melekat pada barisnya walau baris di atasnya
-    // dihapus, jadi ia dihitung maju dan tidak pernah dipakai ulang — indeks
-    // posisi akan menggeser identitas baris dan menukar isi dua pemilih.
-    let kunci_berikutnya = StoredValue::new(0usize);
+    // Daftar BMN. Dimulai dengan SATU baris: permohonan tanpa BMN bukan
+    // permohonan. Kunci dihitung maju dan tak pernah dipakai ulang.
+    let daftar = RwSignal::new(vec![BarisBmn::baru(0)]);
+    let kunci_berikutnya = StoredValue::new(1usize);
 
-    // Common fields
-    let (tanggal_mulai, set_tanggal_mulai) = signal("".to_string());
-    let (tanggal_selesai, set_tanggal_selesai) = signal("".to_string());
-    let (keperluan, set_keperluan) = signal("".to_string());
-    let (lokasi_pemakaian, set_lokasi_pemakaian) = signal("".to_string());
+    let (tanggal_mulai, set_tanggal_mulai) = signal(String::new());
+    let (tanggal_selesai, set_tanggal_selesai) = signal(String::new());
+    let (keperluan, set_keperluan) = signal(String::new());
 
-    // Vehicle-specific fields
-    let (no_polisi, set_no_polisi) = signal("".to_string());
-    let (no_bpkb, set_no_bpkb) = signal("".to_string());
-    let (no_stnk, set_no_stnk) = signal("".to_string());
-    let (no_rangka, set_no_rangka) = signal("".to_string());
-    let (no_mesin, set_no_mesin) = signal("".to_string());
-
-    // Housing-specific fields
-    let (alamat, set_alamat) = signal("".to_string());
-    let (luas_tanah, set_luas_tanah) = signal("".to_string());
-    let (luas_bangunan, set_luas_bangunan) = signal("".to_string());
-
-    // Laptop-specific fields
-    let (serial_number, set_serial_number) = signal("".to_string());
-
-    // UI state
     let (error, set_error) = signal(None::<String>);
     let (success, set_success) = signal(false);
     let (loading, set_loading) = signal(false);
     let navigate = use_navigate();
 
-    // Cari asetnya di SIMAN, lalu cek ketersediaannya.
-    //
-    // Urutannya WAJIB berurutan, bukan paralel seperti sebelumnya. Cek
-    // ketersediaan butuh `kode_barang`, dan kode barang baru diketahui setelah
-    // lookup SIMAN menjawab. Versi lama menembakkan keduanya bersamaan lalu
-    // bertanya "apakah NUP 2 sedang dipakai" — pertanyaan yang tak punya
-    // jawaban: NUP adalah nomor urut DI DALAM satu satker untuk satu kode
-    // barang, jadi 44.017 aset di 553 satker sama-sama ber-NUP 1.
-    // Aset dipilih dari daftar hasil pencarian, bukan diketik.
-    //
-    // Alur lama meminta NUP lalu me-lookup `GET /bank-aset/lookup?nup=`. NUP
-    // saja tidak mengidentifikasi aset: ia nomor urut DI DALAM satu satker
-    // untuk satu kode barang, jadi ia berulang — 24.715 aset ber-NUP "2" di
-    // snapshot staging. Pemilih mengembalikan barisnya utuh, sehingga kode
-    // barang datang bersama asetnya alih-alih ditebak dari NUP-nya.
-    let on_pick_aset = Callback::new(move |picked: Option<BankAsetItem>| {
-        set_error.set(None);
-        set_bmn_availability.set(None);
-
-        let Some(item) = picked else {
-            set_bmn_nup.set(String::new());
-            set_bmn_kode_barang.set(String::new());
-            set_bmn_nama_barang.set(String::new());
-            set_bmn_merk.set(String::new());
-            set_bmn_tahun_perolehan.set(String::new());
-            return;
-        };
-
-        let nup = item.no_aset.clone();
-        let kode_barang = item.kode_barang.clone().unwrap_or_default();
-        set_bmn_nup.set(nup.clone());
-        set_bmn_kode_barang.set(kode_barang.clone());
-        set_bmn_nama_barang.set(item.nama_aset.clone().unwrap_or_default());
-        set_bmn_merk.set(merk_tipe(&item));
-        set_bmn_tahun_perolehan.set(tahun_perolehan(&item));
-
-        if kode_barang.is_empty() {
-            // Tanpa kode barang asetnya tak bisa dipastikan, dan menebak lebih
-            // berbahaya daripada berhenti.
-            set_error.set(Some(
-                "Data SIMAN untuk aset ini tidak memuat kode barang, sehingga asetnya \
-                 tidak dapat dipastikan. Hubungi pengelola BMN satker."
-                    .to_string(),
-            ));
-            return;
-        }
-
-        set_checking_availability.set(true);
-        leptos::task::spawn_local(async move {
-            match check_bmn_availability(&nup, &kode_barang).await {
-                Ok(response) => set_bmn_availability.set(Some(response.data)),
-                Err(e) => set_error.set(Some(format!("Gagal memeriksa ketersediaan: {e}"))),
+    let hapus = Callback::new(move |kunci: usize| {
+        daftar.update(|d| {
+            if d.len() > 1 {
+                d.retain(|b| b.kunci != kunci);
             }
-            set_checking_availability.set(false);
         });
     });
 
+    // Tombol kirim hanya hidup bila SETIAP BMN sudah dipilih dan dinyatakan
+    // tersedia. Satu BMN yang sedang dipakai orang lain menggagalkan seluruh
+    // permohonan di server, jadi menahannya di sini lebih jujur.
+    let semua_siap = move || {
+        daftar.with(|d| {
+            d.iter().all(|b| {
+                b.ketersediaan
+                    .with(|k| k.as_ref().is_some_and(|k| k.is_available))
+            })
+        })
+    };
+
     let on_submit = move |ev: leptos::web_sys::SubmitEvent| {
         ev.prevent_default();
+        set_error.set(None);
+        set_success.set(false);
 
-        // Validate availability
-        if let Some(availability) = bmn_availability.get() {
-            if !availability.is_available {
+        let baris: Vec<BarisBmn> = daftar.get();
+        let mut items = Vec::with_capacity(baris.len());
+        let mut terlihat = std::collections::HashSet::new();
+        for (i, b) in baris.iter().enumerate() {
+            let item = b.isi.get();
+            let nomor = i + 1;
+            if item.bmn_nup.is_empty() {
+                set_error.set(Some(format!("BMN {nomor} belum dipilih")));
+                return;
+            }
+            match b.ketersediaan.get() {
+                Some(k) if k.is_available => {}
+                Some(k) => {
+                    set_error.set(Some(format!(
+                        "BMN {nomor} sedang digunakan oleh {} hingga {}",
+                        k.active_permit_holder.unwrap_or_default(),
+                        k.active_permit_expires.unwrap_or_default()
+                    )));
+                    return;
+                }
+                None => {
+                    set_error.set(Some(format!(
+                        "Ketersediaan BMN {nomor} belum diperiksa"
+                    )));
+                    return;
+                }
+            }
+            if !terlihat.insert((item.bmn_nup.clone(), item.bmn_kode_barang.clone())) {
                 set_error.set(Some(format!(
-                    "BMN sedang digunakan oleh {} hingga {}",
-                    availability.active_permit_holder.unwrap_or_default(),
-                    availability.active_permit_expires.unwrap_or_default()
+                    "BMN {nomor} sudah tercantum di baris lain pada permohonan ini"
                 )));
                 return;
             }
-        } else {
-            set_error.set(Some(
-                "Silakan periksa ketersediaan BMN terlebih dahulu".to_string(),
-            ));
-            return;
+            items.push(item);
         }
-
-        set_loading.set(true);
-        set_error.set(None);
-        set_success.set(false);
 
         // Pull satker context from the JWT-backed session. The operator MUST
         // be attached to a satker on the authenc side for the permit to be
@@ -239,125 +482,41 @@ pub fn PemakaianBmnForm() -> impl IntoView {
         let session = AuthService::load_session();
         let satker_id = session.as_ref().and_then(|s| s.satker_id.clone());
         let satker_nama = session.as_ref().and_then(|s| s.satker_nama.clone());
-        let satker_id = match satker_id {
-            Some(id) => id,
-            None => {
-                set_error.set(Some(
-                    "Anda belum terdaftar di satker manapun (satker_id kosong). \
-                     Hubungi admin perlengkapan untuk pemetaan satker."
-                        .to_string(),
-                ));
-                set_loading.set(false);
-                return;
-            }
+        let Some(satker_id) = satker_id else {
+            set_error.set(Some(
+                "Anda belum terdaftar di satker manapun (satker_id kosong). \
+                 Hubungi admin perlengkapan untuk pemetaan satker."
+                    .to_string(),
+            ));
+            return;
         };
 
-        // Build request based on jenis_bmn
         let request = CreateIzinPemakaianRequest {
             pegawai_nip: pegawai_nip.get(),
             pegawai_nama: pegawai_nama.get(),
             pegawai_satker_id: satker_id,
             pegawai_satker_nama: satker_nama.unwrap_or_default(),
             pegawai_jabatan: None,
-            pegawai_golongan: if pegawai_golongan.get().is_empty() {
-                None
-            } else {
-                Some(pegawai_golongan.get())
-            },
-            pegawai_pangkat: if pegawai_pangkat.get().is_empty() {
-                None
-            } else {
-                Some(pegawai_pangkat.get())
-            },
-            pegawai_unit_kerja: if pegawai_unit_kerja.get().is_empty() {
-                None
-            } else {
-                Some(pegawai_unit_kerja.get())
-            },
-            foto_pegawai: if foto_pegawai.get().is_empty() {
-                None
-            } else {
-                Some(foto_pegawai.get())
-            },
-            jenis_bmn: jenis_bmn.get(),
-            bmn_nup: bmn_nup.get(),
-            bmn_kode_barang: bmn_kode_barang.get(),
-            bmn_nama_barang: bmn_nama_barang.get(),
-            bmn_merk: if bmn_merk.get().is_empty() {
-                None
-            } else {
-                Some(bmn_merk.get())
-            },
-            bmn_tahun_perolehan: bmn_tahun_perolehan.get().parse::<i32>().ok(),
-            no_polisi: if jenis_bmn.get() == "KENDARAAN_BERMOTOR" {
-                Some(no_polisi.get())
-            } else {
-                None
-            },
-            no_bpkb: if jenis_bmn.get() == "KENDARAAN_BERMOTOR" {
-                Some(no_bpkb.get())
-            } else {
-                None
-            },
-            no_stnk: if jenis_bmn.get() == "KENDARAAN_BERMOTOR" {
-                Some(no_stnk.get())
-            } else {
-                None
-            },
-            no_rangka: if jenis_bmn.get() == "KENDARAAN_BERMOTOR" {
-                Some(no_rangka.get())
-            } else {
-                None
-            },
-            no_mesin: if jenis_bmn.get() == "KENDARAAN_BERMOTOR" {
-                Some(no_mesin.get())
-            } else {
-                None
-            },
-            alamat: if jenis_bmn.get() == "RUMAH_NEGARA" {
-                Some(alamat.get())
-            } else {
-                None
-            },
-            luas_tanah: if jenis_bmn.get() == "RUMAH_NEGARA" {
-                luas_tanah.get().parse().ok()
-            } else {
-                None
-            },
-            luas_bangunan: if jenis_bmn.get() == "RUMAH_NEGARA" {
-                luas_bangunan.get().parse().ok()
-            } else {
-                None
-            },
-            serial_number: if jenis_bmn.get() == "LAPTOP" {
-                Some(serial_number.get())
-            } else {
-                None
-            },
-            spesifikasi: None,
+            pegawai_golongan: None,
+            pegawai_pangkat: bukan_kosong(pegawai_pangkat.get()),
+            pegawai_unit_kerja: bukan_kosong(pegawai_unit_kerja.get()),
+            foto_pegawai: bukan_kosong(foto_pegawai.get()),
             tanggal_mulai: tanggal_mulai.get(),
             tanggal_selesai: tanggal_selesai.get(),
             keperluan: keperluan.get(),
-            lokasi_pemakaian: Some(lokasi_pemakaian.get()),
             file_pendukung: None,
             is_renewal: None,
             previous_permit_id: None,
-            additional_bmn_items: baris_tambahan
-                .get()
-                .iter()
-                .map(|baris| baris.isi.get())
-                .collect(),
+            items,
         };
 
+        set_loading.set(true);
         let navigate = navigate.clone();
         leptos::task::spawn_local(async move {
             match create_pemakaian_bmn(request).await {
                 Ok(_response) => {
                     set_success.set(true);
                     set_loading.set(false);
-
-                    // Redirect after success — `navigate` captured at component
-                    // level to stay within the reactive scope.
                     gloo_timers::callback::Timeout::new(1500, move || {
                         // navigate() resolves against the router base, so this
                         // must be base-relative (full-path form would double
@@ -396,266 +555,33 @@ pub fn PemakaianBmnForm() -> impl IntoView {
             </Show>
 
             <form on:submit=on_submit class="space-y-6">
-                // Jenis BMN Selection
-                <div class="bg-info-500/10 p-4 rounded-lg">
-                    <label class="block text-sm font-medium text-slate-200 mb-2">"Jenis BMN"</label>
-                    <select
-                        class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                        prop:value=move || jenis_bmn.get()
-                        on:change=move |ev| set_jenis_bmn.set(event_target_value(&ev))
-                    >
-                        <option value="KENDARAAN_BERMOTOR">"Kendaraan Bermotor"</option>
-                        <option value="RUMAH_NEGARA">"Rumah Negara"</option>
-                        <option value="LAPTOP">"Laptop/Komputer"</option>
-                        <option value="LAINNYA">"Lainnya"</option>
-                    </select>
-                </div>
-
-                // Pegawai — identitasnya datang dari data kepegawaian, tidak
-                // diketik ulang.
-                //
-                // Bagian ini dulu enam isian manual (NIP, nama, golongan,
-                // pangkat, unit kerja, URL foto) di bawah sebuah TODO yang
-                // menunggu `GET /admin/pegawai?...` — endpoint yang tidak
-                // pernah ada. Yang benar sudah ada sejak Fase 1.11,
-                // `cek-pegawai/{nip}`; ia hanya tidak pernah bisa menemukan
-                // siapa pun sampai tautan pegawai↔satker diperbaiki, karena
-                // mencocokkan `satker_id` (UUID) dengan sebuah kode satker.
-                <div class="border-t border-white/[0.06] pt-6">
+                // Pegawai — identitasnya datang dari data kepegawaian
+                // (`cek-pegawai/{nip}`), tidak diketik ulang.
+                <div>
                     <h3 class="text-lg font-semibold text-slate-100 mb-4">
                         "Pegawai yang Akan Menggunakan BMN"
                     </h3>
                     <PegawaiPicker on_pick=on_pick_pegawai />
                 </div>
 
-                // BMN Selection with Availability Check
-                <div class="border-t pt-6">
-                    <h3 class="text-lg font-semibold text-slate-100 mb-4">"Pilih BMN"</h3>
-                    <AsetPicker on_pick=on_pick_aset />
-
-                    <Show when=move || checking_availability.get()>
-                        <p class="mt-2 flex items-center gap-2 text-sm text-slate-400">
-                            <span class="fa-spin">
-                                <AppIcon icon=SPINNER />
-                            </span>
-                            "Memeriksa ketersediaan…"
-                        </p>
-                    </Show>
-
-                    // Availability Status
-                    <Show when=move || {
-                        bmn_availability.get().is_some()
-                    }>
-                        {move || {
-                            let availability = bmn_availability.get().unwrap();
-                            if availability.is_available {
-                                view! {
-                                    <div
-                                        data-testid="bmn-ketersediaan"
-                                        class="mt-2 p-3 bg-success-500/10 text-success-300 rounded-lg border border-success-500/20 flex items-center gap-2"
-                                    >
-                                        <AppIcon icon=CHECK_CIRCLE />
-                                        "BMN tersedia untuk digunakan"
-                                    </div>
-                                }
-                                    .into_any()
-                            } else {
-                                view! {
-                                    <div
-                                        data-testid="bmn-ketersediaan"
-                                        class="mt-2 p-3 bg-danger-500/10 text-danger-300 rounded-lg border border-danger-500/20"
-                                    >
-                                        <div class="flex items-center gap-2 mb-1">
-                                            <AppIcon icon=WARNING_CIRCLE />
-                                            <span class="font-semibold">"BMN sedang digunakan"</span>
-                                        </div>
-                                        <p class="text-sm">
-                                            "Pemegang: "
-                                            {availability.active_permit_holder.unwrap_or_default()}
-                                        </p>
-                                        <p class="text-sm">
-                                            "Berlaku hingga: "
-                                            {availability.active_permit_expires.unwrap_or_default()}
-                                        </p>
-                                    </div>
-                                }
-                                    .into_any()
-                            }
-                        }}
-                    </Show>
-                </div>
-
-                // Type-specific fields
-                <div class="border-t pt-6">
-                    <h3 class="text-lg font-semibold text-slate-100 mb-4">"Detail BMN"</h3>
-
-                    // Vehicle-specific fields
-                    <Show when=move || jenis_bmn.get() == "KENDARAAN_BERMOTOR">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-200 mb-1">
-                                    "Nomor Polisi" <span class="text-danger-400">"*"</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                    placeholder="B 1234 XYZ"
-                                    prop:value=move || no_polisi.get()
-                                    on:input=move |ev| set_no_polisi.set(event_target_value(&ev))
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-200 mb-1">
-                                    "Nomor BPKB"
-                                </label>
-                                <input
-                                    type="text"
-                                    class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                    prop:value=move || no_bpkb.get()
-                                    on:input=move |ev| set_no_bpkb.set(event_target_value(&ev))
-                                />
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-200 mb-1">
-                                    "Nomor STNK"
-                                </label>
-                                <input
-                                    type="text"
-                                    class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                    prop:value=move || no_stnk.get()
-                                    on:input=move |ev| set_no_stnk.set(event_target_value(&ev))
-                                />
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-200 mb-1">
-                                    "Nomor Rangka"
-                                </label>
-                                <input
-                                    type="text"
-                                    class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                    prop:value=move || no_rangka.get()
-                                    on:input=move |ev| set_no_rangka.set(event_target_value(&ev))
-                                />
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-200 mb-1">
-                                    "Nomor Mesin"
-                                </label>
-                                <input
-                                    type="text"
-                                    class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                    prop:value=move || no_mesin.get()
-                                    on:input=move |ev| set_no_mesin.set(event_target_value(&ev))
-                                />
-                            </div>
-                        </div>
-                    </Show>
-
-                    // Housing-specific fields
-                    <Show when=move || jenis_bmn.get() == "RUMAH_NEGARA">
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-200 mb-1">
-                                    "Alamat" <span class="text-danger-400">"*"</span>
-                                </label>
-                                <textarea
-                                    class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                    rows="3"
-                                    placeholder="Alamat lengkap rumah negara"
-                                    prop:value=move || alamat.get()
-                                    on:input=move |ev| set_alamat.set(event_target_value(&ev))
-                                    required
-                                ></textarea>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-200 mb-1">
-                                        "Luas Tanah (m²)" <span class="text-danger-400">"*"</span>
-                                    </label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                        prop:value=move || luas_tanah.get()
-                                        on:input=move |ev| {
-                                            set_luas_tanah.set(event_target_value(&ev))
-                                        }
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-200 mb-1">
-                                        "Luas Bangunan (m²)" <span class="text-danger-400">"*"</span>
-                                    </label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                        prop:value=move || luas_bangunan.get()
-                                        on:input=move |ev| {
-                                            set_luas_bangunan.set(event_target_value(&ev))
-                                        }
-                                        required
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </Show>
-
-                    // Laptop-specific fields
-                    <Show when=move || jenis_bmn.get() == "LAPTOP">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-200 mb-1">
-                                "Serial Number" <span class="text-danger-400">"*"</span>
-                            </label>
-                            <input
-                                type="text"
-                                class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                placeholder="Serial number laptop"
-                                prop:value=move || serial_number.get()
-                                on:input=move |ev| set_serial_number.set(event_target_value(&ev))
-                                required
-                            />
-                        </div>
-                    </Show>
-                </div>
-
-                // Common fields
-                <div class="border-t pt-6">
-                    <h3 class="text-lg font-semibold text-slate-100 mb-4">"Periode Pemakaian"</h3>
+                <div class="border-t border-white/[0.06] pt-6">
+                    <h3 class="text-lg font-semibold text-slate-100 mb-1">"Periode Izin"</h3>
+                    <p class="text-sm text-slate-400 mb-4">
+                        "Berlaku untuk setiap BMN di bawah, kecuali yang diberi jangka waktu sendiri."
+                    </p>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-200 mb-1">
-                                "Tanggal Mulai"
-                            </label>
-                            <input
-                                type="date"
-                                class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                prop:value=move || tanggal_mulai.get()
-                                on:input=move |ev| set_tanggal_mulai.set(event_target_value(&ev))
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-200 mb-1">
-                                "Tanggal Selesai"
-                            </label>
-                            <input
-                                type="date"
-                                class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                prop:value=move || tanggal_selesai.get()
-                                on:input=move |ev| set_tanggal_selesai.set(event_target_value(&ev))
-                                required
-                            />
-                        </div>
+                        {isian("periode-mulai".to_string(), "Tanggal Mulai", "date", true,
+                            move || tanggal_mulai.get(), move |v| set_tanggal_mulai.set(v))}
+                        {isian("periode-selesai".to_string(), "Tanggal Selesai", "date", true,
+                            move || tanggal_selesai.get(), move |v| set_tanggal_selesai.set(v))}
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-slate-200 mb-1">"Keperluan"</label>
+                    <label for="keperluan" class="block text-sm font-medium text-slate-200 mb-1">"Keperluan"</label>
                     <textarea
-                        class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
+                        id="keperluan"
+                        class=KELAS_ISIAN
                         rows="4"
                         placeholder="Jelaskan keperluan penggunaan BMN (minimal 10 karakter)"
                         prop:value=move || keperluan.get()
@@ -664,33 +590,14 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     ></textarea>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-slate-200 mb-1">
-                        "Lokasi Pemakaian"
-                    </label>
-                    <input
-                        type="text"
-                        class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                        placeholder="Lokasi penggunaan BMN"
-                        prop:value=move || lokasi_pemakaian.get()
-                        on:input=move |ev| set_lokasi_pemakaian.set(event_target_value(&ev))
-                    />
-                </div>
-
-                // BMN tambahan — tiap baris memilih dari SIMAN, tidak diketik.
-                //
-                // Barisnya dulu tiga isian bebas: kode barang, nama barang, NUP
-                // — ketiganya ada di `integrasi.siman_aset`, dan ketiganya
-                // diketik ulang. Kini barisnya memakai pemilih yang sama dengan
-                // BMN utama, jadi merk, tahun perolehan, dan kondisi ikut
-                // terisi; ketiganya dulu selalu dikirim `None` karena operator
-                // memang tak punya tempat untuk mengisinya.
-                <div class="border-t pt-6">
+                // Daftar BMN — semua setara. Halaman 2 SK mencetak baris-baris
+                // ini dengan nomor urut yang sama dengan nomor di kartu.
+                <div class="border-t border-white/[0.06] pt-6">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg font-semibold text-slate-100">
-                            "BMN Tambahan"
+                            "Daftar BMN"
                             <span class="text-sm font-normal text-slate-500 ml-2">
-                                "(Opsional, untuk pegawai yang menggunakan lebih dari 1 BMN)"
+                                {move || format!("({} BMN)", daftar.with(Vec::len))}
                             </span>
                         </h3>
                         <button
@@ -700,14 +607,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                             on:click=move |_| {
                                 let kunci = kunci_berikutnya.get_value();
                                 kunci_berikutnya.set_value(kunci + 1);
-                                baris_tambahan
-                                    .update(|daftar| {
-                                        daftar
-                                            .push(BarisBmnTambahan {
-                                                kunci,
-                                                isi: RwSignal::new(baris_kosong()),
-                                            });
-                                    });
+                                daftar.update(|d| d.push(BarisBmn::baru(kunci)));
                             }
                         >
                             <AppIcon icon=PLUS />
@@ -717,61 +617,30 @@ pub fn PemakaianBmnForm() -> impl IntoView {
 
                     <div class="space-y-3">
                         <For
-                            each=move || baris_tambahan.get()
+                            each=move || daftar.get()
                             key=|baris| baris.kunci
                             children=move |baris| {
-                                let isi = baris.isi;
-                                let on_pick = Callback::new(move |picked: Option<BankAsetItem>| {
-                                    isi.update(|item| match picked {
-                                        Some(aset) => {
-                                            item.bmn_kode_barang = aset
-                                                .kode_barang
-                                                .clone()
-                                                .unwrap_or_default();
-                                            item.bmn_nama_barang = aset
-                                                .nama_aset
-                                                .clone()
-                                                .unwrap_or_default();
-                                            item.bmn_nup = aset.no_aset.clone();
-                                            item.bmn_merk = bukan_kosong(merk_tipe(&aset));
-                                            item.bmn_tahun_perolehan = tahun_perolehan(&aset)
-                                                .parse()
-                                                .ok();
-                                            item.bmn_kondisi = aset
-                                                .kondisi
-                                                .clone()
-                                                .and_then(bukan_kosong);
-                                        }
-                                        None => *item = baris_kosong(),
-                                    });
+                                let kunci = baris.kunci;
+                                let nomor = Signal::derive(move || {
+                                    daftar
+                                        .with(|d| d.iter().position(|b| b.kunci == kunci))
+                                        .map_or(0, |i| i + 1)
                                 });
-                                let slug = format!("aset-tambahan-{}", baris.kunci);
-                                let label = "Cari BMN tambahan".to_string();
+                                let bisa_dihapus = Signal::derive(move || daftar.with(|d| d.len() > 1));
                                 view! {
-                                    <div class="relative rounded-lg border border-white/10 bg-white/[0.03] p-4">
-                                        <button
-                                            type="button"
-                                            aria-label="Hapus BMN tambahan"
-                                            class="absolute top-2 right-2 text-danger-400 hover:text-red-700"
-                                            on:click=move |_| {
-                                                baris_tambahan
-                                                    .update(|daftar| {
-                                                        daftar.retain(|lain| lain.kunci != baris.kunci)
-                                                    });
-                                            }
-                                        >
-                                            <AppIcon icon=X />
-                                        </button>
-                                        <AsetPicker slug=slug label=label on_pick=on_pick />
-                                    </div>
+                                    <KartuBmn
+                                        baris=baris
+                                        nomor=nomor
+                                        bisa_dihapus=bisa_dihapus
+                                        on_hapus=hapus
+                                    />
                                 }
                             }
                         />
                     </div>
                 </div>
 
-                // Submit buttons
-                <div class="pt-6 flex justify-end gap-3 border-t">
+                <div class="pt-6 flex justify-end gap-3 border-t border-white/[0.06]">
                     <a
                         href=routes::path::PENGELOLAAN_PEMAKAIAN
                         class="px-6 py-2 text-slate-200 bg-white/[0.05] rounded-lg hover:bg-white/[0.09] transition-colors"
@@ -781,10 +650,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     <button
                         type="submit"
                         class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                        prop:disabled=move || {
-                            loading.get()
-                                || bmn_availability.get().map(|a| !a.is_available).unwrap_or(true)
-                        }
+                        prop:disabled=move || loading.get() || !semua_siap()
                     >
                         <Show
                             when=move || loading.get()

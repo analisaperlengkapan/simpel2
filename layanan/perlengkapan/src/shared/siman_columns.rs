@@ -211,14 +211,21 @@ pub const ASSET_KONDISI_BAIK_PREDICATE: &str =
 ///
 /// `alias` is the table alias used in the query (`""` when the table is
 /// unaliased, `"s."` for `FROM integrasi.siman_aset s`).
+///
+/// The pairs come from `lib_perlengkapan::jenis_bmn::JENIS_BMN_DARI_JENIS_ASET`,
+/// the same table the frontend derives an item's kind from, so the report and
+/// the permit form cannot disagree about what an asset is. (`'` is doubled for
+/// SQL; none of the listed names contains one today.)
 pub fn jenis_bmn_sql(alias: &str) -> String {
-    format!(
-        "CASE \
-           WHEN {a}jenis_aset = 'Alat Angkutan Bermotor' THEN 'KENDARAAN_BERMOTOR' \
-           WHEN {a}jenis_aset = 'Rumah Negara'           THEN 'RUMAH_NEGARA' \
-           WHEN {a}jenis_aset = 'Peralatan Mesin Khusus TIK' THEN 'LAPTOP' \
-           ELSE 'LAINNYA' \
-         END",
-        a = alias
-    )
+    use lib_perlengkapan::jenis_bmn::{JENIS_BMN_DARI_JENIS_ASET, JENIS_BMN_LAINNYA};
+    let mut sql = String::from("CASE ");
+    for (jenis_aset, jenis_bmn) in JENIS_BMN_DARI_JENIS_ASET {
+        sql.push_str(&format!(
+            "WHEN {alias}jenis_aset = '{}' THEN '{}' ",
+            jenis_aset.replace('\'', "''"),
+            jenis_bmn
+        ));
+    }
+    sql.push_str(&format!("ELSE '{JENIS_BMN_LAINNYA}' END"));
+    sql
 }

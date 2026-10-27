@@ -25,28 +25,24 @@ pub struct IzinPemakaianBmn {
     pub pegawai_pangkat: Option<String>,
     pub pegawai_unit_kerja: Option<String>,
     pub foto_pegawai: Option<String>,
-    pub jenis_bmn: String,
-    pub bmn_nup: String,
-    pub bmn_kode_barang: String,
-    pub bmn_nama_barang: String,
-    pub bmn_merk: Option<String>,
-    pub bmn_tahun_perolehan: Option<i32>,
-    pub no_polisi: Option<String>,
-    pub no_bpkb: Option<String>,
-    pub no_stnk: Option<String>,
-    pub no_rangka: Option<String>,
-    pub no_mesin: Option<String>,
-    pub alamat: Option<String>,
-    pub luas_tanah: Option<f64>,
-    pub luas_bangunan: Option<f64>,
-    pub serial_number: Option<String>,
-    pub spesifikasi: Option<Value>,
+    /// Satker the permit is scoped to (MySIMKARI `kode_satker`).
+    #[serde(default)]
+    pub satker_code: Option<String>,
+    // No asset fields on the permit since V014: every BMN, the first included,
+    // is in `bmn_items`. These were non-`Option` here, so the moment the
+    // backend stopped sending them serde would have refused the WHOLE permit —
+    // list and detail pages blank — rather than one missing column.
+    /// Overall window = MIN/MAX over `bmn_items` (derived server-side).
     pub tanggal_mulai: String,
     pub tanggal_selesai: String,
     pub keperluan: String,
-    pub lokasi_pemakaian: Option<String>,
     pub is_renewal: bool,
     pub previous_permit_id: Option<String>,
+    /// The permit that replaced this one (a renewal that became ACTIVE).
+    #[serde(default)]
+    pub superseded_by_id: Option<String>,
+    #[serde(default)]
+    pub superseded_at: Option<String>,
     pub file_pendukung: Option<Value>,
     // Document generation fields — both DOCX (editable) and PDF (final) are
     // produced side-by-side; URLs point at the streaming routes
@@ -103,9 +99,34 @@ pub struct IzinPemakaianBmn {
     pub updated_by_nama: Option<String>,
     pub created_at: String,
     pub updated_at: String,
-    /// Additional BMN items in this permit (multi-BMN per pegawai)
+    /// Every BMN on this permit, in SK order (`urutan`).
     #[serde(default)]
     pub bmn_items: Vec<PemakaianBmnItem>,
+}
+
+impl IzinPemakaianBmn {
+    /// The permit's assets as one short phrase for a table cell: the first
+    /// asset's name, plus how many more. A permit can hold several BMN since
+    /// V014, and naming only the first would be the same mistake the SK made.
+    pub fn ringkasan_bmn(&self) -> String {
+        match self.bmn_items.as_slice() {
+            [] => "-".to_string(),
+            [satu] => satu.bmn_nama_barang.clone(),
+            [pertama, sisa @ ..] => {
+                format!("{} (+{} BMN lain)", pertama.bmn_nama_barang, sisa.len())
+            }
+        }
+    }
+
+    /// Identifiers to show under [`Self::ringkasan_bmn`]: the NUP for a single
+    /// asset, the count otherwise.
+    pub fn keterangan_bmn(&self) -> String {
+        match self.bmn_items.as_slice() {
+            [] => String::new(),
+            [satu] => format!("NUP: {}", satu.bmn_nup),
+            semua => format!("{} BMN", semua.len()),
+        }
+    }
 }
 
 /// BMN item in a pemakaian permit (multi-BMN per pegawai)
@@ -113,12 +134,30 @@ pub struct IzinPemakaianBmn {
 pub struct PemakaianBmnItem {
     pub id: String,
     pub izin_pemakaian_id: String,
+    /// 1-based position; numbers the rows on page 2 of the SK.
+    pub urutan: i32,
+    pub jenis_bmn: String,
     pub bmn_nup: String,
     pub bmn_kode_barang: String,
     pub bmn_nama_barang: String,
     pub bmn_merk: Option<String>,
+    pub bmn_tipe: Option<String>,
     pub bmn_tahun_perolehan: Option<i32>,
     pub bmn_kondisi: Option<String>,
+    pub no_polisi: Option<String>,
+    pub no_bpkb: Option<String>,
+    pub no_stnk: Option<String>,
+    pub no_rangka: Option<String>,
+    pub no_mesin: Option<String>,
+    pub alamat: Option<String>,
+    pub luas_tanah: Option<f64>,
+    pub luas_bangunan: Option<f64>,
+    pub serial_number: Option<String>,
+    pub spesifikasi: Option<Value>,
+    pub lokasi_pemakaian: Option<String>,
+    /// The authority for this asset's period.
+    pub tanggal_mulai: String,
+    pub tanggal_selesai: String,
     pub detail_bmn: Option<Value>,
     pub keterangan: Option<String>,
     pub created_at: String,
@@ -137,12 +176,29 @@ pub struct CreateIzinPemakaianRequest {
     pub pegawai_pangkat: Option<String>,
     pub pegawai_unit_kerja: Option<String>,
     pub foto_pegawai: Option<String>,
+    /// Default period; each item may state its own.
+    pub tanggal_mulai: String,
+    pub tanggal_selesai: String,
+    pub keperluan: String,
+    pub file_pendukung: Option<Value>,
+    pub is_renewal: Option<bool>,
+    pub previous_permit_id: Option<String>,
+    /// Every BMN on the permit, in the order they will appear on the SK.
+    /// There is no "BMN utama" any more — one list, first item included.
+    pub items: Vec<CreateBmnItemRequest>,
+}
+
+/// Request to add a BMN item to a permit
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateBmnItemRequest {
     pub jenis_bmn: String,
     pub bmn_nup: String,
     pub bmn_kode_barang: String,
     pub bmn_nama_barang: String,
     pub bmn_merk: Option<String>,
+    pub bmn_tipe: Option<String>,
     pub bmn_tahun_perolehan: Option<i32>,
+    pub bmn_kondisi: Option<String>,
     pub no_polisi: Option<String>,
     pub no_bpkb: Option<String>,
     pub no_stnk: Option<String>,
@@ -153,27 +209,10 @@ pub struct CreateIzinPemakaianRequest {
     pub luas_bangunan: Option<f64>,
     pub serial_number: Option<String>,
     pub spesifikasi: Option<Value>,
-    pub tanggal_mulai: String,
-    pub tanggal_selesai: String,
-    pub keperluan: String,
     pub lokasi_pemakaian: Option<String>,
-    pub file_pendukung: Option<Value>,
-    pub is_renewal: Option<bool>,
-    pub previous_permit_id: Option<String>,
-    /// Additional BMN items (multi-BMN per pegawai)
-    #[serde(default)]
-    pub additional_bmn_items: Vec<CreateBmnItemRequest>,
-}
-
-/// Request to add a BMN item to a permit
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CreateBmnItemRequest {
-    pub bmn_nup: String,
-    pub bmn_kode_barang: String,
-    pub bmn_nama_barang: String,
-    pub bmn_merk: Option<String>,
-    pub bmn_tahun_perolehan: Option<i32>,
-    pub bmn_kondisi: Option<String>,
+    /// `None` = use the permit's default period.
+    pub tanggal_mulai: Option<String>,
+    pub tanggal_selesai: Option<String>,
     pub detail_bmn: Option<Value>,
     pub keterangan: Option<String>,
 }
