@@ -38,6 +38,38 @@ ignore = [
   "RUSTSEC-2026-0163", # pqcrypto-internals (unmaintained)
   "RUSTSEC-2026-0165", # pqcrypto-falcon (unmaintained)
   "RUSTSEC-2026-0166", # pqcrypto-mldsa (unmaintained)
+  # unsafe-libyaml (unmaintained, no vulnerability). Reached only through
+  # serde_yaml 0.9 (itself deprecated) in kube-client 3.1 and the secreton
+  # agent / cli / k8s-operator crates — none of which is built into any shipped
+  # image (the Dockerfiles build authenc, gateway, perlengkapan, integrasi and
+  # secreton-api only). kube 4.x moved to serde-saphyr, so upgrading the
+  # operator removes it.
+  "RUSTSEC-2024-0449",
+  # zip <9 — all three are EXTRACTION flaws (`ZipArchive::extract` /
+  # `ZipStreamReader::extract`: symlinks escaping the target dir, permissions
+  # applied through symlinks, SUID/SGID preserved). The remaining zip 8.6 comes
+  # from docx-rs 0.4.22 (latest; upstream has not moved to zip 9), which this
+  # repo uses only to WRITE .docx. Nothing here opens an archive. That premise
+  # is enforced, not assumed: security.yml step "Assert zip extraction ignores
+  # still hold" fails if `read_docx`, `ZipArchive` or `ZipStreamReader` appears
+  # in our sources. rust_xlsxwriter was bumped to 0.101 (zip ^9) for the same
+  # advisories.
+  "RUSTSEC-2026-0367",
+  "RUSTSEC-2026-0368",
+  "RUSTSEC-2026-0369",
+  # crypto-bigint 0.5 — timing variability in operations meant to be
+  # constant-time. Patched only in the 0.7 line; 0.5 is pulled by
+  # elliptic-curve 0.13 (p256/k256/p384, i.e. authenc-crypto and
+  # secreton-crypto) and by aws-sigv4 1.6.3, which is the latest release and
+  # still requires ^0.5. Exposure: secreton's transit engine signs with
+  # k256/p256 secret keys over its API, so a sufficiently precise remote timing
+  # attacker is the case this does not rule out; authenc only re-exports its
+  # ECDSA helpers and has no runtime signer on this path. Same class and same
+  # reason as RUSTSEC-2023-0071 (rsa, Marvin) above: no fixed version to move
+  # to. Remove when the curves move to RustCrypto 0.14 AND aws-sigv4 drops
+  # crypto-bigint 0.5 (it is optional there, behind sigv4a) — the stale-ignore
+  # guard fails this entry the day the advisory stops firing.
+  "RUSTSEC-2026-0387",
 ]
 
 [licenses]

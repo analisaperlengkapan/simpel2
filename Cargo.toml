@@ -339,7 +339,7 @@ ring = "0.17.14"
 serde_yaml = "0.9.34+deprecated"
 toml = "1.1.2+spec-1.1.0"
 csv = "1.4.0"                    # CSV parsing
-rust_xlsxwriter = "0.95.0"       # Excel writing
+rust_xlsxwriter = "0.101.0"      # Excel writing (>= 0.101 for zip ^9, RUSTSEC-2026-0367..0369)
 
 # Utility libraries
 tokio-util = "0.7.18"

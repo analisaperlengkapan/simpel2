@@ -26,9 +26,6 @@ futures.workspace = true
 # HTTP client (for external API calls like Authenc)
 reqwest.workspace = true
 
-# WASM runtime
-wasmtime = { version = "36.0.10", optional = true }
-
 # Database
 deadpool-postgres.workspace = true
 tokio-postgres.workspace = true
@@ -120,10 +117,6 @@ raft-consensus = ["secreton-storage/raft-consensus"]
 
 # gRPC utilities (for correlation context integration)
 grpc = []
-
-# WASM policy engine support (future feature)
-# Note: Requires wasmtime dependency when enabled
-wasm = ["dep:wasmtime"]
 
 workflow-tests = []
 integration-tests = []

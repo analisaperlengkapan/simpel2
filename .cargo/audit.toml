@@ -6,7 +6,6 @@
 # infra/scripts/check-audit-ignores-live.py di security.yml.
 ignore = [
   "RUSTSEC-2023-0071", # rsa (Marvin Attack) - No fixed version available
-  "RUSTSEC-2025-0057", # fxhash (unmaintained)
   "RUSTSEC-2024-0436", # paste (unmaintained)
   "RUSTSEC-2025-0134", # rustls-pemfile (unmaintained)
   "RUSTSEC-2025-0141", # bincode (unmaintained)
@@ -28,4 +27,16 @@ ignore = [
   # CI merah dan ignore ini WAJIB dicabut.
   # Tak ada jalur upgrade: rust_decimal 1.42.1 (terbaru) masih `rkyv ^0.7.46`.
   "RUSTSEC-2026-0235", # rkyv 0.7 OOB read - optional dep yang tak pernah diaktifkan (lockfile-only)
+  # zip <9 lewat docx-rs 0.4.22 (versi terbaru; hulu belum pindah ke zip 9).
+  # Ketiganya cacat EKSTRAKSI arsip; repo ini memakai docx-rs hanya untuk
+  # MENULIS .docx dan tak pernah membuka arsip. Premis itu ditegakkan oleh
+  # langkah "Assert zip extraction ignores still hold" di security.yml.
+  # Alasan lengkap ada di deny.toml.
+  "RUSTSEC-2026-0367",
+  "RUSTSEC-2026-0368",
+  "RUSTSEC-2026-0369",
+  # crypto-bigint 0.5 (timing): tak ada versi 0.5 yang ditambal; ditarik
+  # elliptic-curve 0.13 dan aws-sigv4 1.6.3 (terbaru, masih ^0.5). Penilaian
+  # paparan + syarat pencabutan ada di deny.toml.
+  "RUSTSEC-2026-0387",
 ]

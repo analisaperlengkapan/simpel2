@@ -255,6 +255,28 @@ jobs:
           python3 "$repo/infra/scripts/check-audit-ignores-live.py" \
             "$repo/.cargo/audit.toml" < "$tmp/report.json"
 
+      # Ignore zip RUSTSEC-2026-0367/0368/0369 (deny.toml + .cargo/audit.toml)
+      # dibenarkan HANYA karena repo ini tak pernah MEMBUKA arsip: docx-rs
+      # dipakai untuk menulis .docx, dan ketiga advisory itu cacat ekstraksi.
+      # Premis yang ditulis di komentar bisa basi diam-diam begitu ada yang
+      # menambah impor .docx unggahan pengguna — tepat kasus yang berbahaya —
+      # jadi ia ditegakkan di sini, bersebelahan dengan premis rkyv di atas.
+      # Pindai sumber, bukan pohon dependensi: yang menentukan adalah kode
+      # kita memanggil API pembaca atau tidak. Komentar yang menyebut nama
+      # API ini juga ikut memerahkan — arah yang aman.
+      - name: Assert zip extraction ignores still hold
+        shell: bash
+        run: |
+          set -euo pipefail
+          hits=$(grep -rnE '\b(read_docx|ZipArchive|ZipStreamReader)\b' \
+                   --include='*.rs' layanan lib antarmuka || true)
+          if [ -n "$hits" ]; then
+            echo "$hits"
+            echo "::error file=deny.toml::kode kini MEMBUKA arsip zip — ignore RUSTSEC-2026-0367/0368/0369 tak lagi berlaku. Pastikan zip >= 9 di pohon (docx-rs) atau cabut ignore-nya."
+            exit 1
+          fi
+          echo "ok: tak ada pembaca arsip zip di sumber (ignore zip 0367/0368/0369 tetap sah)"
+
       - name: cargo audit
         shell: bash
         # Dijalankan lewat pembungkus retry: `cargo audit` lebih dulu mengambil
