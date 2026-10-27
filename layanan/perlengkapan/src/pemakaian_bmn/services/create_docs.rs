@@ -25,7 +25,6 @@ impl PemakaianBmnService {
             .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
         // Validate BMN type-specific fields
-        self.validate_bmn_type_fields(&request)?;
 
         // Sebuah izin melekat pada SATU satker: tanpa itu barisnya tak punya
         // identitas aset, tak terlihat oleh operator satker mana pun, dan tak
@@ -43,73 +42,35 @@ impl PemakaianBmnService {
             })?
             .to_string();
 
-        // Check BMN availability (REQ-P002, REQ-P003).
-        //
-        // Ber-key pada identitas aset penuh — kode satker + kode barang + NUP.
-        // Versi lama ber-key `bmn_nup` saja dgn `SatkerScope::All`, "supaya
-        // jawabannya tak bergantung siapa yang bertanya". Niatnya benar,
-        // kuncinya salah: 44.017 aset di 553 satker sama-sama ber-NUP `1`
-        // (lihat header `repository::lookup`), jadi satu izin di mana pun
-        // memblokir ratusan satker atas aset mereka sendiri — dan pesan error
-        // di bawah menyebut nama pegawai satker lain sebagai pemegangnya.
-        // Karena satker kini ikut jadi kunci, tabrakan yang ditemukan pasti
-        // milik satker pemanggil: tak ada lagi yang bocor untuk diredaksi.
-        if let Some(bentrok) = self
-            .repository
-            .find_booking_conflict(&request.bmn_nup, &request.bmn_kode_barang, &satker, None)
-            .await?
-        {
-            return Err(AppError::BadRequest(format!(
-                "BMN {} (kode barang {}) sedang digunakan oleh {} hingga {}",
-                request.bmn_nup, request.bmn_kode_barang, bentrok.holder, bentrok.expires
-            )));
-        }
-
-        // Validate date range
+        // Validate the permit's default period before anything derived from it.
         if request.tanggal_selesai <= request.tanggal_mulai {
             return Err(AppError::BadRequest(
                 "Tanggal selesai harus lebih besar dari tanggal mulai".to_string(),
             ));
         }
 
+        // Every asset is checked BEFORE the first row is written. Checking as
+        // we insert would leave a half-written permit behind when asset three
+        // turns out to be taken.
+        self.validate_items(
+            &request.items,
+            request.tanggal_mulai,
+            request.tanggal_selesai,
+            &satker,
+            None,
+        )
+        .await?;
+
         info!(
-            "Creating new permit for BMN {} by pegawai {}",
-            request.bmn_nup, request.pegawai_nip
+            "Creating new permit over {} BMN for pegawai {}",
+            request.items.len(),
+            request.pegawai_nip
         );
 
-        // Create permit
-        let mut permit = self
+        // Header and items are written in one transaction inside `create`.
+        let permit = self
             .repository
-            .create(request.clone(), user_id, user_nama, Some(satker.clone()))
-            .await?;
-
-        // Create additional BMN items if any (multi-BMN support)
-        if !request.additional_bmn_items.is_empty() {
-            for item in &request.additional_bmn_items {
-                // Setiap BMN tambahan dicek dgn identitas aset penuh, sama
-                // seperti BMN utama di atas.
-                if let Some(bentrok) = self
-                    .repository
-                    .find_booking_conflict(&item.bmn_nup, &item.bmn_kode_barang, &satker, None)
-                    .await?
-                {
-                    return Err(AppError::BadRequest(format!(
-                        "BMN {} (kode barang {}) sedang digunakan oleh {} hingga {}",
-                        item.bmn_nup, item.bmn_kode_barang, bentrok.holder, bentrok.expires
-                    )));
-                }
-                self.repository
-                    .create_bmn_item(permit.id, item.clone())
-                    .await?;
-            }
-        }
-
-        // Reload permit with bmn_items. `All` on purpose: this is the row
-        // this call just created from the caller's own claims, so a scope
-        // here could only fail to find what we just wrote.
-        permit = self
-            .repository
-            .get_by_id(permit.id, &SatkerScope::All)
+            .create(request, user_id, user_nama, Some(satker))
             .await?;
 
         Ok(permit)
@@ -175,14 +136,16 @@ impl PemakaianBmnService {
             "pegawai_nama": current.pegawai_nama,
             "pegawai_jabatan": current.pegawai_jabatan,
             "pegawai_satker_nama": current.pegawai_satker_nama,
-            "jenis_bmn": current.jenis_bmn,
-            "bmn_nup": current.bmn_nup,
-            "bmn_kode_barang": current.bmn_kode_barang,
-            "bmn_nama_barang": current.bmn_nama_barang,
+            // The asset LIST, so the template can loop. It used to be four
+            // flat fields naming the permit's first asset, which is why the
+            // letter only ever showed one however many were on the permit.
+            // `jumlah_item` alongside it mirrors what penghapusan already
+            // hands its own template.
+            "items": serde_json::to_value(&current.bmn_items).unwrap_or(serde_json::Value::Null),
+            "jumlah_item": current.bmn_items.len(),
             "tanggal_mulai": current.tanggal_mulai.to_string(),
             "tanggal_selesai": current.tanggal_selesai.to_string(),
             "keperluan": current.keperluan,
-            "lokasi_pemakaian": current.lokasi_pemakaian,
         });
 
         let storage_root = std::env::var("DOCUMENT_STORAGE_PATH")
