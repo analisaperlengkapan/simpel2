@@ -5,53 +5,17 @@ use crate::shared::repo::PoolExt;
 use uuid::Uuid;
 
 impl PemakaianBmnRepository {
-    /// Create a BMN item for multi-BMN permits
-    pub async fn create_bmn_item(
-        &self,
-        izin_pemakaian_id: Uuid,
-        item: CreateBmnItemRequest,
-    ) -> AppResult<PemakaianBmnItem> {
-        let client = self.pool.client().await?;
-
-        let id = Uuid::new_v4();
-        let detail_json = item
-            .detail_bmn
-            .as_ref()
-            .map(|v| serde_json::to_value(v).unwrap_or_default());
-
-        let query = r#"
-            INSERT INTO perlengkapan.pemakaian_bmn_items (
-                id, izin_pemakaian_id, bmn_nup, bmn_kode_barang,
-                bmn_nama_barang, detail_bmn, created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
-            RETURNING *
-        "#;
-
-        let row = client
-            .query_one(
-                query,
-                &[
-                    &id,
-                    &izin_pemakaian_id,
-                    &item.bmn_nup,
-                    &item.bmn_kode_barang,
-                    &item.bmn_nama_barang,
-                    &detail_json,
-                ],
-            )
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
-
-        Ok(PemakaianBmnItem::from_row(&row))
-    }
-
     /// Get BMN items for a permit
     pub async fn get_bmn_items(&self, izin_pemakaian_id: Uuid) -> AppResult<Vec<PemakaianBmnItem>> {
         let client = self.pool.client().await?;
 
         let rows = client
             .query(
-                "SELECT * FROM perlengkapan.pemakaian_bmn_items WHERE izin_pemakaian_id = $1 ORDER BY created_at",
+                // ORDER BY urutan, not created_at: `urutan` is what the SK prints,
+                // and two items written in the same transaction share a
+                // created_at to the microsecond.
+                "SELECT * FROM perlengkapan.pemakaian_bmn_items \
+                 WHERE izin_pemakaian_id = $1 ORDER BY urutan",
                 &[&izin_pemakaian_id],
             )
             .await

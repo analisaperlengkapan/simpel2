@@ -104,11 +104,16 @@ impl PemakaianBmnRepository {
         let rows = client
             .query(
                 r#"
-                SELECT id, nomor_izin, bmn_nup, bmn_nama_barang,
-                       tanggal_mulai, tanggal_selesai
-                FROM perlengkapan.izin_pemakaian_bmn
-                WHERE pegawai_nip = $1 AND status = 'ACTIVE'
-                ORDER BY tanggal_selesai DESC
+                -- One row per ASSET, not per permit. A permit can hold
+                -- several since V014, and "what is this pegawai currently
+                -- holding" is a question about assets — the old query named
+                -- only the permit's first.
+                SELECT p.id, p.nomor_izin, i.bmn_nup, i.bmn_nama_barang,
+                       i.tanggal_mulai, i.tanggal_selesai
+                FROM perlengkapan.pemakaian_bmn_items i
+                JOIN perlengkapan.izin_pemakaian_bmn p ON p.id = i.izin_pemakaian_id
+                WHERE p.pegawai_nip = $1 AND p.status = 'ACTIVE'
+                ORDER BY i.tanggal_selesai DESC, i.urutan
                 "#,
                 &[&nip],
             )
@@ -138,12 +143,13 @@ impl PemakaianBmnRepository {
         let rows = client
             .query(
                 r#"
-                SELECT id, nomor_izin, bmn_nup, bmn_nama_barang, status,
-                       tanggal_mulai, tanggal_selesai
-                FROM perlengkapan.izin_pemakaian_bmn
-                WHERE pegawai_nip = $1
-                  AND status IN ('EXPIRED', 'REVOKED', 'REJECTED', 'CANCELLED')
-                ORDER BY tanggal_selesai DESC
+                SELECT p.id, p.nomor_izin, i.bmn_nup, i.bmn_nama_barang, p.status,
+                       i.tanggal_mulai, i.tanggal_selesai
+                FROM perlengkapan.pemakaian_bmn_items i
+                JOIN perlengkapan.izin_pemakaian_bmn p ON p.id = i.izin_pemakaian_id
+                WHERE p.pegawai_nip = $1
+                  AND p.status IN ('EXPIRED', 'REVOKED', 'REJECTED', 'CANCELLED')
+                ORDER BY i.tanggal_selesai DESC, i.urutan
                 LIMIT $2
                 "#,
                 &[&nip, &limit],
@@ -191,13 +197,14 @@ impl PemakaianBmnRepository {
         let rows = client
             .query(
                 r#"
-                SELECT pegawai_nama, tanggal_mulai, tanggal_selesai
-                FROM perlengkapan.izin_pemakaian_bmn
-                WHERE bmn_nup = $1
-                  AND bmn_kode_barang = $2
-                  AND satker_code = $3
-                  AND status = 'ACTIVE'
-                ORDER BY tanggal_selesai DESC
+                SELECT p.pegawai_nama, i.tanggal_mulai, i.tanggal_selesai
+                FROM perlengkapan.pemakaian_bmn_items i
+                JOIN perlengkapan.izin_pemakaian_bmn p ON p.id = i.izin_pemakaian_id
+                WHERE i.bmn_nup = $1
+                  AND i.bmn_kode_barang = $2
+                  AND p.satker_code = $3
+                  AND p.status = 'ACTIVE'
+                ORDER BY i.tanggal_selesai DESC
                 "#,
                 &[&bmn_nup, &bmn_kode_barang, &satker_code],
             )
@@ -301,14 +308,16 @@ impl PemakaianBmnRepository {
         let row_opt = client
             .query_opt(
                 r#"
-                SELECT id, pegawai_nama, tanggal_selesai
-                FROM perlengkapan.izin_pemakaian_bmn
-                WHERE bmn_nup = $1
-                  AND bmn_kode_barang = $2
-                  AND satker_code = $3
-                  AND status = 'ACTIVE'
-                  AND ($4::uuid IS NULL OR id <> $4::uuid)
-                ORDER BY tanggal_selesai DESC
+                SELECT p.id, p.pegawai_nama, i.tanggal_selesai,
+                       i.bmn_nup, i.bmn_kode_barang
+                FROM perlengkapan.pemakaian_bmn_items i
+                JOIN perlengkapan.izin_pemakaian_bmn p ON p.id = i.izin_pemakaian_id
+                WHERE i.bmn_nup = $1
+                  AND i.bmn_kode_barang = $2
+                  AND p.satker_code = $3
+                  AND p.status = 'ACTIVE'
+                  AND ($4::uuid IS NULL OR p.id <> $4::uuid)
+                ORDER BY i.tanggal_selesai DESC
                 LIMIT 1
                 "#,
                 &[&bmn_nup, &bmn_kode_barang, &satker_code, &exclude_permit_id],
@@ -320,6 +329,8 @@ impl PemakaianBmnRepository {
             permit_id: row.get("id"),
             holder: row.get("pegawai_nama"),
             expires: row.get("tanggal_selesai"),
+            bmn_nup: row.get("bmn_nup"),
+            bmn_kode_barang: row.get("bmn_kode_barang"),
         }))
     }
 
@@ -339,16 +350,21 @@ impl PemakaianBmnRepository {
         let row_opt = client
             .query_opt(
                 r#"
-                SELECT lain.id, lain.pegawai_nama, lain.tanggal_selesai
+                SELECT lain.id, lain.pegawai_nama, li.tanggal_selesai,
+                       li.bmn_nup, li.bmn_kode_barang
                 FROM perlengkapan.izin_pemakaian_bmn ini
+                JOIN perlengkapan.pemakaian_bmn_items ii
+                  ON ii.izin_pemakaian_id = ini.id
+                JOIN perlengkapan.pemakaian_bmn_items li
+                  ON  li.bmn_nup = ii.bmn_nup
+                  AND li.bmn_kode_barang = ii.bmn_kode_barang
                 JOIN perlengkapan.izin_pemakaian_bmn lain
-                  ON  lain.bmn_nup = ini.bmn_nup
-                  AND lain.bmn_kode_barang = ini.bmn_kode_barang
+                  ON  lain.id = li.izin_pemakaian_id
                   AND lain.satker_code IS NOT DISTINCT FROM ini.satker_code
                   AND lain.id <> ini.id
                   AND lain.status = 'ACTIVE'
                 WHERE ini.id = $1
-                ORDER BY lain.tanggal_selesai DESC
+                ORDER BY li.tanggal_selesai DESC
                 LIMIT 1
                 "#,
                 &[&permit_id],
@@ -360,6 +376,8 @@ impl PemakaianBmnRepository {
             permit_id: row.get("id"),
             holder: row.get("pegawai_nama"),
             expires: row.get("tanggal_selesai"),
+            bmn_nup: row.get("bmn_nup"),
+            bmn_kode_barang: row.get("bmn_kode_barang"),
         }))
     }
 
