@@ -91,15 +91,24 @@ async fn seed_permits(db: &layanan_perlengkapan::shared::db::Database) -> (Uuid,
     ] {
         client
             .execute(
-                "INSERT INTO perlengkapan.izin_pemakaian_bmn
-                    (id, nomor_izin, jenis_bmn, bmn_nup, bmn_kode_barang, bmn_nama_barang,
-                     bmn_merk, bmn_tipe, pegawai_nip, pegawai_nama, pegawai_jabatan,
-                     pegawai_satker_id, pegawai_satker_nama, satker_code,
-                     tanggal_mulai, tanggal_selesai, status, approved_at)
-                 VALUES ($1, $2, 'LAINNYA', $3, '3060201003', 'Meja Kerja',
-                         'Merk Uji', 'Tipe Uji', $4, $5, 'Staf',
-                         gen_random_uuid(), $6, $7,
-                         CURRENT_DATE - 10, CURRENT_DATE + 20, 'ACTIVE', NOW())",
+                // V014: the asset lives in the item table (see header).
+                "WITH izin AS (
+                    INSERT INTO perlengkapan.izin_pemakaian_bmn
+                        (id, nomor_izin, pegawai_nip, pegawai_nama, pegawai_jabatan,
+                         pegawai_satker_id, pegawai_satker_nama, satker_code,
+                         tanggal_mulai, tanggal_selesai, status, approved_at)
+                    VALUES ($1, $2, $4, $5, 'Staf',
+                            gen_random_uuid(), $6, $7,
+                            CURRENT_DATE - 10, CURRENT_DATE + 20, 'ACTIVE', NOW())
+                    RETURNING id
+                 )
+                 INSERT INTO perlengkapan.pemakaian_bmn_items
+                    (izin_pemakaian_id, urutan, jenis_bmn, bmn_nup, bmn_kode_barang,
+                     bmn_nama_barang, bmn_merk, bmn_tipe, tanggal_mulai, tanggal_selesai)
+                 SELECT id, 1, 'LAINNYA', $3, '3060201003', 'Meja Kerja',
+                        'Merk Uji', 'Tipe Uji',
+                        CURRENT_DATE - 10, CURRENT_DATE + 20
+                 FROM izin",
                 &[
                     &id,
                     &format!("IZIN/{satker}/{nup}"),
