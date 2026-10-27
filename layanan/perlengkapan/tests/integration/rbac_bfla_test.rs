@@ -69,15 +69,17 @@ fn permit_body() -> Value {
         "pegawai_nama": "Budi",
         "pegawai_satker_id": "00000000-0000-0000-0000-000000000001",
         "pegawai_satker_nama": "Kejari Jaksel",
-        "jenis_bmn": "LAPTOP",
-        "bmn_nup": "77",
-        "bmn_kode_barang": "3060201003",
-        "bmn_nama_barang": "Laptop Dell",
-        "bmn_merk": "Dell",
-        "serial_number": "SN-1",
         "tanggal_mulai": "2026-01-01",
         "tanggal_selesai": "2026-12-31",
-        "keperluan": "Tugas kedinasan sehari-hari operator"
+        "keperluan": "Tugas kedinasan sehari-hari operator",
+        "items": [{
+            "jenis_bmn": "LAPTOP",
+            "bmn_nup": "77",
+            "bmn_kode_barang": "3060201003",
+            "bmn_nama_barang": "Laptop Dell",
+            "bmn_merk": "Dell",
+            "serial_number": "SN-1"
+        }]
     })
 }
 

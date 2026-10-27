@@ -401,15 +401,14 @@ async fn the_pemakaian_and_penghapusan_rekap_count_only_the_callers_records() {
     for (satker, status) in [("SKR001", "DRAFT"), ("SKR002", "SUBMITTED")] {
         client
             .execute(
+                // The rekap counts PERMITS per satker; since V014 a permit's
+                // assets live in `pemakaian_bmn_items`, and this card does not
+                // read them, so the seed writes the header alone.
                 "INSERT INTO perlengkapan.izin_pemakaian_bmn
-                    (jenis_bmn, bmn_nup, bmn_kode_barang, bmn_nama_barang, pegawai_nip,
-                     pegawai_nama, pegawai_satker_id, tanggal_mulai, tanggal_selesai,
-                     status, satker_code)
-                 -- `jenis_bmn` is CHECK-constrained to four values
-                 -- (KENDARAAN_BERMOTOR / RUMAH_NEGARA / LAPTOP / LAINNYA); the
-                 -- other two are the ones with conditional NOT NULLs attached.
-                 VALUES ('LAINNYA', '15', '3060201003', 'Meja Kerja', '19800101000000001',
-                         'Pegawai Uji', gen_random_uuid(), '2026-01-01', '2026-12-31', $1, $2)",
+                    (pegawai_nip, pegawai_nama, pegawai_satker_id,
+                     tanggal_mulai, tanggal_selesai, status, satker_code)
+                 VALUES ('19800101000000001', 'Pegawai Uji', gen_random_uuid(),
+                         '2026-01-01', '2026-12-31', $1, $2)",
                 &[&status, &satker],
             )
             .await
