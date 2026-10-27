@@ -2,7 +2,7 @@
 //!
 //! Every page in the refactored codebase wraps its content in `PageLayout`
 //! and composes `SectionCard`, `StatCard`, `FormLayout`, `EmptyState`,
-//! `LoadingState`, `ErrorState`, and `DataTable` from this module instead of
+//! `LoadingState` and `ErrorState` from this module instead of
 //! hand-rolling markup with hex colors or inline styles. Contract tests in
 //! `antarmuka/perlengkapan/tests/` enforce that page files only reference
 //! these primitives plus `lib_ui::prelude::*`.

@@ -66,8 +66,12 @@ WORKFLOW = ROOT_DIR / ".github" / "workflows" / "ci.yml"
 # these. Keep this list short and justified; it is the one hand-written part.
 COMPILE_ONLY = {
     "lib-ui": "Leptos lib for the WASM frontends; CI compiles it with --features ssr",
-    "portal-microfrontend": "wasm32 CSR binary; host test targets pull native tokio/mio",
-    "perlengkapan-microfrontend": "wasm32 CSR binary; host test targets pull native tokio/mio",
+    # portal-microfrontend and perlengkapan-microfrontend used to sit here with
+    # "host test targets pull native tokio/mio". That is true only of compiling
+    # tests FOR wasm32; on the host they build and pass. The exemption hid 92
+    # tests from CI, and two of them broke unseen (#930, #901). Both crates now
+    # run `cargo test --lib --bins --tests` on the host, so they are held to
+    # the normal test-coverage rule like every other crate.
 }
 
 # `  job-id:` at exactly two spaces of indent — the job keys in ci.yml.

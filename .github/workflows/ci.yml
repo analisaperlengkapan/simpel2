@@ -1427,14 +1427,26 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: cargo test -p portal-microfrontend --doc --no-fail-fast
+      # The crate's own unit tests and `tests/*.rs` (62 tests). They were never
+      # run anywhere: the coverage guard listed this crate COMPILE_ONLY on the
+      # grounds that "host test targets pull native tokio/mio" — true only when
+      # compiling tests FOR wasm32; on the host they build fine, and the doctest
+      # step above already pays for the host dependency tree. Meanwhile #930
+      # removed `UserSession.permissions` / `has_permission` and three suites
+      # stopped compiling (51 errors) with every check still green.
+      - name: cargo test (host — lib, bins, integration tests)
+        env:
+          RUST_BACKTRACE: 1
+        run: cargo test -p portal-microfrontend --lib --bins --tests --no-fail-fast
 
   test-antarmuka-perlengkapan:
     name: Test Rust (antarmuka-perlengkapan)
     needs: detect
     runs-on: arc-simpel
-    # Back to 30 now that the host doctest pass is gone: this job is the wasm32
-    # check only, as it was before #115.
-    timeout-minutes: 30
+    # wasm32 check + a host compile for the crate's own tests. The host pass
+    # is what #115 removed for doctests (it ran zero of them); it is back for
+    # the 30 unit + contract tests below, with portal's 45-minute budget.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -1453,6 +1465,20 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: cargo check -p perlengkapan-microfrontend --target wasm32-unknown-unknown
+      # The crate's unit tests and `tests/*_contracts.rs` (30 tests) on the
+      # host. Never run before this step existed, and it showed: #901 deleted
+      # `components/layout/data_table.rs` as dead code and left
+      # `page_layout_contracts.rs` requiring it — red since 2026-08-31, seen by
+      # nobody. This is the same host dependency tree whose doctest-only pass
+      # once starved the 6Gi runner, so it carries the settings test-services
+      # uses for the same reason: halve compile parallelism, line-tables
+      # debuginfo (the peak is compile/link memory, not runtime).
+      - name: cargo test (host — lib, bins, contract tests)
+        env:
+          RUST_BACKTRACE: 1
+          CARGO_BUILD_JOBS: "2"
+          CARGO_PROFILE_TEST_DEBUG: line-tables-only
+        run: cargo test -p perlengkapan-microfrontend --lib --bins --tests --no-fail-fast
       # No `cargo test --doc` step here, unlike test-antarmuka-portal: this
       # crate has no runnable doc example (its single fence is ```rust,ignore),
       # so the pass would compile a whole second, HOST-target dependency tree to
