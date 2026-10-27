@@ -60,6 +60,11 @@ pub struct BookingConflict {
     pub holder: String,
     /// Tanggal izin aktif itu berakhir.
     pub expires: NaiveDate,
+    /// Aset yang bertabrakan. Sejak V014 satu izin memuat banyak BMN, jadi
+    /// "izin ini bentrok" tak lagi cukup — pesan errornya harus menyebut yang
+    /// mana, dan pemanggil tak bisa lagi menyimpulkannya dari kolom induk.
+    pub bmn_nup: String,
+    pub bmn_kode_barang: String,
 }
 
 /// BMN availability check response
