@@ -84,9 +84,13 @@ WHERE pengajuan_satker_id IN (
 -- booking check became keyed on kode satker + kode barang + NUP, an extra
 -- ACTIVE permit on a fixture asset makes the availability specs report it busy
 -- — correctly, which is the worst kind of red to diagnose.
-DELETE FROM perlengkapan.izin_pemakaian_bmn
-WHERE bmn_nup LIKE 'E2E-%'
-  AND id NOT IN (
+-- Keyed on the ITEM since V014: a permit's assets live in
+-- `pemakaian_bmn_items`, and deleting the permit cascades to them.
+DELETE FROM perlengkapan.izin_pemakaian_bmn p
+WHERE EXISTS (
+        SELECT 1 FROM perlengkapan.pemakaian_bmn_items i
+        WHERE i.izin_pemakaian_id = p.id AND i.bmn_nup LIKE 'E2E-%')
+  AND p.id NOT IN (
         'e2000000-0000-4e00-8e00-0000000b0001',
         'e2000000-0000-4e00-8e00-0000000b0002',
         'e2000000-0000-4e00-8e00-0000000b0003',
@@ -499,21 +503,23 @@ ON CONFLICT (id) DO UPDATE SET
 -- Toyota Avanza, Honda Vario, dan printer Epson). Tak ada yang bisa
 -- memerahkannya selama cek tabrakan hanya melihat NUP. Ini instans lain dari
 -- `project_staging_shape_blindness`: format adalah bagian dari bentuk data.
+-- V014: the permit is the HEADER, the asset is its first item. Written as two
+-- statements so a re-seed is idempotent on both: the header on its id, the
+-- item on (izin_pemakaian_id, urutan).
 INSERT INTO perlengkapan.izin_pemakaian_bmn
-  (id, nomor_izin, jenis_bmn, bmn_nup, bmn_kode_barang, bmn_nama_barang,
-   serial_number, pegawai_nip, pegawai_nama, pegawai_jabatan,
+  (id, nomor_izin, pegawai_nip, pegawai_nama, pegawai_jabatan,
    pegawai_satker_id, pegawai_satker_nama, tanggal_mulai, tanggal_selesai,
    status, status_kode, keperluan, satker_code)
 VALUES
-  ('e2000000-0000-4e00-8e00-0000000b0001', 'E2E-IZIN-001', 'LAPTOP', 'E2E-A-2', '3100102003', 'E2E Laptop Dinas Pinjam',
-   'SN-E2E-0001', '200000000000000001', 'E2E Operator Jakpus', 'Operator Satker',
+  ('e2000000-0000-4e00-8e00-0000000b0001', 'E2E-IZIN-001',
+   '200000000000000001', 'E2E Operator Jakpus', 'Operator Satker',
    'e2a00000-0000-4e00-8e00-000000000001', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '2026-01-01', '2026-12-31',
    'ACTIVE', 3004, 'Penunjang tugas kedinasan harian', '0200010'),
   -- I2 @SUBMITTED(3001): the entry point of the satker approval chain (#96).
   -- validator_satker forwards it, then approver_satker approves it, both
   -- through the UI.
-  ('e2000000-0000-4e00-8e00-0000000b0002', 'E2E-IZIN-002', 'LAPTOP', 'E2E-A-1', '3020101003', 'E2E Laptop Ajuan Satker',
-   'SN-E2E-0002', '200000000000000001', 'E2E Operator Jakpus', 'Operator Satker',
+  ('e2000000-0000-4e00-8e00-0000000b0002', 'E2E-IZIN-002',
+   '200000000000000001', 'E2E Operator Jakpus', 'Operator Satker',
    'e2a00000-0000-4e00-8e00-000000000001', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '2026-02-01', '2026-11-30',
    'SUBMITTED', 3001, 'Penunjang tugas operasional', '0200010'),
   -- I3 @ACTIVE, satker 0200020 (operator_b). Without a permit in a SECOND
@@ -521,8 +527,8 @@ VALUES
   -- rows and "all rows" are the same set, so a scope that does nothing passes.
   -- 0200020 shares operator_a's wilayah (both kdsatker_keu carry 9999), which
   -- is what makes the wilayah tier distinguishable from the satker tier.
-  ('e2000000-0000-4e00-8e00-0000000b0003', 'E2E-IZIN-003', 'LAPTOP', 'E2E-B-1', '3020104001', 'E2E Laptop Jaksel',
-   'SN-E2E-0003', '200000000000000002', 'E2E Operator Jaksel', 'Operator Satker',
+  ('e2000000-0000-4e00-8e00-0000000b0003', 'E2E-IZIN-003',
+   '200000000000000002', 'E2E Operator Jaksel', 'Operator Satker',
    'e2a00000-0000-4e00-8e00-000000000002', 'KEJAKSAAN NEGERI JAKARTA SELATAN', '2026-03-01', '2026-10-31',
    'ACTIVE', 3004, 'Penunjang tugas kedinasan Jaksel', '0200020'),
   -- I4 @ACTIVE, satker 0300010 (Bandung) — under a DIFFERENT Kejati.
@@ -533,17 +539,12 @@ VALUES
   -- scope that leaks nationwide still passes. There is no user seeded at this
   -- satker on purpose: the row exists to be INVISIBLE to the DKI validator, not
   -- to be acted on.
-  ('e2000000-0000-4e00-8e00-0000000b0004', 'E2E-IZIN-004', 'LAPTOP', 'E2E-C-1', '3100203003', 'E2E Laptop Bandung',
-   'SN-E2E-0004', '300000000000000001', 'E2E Operator Bandung', 'Operator Satker',
+  ('e2000000-0000-4e00-8e00-0000000b0004', 'E2E-IZIN-004',
+   '300000000000000001', 'E2E Operator Bandung', 'Operator Satker',
    'e2a00000-0000-4e00-8e00-000000000003', 'KEJAKSAAN NEGERI BANDUNG', '2026-03-01', '2026-10-31',
    'ACTIVE', 3004, 'Penunjang tugas kedinasan Bandung', '0300010')
 ON CONFLICT (id) DO UPDATE SET
   nomor_izin = EXCLUDED.nomor_izin,
-  jenis_bmn = EXCLUDED.jenis_bmn,
-  bmn_nup = EXCLUDED.bmn_nup,
-  bmn_kode_barang = EXCLUDED.bmn_kode_barang,
-  bmn_nama_barang = EXCLUDED.bmn_nama_barang,
-  serial_number = EXCLUDED.serial_number,
   pegawai_nip = EXCLUDED.pegawai_nip,
   pegawai_nama = EXCLUDED.pegawai_nama,
   pegawai_jabatan = EXCLUDED.pegawai_jabatan,
@@ -556,6 +557,30 @@ ON CONFLICT (id) DO UPDATE SET
   keperluan = EXCLUDED.keperluan,
   satker_code = EXCLUDED.satker_code,
   version = 1;
+
+-- Each permit's asset. jenis_bmn LAPTOP avoids the vehicle/housing CHECKs;
+-- `bmn_kode_barang` must equal the `kd_brg` of the SIMAN asset `bmn_nup`
+-- names (see the SHAPE NOTE above).
+INSERT INTO perlengkapan.pemakaian_bmn_items
+  (izin_pemakaian_id, urutan, jenis_bmn, bmn_nup, bmn_kode_barang, bmn_nama_barang,
+   serial_number, tanggal_mulai, tanggal_selesai)
+VALUES
+  ('e2000000-0000-4e00-8e00-0000000b0001', 1, 'LAPTOP', 'E2E-A-2', '3100102003', 'E2E Laptop Dinas Pinjam',
+   'SN-E2E-0001', '2026-01-01', '2026-12-31'),
+  ('e2000000-0000-4e00-8e00-0000000b0002', 1, 'LAPTOP', 'E2E-A-1', '3020101003', 'E2E Laptop Ajuan Satker',
+   'SN-E2E-0002', '2026-02-01', '2026-11-30'),
+  ('e2000000-0000-4e00-8e00-0000000b0003', 1, 'LAPTOP', 'E2E-B-1', '3020104001', 'E2E Laptop Jaksel',
+   'SN-E2E-0003', '2026-03-01', '2026-10-31'),
+  ('e2000000-0000-4e00-8e00-0000000b0004', 1, 'LAPTOP', 'E2E-C-1', '3100203003', 'E2E Laptop Bandung',
+   'SN-E2E-0004', '2026-03-01', '2026-10-31')
+ON CONFLICT (izin_pemakaian_id, urutan) DO UPDATE SET
+  jenis_bmn = EXCLUDED.jenis_bmn,
+  bmn_nup = EXCLUDED.bmn_nup,
+  bmn_kode_barang = EXCLUDED.bmn_kode_barang,
+  bmn_nama_barang = EXCLUDED.bmn_nama_barang,
+  serial_number = EXCLUDED.serial_number,
+  tanggal_mulai = EXCLUDED.tanggal_mulai,
+  tanggal_selesai = EXCLUDED.tanggal_selesai;
 
 -- ----------------------------------------------------------------------------
 -- 9. notifikasi: per-user in-app inbox (F-E2E E-4).

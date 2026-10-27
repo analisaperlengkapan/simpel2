@@ -188,7 +188,10 @@ async fn every_asset_on_a_permit_comes_back_in_order() {
     let detail = get_permit(&server, &id).await;
     let items = items_of(&detail);
     assert_eq!(items.len(), 3, "three assets were sent, three must return");
-    let urutan: Vec<i64> = items.iter().map(|i| i["urutan"].as_i64().unwrap()).collect();
+    let urutan: Vec<i64> = items
+        .iter()
+        .map(|i| i["urutan"].as_i64().unwrap())
+        .collect();
     assert_eq!(urutan, vec![1, 2, 3], "urutan numbers the SK rows");
     let nup: Vec<&str> = items
         .iter()
@@ -329,7 +332,10 @@ async fn a_renewal_carries_every_asset_and_supersedes_the_old_permit() {
         .as_str()
         .unwrap()
         .to_string();
-    assert_eq!(sebelum, "ACTIVE", "a renewal still in DRAFT revokes nothing");
+    assert_eq!(
+        sebelum, "ACTIVE",
+        "a renewal still in DRAFT revokes nothing"
+    );
 
     drive_existing_to_active(&server, &baru).await;
 
@@ -366,7 +372,11 @@ async fn a_permit_needs_at_least_one_asset_and_no_repeats() {
     let server = TestServer::new(app);
 
     for (items, penanda, kenapa) in [
-        (vec![], "Minimal satu BMN", "a permit with no asset is not a permit"),
+        (
+            vec![],
+            "Minimal satu BMN",
+            "a permit with no asset is not a permit",
+        ),
         (
             vec![laptop("541", "Laptop A"), laptop("541", "Laptop A")],
             "lebih dari sekali",

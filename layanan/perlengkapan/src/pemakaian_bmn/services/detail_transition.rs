@@ -158,27 +158,24 @@ impl PemakaianBmnService {
             // directly. Putting it in `activate_permit` would leave a renewal
             // activated by break-glass running alongside the permit it
             // replaces.
-            if updated.is_renewal {
-                if let Some(sebelumnya) = updated.previous_permit_id {
-                    let label = updated
-                        .nomor_izin
-                        .clone()
-                        .unwrap_or_else(|| id.to_string());
-                    let diganti = self
-                        .repository
-                        .mark_superseded(sebelumnya, id, &label, user_id)
-                        .await?;
-                    if diganti {
-                        info!("Permit {} superseded by {} ({})", sebelumnya, id, label);
-                    } else {
-                        // Not an error: the earlier permit may already have
-                        // been revoked by hand. Logged, because a silent no-op
-                        // and a successful supersede would look identical.
-                        info!(
-                            "Permit {} was not ACTIVE/EXPIRED; nothing to supersede for {}",
-                            sebelumnya, id
-                        );
-                    }
+            if updated.is_renewal
+                && let Some(sebelumnya) = updated.previous_permit_id
+            {
+                let label = updated.nomor_izin.clone().unwrap_or_else(|| id.to_string());
+                let diganti = self
+                    .repository
+                    .mark_superseded(sebelumnya, id, &label, user_id)
+                    .await?;
+                if diganti {
+                    info!("Permit {} superseded by {} ({})", sebelumnya, id, label);
+                } else {
+                    // Not an error: the earlier permit may already have been
+                    // revoked by hand. Logged, because a silent no-op and a
+                    // successful supersede would look identical.
+                    info!(
+                        "Permit {} was not ACTIVE/EXPIRED; nothing to supersede for {}",
+                        sebelumnya, id
+                    );
                 }
             }
             // TODO(pemakaian-expiry-scheduler): hand this permit to the
