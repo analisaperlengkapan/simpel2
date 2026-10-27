@@ -195,4 +195,30 @@ mod tests {
             Some(PolicyStep::PasswordChange)
         );
     }
+
+    /// The token goes to v1's callback and nowhere else on the origin: the
+    /// prefix must end on a path-segment boundary. Both directions, so a check
+    /// that refused everything would fail too.
+    #[test]
+    fn v1_handoff_target_must_be_v1_on_a_segment_boundary() {
+        use crate::features::auth::legacy_handoff::is_v1_path;
+
+        for ok in [
+            "/perlengkapan/simpel/v1",
+            "/perlengkapan/simpel/v1/",
+            "/perlengkapan/simpel/v1/auth/oauth-callback",
+        ] {
+            assert!(is_v1_path(ok), "{ok} is v1");
+        }
+        for not_v1 in [
+            "/perlengkapan/simpel/v1x/auth/oauth-callback",
+            "/perlengkapan/simpel/v10/auth/oauth-callback",
+            "/perlengkapan/simpel/v1.evil",
+            "/perlengkapan/simpel/v2/auth/oauth-callback",
+            "/portal/login",
+            "/",
+        ] {
+            assert!(!is_v1_path(not_v1), "{not_v1} is not v1");
+        }
+    }
 }

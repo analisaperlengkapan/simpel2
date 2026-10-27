@@ -470,9 +470,12 @@ class AuthController extends Controller
                     ->with('error', 'Sesi OAuth tidak valid, silakan login ulang');
             }
 
-            // Validasi JWT token via Authenc gRPC
-            // TODO: Implement gRPC call ke Authenc::verify($token)
-            // Untuk sekarang, decode JWT secara manual (production harus via gRPC)
+            // Verify the JWT with authenc. `verifyJwtToken` goes through the
+            // gateway sidecar to authenc's ValidateToken, so the signature,
+            // expiry and revocation are checked by the issuer — nothing here
+            // decodes the token locally. (An older comment in this spot said
+            // the opposite — "decode JWT secara manual" — and a reader trusting
+            // it would have concluded this endpoint accepts forged tokens.)
             $claims = $this->verifyJwtToken($token);
 
             if (! $claims) {

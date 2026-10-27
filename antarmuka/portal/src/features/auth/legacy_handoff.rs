@@ -66,10 +66,29 @@ fn resolve_v1_url(raw: &str) -> Option<String> {
     if url.origin() != location.origin().ok()? {
         return None;
     }
-    if !url.pathname().starts_with(V1_PREFIX) {
+    if !is_v1_path(&url.pathname()) {
         return None;
     }
     Some(url.href())
+}
+
+/// Is `path` v1 itself or something under it?
+///
+/// A bare `starts_with(V1_PREFIX)` also accepted `/perlengkapan/simpel/v1x/…`
+/// and `/perlengkapan/simpel/v10/…` — still same-origin, so not a token leak to
+/// a third party, but not v1 either, and the token should go to v1's callback
+/// and nowhere else. Match on a path-segment boundary. The pathname here has
+/// already been normalised by the URL parser (`..` resolved), so a traversal
+/// cannot climb out after passing this check.
+///
+/// Compiled where it is used — the wasm32 resolver — and in tests; on a host
+/// non-test build it would be dead code.
+#[cfg(any(target_arch = "wasm32", test))]
+pub(crate) fn is_v1_path(path: &str) -> bool {
+    path == V1_PREFIX
+        || path
+            .strip_prefix(V1_PREFIX)
+            .is_some_and(|rest| rest.starts_with('/'))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
