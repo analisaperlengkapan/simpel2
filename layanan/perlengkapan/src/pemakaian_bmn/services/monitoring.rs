@@ -141,7 +141,10 @@ impl PemakaianBmnService {
         let jenis_bmn = JenisBmn::from_str(&item.jenis_bmn).ok_or_else(|| {
             AppError::BadRequest(format!("Invalid jenis_bmn: {}", item.jenis_bmn))
         })?;
-        let aset = format!("BMN {} (kode barang {})", item.bmn_nup, item.bmn_kode_barang);
+        let aset = format!(
+            "BMN {} (kode barang {})",
+            item.bmn_nup, item.bmn_kode_barang
+        );
 
         match jenis_bmn {
             JenisBmn::KendaraanBermotor => {

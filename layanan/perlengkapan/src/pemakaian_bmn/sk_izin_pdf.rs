@@ -285,9 +285,17 @@ fn render_halaman_daftar_bmn(pdf: &mut PdfBuilder, permit: &IzinPemakaianBmn) {
         // the API; a legacy row can still be one.
         pdf.row(
             &col_widths,
-            &["-", "-", "(tidak ada BMN tercatat)", "-", "-", "-", "-", "-"]
-                .map(String::from)
-                .to_vec(),
+            &[
+                "-",
+                "-",
+                "(tidak ada BMN tercatat)",
+                "-",
+                "-",
+                "-",
+                "-",
+                "-",
+            ]
+            .map(String::from),
             false,
             true,
         );
