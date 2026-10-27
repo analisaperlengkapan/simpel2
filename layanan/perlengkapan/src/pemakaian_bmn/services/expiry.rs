@@ -58,7 +58,7 @@ impl PemakaianBmnService {
                 transition_by: "system".to_string(),
                 catatan: Some(format!(
                     "Izin pemakaian BMN {} untuk {} akan berakhir dalam {} hari (tanggal: {}). Nomor izin: {}. Silakan perpanjang jika masih diperlukan.",
-                    permit.bmn_nama_barang,
+                    nama_bmn(permit),
                     permit.pegawai_nama,
                     days_remaining,
                     permit.tanggal_selesai,
@@ -125,7 +125,7 @@ impl PemakaianBmnService {
                 transition_by: "system".to_string(),
                 catatan: Some(format!(
                     "Izin pemakaian BMN {} untuk {} telah berakhir pada tanggal {}. Nomor izin: {}. BMN harus segera dikembalikan atau izin diperpanjang.",
-                    permit.bmn_nama_barang,
+                    nama_bmn(permit),
                     permit.pegawai_nama,
                     permit.tanggal_selesai,
                     permit.nomor_izin.as_deref().unwrap_or("N/A")
@@ -170,4 +170,24 @@ impl PemakaianBmnService {
     // ========================================================================
     // Monitoring Dashboard Methods
     // ========================================================================
+}
+
+/// The assets on a permit, as one phrase for a notification.
+///
+/// A permit used to be one asset, so the reminder named it directly. It can
+/// now be several, and "Izin pemakaian BMN Station Wagon akan berakhir" would
+/// quietly name the first of five. Long lists collapse to a count rather than
+/// filling the notification.
+fn nama_bmn(permit: &IzinPemakaianBmn) -> String {
+    const TAMPIL_MAKS: usize = 3;
+    match permit.bmn_items.len() {
+        0 => "(tanpa BMN)".to_string(),
+        n if n <= TAMPIL_MAKS => permit
+            .bmn_items
+            .iter()
+            .map(|i| i.bmn_nama_barang.as_str())
+            .collect::<Vec<_>>()
+            .join(", "),
+        n => format!("{n} BMN"),
+    }
 }

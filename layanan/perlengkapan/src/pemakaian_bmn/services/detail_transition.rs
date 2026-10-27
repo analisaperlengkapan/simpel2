@@ -146,6 +146,41 @@ impl PemakaianBmnService {
         // Special handling for ACTIVE status
         if target_status == PemakaianBmnStatus::Active {
             info!("Permit {} is now active", id);
+
+            // A renewal takes effect the moment it is active, and the permit
+            // it renews is withdrawn at the same instant — otherwise both are
+            // ACTIVE over the same assets and the conflict check reports the
+            // old one against its own successor.
+            //
+            // Here, not in `activate_permit`: every path to ACTIVE comes
+            // through this function — the normal activation AND the audited
+            // break-glass override (`admin::break_glass`), which calls this
+            // directly. Putting it in `activate_permit` would leave a renewal
+            // activated by break-glass running alongside the permit it
+            // replaces.
+            if updated.is_renewal {
+                if let Some(sebelumnya) = updated.previous_permit_id {
+                    let label = updated
+                        .nomor_izin
+                        .clone()
+                        .unwrap_or_else(|| id.to_string());
+                    let diganti = self
+                        .repository
+                        .mark_superseded(sebelumnya, id, &label, user_id)
+                        .await?;
+                    if diganti {
+                        info!("Permit {} superseded by {} ({})", sebelumnya, id, label);
+                    } else {
+                        // Not an error: the earlier permit may already have
+                        // been revoked by hand. Logged, because a silent no-op
+                        // and a successful supersede would look identical.
+                        info!(
+                            "Permit {} was not ACTIVE/EXPIRED; nothing to supersede for {}",
+                            sebelumnya, id
+                        );
+                    }
+                }
+            }
             // TODO(pemakaian-expiry-scheduler): hand this permit to the
             // `PemakaianBmnScheduler` (already running, see main.rs) so
             // `send_expiry_reminder` / `send_expiry_notification` fire at

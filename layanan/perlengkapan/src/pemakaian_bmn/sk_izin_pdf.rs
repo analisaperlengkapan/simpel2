@@ -274,21 +274,37 @@ fn render_halaman_daftar_bmn(pdf: &mut PdfBuilder, permit: &IzinPemakaianBmn) {
     .collect();
     pdf.row(&col_widths, &header_cells, true, true);
 
-    // V1 model: single BMN per permit. Render sebagai 1 row table.
-    // Saat multi-BMN refactor (post-Fase 1.5), loop melalui Vec<BmnItem>.
-    let cells: Vec<String> = vec![
-        "1".to_string(),
-        permit.bmn_kode_barang.clone(),
-        permit.bmn_nama_barang.clone(),
-        permit.bmn_nup.clone(),
-        permit.bmn_merk.clone().unwrap_or_else(|| "-".to_string()),
-        // Field `bmn_tipe` belum ada di model main; fallback "-" sampai
-        // refactor model BMN multi-field landed.
-        "-".to_string(),
-        permit.tanggal_mulai.format("%d-%m-%Y").to_string(),
-        permit.tanggal_selesai.format("%d-%m-%Y").to_string(),
-    ];
-    pdf.row(&col_widths, &cells, false, true);
+    // One row per BMN. This was a single hard-coded row under a comment that
+    // said "V1 model: single BMN per permit" — so a permit over three assets
+    // produced a letter granting one, and the other two were held with nothing
+    // signed for them. The dates come from the item, which is where a period
+    // lives since V014; the header's are only the MIN/MAX of these.
+    if permit.bmn_items.is_empty() {
+        // Says so, rather than printing an empty table that reads like a
+        // rendering fault. A permit with no asset cannot be created through
+        // the API; a legacy row can still be one.
+        pdf.row(
+            &col_widths,
+            &["-", "-", "(tidak ada BMN tercatat)", "-", "-", "-", "-", "-"]
+                .map(String::from)
+                .to_vec(),
+            false,
+            true,
+        );
+    }
+    for item in &permit.bmn_items {
+        let cells: Vec<String> = vec![
+            item.urutan.to_string(),
+            item.bmn_kode_barang.clone(),
+            item.bmn_nama_barang.clone(),
+            item.bmn_nup.clone(),
+            item.bmn_merk.clone().unwrap_or_else(|| "-".to_string()),
+            item.bmn_tipe.clone().unwrap_or_else(|| "-".to_string()),
+            item.tanggal_mulai.format("%d-%m-%Y").to_string(),
+            item.tanggal_selesai.format("%d-%m-%Y").to_string(),
+        ];
+        pdf.row(&col_widths, &cells, false, true);
+    }
 
     // Catatan footer
     pdf.advance(8.0);
