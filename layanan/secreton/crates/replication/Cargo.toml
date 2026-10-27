@@ -38,7 +38,7 @@ uuid = { workspace = true, features = ["v4", "serde"] }
 
 # Compression
 flate2 = { workspace = true }
-zstd = "0.14"  # >= 0.14.3 for RUSTSEC-2026-0391; zstd-safe 8.2 for 0398/0403
+zstd = "0.14"                 # >= 0.14.3 for RUSTSEC-2026-0391; zstd-safe 8.2 for 0398/0403
 
 # Hashing
 sha2 = { workspace = true }
