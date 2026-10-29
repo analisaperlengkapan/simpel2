@@ -65,26 +65,24 @@ ENV RUST_BACKTRACE=1
 RUN mkdir -p /root/.cache/trunk/wasm-bindgen-0.2.100
 RUN cp /usr/local/cargo/bin/wasm-bindgen /root/.cache/trunk/wasm-bindgen-0.2.100/wasm-bindgen || true
 
-# Pre-seed tailwindcss into the same trunk tool cache (`{name}-{version}/{name}`,
-# the layout the wasm-bindgen line above already relies on).
+# Pre-seed EVERY tool trunk downloads, via the same script CI runs.
 #
-# `<link data-trunk rel="tailwind-css">` makes trunk fetch this binary from
-# GitHub releases during the asset pipeline — a SINGLE-SHOT reqwest call with no
-# retry, run AFTER the ~10-minute wasm compile. One dropped connection therefore
-# throws away the whole build, which is exactly how CI run 30778635010 died:
-#   "failed downloading release archive / error sending HTTP request /
-#    client error (SendRequest)" for tailwindcss-linux-x64.
+# trunk fetches these from GitHub releases with a single-shot reqwest call — no
+# retry, ~30 s budget — from the asset pipeline, i.e. AFTER the ~10-minute wasm
+# compile. One dropped connection therefore throws away the whole build, which is
+# how CI run 30778635010 died ("failed downloading release archive / error
+# sending HTTP request / client error (SendRequest)" for tailwindcss-linux-x64).
 # It is the fourth build-time network fetch to bite this repo (#114 floating
 # nightly, #711 actionlint via the GitHub API, the Blade plugin tag).
 #
-# curl --retry with backoff is the difference: a transient failure costs seconds
-# here instead of the entire build. Version is pinned in Trunk.toml `[tools]` so
-# this path and trunk's expectation cannot drift apart.
-RUN mkdir -p /root/.cache/trunk/tailwindcss-3.3.5 && \
-    curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors \
-      -o /root/.cache/trunk/tailwindcss-3.3.5/tailwindcss \
-      https://github.com/tailwindlabs/tailwindcss/releases/download/v3.3.5/tailwindcss-linux-x64 && \
-    chmod +x /root/.cache/trunk/tailwindcss-3.3.5/tailwindcss
+# The script reads each version from the same source trunk does (Trunk.toml
+# `[tools]`, Cargo.lock for wasm-bindgen) and fails on a pin it cannot fetch, so
+# a hand-maintained path here cannot drift from trunk's expectation — which is
+# how the previous per-tool copies let tailwindcss and wasm-opt rot separately.
+# The `wasm-bindgen-0.2.100` line above is the image's CLI version, not
+# trunk's: trunk resolves wasm-bindgen from Cargo.lock and ignores a mismatch.
+# Absolute paths: this RUN executes with WORKDIR /workspace/antarmuka/perlengkapan.
+RUN /workspace/infra/scripts/preseed-trunk-tools.sh /workspace/antarmuka/perlengkapan /workspace
 
 # Build with trunk (release mode).
 # Assets served at /perlengkapan/simpel/v2/ path prefix (canonical
