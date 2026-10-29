@@ -45,18 +45,6 @@ ignore = [
   # secreton-api only). kube 4.x moved to serde-saphyr, so upgrading the
   # operator removes it.
   "RUSTSEC-2024-0449",
-  # zip <9 — all three are EXTRACTION flaws (`ZipArchive::extract` /
-  # `ZipStreamReader::extract`: symlinks escaping the target dir, permissions
-  # applied through symlinks, SUID/SGID preserved). The remaining zip 8.6 comes
-  # from docx-rs 0.4.22 (latest; upstream has not moved to zip 9), which this
-  # repo uses only to WRITE .docx. Nothing here opens an archive. That premise
-  # is enforced, not assumed: security.yml step "Assert zip extraction ignores
-  # still hold" fails if `read_docx`, `ZipArchive` or `ZipStreamReader` appears
-  # in our sources. rust_xlsxwriter was bumped to 0.101 (zip ^9) for the same
-  # advisories.
-  "RUSTSEC-2026-0367",
-  "RUSTSEC-2026-0368",
-  "RUSTSEC-2026-0369",
   # crypto-bigint 0.5 — timing variability in operations meant to be
   # constant-time. Patched only in the 0.7 line; 0.5 is pulled by
   # elliptic-curve 0.13 (p256/k256/p384, i.e. authenc-crypto and
@@ -151,4 +139,12 @@ unknown-git = "deny"
 # Allow crates from crates.io
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 # Allow git sources (for development)
-allow-git = []
+#
+# docx-rs is the one exception, and it is pinned to an immutable revision
+# rather than a branch: the released 0.4.22 pins zip ^8.6.0, and every zip <9
+# carries the extraction advisories (RUSTSEC-2026-0367..0369) plus
+# CVE-2026-115905 (zip <= 9.0.4, arbitrary file overwrite / RCE). Upstream
+# fixed it on main (PR #943/#944) without cutting a release, so the patch in
+# the root Cargo.toml takes that revision. Nothing else may be added here:
+# an entry that is not a pinned security backport belongs in a release.
+allow-git = ["https://github.com/bokuweb/docx-rs.git"]

@@ -290,6 +290,9 @@ curve25519-dalek = "4.1.3"
 subtle = "2.6.1"
 zeroize = { version = "1.8.2", features = ["zeroize_derive"] }
 bincode = { version = "2.0.1", features = ["serde"] }
+# Writing .docx (konsep surat / SK). The released 0.4.22 pins zip ^8.6.0,
+# which is vulnerable; upstream moved to zip 9 on main but has not cut a
+# release. Patched to the pinned upstream revision below.
 docx-rs = "0.4.20"
 hkdf = "0.12.3"
 fluent-bundle = "0.16.0"
@@ -339,7 +342,11 @@ ring = "0.17.14"
 serde_yaml = "0.9.34+deprecated"
 toml = "1.1.2+spec-1.1.0"
 csv = "1.4.0"                    # CSV parsing
-rust_xlsxwriter = "0.101.0"      # Excel writing (>= 0.101 for zip ^9, RUSTSEC-2026-0367..0369)
+rust_xlsxwriter = "0.101.0"      # Excel writing
+# Read back what we write: docx/xlsx are ZIP containers, and the only way to
+# prove the writer produced a real archive (rather than trusting the library)
+# is to open it. Test-only.
+zip = { version = "9.1.2", default-features = false, features = ["deflate"] }
 
 # Utility libraries
 tokio-util = "0.7.18"
@@ -702,6 +709,13 @@ codegen-units = 1
 #    - No critical security vulnerabilities
 
 [patch.crates-io]
+# docx-rs 0.4.22 (the latest release) pins zip ^8.6.0, and every zip <9 is
+# hit by the extraction/parser-differential advisories (RUSTSEC-2026-0367..0369,
+# CVE-2026-115905). Upstream fixed this on main (PR #943/#944, "upgrading zip
+# version to 9.0.4 and fixing breaking changes") but has not cut a release, so
+# the fix is taken from the pinned upstream revision. Drop this patch when a
+# docx-rs release ships zip >= 9.0.5.
+docx-rs = { git = "https://github.com/bokuweb/docx-rs.git", rev = "ad7fede6a7f3b61a097c28d0c39dd04626e44701" }
 # Patch to address vulnerabilities until upstream releases fix
 # Use latest compatible patches if exact version not available via 'cargo update'
 # rustls-webpki = { git = "https://github.com/rustls/webpki.git", tag = "v/0.102.10" } # v0.102.10 fixes RUSTSEC-2026-0049
