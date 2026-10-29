@@ -211,6 +211,10 @@ jobs:
           set -euo pipefail
           mkdir -p release-frontend
           for module in portal perlengkapan; do
+            # Same single-shot trunk tool downloads as the CI frontend jobs, and
+            # here a lost connection discards the release artifact itself. The
+            # script reads each version from Trunk.toml [tools] / Cargo.lock.
+            ./infra/scripts/preseed-trunk-tools.sh "antarmuka/$module"
             (cd "antarmuka/$module" && trunk build --release)
             cp -r "antarmuka/$module/dist" "release-frontend/$module"
           done

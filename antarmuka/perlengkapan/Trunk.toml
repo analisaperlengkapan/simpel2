@@ -12,6 +12,11 @@ public_url = "/perlengkapan/simpel/v2/"
 # must agree, so state it here rather than inheriting a default.
 [tools]
 tailwindcss = "3.3.5"
+# Pinned so the CI step and the Dockerfile that pre-seed trunk's tool cache
+# fetch exactly the binary trunk will look for. Unpinned, trunk picks its own
+# default per trunk release, and a pre-seeded version_131 would be ignored the
+# day CI's `cargo install trunk` resolves a newer trunk.
+wasm_opt = "version_131"
 
 [build.wasm-bindgen]
 target = "web"
