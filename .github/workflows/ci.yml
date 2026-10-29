@@ -1087,38 +1087,18 @@ jobs:
           if ! command -v trunk &>/dev/null; then
             cargo install trunk --locked
           fi
-      # trunk downloads wasm-opt (a ~100 MB binaryen archive) from GitHub
-      # releases AFTER the ~35-minute wasm compile, in a single reqwest call
-      # with a ~30 s budget and no retry. On 2026-10-27 GitHub's release CDN
-      # served this network at well under 1 MB/s, and every FE build on every
-      # PR died at the last step with "failed downloading release archive".
-      # tailwindcss already had exactly this failure and exactly this fix in
-      # the Dockerfiles; wasm-opt is the sibling that was missed. curl with no
-      # overall time cap and retries finishes a slow download that trunk's
-      # budget cannot, and it happens BEFORE the compile rather than after.
-      # The version is read from Trunk.toml `[tools]`, the same pin trunk uses.
-      - name: Pre-seed wasm-opt into trunk's tool cache
+      # trunk downloads its tools from GitHub releases with a single-shot
+      # reqwest call — no retry, ~30 s budget — from the asset pipeline, i.e.
+      # AFTER the ~35-minute wasm compile. One dropped connection therefore
+      # discards the whole build. Every tool is pre-seeded here, not just the
+      # one that happened to fail last: wasm-opt died on 2026-10-27 (#1002,
+      # #1003), tailwindcss on the same day (#1003), tailwindcss again in run
+      # 30778635010. The script reads each version from the same source trunk
+      # does (Trunk.toml [tools], Cargo.lock for wasm-bindgen) and fails on a
+      # pin it cannot fetch, so a new pin cannot quietly restore the download.
+      - name: Pre-seed trunk tool cache
         shell: bash
-        working-directory: antarmuka/portal
-        run: |
-          set -euo pipefail
-          v=$(sed -n 's/^wasm_opt *= *"\(.*\)"$/\1/p' Trunk.toml)
-          if [ -z "$v" ]; then
-            echo "::error file=antarmuka/portal/Trunk.toml::no [tools] wasm_opt pin to pre-seed"
-            exit 1
-          fi
-          dir="${XDG_CACHE_HOME:-$HOME/.cache}/trunk/wasm-opt-$v/bin"
-          if [ -x "$dir/wasm-opt" ]; then
-            echo "wasm-opt $v already cached"; exit 0
-          fi
-          tmp=$(mktemp -d)
-          curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 \
-            -o "$tmp/binaryen.tgz" \
-            "https://github.com/WebAssembly/binaryen/releases/download/$v/binaryen-$v-x86_64-linux.tar.gz"
-          tar -xzf "$tmp/binaryen.tgz" -C "$tmp" "binaryen-$v/bin/wasm-opt"
-          mkdir -p "$dir"
-          install -m 0755 "$tmp/binaryen-$v/bin/wasm-opt" "$dir/wasm-opt"
-          "$dir/wasm-opt" --version
+        run: ./infra/scripts/preseed-trunk-tools.sh antarmuka/portal
       - name: trunk build --release
         working-directory: antarmuka/portal
         run: trunk build --release
@@ -1149,38 +1129,11 @@ jobs:
           if ! command -v trunk &>/dev/null; then
             cargo install trunk --locked
           fi
-      # trunk downloads wasm-opt (a ~100 MB binaryen archive) from GitHub
-      # releases AFTER the ~35-minute wasm compile, in a single reqwest call
-      # with a ~30 s budget and no retry. On 2026-10-27 GitHub's release CDN
-      # served this network at well under 1 MB/s, and every FE build on every
-      # PR died at the last step with "failed downloading release archive".
-      # tailwindcss already had exactly this failure and exactly this fix in
-      # the Dockerfiles; wasm-opt is the sibling that was missed. curl with no
-      # overall time cap and retries finishes a slow download that trunk's
-      # budget cannot, and it happens BEFORE the compile rather than after.
-      # The version is read from Trunk.toml `[tools]`, the same pin trunk uses.
-      - name: Pre-seed wasm-opt into trunk's tool cache
+      # See the portal job above — same single-shot trunk downloads, same
+      # pre-seed, same hard failure on an unhandled [tools] pin.
+      - name: Pre-seed trunk tool cache
         shell: bash
-        working-directory: antarmuka/perlengkapan
-        run: |
-          set -euo pipefail
-          v=$(sed -n 's/^wasm_opt *= *"\(.*\)"$/\1/p' Trunk.toml)
-          if [ -z "$v" ]; then
-            echo "::error file=antarmuka/perlengkapan/Trunk.toml::no [tools] wasm_opt pin to pre-seed"
-            exit 1
-          fi
-          dir="${XDG_CACHE_HOME:-$HOME/.cache}/trunk/wasm-opt-$v/bin"
-          if [ -x "$dir/wasm-opt" ]; then
-            echo "wasm-opt $v already cached"; exit 0
-          fi
-          tmp=$(mktemp -d)
-          curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 \
-            -o "$tmp/binaryen.tgz" \
-            "https://github.com/WebAssembly/binaryen/releases/download/$v/binaryen-$v-x86_64-linux.tar.gz"
-          tar -xzf "$tmp/binaryen.tgz" -C "$tmp" "binaryen-$v/bin/wasm-opt"
-          mkdir -p "$dir"
-          install -m 0755 "$tmp/binaryen-$v/bin/wasm-opt" "$dir/wasm-opt"
-          "$dir/wasm-opt" --version
+        run: ./infra/scripts/preseed-trunk-tools.sh antarmuka/perlengkapan
       - name: trunk build --release
         working-directory: antarmuka/perlengkapan
         run: trunk build --release

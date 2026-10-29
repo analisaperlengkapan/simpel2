@@ -55,40 +55,23 @@ ENV RUST_BACKTRACE=1
 RUN mkdir -p /root/.cache/trunk/wasm-bindgen-0.2.100
 RUN cp /usr/local/cargo/bin/wasm-bindgen /root/.cache/trunk/wasm-bindgen-0.2.100/wasm-bindgen || true
 
-# Pre-seed tailwindcss into the same trunk tool cache (`{name}-{version}/{name}`,
-# the layout the wasm-bindgen line above already relies on).
+# Pre-seed EVERY tool trunk downloads, via the same script CI runs.
 #
-# `<link data-trunk rel="tailwind-css">` makes trunk fetch this binary from
-# GitHub releases during the asset pipeline — a SINGLE-SHOT reqwest call with no
-# retry, run AFTER the long wasm compile, so one dropped connection discards the
-# whole build (CI run 30778635010 died exactly this way on the perlengkapan FE).
-# curl --retry with backoff turns that into a few seconds of retry instead.
-# Version is pinned in Trunk.toml `[tools]` so this path and trunk's expectation
-# cannot drift apart.
-RUN mkdir -p /root/.cache/trunk/tailwindcss-3.3.5 && \
-    curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors \
-      -o /root/.cache/trunk/tailwindcss-3.3.5/tailwindcss \
-      https://github.com/tailwindlabs/tailwindcss/releases/download/v3.3.5/tailwindcss-linux-x64 && \
-    chmod +x /root/.cache/trunk/tailwindcss-3.3.5/tailwindcss
-
-# Same treatment for wasm-opt, the sibling the tailwind fix above missed.
-# `data-wasm-opt="1"` in index.html makes trunk fetch binaryen (a ~100 MB
-# archive) after the compile, with a ~30 s budget and no retry; on 2026-10-27
-# GitHub's release CDN was slow enough that every FE build failed there with
-# "failed downloading release archive". The version comes from Trunk.toml
-# `[tools] wasm_opt` (this RUN executes in the FE dir after `COPY . .`), so the
-# pre-seeded path is exactly the one trunk looks up — `{name}-{version}/bin/`.
-RUN set -eu; \
-    v=$(sed -n 's/^wasm_opt *= *"\(.*\)"$/\1/p' Trunk.toml); \
-    test -n "$v"; \
-    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 \
-      -o /tmp/binaryen.tgz \
-      "https://github.com/WebAssembly/binaryen/releases/download/$v/binaryen-$v-x86_64-linux.tar.gz"; \
-    tar -xzf /tmp/binaryen.tgz -C /tmp "binaryen-$v/bin/wasm-opt"; \
-    mkdir -p "/root/.cache/trunk/wasm-opt-$v/bin"; \
-    install -m 0755 "/tmp/binaryen-$v/bin/wasm-opt" "/root/.cache/trunk/wasm-opt-$v/bin/wasm-opt"; \
-    rm -rf /tmp/binaryen.tgz "/tmp/binaryen-$v"; \
-    "/root/.cache/trunk/wasm-opt-$v/bin/wasm-opt" --version
+# trunk fetches these from GitHub releases with a single-shot reqwest call — no
+# retry, ~30 s budget — from the asset pipeline, i.e. AFTER the long wasm
+# compile, so one dropped connection discards the whole build (CI run
+# 30778635010 died this way on tailwindcss; 2026-10-27 on wasm-opt). Doing it
+# here, before the compile, with curl --retry, turns each into a few seconds of
+# retry instead.
+#
+# The script reads each version from the same source trunk does (Trunk.toml
+# `[tools]`, Cargo.lock for wasm-bindgen) and fails on a pin it cannot fetch, so
+# a hand-maintained path here cannot drift from trunk's expectation — which is
+# how the previous per-tool copies let tailwindcss and wasm-opt rot separately.
+# The `wasm-bindgen-0.2.100` line above is the image's CLI version, not
+# trunk's: trunk resolves wasm-bindgen from Cargo.lock and ignores a mismatch.
+# Absolute paths: this RUN executes with WORKDIR /workspace/antarmuka/portal.
+RUN /workspace/infra/scripts/preseed-trunk-tools.sh /workspace/antarmuka/portal /workspace
 
 # Set build-time environment variables for WASM baking
 # Build-time fake values, not used anymore but just to keep Trunk happy if still using env!
