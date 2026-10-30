@@ -38,6 +38,19 @@ ignore = [
   "RUSTSEC-2026-0163", # pqcrypto-internals (unmaintained)
   "RUSTSEC-2026-0165", # pqcrypto-falcon (unmaintained)
   "RUSTSEC-2026-0166", # pqcrypto-mldsa (unmaintained)
+  # unsafe-libyaml unmaintained: upstream repo archived 2024-03-25, last release
+  # 0.2.11. Maintenance-status only -- no CVE, and the advisory states
+  # "No safe upgrade is available!" (`patched = []`). It is a c2rust translation
+  # of libyaml reached through `serde_yaml 0.9.34+deprecated` (itself deprecated),
+  # which in turn arrives two ways:
+  #   1. transitively via kube-client 3.1 (secreton-k8s-operator),
+  #   2. directly -- `serde_yaml.workspace = true` in secreton-agent / -cli /
+  #      -k8s-operator for config + `--format yaml` output.
+  # Dropping it means either bumping kube to 4.x or porting all three crates to a
+  # maintained parser (serde-saphyr / noyalib); neither is a lockfile change, so
+  # neither belongs in this commit. Same posture as the pqcrypto-* entries above:
+  # archived upstream, frozen format, no security vulnerability.
+  "RUSTSEC-2024-0449", # unsafe-libyaml (unmaintained) - no patched version exists
 ]
 
 [licenses]

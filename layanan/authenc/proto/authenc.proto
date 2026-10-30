@@ -99,6 +99,12 @@ message ValidateTokenResponse {
   optional string jabatan = 9;
   optional string satker_code = 10;
   repeated string realm_roles = 11;
+  // Account-policy flags. Downstream callers (notably the simpelv1 gateway →
+  // Laravel callback) need these to enforce the same steps the portal does:
+  // without them a token that still owes a password change or MFA enrolment
+  // creates a full session and the step is skipped (CWE-841).
+  optional bool require_password_change = 12;
+  optional bool mfa_setup_required = 13;
 }
 
 message RevokeTokenRequest {

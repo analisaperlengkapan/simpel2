@@ -2,6 +2,8 @@
 //!
 //! Provides authentication state management and user session handling
 
+pub mod legacy_handoff;
+
 use serde::{Deserialize, Serialize};
 
 /// Authentication state
@@ -679,12 +681,21 @@ impl AuthService {
         }
     }
 
-    /// Load session from localStorage
+    /// Load session from localStorage.
+    ///
+    /// Returns `None` for a stored session that has expired (or whose expiry is
+    /// unknown — see `is_session_valid`). Every consumer treats `None` as
+    /// "not logged in": the root `user_session` signal starts logged out, the
+    /// route guards render the login page, and the session monitor skips the
+    /// record. Validating here rather than at each call site is what makes the
+    /// fail-closed decision stick — a caller that only reads the JSON would
+    /// otherwise re-authenticate from a stale blob.
     pub fn load_session() -> Option<UserSession> {
         #[cfg(target_arch = "wasm32")]
         {
             use lib_ui::utils::storage::load_from_storage;
-            load_from_storage("user_session")
+            let session: Option<UserSession> = load_from_storage("user_session");
+            session.filter(Self::is_session_valid)
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -733,25 +744,39 @@ impl AuthService {
             .collect()
     }
 
-    /// Check if session is valid (not expired)
+    /// Whether a stored session may still be trusted.
+    ///
+    /// Fails **closed**: a session with no `expires_at` is treated as expired
+    /// rather than valid-forever. `expires_at` is `Option` because the field is
+    /// `#[serde(default)]`-deserialized from `localStorage`, so `None` does not
+    /// mean "this session never expires" — it means the payload did not carry an
+    /// expiry (written by an older build, or edited by hand). Reading that as
+    /// "valid" turned a missing field into an unbounded session: a tampered
+    /// `auth_token` entry kept the UI authenticated indefinitely, and the
+    /// session monitor had nothing to act on because the one predicate it trusts
+    /// said the session was fine. Treating unknown as expired costs at most one
+    /// extra login after an upgrade; the other direction costs the guarantee.
     pub fn is_session_valid(session: &UserSession) -> bool {
-        if let Some(expires_at) = session.expires_at {
-            let now = chrono::Utc::now().timestamp();
-            expires_at > now
-        } else {
-            // If no expiration, consider valid
-            true
+        match session.expires_at {
+            Some(expires_at) => expires_at > chrono::Utc::now().timestamp(),
+            None => false,
         }
     }
 
-    /// Check if token needs refresh (expires in less than 5 minutes)
+    /// Check if token needs refresh (expires in less than 5 minutes).
+    ///
+    /// An unknown expiry also refreshes: the caller cannot tell a healthy
+    /// session from a stale one, and a refresh either restores a known-good
+    /// `expires_at` or fails and ends the session. `is_session_valid` rejects
+    /// the unknown case outright, so this only decides between "refresh now" and
+    /// "keep going".
     pub fn should_refresh_token(session: &UserSession) -> bool {
-        if let Some(expires_at) = session.expires_at {
-            let now = chrono::Utc::now().timestamp();
-            let time_until_expiry = expires_at - now;
-            time_until_expiry < 300 // Less than 5 minutes
-        } else {
-            false
+        match session.expires_at {
+            Some(expires_at) => {
+                let time_until_expiry = expires_at - chrono::Utc::now().timestamp();
+                time_until_expiry < 300 // Less than 5 minutes
+            }
+            None => true,
         }
     }
 

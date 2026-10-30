@@ -2,209 +2,165 @@
 
 ## Overview
 
-This test suite validates the integration between SIMPEL v1 (Legacy PHP) and v2 (Modern Rust) using Playwright for end-to-end testing.
+End-to-end coverage of the boundary between the Portal (Leptos/WASM), SIMPEL v2
+(`perlengkapan` microfrontend + Rust backend) and SIMPEL v1 (the legacy Laravel
+monolith). Tests are Playwright specs, split across the two frontends' own
+`tests/e2e/` trees — there is no third top-level suite.
 
-## Test Coverage
+The v1 leg runs against the **single-origin** `cross-app-ingress`
+(`infra/nginx/e2e-cross-app-ingress.conf`), which mirrors the production Istio
+VirtualService: `/portal`, `/perlengkapan/simpel/v1`,
+`/perlengkapan/simpel/v2` and `/api/*` all on one origin. One origin is not a
+test convenience — SSO depends on it. The Portal writes
+`localStorage["auth_token"]` and v1 completes its handoff with a same-origin form
+POST, so a second origin silently detaches both.
 
-### 1. Portal Navigation & Version Selection (4 tests)
+## Where the tests live
 
-- ✓ Portal loads successfully
-- ✓ Portal shows v1/v2 selector in perlengkapan app
-- ✓ Portal submenu shows v1 and v2 options
-- ✓ User can expand/collapse submenu with smooth animation
+| Concern | Spec | Project | Job |
+|---|---|---|---|
+| Portal login (captcha, token) | `antarmuka/portal/tests/e2e/portal-auth-e2e.spec.ts` | `portal-chromium` | `e2e-portal` |
+| Portal core workflows, apps catalogue | `antarmuka/portal/tests/e2e/portal-core-workflow.spec.ts` | `portal-core` | `e2e-portal` |
+| Portal → v2 SSO | `antarmuka/portal/tests/e2e/auth-login-flow.spec.ts` | `portal-cross-app` | `e2e-portal-cross-app` |
+| Portal ↔ **v1** SSO | `antarmuka/portal/tests/e2e/v1-sso-flow.spec.ts` | `portal-cross-app` | `e2e-portal-cross-app` |
+| Integrasi ↔ Authenc (gRPC) | `antarmuka/portal/tests/e2e/integrasi-authenc-e2e.spec.ts` | `portal-integration` | `e2e-integrasi-authenc` |
+| v1 permissions / RBAC | `antarmuka/perlengkapan/tests/e2e/rbac-scoping*.spec.ts` | `perlengkapan-rbac*` | `e2e-perlengkapan` |
 
-### 2. SIMPEL v1 OAuth Flow (4 tests)
+## The v1 handoff, step by step
 
-- ✓ v1 redirects to Portal login when not authenticated
-- ✓ v1 OAuth callback accepts valid token
-- ✓ v1 creates Laravel session from JWT claims
-- ✓ v1 health check endpoint responds correctly
+v1 has **no login page of its own**. When an unauthenticated browser reaches a
+protected v1 route, `TokenToOAuthMiddleware` bounces it to the Portal carrying
+where to come back to:
 
-### 3. SIMPEL v2 Navigation (1 test)
+```
+{origin}/portal/login?return_to=<v1 url>&callback=<v1 oauth-callback>&state=<nonce>
+```
 
-- ✓ v2 loads successfully when authenticated
+1. The Portal login page parses those parameters
+   (`features/auth/legacy_handoff.rs::parse_handoff`) and **parks** them in
+   `sessionStorage`, so an MFA or forced-password-change detour — which navigates
+   away and drops the query string — can still complete the handoff.
+2. If a live Portal session already exists, the handoff completes immediately
+   and the login form is never shown.
+3. Otherwise the user authenticates for real (Authenc + captcha).
+4. On success the Portal submits a hidden **form POST** to v1's
+   `auth/oauth-callback` with the JWT and the `state` nonce. A POST, not a
+   navigation with `?token=…`, so the token does not land in browser history,
+   access logs or `Referer` headers.
+5. v1 verifies the token through the gateway, establishes its own Laravel
+   session, and redirects to `return_to`.
 
-### 4. Cross-Version Session Management (1 test)
+`v1-sso-flow.spec.ts` covers both entry points — a direct deep link and a click
+on the **SIMPEL v1** card in the Portal apps catalogue — plus session reuse and
+persistence.
 
-- ✓ Session invalidation in v1 detected in Portal (via localStorage broadcast)
+## The apps catalogue
 
-### 5. gRPC Service Integration (1 test)
+The Portal apps page lists SIMPEL v1 and SIMPEL v2 as **two first-class cards**,
+not one card with a version dropdown: the user is choosing which application to
+open, not a setting inside one. The registry is
+`antarmuka/portal/src/features/microfrontends.rs`; the page is
+`antarmuka/portal/src/features/apps/mod.rs`. Both cards open in a new tab
+(`target="_blank"`), since each has its own session.
 
-- ✓ v1 connects to Authenc service on startup
-
-### 6. Error Handling (2 tests)
-
-- ✓ v1 handles invalid JWT token gracefully
-- ✓ v1 shows appropriate error messages
-
-### 7. Performance & Load (2 tests)
-
-- ✓ v1 health endpoint responds within 100ms
-- ✓ v1 dashboard loads within 3 seconds
-
-### 8. Accessibility (1 test)
-
-- ✓ v1 login form is keyboard accessible
-
-### 9. Security (1 test)
-
-- ✓ v1 CSRF token present in forms
-- ✓ v1 sets secure session cookie with httpOnly and secure flags
-
-## Running Tests
+## Running the tests
 
 ### Prerequisites
 
-```bash
-# Install Playwright
-npm install -D @playwright/test
-
-# Ensure services are running
-docker-compose up -d
-
-# Or run manually
-cargo run --bin layasan-perlengkapan
-cd monolith/simpelv1 && php artisan serve
-```
-
-### Run All Tests
+The stack must be up on one origin. In CI this is the `e2e-portal-cross-app` job;
+locally:
 
 ```bash
-npx playwright test
+docker compose -f docker-compose.yml -f docker-compose.e2e.yml --profile cross-app up -d \
+  postgres redis authenc layanan-integrasi layanan-perlengkapan perlengkapan portal \
+  simpelv1 gateway cross-app-ingress
 ```
 
-### Run Specific Test File
+Then seed the fixtures — **both** databases, in order:
 
 ```bash
-npx playwright test tests/e2e/simpelv1-integration.spec.ts
+docker compose -f docker-compose.yml -f docker-compose.e2e.yml run -T --rm e2e-seed \
+  -v ON_ERROR_STOP=1 -h postgres -U postgres -d dbsimpelv2 -f - \
+  < tests/fixtures/e2e/seed-multisatker.sql
+
+POSTGRES_PASSWORD=e2e_test_pw docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+  run -T --rm e2e-seed -v ON_ERROR_STOP=1 -v "pw=e2e_test_pw" \
+  -h postgres -U postgres -d dbsimpelv1 -f - \
+  < tests/fixtures/e2e/seed-simpelv1-schema.sql
 ```
 
-### Run Specific Test
+`dbsimpelv1` is created empty; without its schema and fixture user the OAuth
+callback dead-ends at "User tidak ditemukan di sistem".
+
+### Run
+
+Playwright runs from inside the e2e image (the specs need a browser + the stack
+network):
 
 ```bash
-npx playwright test -g "Portal shows v1/v2 selector"
+docker run --rm --network "$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)" \
+  -e BASE_URL=http://cross-app-ingress:8080 \
+  simpel-e2e-portal npx playwright test --project=portal-cross-app
 ```
 
-### Run with Browser UI (Debug Mode)
+The `portal-core` project needs `PORTAL_URL` (not `BASE_URL`) because it drives
+the portal through Playwright `page.route()` proxies rather than the ingress:
 
 ```bash
-npx playwright test --ui
+docker run --rm --network "$NET" \
+  -e BASE_URL=http://portal:8080 \
+  -e PORTAL_URL=http://portal:8080 \
+  -e AUTHENC_URL=http://authenc:8088 \
+  simpel-e2e-portal npx playwright test --project=portal-core
 ```
 
-### Run Tests in Headed Mode
+### Captcha
 
-```bash
-npx playwright test --headed
-```
+Authenc only demands a captcha after repeated failures
+(`captcha_threshold`), so a fresh correct login needs none. The e2e stack builds
+Authenc with `CAPTCHA_DEBUG=1`, and specs call
+`skipUnlessCaptchaDebug(page.request)` to skip themselves rather than fail
+against a stack that cannot answer a challenge.
 
-## Test Results
+The widget fetches its challenge **during page load**, which is earlier than a
+listener attached after `goto` can see it — so a spec that needs to solve a
+captcha must call `trackCaptchaChallenges(page)` **before** navigating, then pass
+the returned getter into `loginViaSameOriginUi(page, user, getCaptchaAnswer)`.
 
-Tests generate reports in multiple formats:
+## CI
 
-- **HTML Report**: `playwright-report/index.html`
-- **JUnit XML**: `test-results/junit.xml`
-- **GitHub**: Integrated with CI/CD
-
-View HTML report:
-
-```bash
-npx playwright show-report
-```
-
-## Performance Benchmarks
-
-Target metrics for SIMPEL v1/v2 integration:
-
-| Metric | Target | Actual |
-|--------|--------|--------|
-| Health endpoint response | < 100ms | — |
-| Dashboard load time | < 3s | — |
-| OAuth callback | < 2s | — |
-| Form submission | < 1s | — |
+| Job | Blocking? | Stack |
+|---|---|---|
+| `e2e-portal` | **yes** (`ci-summary.needs`) | portal + authenc |
+| `e2e-perlengkapan` | **yes** | both FEs + backends |
+| `e2e-portal-cross-app` | no — opt-in via `E2E_INTEGRATION_ENABLED` / `run_e2e` | single origin incl. v1 |
+| `e2e-integrasi-authenc` | no — opt-in | authenc + secreton + integrasi |
+| `e2e-simpelv1-integration` | no — opt-in | PHPUnit `IntegrationLive` vs the real gateway |
 
 ## Troubleshooting
 
-### Services Not Starting
+### v1 bounces but the post-login redirect 404s
 
-```bash
-# Check if ports are in use
-lsof -i :3000 :8000 :3020 :50051
+Check the prefix survived. v1 forces its URL root from `APP_URL`
+(`AppServiceProvider::boot`), the ingress must forward `$http_host` (**not**
+`$host`, which drops the port) and must strip `/perlengkapan/simpel/v1` with a
+`rewrite` before PHP sees the request. `v1-sso-flow.spec.ts` asserts the prefix
+and the port explicitly for exactly this reason.
 
-# Kill processes if needed
-kill -9 <PID>
+### "User tidak ditemukan di sistem" after a valid token
 
-# Start fresh
-docker-compose down && docker-compose up
-```
+The OAuth callback resolves the v1 row by **`nip`** (`$claims['nip'] ??
+$claims['username']`), not by `sub` — `sub` is the Authenc user UUID and matches
+no v1 row. Make sure `seed-simpelv1-schema.sql` ran and the fixture NIP exists in
+`dbsimpelv1`.
 
-### Tests Timing Out
+### Seed fails with `other objects depend on it`
 
-Increase test timeout in `playwright.config.ts`:
+`seed-simpelv1-schema.sql` drops and recreates the foreign table, so dependent
+views must be dropped first. The file already handles this; if you add a view,
+add it to the drop list too.
 
-```typescript
-use: {
-  navigationTimeout: 30000,
-  actionTimeout: 10000,
-}
-```
+### Captcha answer never arrives
 
-### CSRF Token Errors
-
-Ensure CSRF middleware is enabled in Laravel:
-
-```bash
-# In monolith/simpelv1
-php artisan config:cache
-```
-
-### gRPC Connection Errors
-
-Verify gRPC services are running:
-
-```bash
-# Check service health
-grpcurl -plaintext localhost:50051 list
-grpcurl -plaintext localhost:50053 list
-grpcurl -plaintext localhost:50052 list
-```
-
-## CI/CD Integration
-
-### GitLab CI
-
-Tests run in the `e2e-test` stage:
-
-```yaml
-e2e:simpelv1:
-  stage: e2e-test
-  script:
-    - npx playwright test
-```
-
-### GitHub Actions
-
-Tests run via `.github/workflows/e2e.yml`:
-
-```bash
-npm run test:e2e
-```
-
-## Contributing
-
-When adding new tests:
-
-1. Follow the existing test structure
-2. Use descriptive test names
-3. Add appropriate test.describe() groups
-4. Include comments for complex test logic
-5. Ensure tests are idempotent (can run multiple times)
-6. Test both happy path and error scenarios
-7. Consider accessibility (keyboard navigation, screen readers)
-8. Test on multiple browsers if critical functionality
-
-## References
-
-- [Playwright Documentation](https://playwright.dev/)
-- [Playwright Best Practices](https://playwright.dev/docs/best-practices)
-- [SIMPEL Architecture](./AGENTS.md)
-- [Laravel Testing](https://laravel.com/docs/testing)
+Attach `trackCaptchaChallenges(page)` before the navigation that loads the login
+page — see "Captcha" above.

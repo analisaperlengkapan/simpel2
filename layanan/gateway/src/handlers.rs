@@ -63,6 +63,12 @@ pub fn map_validate(resp: ValidateTokenResponse) -> (StatusCode, Value) {
             "roles": resp.realm_roles,
             "scopes": resp.scopes,
             "exp": resp.expires_at,
+            // Account-policy flags: the PHP `verifyToken` reads these off the
+            // returned claims so `oauthCallback` can refuse to create a full
+            // session while a password change / MFA enrolment is still owed
+            // (the portal enforces the same two flags client-side).
+            "require_password_change": resp.require_password_change.unwrap_or(false),
+            "mfa_setup_required": resp.mfa_setup_required.unwrap_or(false),
         });
         (StatusCode::OK, json!({ "claims": claims }))
     } else {
@@ -429,6 +435,8 @@ mod tests {
             jabatan: Some("Operator".to_string()),
             satker_code: Some("0200010".to_string()),
             realm_roles: vec!["operator_satker".to_string()],
+            require_password_change: None,
+            mfa_setup_required: None,
         }
     }
 
@@ -439,6 +447,21 @@ mod tests {
         assert_eq!(body["claims"]["sub"], "u1");
         assert_eq!(body["claims"]["satker_code"], "0200010");
         assert_eq!(body["claims"]["roles"][0], "operator_satker");
+        // Policy flags default to `false` when the issuer does not set them, so
+        // the PHP callback can read the key unconditionally.
+        assert_eq!(body["claims"]["require_password_change"], false);
+        assert_eq!(body["claims"]["mfa_setup_required"], false);
+    }
+
+    #[test]
+    fn policy_flags_reach_the_php_claims() {
+        let mut resp = valid_resp();
+        resp.require_password_change = Some(true);
+        resp.mfa_setup_required = Some(true);
+        let (code, body) = map_validate(resp);
+        assert_eq!(code, StatusCode::OK);
+        assert_eq!(body["claims"]["require_password_change"], true);
+        assert_eq!(body["claims"]["mfa_setup_required"], true);
     }
 
     #[test]

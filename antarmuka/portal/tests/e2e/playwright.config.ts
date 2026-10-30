@@ -60,11 +60,13 @@ export default defineConfig({
    * proxied to authenc by page.route) — need only portal + authenc. The other
    * specs need MORE than the portal stack and are split into their own
    * non-gating projects so the gate's stack matches what it runs:
-   *   - portal-cross-app  (auth-login-flow): REAL cross-app SSO (portal login
-   *     → perlengkapan dashboard via the same-origin JWT). Runs in the
-   *     e2e-portal-cross-app job against the single-origin `cross-app-ingress`
-   *     (both FEs + /api on one origin, mirroring the prod Istio VS); baseURL
-   *     is that ingress (BASE_URL env).
+   *   - portal-cross-app  (auth-login-flow, v1-sso-flow): REAL cross-app SSO.
+   *     auth-login-flow covers portal → perlengkapan (v2) via the same-origin
+   *     JWT; v1-sso-flow covers portal ↔ SIMPEL v1 (legacy Laravel), which
+   *     delegates differently — v1 has no login page and hands the token back
+   *     with a form POST. Both run in the e2e-portal-cross-app job against the
+   *     single-origin `cross-app-ingress` (both FEs + v1 + /api on one origin,
+   *     mirroring the prod Istio VS); baseURL is that ingress (BASE_URL env).
    *   - portal-integration (integrasi-authenc-e2e): gRPC against
    *     layanan-integrasi → needs that service up (backend integration).
    * (portal-screenshots was deleted in F-E2E E-6: screenshots are failure
@@ -87,7 +89,7 @@ export default defineConfig({
     {
       name: 'portal-cross-app',
       use: { ...devices['Desktop Chrome'] },
-      testMatch: ['**/auth-login-flow.spec.ts'],
+      testMatch: ['**/auth-login-flow.spec.ts', '**/v1-sso-flow.spec.ts'],
     },
     {
       name: 'portal-integration',

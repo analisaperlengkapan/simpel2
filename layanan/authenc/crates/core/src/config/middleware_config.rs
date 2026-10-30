@@ -79,6 +79,8 @@ impl Default for AdaptiveRateLimitConfig {
 /// MFA-specific rate limiting configuration
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MfaRateLimitConfig {
+    /// Whether MFA-specific rate limiting is applied at all
+    pub enabled: bool,
     /// Maximum MFA verification attempts per minute per IP
     pub max_attempts_per_minute_per_ip: u32,
     /// Maximum MFA verification attempts per minute per user
@@ -102,6 +104,7 @@ pub struct MfaRateLimitConfig {
 impl Default for MfaRateLimitConfig {
     fn default() -> Self {
         Self {
+            enabled: true,
             max_attempts_per_minute_per_ip: 10,
             max_attempts_per_minute_per_user: 5,
             max_setup_attempts_per_hour_per_ip: 3,

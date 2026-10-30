@@ -22,6 +22,7 @@ mod security_test_utils {
     /// Create test rate limiter configuration
     pub fn create_test_rate_limiter_config() -> MfaRateLimitConfig {
         MfaRateLimitConfig {
+            enabled: true,
             max_attempts_per_minute_per_ip: 10,
             max_attempts_per_minute_per_user: 3,
             max_setup_attempts_per_hour_per_ip: 5,

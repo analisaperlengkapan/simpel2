@@ -76,6 +76,39 @@ class Kernel extends HttpKernel
     ];
 
     /**
+     * The application's route middleware priority.
+     *
+     * `token2oauth` MUST run before `auth`. It is the middleware that, for an
+     * unauthenticated browser, starts the Portal OAuth flow (stashing the
+     * single-use `state`) instead of letting `auth` 302 to the local login
+     * form. Laravel sorts route middleware by this list, and `Authenticate` is
+     * on the framework default list — so without the entries below `auth` wins
+     * the sort regardless of the order written in the route group, and every
+     * protected v1 route answers `302 /auth/login`. The Portal flow then never
+     * starts, which is what made the v1↔Portal handoff dead on arrival.
+     *
+     * `cross-tab-session` and `authenc-revocation` come after `auth` because
+     * both read the authenticated session.
+     *
+     * @var array<int, class-string|string>
+     */
+    protected $middlewarePriority = [
+        HandlePrecognitiveRequests::class,
+        EncryptCookies::class,
+        AddQueuedCookiesToResponse::class,
+        StartSession::class,
+        ShareErrorsFromSession::class,
+        TokenToOAuthMiddleware::class,
+        Authenticate::class,
+        Ensure2FAIsVerified::class,
+        ValidateCrossTabSession::class,
+        EnforceTokenRevocation::class,
+        ThrottleRequests::class,
+        SubstituteBindings::class,
+        Authorize::class,
+    ];
+
+    /**
      * The application's middleware aliases.
      *
      * Aliases may be used instead of class names to conveniently assign middleware to routes and groups.

@@ -470,9 +470,12 @@ class AuthController extends Controller
                     ->with('error', 'Sesi OAuth tidak valid, silakan login ulang');
             }
 
-            // Validasi JWT token via Authenc gRPC
-            // TODO: Implement gRPC call ke Authenc::verify($token)
-            // Untuk sekarang, decode JWT secara manual (production harus via gRPC)
+            // Verify the JWT with authenc. `verifyJwtToken` goes through the
+            // gateway sidecar to authenc's ValidateToken, so the signature,
+            // expiry and revocation are checked by the issuer — nothing here
+            // decodes the token locally. (An older comment in this spot said
+            // the opposite — "decode JWT secara manual" — and a reader trusting
+            // it would have concluded this endpoint accepts forged tokens.)
             $claims = $this->verifyJwtToken($token);
 
             if (! $claims) {
@@ -480,8 +483,48 @@ class AuthController extends Controller
                     ->with('error', 'Token tidak valid');
             }
 
-            // Cari atau buat user di database
-            $username = $claims['sub'] ?? null;
+            // Enforce account-policy flags carried by the token.
+            //
+            // The Portal already refuses to hand a token back while one of
+            // these steps is outstanding (see `legacy_handoff.rs`), but that is
+            // a client-side check: nothing stops a caller from POSTing the
+            // token straight at this callback. Enforcing it here as well means
+            // a token that still owes a password change or MFA enrolment cannot
+            // create a full v1 session by skipping the Portal (CWE-841).
+            //
+            // Deliberately before any DB lookup: this is a property of the
+            // token, so a rejected caller must not reach `Pengguna::where(...)`
+            // (nor the auto-provisioning below).
+            if (! empty($claims['require_password_change'])) {
+                Log::warning('OAuth callback rejected: password change required', [
+                    'ip' => $request->ip(),
+                ]);
+
+                return redirect()->route('login')
+                    ->with('error', 'Anda harus mengganti kata sandi terlebih dahulu melalui Portal');
+            }
+
+            if (! empty($claims['mfa_setup_required'])) {
+                Log::warning('OAuth callback rejected: MFA enrolment required', [
+                    'ip' => $request->ip(),
+                ]);
+
+                return redirect()->route('login')
+                    ->with('error', 'Anda harus mengaktifkan autentikasi dua faktor terlebih dahulu melalui Portal');
+            }
+
+            // Resolve the v1 user from the token.
+            //
+            // The token's `sub` is the authenc user UUID (see
+            // `build_user_custom_claims` / `validate_token` in
+            // layanan/authenc), NOT a username — so `username`/`nip` are the
+            // only fields that can key a v1 row. Reading `sub` directly
+            // matched nothing and every real login dead-ended at "User tidak
+            // ditemukan di sistem".
+            //
+            // v1 keys users by NIP, so prefer `nip` and fall back to
+            // `username` for tokens minted before the claim existed.
+            $username = $claims['nip'] ?? $claims['username'] ?? null;
             if (! $username) {
                 return redirect()->route('login')
                     ->with('error', 'Username tidak ditemukan di token');
