@@ -72,17 +72,23 @@ mod session_management_tests {
         assert!(!AuthService::is_session_valid(&expired_session));
     }
 
-    /// Test session without expiration
+    /// Test session without expiration.
+    ///
+    /// Both predicates fail closed on an unknown expiry. `expires_at` is
+    /// `Option` because the field is `#[serde(default)]` from `localStorage`,
+    /// so `None` means the payload carried no expiry (an older build, or a
+    /// hand-edited `auth_token`) — not "never expires". Treating it as valid
+    /// turned a missing field into an unbounded session; treating it as
+    /// "refresh now" either restores a known-good `expires_at` or ends the
+    /// session.
     #[test]
     fn test_session_without_expiration() {
         let mut session = create_test_session(3600);
-        session.expires_at = None; // No expiration set
+        session.expires_at = None; // Unknown expiration
 
-        // Session without expiration should be considered valid
-        assert!(AuthService::is_session_valid(&session));
+        assert!(!AuthService::is_session_valid(&session));
 
-        // Session without expiration should not need refresh
-        assert!(!AuthService::should_refresh_token(&session));
+        assert!(AuthService::should_refresh_token(&session));
     }
 
     /// Test token structure validation

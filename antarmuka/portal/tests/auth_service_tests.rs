@@ -99,8 +99,15 @@ mod auth_service_tests {
         assert!(AuthService::is_session_valid(&valid_session));
     }
 
+    /// A session with no `expires_at` must be REFUSED, not trusted forever.
+    ///
+    /// `expires_at` is `Option` because the field is `#[serde(default)]` from
+    /// `localStorage`, so `None` means the payload carried no expiry (an older
+    /// build, or a hand-edited `auth_token`) — not "never expires". Reading it
+    /// as valid turned a missing field into an unbounded session, which is the
+    /// hole `is_session_valid` now closes.
     #[test]
-    fn test_session_validation_no_expiry() {
+    fn test_session_validation_no_expiry_fails_closed() {
         let session_no_expiry = UserSession {
             id: "test-id".to_string(),
             username: "test@kejaksaan.go.id".to_string(),
@@ -115,11 +122,11 @@ mod auth_service_tests {
             created_at: Some(chrono::Utc::now().to_rfc3339()),
             access_token: Some("test_token".to_string()),
             refresh_token: Some("test_refresh".to_string()),
-            expires_at: None, // No expiration
+            expires_at: None, // Unknown expiry -> treated as expired
             ..Default::default()
         };
 
-        assert!(AuthService::is_session_valid(&session_no_expiry));
+        assert!(!AuthService::is_session_valid(&session_no_expiry));
     }
 
     #[test]
