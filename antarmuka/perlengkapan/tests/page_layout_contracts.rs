@@ -83,7 +83,10 @@ fn layout_module_exposes_required_primitives() {
         "section_card",
         "stat_card",
         "form_layout",
-        "data_table",
+        // No `data_table`: #901 deleted `layout/data_table.rs` as dead code (no
+        // page used it) and left this list naming it. Nothing noticed, because
+        // CI never ran this crate's host tests — which is what this change also
+        // fixes.
         "loading_state",
         "empty_state",
         "error_state",

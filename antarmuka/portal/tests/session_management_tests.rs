@@ -32,7 +32,6 @@ mod session_management_tests {
             access_token: Some("test_access_token".to_string()),
             refresh_token: Some("test_refresh_token".to_string()),
             expires_at: Some(expires_at.timestamp()),
-            permissions: vec!["user:read".to_string()],
             ..Default::default()
         }
     }
@@ -100,78 +99,6 @@ mod session_management_tests {
         assert!(!AuthService::validate_token_structure("a.b.c.d")); // Too many parts
     }
 
-    /// Test permission checking
-    #[test]
-    fn test_permission_checking() {
-        let mut session = create_test_session(3600);
-        session.permissions = vec![
-            "user:read".to_string(),
-            "user:write".to_string(),
-            "document:read".to_string(),
-        ];
-
-        // Exact permission matches
-        assert!(AuthService::has_permission(&session, "user:read"));
-        assert!(AuthService::has_permission(&session, "user:write"));
-        assert!(AuthService::has_permission(&session, "document:read"));
-
-        // Permission not granted
-        assert!(!AuthService::has_permission(&session, "admin:delete"));
-        assert!(!AuthService::has_permission(&session, "document:write"));
-    }
-
-    /// Test wildcard permission checking
-    #[test]
-    fn test_wildcard_permission_checking() {
-        let mut session = create_test_session(3600);
-        session.permissions = vec!["admin:*".to_string(), "user:read".to_string()];
-
-        // Wildcard should match all admin permissions
-        assert!(AuthService::has_permission(&session, "admin:read"));
-        assert!(AuthService::has_permission(&session, "admin:write"));
-        assert!(AuthService::has_permission(&session, "admin:delete"));
-        assert!(AuthService::has_permission(&session, "admin:anything"));
-
-        // Specific permission should work
-        assert!(AuthService::has_permission(&session, "user:read"));
-
-        // Wildcard should not match other namespaces
-        assert!(!AuthService::has_permission(&session, "user:write"));
-        assert!(!AuthService::has_permission(&session, "document:read"));
-    }
-
-    /// Test multiple wildcard permissions
-    #[test]
-    fn test_multiple_wildcard_permissions() {
-        let mut session = create_test_session(3600);
-        session.permissions = vec![
-            "admin:*".to_string(),
-            "user:*".to_string(),
-            "document:read".to_string(),
-        ];
-
-        // Both wildcards should work
-        assert!(AuthService::has_permission(&session, "admin:read"));
-        assert!(AuthService::has_permission(&session, "user:write"));
-
-        // Specific permission should work
-        assert!(AuthService::has_permission(&session, "document:read"));
-
-        // Permission not granted
-        assert!(!AuthService::has_permission(&session, "document:write"));
-    }
-
-    /// Test session with no permissions
-    #[test]
-    fn test_session_with_no_permissions() {
-        let mut session = create_test_session(3600);
-        session.permissions = vec![];
-
-        // No permissions should be granted
-        assert!(!AuthService::has_permission(&session, "user:read"));
-        assert!(!AuthService::has_permission(&session, "admin:write"));
-    }
-
     /// Test token refresh response handling
     #[test]
     fn test_token_refresh_response() {
@@ -221,30 +148,92 @@ mod session_management_tests {
         // Admin session
         let mut admin_session = create_test_session(3600);
         admin_session.role = UserRole::Admin;
-        admin_session.permissions = vec!["admin:*".to_string()];
         assert!(AuthService::is_session_valid(&admin_session));
         assert!(admin_session.role.is_admin());
 
         // Supervisor session
         let mut supervisor_session = create_test_session(3600);
         supervisor_session.role = UserRole::Supervisor;
-        supervisor_session.permissions = vec!["user:read".to_string(), "user:write".to_string()];
         assert!(AuthService::is_session_valid(&supervisor_session));
         assert!(supervisor_session.role.can_manage_users());
 
         // Regular user session
         let mut user_session = create_test_session(3600);
         user_session.role = UserRole::User;
-        user_session.permissions = vec!["user:read".to_string()];
         assert!(AuthService::is_session_valid(&user_session));
         assert!(!user_session.role.is_admin());
 
         // Guest session
         let mut guest_session = create_test_session(3600);
         guest_session.role = UserRole::Guest;
-        guest_session.permissions = vec![];
         assert!(AuthService::is_session_valid(&guest_session));
         assert!(!guest_session.role.can_manage_users());
+    }
+
+    /// The IAM console gate: EXACT `admin`, nothing that merely looks like it.
+    ///
+    /// These replace six tests that pinned a permission vocabulary — `"admin:*"`,
+    /// `"user:read"`, wildcard namespaces — which no issuer in this system ever
+    /// minted. #930 removed `has_permission` for exactly that reason (it could
+    /// never match a real token), and the tests went unnoticed because CI never
+    /// compiled this crate's host test targets. What replaced the vocabulary is
+    /// `lib_core::authz`, and `can_administer_iam` is where this type uses it.
+    #[test]
+    fn test_iam_console_needs_the_exact_admin_role() {
+        let with_roles = |roles: &[&str]| {
+            let mut s = create_test_session(3600);
+            s.roles = roles.iter().map(|r| r.to_string()).collect();
+            s
+        };
+
+        assert!(with_roles(&["admin"]).can_administer_iam());
+        assert!(
+            with_roles(&["ADMIN"]).can_administer_iam(),
+            "role names are compared case-insensitively"
+        );
+        assert!(with_roles(&["validator_pusat", "admin"]).can_administer_iam());
+
+        // The bug #930 fixed was a prefix match: `starts_with("admin")` let
+        // these through. Each must be refused.
+        for lookalike in [
+            "admin_master_read_only",
+            "administrative",
+            "admin_audit_log",
+            "admin_pusat",
+            "superadmin",
+        ] {
+            assert!(
+                !with_roles(&[lookalike]).can_administer_iam(),
+                "{lookalike} is not the IAM admin role"
+            );
+        }
+    }
+
+    /// `roles` is the authority whenever the token carried any; the single
+    /// `role` field is only a fallback for sessions persisted before `roles`
+    /// existed.
+    #[test]
+    fn test_iam_console_falls_back_to_role_only_when_roles_is_empty() {
+        let mut legacy_admin = create_test_session(3600);
+        legacy_admin.role = UserRole::Admin;
+        assert!(
+            legacy_admin.can_administer_iam(),
+            "a pre-`roles` admin session must not be locked out by the upgrade"
+        );
+
+        let mut legacy_user = create_test_session(3600);
+        legacy_user.role = UserRole::User;
+        assert!(!legacy_user.can_administer_iam());
+
+        // Once the token names roles, the old field no longer decides: an
+        // `Admin` role field next to roles without `admin` grants nothing.
+        let mut stale = create_test_session(3600);
+        stale.role = UserRole::Admin;
+        stale.roles = vec!["validator_pusat".to_string()];
+        assert!(
+            !stale.can_administer_iam(),
+            "the server-derived roles outrank a stale role field"
+        );
     }
 
     /// Test session serialization and deserialization

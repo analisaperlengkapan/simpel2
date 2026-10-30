@@ -70,7 +70,6 @@ mod auth_service_tests {
             access_token: Some("test_token".to_string()),
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() - 3600), // Expired 1 hour ago
-            permissions: vec![],
             ..Default::default()
         };
 
@@ -94,7 +93,6 @@ mod auth_service_tests {
             access_token: Some("test_token".to_string()),
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600), // Expires in 1 hour
-            permissions: vec![],
             ..Default::default()
         };
 
@@ -118,7 +116,6 @@ mod auth_service_tests {
             access_token: Some("test_token".to_string()),
             refresh_token: Some("test_refresh".to_string()),
             expires_at: None, // No expiration
-            permissions: vec![],
             ..Default::default()
         };
 
@@ -142,7 +139,6 @@ mod auth_service_tests {
             access_token: Some("test_token".to_string()),
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 240), // Expires in 4 minutes
-            permissions: vec![],
             ..Default::default()
         };
 
@@ -166,64 +162,10 @@ mod auth_service_tests {
             access_token: Some("test_token".to_string()),
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600), // Expires in 1 hour
-            permissions: vec![],
             ..Default::default()
         };
 
         assert!(!AuthService::should_refresh_token(&session));
-    }
-
-    #[test]
-    fn test_has_permission_exact_match() {
-        let session = UserSession {
-            id: "test-id".to_string(),
-            username: "test@kejaksaan.go.id".to_string(),
-            role: UserRole::User,
-            name: "Test User".to_string(),
-            email: "test@kejaksaan.go.id".to_string(),
-            avatar: None,
-            satuan_kerja: "Test Satuan Kerja".to_string(),
-            captcha_validated: true,
-            mfa_enabled: true,
-            mfa_setup_required: false,
-            created_at: Some(chrono::Utc::now().to_rfc3339()),
-            access_token: Some("test_token".to_string()),
-            refresh_token: Some("test_refresh".to_string()),
-            expires_at: Some(chrono::Utc::now().timestamp() + 3600),
-            permissions: vec!["user:read".to_string(), "user:write".to_string()],
-            ..Default::default()
-        };
-
-        assert!(AuthService::has_permission(&session, "user:read"));
-        assert!(AuthService::has_permission(&session, "user:write"));
-        assert!(!AuthService::has_permission(&session, "admin:delete"));
-    }
-
-    #[test]
-    fn test_has_permission_wildcard() {
-        let session = UserSession {
-            id: "test-id".to_string(),
-            username: "test@kejaksaan.go.id".to_string(),
-            role: UserRole::Admin,
-            name: "Admin User".to_string(),
-            email: "admin@kejaksaan.go.id".to_string(),
-            avatar: None,
-            satuan_kerja: "Admin Satuan Kerja".to_string(),
-            captcha_validated: true,
-            mfa_enabled: true,
-            mfa_setup_required: false,
-            created_at: Some(chrono::Utc::now().to_rfc3339()),
-            access_token: Some("test_token".to_string()),
-            refresh_token: Some("test_refresh".to_string()),
-            expires_at: Some(chrono::Utc::now().timestamp() + 3600),
-            permissions: vec!["admin:*".to_string()],
-            ..Default::default()
-        };
-
-        assert!(AuthService::has_permission(&session, "admin:read"));
-        assert!(AuthService::has_permission(&session, "admin:write"));
-        assert!(AuthService::has_permission(&session, "admin:delete"));
-        assert!(!AuthService::has_permission(&session, "user:read"));
     }
 
     #[tokio::test]
