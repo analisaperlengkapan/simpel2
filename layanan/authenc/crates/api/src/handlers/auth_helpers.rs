@@ -73,6 +73,34 @@ pub(crate) fn claims_are_mfa_pending(claims: &authenc_crypto::jwt::TokenClaims) 
         .unwrap_or(false)
 }
 
+/// The scope carried by every token minted by `generate_refresh_token` /
+/// `generate_refresh_token_with_active_role`. A token without it is some other
+/// kind of token (an access token, an MFA temp token, an OAuth2 access token)
+/// and must not be exchanged for a session.
+pub(crate) const REFRESH_TOKEN_SCOPE: &str = "refresh_token";
+
+/// Whether `claims` may be exchanged for a new session — i.e. this is a token
+/// that was actually minted as a **refresh** token and is not a
+/// half-authenticated pre-session token.
+///
+/// The scope test is a positive allowlist on purpose: the refresh endpoint is
+/// the one endpoint that mints sessions, so it accepts exactly the one token
+/// class intended for it. Denylisting `mfa_pending` alone would keep working
+/// until the next half-authenticated token class is invented, and then fail
+/// open. Any future pre-session token is rejected here without a code change.
+///
+/// The `mfa_pending` test is redundant with the scope test for tokens minted
+/// today (`generate_mfa_temp_token` sets `scope="mfa"`), but the two are
+/// independent facts about a token and a future minting site could satisfy one
+/// without the other. Both are checked, in one place, so no caller can forget
+/// one of them.
+///
+/// Mirrors the gRPC path (`crates/grpc/src/service.rs::refresh_token`), which
+/// applies the same scope check, so the two transports agree.
+pub(crate) fn token_is_exchangeable_for_session(claims: &authenc_crypto::jwt::TokenClaims) -> bool {
+    claims.scope.as_deref() == Some(REFRESH_TOKEN_SCOPE) && !claims_are_mfa_pending(claims)
+}
+
 /// Mint a short-lived (5 min) MFA-pending temp token after a correct password,
 /// when the account requires MFA. Carries `mfa_pending=true` so it cannot be used
 /// as an access token. The MFA verify handlers exchange it for full tokens.
@@ -348,6 +376,7 @@ pub fn build_user_custom_claims(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use authenc_crypto::jwt::TokenClaims;
     use axum::http::HeaderValue;
 
     #[test]
@@ -385,7 +414,6 @@ mod tests {
 
     #[test]
     fn test_mfa_pending_claim_detection() {
-        use authenc_crypto::jwt::TokenClaims;
         // A normal token has no mfa_pending claim → treated as fully authenticated.
         let plain = TokenClaims::new(
             Uuid::new_v4().to_string(),
@@ -407,6 +435,102 @@ mod tests {
         )
         .with_custom_claim(MFA_PENDING_CLAIM.to_string(), serde_json::json!(false));
         assert!(!claims_are_mfa_pending(&explicit_false));
+    }
+
+    /// Regression test for GHSA-3f53-j8mj-4gx6.
+    ///
+    /// `/auth/refresh` minted a full session from *any* correctly-signed token.
+    /// The decisive case is the half-authenticated MFA temp token, so that
+    /// negative assertion is the one that must never be dropped.
+    ///
+    /// Tokens are minted and verified with a real `JwtService` (not hand-built
+    /// structs), so the assertion covers the actual claim shape and scope
+    /// strings the crypto layer emits.
+    #[test]
+    fn only_refresh_tokens_may_be_exchanged_for_a_session() {
+        use authenc_crypto::jwt::JwtService;
+
+        let key = JwtService::generate_signing_key();
+        let jwt = JwtService::new(
+            &key,
+            "https://test.example.com".to_string(),
+            chrono::Duration::minutes(15),
+            chrono::Duration::days(7),
+        )
+        .unwrap();
+
+        let user = Uuid::new_v4().to_string();
+
+        // A real refresh token — exactly what login/refresh hand out.
+        let refresh = jwt.generate_refresh_token(&user, "sid-1").unwrap();
+        assert!(
+            token_is_exchangeable_for_session(&jwt.verify_token(&refresh).unwrap()),
+            "a genuine refresh token must remain exchangeable"
+        );
+
+        // A real access token.
+        let access = jwt
+            .generate_access_token(&user, None, Some("openid profile email".to_string()), None)
+            .unwrap();
+        assert!(!token_is_exchangeable_for_session(
+            &jwt.verify_token(&access).unwrap()
+        ));
+
+        // The half-authenticated MFA temp token. Built exactly as
+        // `generate_mfa_temp_token` builds it (scope "mfa" + mfa_pending=true);
+        // that function needs an `ApiState` and so a live DB, so the claims are
+        // reproduced here and then really signed and verified.
+        let mfa_temp = jwt
+            .generate_token(
+                &TokenClaims::new(
+                    user.clone(),
+                    jwt.issuer().to_string(),
+                    chrono::Duration::minutes(5),
+                )
+                .with_scope("mfa".to_string())
+                .with_custom_claim(MFA_PENDING_CLAIM.to_string(), serde_json::json!(true)),
+            )
+            .unwrap();
+        let mfa_claims = jwt.verify_token(&mfa_temp).unwrap();
+        assert!(claims_are_mfa_pending(&mfa_claims));
+        assert!(
+            !token_is_exchangeable_for_session(&mfa_claims),
+            "the MFA temp token must never mint a session (GHSA-3f53-j8mj-4gx6)"
+        );
+
+        // A token carrying no scope at all.
+        let scopeless = jwt
+            .generate_token(&TokenClaims::new(
+                user,
+                jwt.issuer().to_string(),
+                chrono::Duration::minutes(5),
+            ))
+            .unwrap();
+        assert!(!token_is_exchangeable_for_session(
+            &jwt.verify_token(&scopeless).unwrap()
+        ));
+    }
+
+    /// Defence in depth: the guard must not depend on every future minting site
+    /// remembering to clear `mfa_pending`, so the two facts are checked
+    /// independently rather than one implying the other.
+    #[test]
+    fn a_pending_claim_is_refused_even_with_the_refresh_scope() {
+        let contradictory = TokenClaims::new(
+            Uuid::new_v4().to_string(),
+            "iss".to_string(),
+            chrono::Duration::minutes(5),
+        )
+        .with_scope(REFRESH_TOKEN_SCOPE.to_string())
+        .with_custom_claim(MFA_PENDING_CLAIM.to_string(), serde_json::json!(true));
+        assert!(claims_are_mfa_pending(&contradictory));
+        assert!(!token_is_exchangeable_for_session(&contradictory));
+    }
+
+    #[test]
+    fn mfa_temp_token_scope_is_not_the_refresh_scope() {
+        // Guards the constant against drift from `generate_mfa_temp_token`.
+        assert_ne!(REFRESH_TOKEN_SCOPE, "mfa");
     }
 
     #[test]
