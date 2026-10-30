@@ -858,6 +858,26 @@ pub async fn refresh_token_handler(
         }
     };
 
+    // A session may only be minted from a token that was actually issued as a
+    // refresh token. Without this, any correctly-signed token was exchangeable
+    // here — including the half-authenticated MFA temp token (`scope="mfa"`,
+    // `mfa_pending=true`) handed out after a correct password but before the
+    // second factor, which let a password-only attacker obtain a full session
+    // and defeated MFA entirely (GHSA-3f53-j8mj-4gx6).
+    //
+    // Positive allowlist rather than a `mfa_pending` denylist: this is the one
+    // endpoint that mints sessions, so it accepts exactly the one token class
+    // meant for it, and any future pre-session token class is refused by
+    // construction. The gRPC path already checks the same scope.
+    if !auth_helpers::token_is_exchangeable_for_session(&claims) {
+        return ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
+            error: "invalid_token".to_string(),
+            message: "Token is not a refresh token".to_string(),
+        }
+        .into_response();
+    }
+
     // Extract user_id and session_id from token claims
     let uid = claims.sub.clone();
     let sid = claims.sid.as_deref().unwrap_or("").to_string();
