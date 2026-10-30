@@ -121,6 +121,7 @@ refinery = { workspace = true }
 tonic-prost-build = { workspace = true }
 
 [dev-dependencies]
+zip = { workspace = true }
 mockall = { workspace = true }
 mime = { workspace = true }
 axum-test = { workspace = true }

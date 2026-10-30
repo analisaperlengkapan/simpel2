@@ -38,19 +38,26 @@ ignore = [
   "RUSTSEC-2026-0163", # pqcrypto-internals (unmaintained)
   "RUSTSEC-2026-0165", # pqcrypto-falcon (unmaintained)
   "RUSTSEC-2026-0166", # pqcrypto-mldsa (unmaintained)
-  # unsafe-libyaml unmaintained: upstream repo archived 2024-03-25, last release
-  # 0.2.11. Maintenance-status only -- no CVE, and the advisory states
-  # "No safe upgrade is available!" (`patched = []`). It is a c2rust translation
-  # of libyaml reached through `serde_yaml 0.9.34+deprecated` (itself deprecated),
-  # which in turn arrives two ways:
-  #   1. transitively via kube-client 3.1 (secreton-k8s-operator),
-  #   2. directly -- `serde_yaml.workspace = true` in secreton-agent / -cli /
-  #      -k8s-operator for config + `--format yaml` output.
-  # Dropping it means either bumping kube to 4.x or porting all three crates to a
-  # maintained parser (serde-saphyr / noyalib); neither is a lockfile change, so
-  # neither belongs in this commit. Same posture as the pqcrypto-* entries above:
-  # archived upstream, frozen format, no security vulnerability.
-  "RUSTSEC-2024-0449", # unsafe-libyaml (unmaintained) - no patched version exists
+  # unsafe-libyaml (unmaintained, no vulnerability). Reached only through
+  # serde_yaml 0.9 (itself deprecated) in kube-client 3.1 and the secreton
+  # agent / cli / k8s-operator crates — none of which is built into any shipped
+  # image (the Dockerfiles build authenc, gateway, perlengkapan, integrasi and
+  # secreton-api only). kube 4.x moved to serde-saphyr, so upgrading the
+  # operator removes it.
+  "RUSTSEC-2024-0449",
+  # crypto-bigint 0.5 — timing variability in operations meant to be
+  # constant-time. Patched only in the 0.7 line; 0.5 is pulled by
+  # elliptic-curve 0.13 (p256/k256/p384, i.e. authenc-crypto and
+  # secreton-crypto) and by aws-sigv4 1.6.3, which is the latest release and
+  # still requires ^0.5. Exposure: secreton's transit engine signs with
+  # k256/p256 secret keys over its API, so a sufficiently precise remote timing
+  # attacker is the case this does not rule out; authenc only re-exports its
+  # ECDSA helpers and has no runtime signer on this path. Same class and same
+  # reason as RUSTSEC-2023-0071 (rsa, Marvin) above: no fixed version to move
+  # to. Remove when the curves move to RustCrypto 0.14 AND aws-sigv4 drops
+  # crypto-bigint 0.5 (it is optional there, behind sigv4a) — the stale-ignore
+  # guard fails this entry the day the advisory stops firing.
+  "RUSTSEC-2026-0387",
 ]
 
 [licenses]
@@ -132,4 +139,12 @@ unknown-git = "deny"
 # Allow crates from crates.io
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 # Allow git sources (for development)
-allow-git = []
+#
+# docx-rs is the one exception, and it is pinned to an immutable revision
+# rather than a branch: the released 0.4.22 pins zip ^8.6.0, and every zip <9
+# carries the extraction advisories (RUSTSEC-2026-0367..0369) plus
+# CVE-2026-115905 (zip <= 9.0.4, arbitrary file overwrite / RCE). Upstream
+# fixed it on main (PR #943/#944) without cutting a release, so the patch in
+# the root Cargo.toml takes that revision. Nothing else may be added here:
+# an entry that is not a pinned security backport belongs in a release.
+allow-git = ["https://github.com/bokuweb/docx-rs.git"]

@@ -789,59 +789,26 @@ fn evaluate_context_condition(line: &str, context: &serde_json::Value) -> bool {
     false
 }
 
-/// Evaluate a WASM-based Sentinel policy
-#[cfg(feature = "wasm")]
-async fn evaluate_wasm_policy(
-    policy: &SentinelPolicy,
-    _user: &str,
-    _path: &str,
-    _action: &str,
-    _context: Option<&serde_json::Value>,
-) -> bool {
-    use std::sync::OnceLock;
-    use wasmtime::{Engine, Instance, Module, Store};
-
-    static ENGINE: OnceLock<Engine> = OnceLock::new();
-    let engine = ENGINE.get_or_init(Engine::default);
-
-    match Module::new(engine, &policy.source_code) {
-        Ok(module) => {
-            let mut store = Store::new(engine, ());
-            match Instance::new(&mut store, &module, &[]) {
-                Ok(instance) => {
-                    if let Some(func) = instance.get_func(&mut store, "evaluate") {
-                        // Call the evaluate function
-                        // TODO: Pass proper arguments (user, path, action, context)
-                        match func.call(&mut store, &[], &mut []) {
-                            Ok(_) => {
-                                // TODO: Get actual return value
-                                debug!("WASM policy '{}' executed successfully", policy.name);
-                                true
-                            }
-                            Err(e) => {
-                                warn!("WASM policy '{}' execution failed: {}", policy.name, e);
-                                false
-                            }
-                        }
-                    } else {
-                        warn!("WASM policy '{}' missing 'evaluate' function", policy.name);
-                        false
-                    }
-                }
-                Err(e) => {
-                    warn!("Failed to instantiate WASM policy '{}': {}", policy.name, e);
-                    false
-                }
-            }
-        }
-        Err(e) => {
-            warn!("Failed to compile WASM policy '{}': {}", policy.name, e);
-            false
-        }
-    }
-}
-
-#[cfg(not(feature = "wasm"))]
+/// A WASM-typed Sentinel policy cannot be evaluated, so it DENIES.
+///
+/// There used to be two versions of this. Behind the `wasm` feature it
+/// compiled the module and called `evaluate` with no arguments ("TODO: Pass
+/// proper arguments"), ignored the return value ("TODO: Get actual return
+/// value"), and answered `true` — so a WASM policy that said "deny" allowed.
+/// Without the feature, which is every build that has ever shipped, it logged
+/// a warning and answered `true` as well: "Default to allow when WASM is
+/// disabled". A policy engine that cannot read a policy and grants access
+/// anyway is the one failure mode an access-control check must not have.
+///
+/// No build enabled the feature, and its only effect was to put `wasmtime` —
+/// and through it an advisory-flagged `zstd` 0.13 — into the lockfile. So the
+/// feature is gone and the one remaining answer is the safe one. When WASM
+/// policies are actually wanted, this is where a real evaluator goes, with the
+/// request passed in and the module's own verdict read back.
+///
+/// `evaluate_with_sentinel` has no production caller today (only tests), so
+/// nothing that runs changes behaviour; this closes the trap before something
+/// wires it up.
 async fn evaluate_wasm_policy(
     policy: &SentinelPolicy,
     _user: &str,
@@ -850,11 +817,10 @@ async fn evaluate_wasm_policy(
     _context: Option<&serde_json::Value>,
 ) -> bool {
     warn!(
-        "WASM feature disabled, cannot evaluate WASM policy '{}'",
+        "WASM Sentinel policy '{}' cannot be evaluated (no WASM runtime); denying",
         policy.name
     );
-    // Default to allow when WASM is disabled
-    true
+    false
 }
 
 // Contoh: policy as code (JSON)
@@ -1428,6 +1394,54 @@ mod tests {
             evaluate_with_sentinel(&sentinel_policies, "user1", "secret/foo", "read", None).await;
 
         assert!(result);
+    }
+
+    /// A WASM policy cannot be evaluated, so it must refuse — and only it.
+    ///
+    /// Both directions on the same request: the allowing EGP policy alone
+    /// grants, and adding a WASM policy turns that into a refusal. Without the
+    /// first half, an evaluator that denied everything would pass this test.
+    #[tokio::test]
+    async fn test_sentinel_wasm_policy_fails_closed() {
+        let allow = SentinelPolicy {
+            id: 1,
+            namespace: "default".to_string(),
+            name: "allow-policy".to_string(),
+            version: 1,
+            policy_type: "egp".to_string(),
+            source_code: "rule { allow }".to_string(),
+            egp: true,
+            rgp: false,
+            created_at: Utc::now(),
+        };
+        let wasm = SentinelPolicy {
+            id: 2,
+            namespace: "default".to_string(),
+            name: "wasm-policy".to_string(),
+            version: 1,
+            policy_type: "wasm".to_string(),
+            source_code: String::new(),
+            egp: true,
+            rgp: false,
+            created_at: Utc::now(),
+        };
+
+        let tanpa_wasm = evaluate_with_sentinel(
+            std::slice::from_ref(&allow),
+            "user1",
+            "secret/foo",
+            "read",
+            None,
+        )
+        .await;
+        assert!(tanpa_wasm, "the allowing policy alone must grant");
+
+        let dengan_wasm =
+            evaluate_with_sentinel(&[allow, wasm], "user1", "secret/foo", "read", None).await;
+        assert!(
+            !dengan_wasm,
+            "a policy the engine cannot evaluate must refuse, not allow"
+        );
     }
 
     #[tokio::test]
