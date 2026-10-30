@@ -328,6 +328,15 @@ pub fn MfaSetupPage() -> impl IntoView {
                                                             crate::features::auth::AuthService::clear_temp_token();
                                                             gloo_timers::future::TimeoutFuture::new(2000).await;
                                                             if is_mounted.load(Ordering::SeqCst) {
+                                                                // A v1 bounce parked while MFA setup was
+                                                                // outstanding can now complete: the session
+                                                                // no longer carries `mfa_setup_required`.
+                                                                if let Some(session) =
+                                                                    crate::features::auth::AuthService::load_session()
+                                                                    && crate::features::auth::legacy_handoff::complete_handoff_if_pending(&session)
+                                                                {
+                                                                    return;
+                                                                }
                                                                 nav("/login", Default::default());
                                                             }
                                                         }

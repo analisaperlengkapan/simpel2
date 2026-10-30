@@ -333,6 +333,11 @@ services:
     build:
       context: .
       dockerfile: monolith/simpelv1/Dockerfile
+    # Explicit, like every sibling service: without it compose names the built
+    # image `simpel2-simpelv1:latest`, while the e2e jobs push/pull
+    # `simpel2-simpelv1:local` — so the pull silently missed and compose rebuilt
+    # from source, blowing the 600s bring-up bound.
+    image: simpel2-simpelv1:local
     container_name: simpelv1
     ports:
       - "${SIMPELV1_HOST_PORT:-8000}:8080"
@@ -351,7 +356,22 @@ services:
       # group. Generate via `php artisan key:generate --show` and place
       # the resulting `base64:...` string in .env.
       APP_KEY: ${SIMPELV1_APP_KEY:?SIMPELV1_APP_KEY must be set in .env (use `php artisan key:generate --show`)}
-      PORTAL_URL: http://localhost:3000/portal
+      # The public mount point, mirroring `simpelv1.appUrl` in
+      # infra/helm/simpel/values.yaml. `AppServiceProvider::boot` takes the PATH
+      # from here — the host is rebuilt from each request — and forces it as the
+      # URL root, so v1 emits redirects under the same prefix the ingress strips
+      # before PHP sees the request. Without it v1 falls back to the config
+      # default `http://localhost`, i.e. an empty path, and answers
+      # `Location: .../auth/login` with no prefix — a path the ingress does not
+      # route, so the whole SSO handoff 404s.
+      APP_URL: ${SIMPELV1_APP_URL:-http://localhost/perlengkapan/simpel/v1}
+      # Origin-relative on purpose. v1 and the portal are served from ONE origin
+      # (prod Istio VS; the cross-app ingress in e2e), so a relative target
+      # resolves correctly wherever the deployment is reachable — whereas an
+      # absolute `http://localhost:3000/portal` is wrong for every browser that
+      # is not on the compose host (notably the Playwright container, which
+      # talks to `cross-app-ingress:8080`).
+      PORTAL_URL: ${SIMPELV1_PORTAL_URL:-/portal}
       # The PHP gateway clients read *_GATEWAY_URL (see
       # `monolith/simpelv1/app/Services/Grpc/*GrpcClient.php`) and speak REST to
       # the `gateway` sidecar, which holds the gRPC channels upstream. All three

@@ -35,7 +35,6 @@ mod mfa_flow_tests {
             access_token: Some("test_token".to_string()),
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
-            permissions: vec![],
             ..Default::default()
         };
 
@@ -62,7 +61,6 @@ mod mfa_flow_tests {
             access_token: Some("test_token".to_string()),
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
-            permissions: vec![],
             ..Default::default()
         };
 
@@ -90,7 +88,6 @@ mod mfa_flow_tests {
             access_token: Some("test_token".to_string()),
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
-            permissions: vec![],
             ..Default::default()
         };
 
@@ -125,7 +122,6 @@ mod mfa_flow_tests {
             access_token: Some("test_token".to_string()),
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
-            permissions: vec![],
             ..Default::default()
         };
 
@@ -152,7 +148,6 @@ mod mfa_flow_tests {
             access_token: Some("test_token".to_string()),
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
-            permissions: vec!["admin:*".to_string()],
             ..Default::default()
         };
 
@@ -172,7 +167,6 @@ mod mfa_flow_tests {
             access_token: Some("test_token".to_string()),
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
-            permissions: vec!["user:read".to_string(), "user:write".to_string()],
             ..Default::default()
         };
 
@@ -192,7 +186,6 @@ mod mfa_flow_tests {
             access_token: Some("test_token".to_string()),
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
-            permissions: vec!["user:read".to_string()],
             ..Default::default()
         };
 
@@ -220,7 +213,6 @@ mod mfa_flow_tests {
             access_token: Some("test_token".to_string()),
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
-            permissions: vec![],
             ..Default::default()
         };
 
@@ -247,7 +239,6 @@ mod mfa_flow_tests {
             access_token: Some("test_token".to_string()),
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
-            permissions: vec![],
             ..Default::default()
         };
 
@@ -291,7 +282,6 @@ mod mfa_flow_tests {
             access_token: Some("test_token".to_string()),
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
-            permissions: vec![],
             ..Default::default()
         };
 

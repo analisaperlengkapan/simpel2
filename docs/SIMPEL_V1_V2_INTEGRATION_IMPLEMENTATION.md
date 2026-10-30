@@ -16,7 +16,7 @@ Successfully implemented comprehensive integration between SIMPEL v2 (Modern Rus
 
 | Phase | Component | Status | Lines | Commits |
 |-------|-----------|--------|-------|---------|
-| 1 | Portal UI Submenu | ✅ Complete | 250+ | 1 |
+| 1 | Portal apps catalogue (v1/v2 cards) | ✅ Complete | 250+ | 1 |
 | 2 | v1 OAuth Middleware | ✅ Complete | 165+ | 1 |
 | 3 | Docker Containerization | ✅ Complete | 150+ | 1 |
 | 4 | K8s Deployment | ✅ Complete | 480+ | 1 |
@@ -35,21 +35,29 @@ Successfully implemented comprehensive integration between SIMPEL v2 (Modern Rus
 
 ## Phase Deliverables
 
-### Phase 1: Portal UI Submenu ✅
+### Phase 1: Portal apps catalogue ✅
 
-**Objective**: Create smooth expandable submenu for selecting v1 vs v2
+**Objective**: Let the user choose between the two SIMPEL implementations
 
 **Deliverables**:
 
-- `antarmuka/portal/src/features/microfrontends.rs`: Added `SubApp` struct for submenu variants
-- `antarmuka/portal/src/pages/apps.rs`: 230+ lines of animated dropdown component
-  - Expandable button with SVG chevron-down icon
-  - Smooth 300ms height/opacity transition
-  - Responsive grid layout
-  - v1: id="perlengkapan-v1", name="SIMPEL v1 (Legacy)", url="/perlengkapan/simpel/v1"
-  - v2: id="perlengkapan-v2", name="SIMPEL v2 (Modern)", url="/perlengkapan/simpel/v2"
+- `antarmuka/portal/src/features/microfrontends.rs`: registry with
+  `perlengkapan-v1` and `perlengkapan-v2` entries
+- `antarmuka/portal/src/features/apps/mod.rs`: responsive card grid
+  - Each app is its own card with icon, description and category
+  - v1: id="perlengkapan-v1", name="SIMPEL v1", url="/perlengkapan/simpel/v1"
+  - v2: id="perlengkapan-v2", name="SIMPEL v2", url="/perlengkapan/simpel/v2"
+  - Cards open in a new tab (`target="_blank"`); each app has its own session
 
-**Test**: ✅ Verified smooth expand/collapse animation and proper rendering
+> **Revised.** The first cut rendered ONE card with an expandable submenu
+> (`SubApp` struct, `src/pages/apps.rs`). That was replaced: the user is picking
+> which *application* to open, not a setting inside one, and a collapsed
+> dropdown hides a whole system behind a click. The `SubApp` struct is gone and
+> the page lives at `features/apps/mod.rs`. See
+> `monolith/simpelv1/AGENTS.md` → "v1 ↔ v2 Boundary" for why both stay live.
+
+**Test**: ✅ `portal-core-workflow.spec.ts` asserts both cards render with their
+launch URLs; `v1-sso-flow.spec.ts` clicks the v1 card and follows it through.
 
 ---
 
@@ -61,26 +69,37 @@ Successfully implemented comprehensive integration between SIMPEL v2 (Modern Rus
 
 - `monolith/simpelv1/app/Http/Middleware/TokenToOAuthMiddleware.php`: Intercepts unauthenticated requests, redirects to Portal OAuth flow
 - `monolith/simpelv1/app/Http/Controllers/AuthController.php`:
-  - `oauthCallback()`: Receives JWT from Portal, validates, creates session
-  - `verifyJwtToken()`: Decodes JWT claims (TODO: Replace with Authenc gRPC call)
-- `monolith/simpelv1/routes/web.php`: Added `/auth/oauth-callback` GET route
+  - `oauthCallback()`: Receives JWT from Portal, validates via the gateway, creates session
+- `monolith/simpelv1/routes/web.php`: Added `/auth/oauth-callback` POST route
 - `monolith/simpelv1/app/Http/Kernel.php`: Registered middleware alias `'token2oauth'`
-- `monolith/simpelv1/.env`: Added OAuth config (PORTAL_URL, gRPC endpoints)
+- `monolith/simpelv1/.env`: Added OAuth config (PORTAL_URL, gateway endpoints)
 
 **Authentication Flow**:
 
 ```
 1. User unauthenticated in v1
 2. TokenToOAuthMiddleware intercepts request
-3. Redirects to Portal: {portal_url}/login?return_to=/perlengkapan/simpel/v1
-4. User logs in via Portal (Authenc gRPC)
-5. Portal generates JWT token
-6. Portal redirects to v1: /auth/oauth-callback?token={JWT}
-7. AuthController validates JWT, creates Laravel session
-8. User redirected to /perlengkapan/simpel/v1/dashboard
+3. Redirects to Portal: {portal_url}/login?return_to=<v1 url>&callback=<v1 callback>&state=<nonce>
+4. User logs in via Portal (Authenc), or an existing session is reused
+5. Portal submits a hidden form POST to v1's /auth/oauth-callback with {token, state}
+6. AuthController verifies the JWT through the gateway, creates a Laravel session
+7. User redirected to return_to (the prefixed v1 URL they asked for)
 ```
 
-**Test**: ✅ Verified OAuth redirect and session creation
+**Two things the first cut got wrong, both fixed:**
+
+- `$middlewarePriority` in `Kernel.php` — Laravel sorts route middleware by that
+  list, and `Authenticate` is on the framework default, so `auth` won the sort
+  over `token2oauth` regardless of route-group order. Every protected v1 route
+  answered `302 /auth/login` and the Portal flow never started.
+- The callback resolved the v1 user from `$claims['sub']`, which is the Authenc
+  user **UUID**, not a username — no v1 row matched, so every real login
+  dead-ended at "User tidak ditemukan di sistem". It now reads `nip` (falling
+  back to `username`).
+
+**Test**: ✅ `v1-sso-flow.spec.ts` (6 tests, real Authenc login over the
+single-origin ingress) covers the bounce, the handoff, the apps-page entry
+point, session reuse and persistence.
 
 ---
 
@@ -337,13 +356,17 @@ window.addEventListener('storage', (e) => {
 
 **Deliverables**:
 
-- `tests/e2e/simpelv1-integration.spec.ts`: 18+ test scenarios
-  - Portal navigation (4 tests)
-  - v1 OAuth flow (4 tests)
-  - v2 navigation (1 test)
-  - Session management (1 test)
-  - gRPC integration (1 test)
-  - Error handling (2 tests)
+- `antarmuka/portal/tests/e2e/v1-sso-flow.spec.ts`: 6 scenarios, all against the
+  real stack over the single-origin ingress
+  - v1 bounce carries a prefixed `return_to` + `callback` + single-use `state`
+  - real login hands the JWT back and renders the v1 dashboard
+  - launching v1 from the Portal apps page lands on the v1 dashboard
+  - v1 session persists across navigation (no re-bounce)
+  - an existing Portal session is reused instead of prompting again
+- `antarmuka/portal/tests/e2e/auth-login-flow.spec.ts`: the v2 (perlengkapan)
+  counterpart of the same SSO boundary
+- `antarmuka/portal/tests/e2e/portal-core-workflow.spec.ts`: asserts the apps
+  catalogue renders both SIMPEL v1 and v2 as clickable cards
   - Performance (2 tests)
   - Accessibility (1 test)
   - Security (2 tests)
@@ -436,11 +459,11 @@ window.addEventListener('storage', (e) => {
 
 ### E2E Tests
 
-- Portal submenu expansion/collapse
-- OAuth flow end-to-end
-- Cross-version navigation
-- Session invalidation
-- Error handling
+- Apps catalogue renders v1 and v2 as separate cards
+- OAuth flow end-to-end (portal → v1 handoff via form POST)
+- Cross-version navigation (v1 deep link and apps-page click)
+- Session reuse and persistence
+- Captcha gating (skips rather than fails when `CAPTCHA_DEBUG` is off)
 - Performance benchmarks
 
 ### Security Tests
@@ -583,8 +606,8 @@ window.addEventListener('storage', (e) => {
 
 **Tests (tests/)**:
 
-- `e2e/simpelv1-integration.spec.ts` (created)
-- `playwright.config.ts` (created)
+- `antarmuka/portal/tests/e2e/v1-sso-flow.spec.ts` (created)
+- `antarmuka/portal/tests/e2e/playwright.config.ts` (`portal-cross-app` project)
 
 **Documentation (docs/)**:
 

@@ -65,7 +65,7 @@ for _v in POSTGRES_PASSWORD SIMPELV1_APP_KEY; do
   case "$_v" in
     POSTGRES_PASSWORD) export POSTGRES_PASSWORD=e2e_test_pw ;;
     SIMPELV1_APP_KEY)
-      export SIMPELV1_APP_KEY=base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz
+      export SIMPELV1_APP_KEY=base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc=
       ;;
   esac
 done
@@ -78,7 +78,7 @@ if [ -f .env ]; then
 fi
 # `.env` may still leave a key empty, and a fresh checkout has no `.env` at all.
 : "${POSTGRES_PASSWORD:=e2e_test_pw}"
-: "${SIMPELV1_APP_KEY:=base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz}"
+: "${SIMPELV1_APP_KEY:=base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc=}"
 export POSTGRES_PASSWORD SIMPELV1_APP_KEY
 
 # Services with a `build:` that the up-* targets start.

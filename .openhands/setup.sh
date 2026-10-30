@@ -174,7 +174,7 @@ if [ ! -f .env ]; then
 # staging get theirs from Secreton (see infra/AGENTS.md).
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=e2e_test_pw
-SIMPELV1_APP_KEY=base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz
+SIMPELV1_APP_KEY=base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc=
 EOF
   )
   note "wrote .env (POSTGRES_USER/POSTGRES_PASSWORD/SIMPELV1_APP_KEY)"

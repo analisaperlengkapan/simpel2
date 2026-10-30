@@ -533,6 +533,8 @@ mod policy_tests {
             jabatan: None,
             satker_code: satker.map(str::to_string),
             realm_roles: roles.iter().map(|r| r.to_string()).collect(),
+            require_password_change: None,
+            mfa_setup_required: None,
         }
     }
 

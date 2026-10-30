@@ -40,6 +40,8 @@ fn invalid_validation_response(error: &str) -> ValidateTokenResponse {
         jabatan: None,
         satker_code: None,
         realm_roles: vec![],
+        require_password_change: None,
+        mfa_setup_required: None,
     }
 }
 
@@ -414,6 +416,17 @@ impl AuthencService for AuthencGrpcService {
                 let nip = pick("nip");
                 let jabatan = pick("jabatan");
                 let satker_code = pick("satker_code").or_else(|| pick("satker"));
+                // Account-policy flags travel as custom claims (see
+                // `build_user_custom_claims`), so read them off the flattened
+                // map. Absent ⇒ `None`, which the gateway maps to "not set".
+                let require_password_change = claims
+                    .custom
+                    .get("require_password_change")
+                    .and_then(|v| v.as_bool());
+                let mfa_setup_required = claims
+                    .custom
+                    .get("mfa_setup_required")
+                    .and_then(|v| v.as_bool());
                 let realm_roles = claims
                     .custom
                     .get("realm_access")
@@ -438,6 +451,8 @@ impl AuthencService for AuthencGrpcService {
                     jabatan,
                     satker_code,
                     realm_roles,
+                    require_password_change,
+                    mfa_setup_required,
                 }))
             }
             Err(e) => {
