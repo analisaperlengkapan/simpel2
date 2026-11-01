@@ -883,10 +883,8 @@ dependencies = [
  "bytes",
  "bytes-utils",
  "fastrand",
- "http 0.2.12",
  "http 1.5.0",
- "http-body 0.4.6",
- "http-body 1.1.0",
+ "http-body",
  "percent-encoding",
  "pin-project-lite",
  "tracing",
@@ -948,9 +946,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-s3"
-version = "1.146.1"
+version = "1.155.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cd651b4400d4011b8927b83a9552bf90ff11e6e5da0b9f0a7583247aceec971"
+checksum = "5a542f0e9261b9ce56708d591a62062079fa3c58a362ffbf49a2e48a4f6ced16"
 dependencies = [
  "arc-swap",
  "aws-credential-types",
@@ -960,21 +958,20 @@ dependencies = [
  "aws-smithy-checksums",
  "aws-smithy-eventstream",
  "aws-smithy-http",
- "aws-smithy-json 0.63.0",
+ "aws-smithy-json 0.65.0",
  "aws-smithy-observability",
  "aws-smithy-runtime",
  "aws-smithy-runtime-api",
- "aws-smithy-schema 0.2.0",
+ "aws-smithy-schema 1.1.0",
  "aws-smithy-types",
- "aws-smithy-xml 0.62.0",
+ "aws-smithy-xml 0.64.0",
  "aws-types",
  "bytes",
  "fastrand",
  "hex",
  "hmac 0.13.0",
- "http 0.2.12",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "lru",
  "percent-encoding",
  "regex-lite",
@@ -1109,7 +1106,7 @@ dependencies = [
  "crc-fast",
  "hex",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "http-body-util",
  "md-5",
  "pin-project-lite",
@@ -1143,7 +1140,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "http-body-util",
  "percent-encoding",
  "pin-project-lite",
@@ -1247,7 +1244,7 @@ dependencies = [
  "bytes",
  "fastrand",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "http-body-util",
  "pin-project-lite",
  "tokio",
@@ -1264,7 +1261,6 @@ dependencies = [
  "aws-smithy-runtime-api-macros",
  "aws-smithy-types",
  "bytes",
- "http 0.2.12",
  "http 1.5.0",
  "pin-project-lite",
  "tokio",
@@ -1315,10 +1311,8 @@ dependencies = [
  "bytes",
  "bytes-utils",
  "futures-core",
- "http 0.2.12",
  "http 1.5.0",
- "http-body 0.4.6",
- "http-body 1.1.0",
+ "http-body",
  "http-body-util",
  "itoa",
  "num-integer",
@@ -1382,7 +1376,7 @@ dependencies = [
  "form_urlencoded",
  "futures-util",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "http-body-util",
  "hyper",
  "hyper-util",
@@ -1416,7 +1410,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "http-body-util",
  "mime",
  "pin-project-lite",
@@ -1448,7 +1442,7 @@ dependencies = [
  "either",
  "fs-err",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "hyper",
  "hyper-util",
  "pin-project-lite",
@@ -3437,7 +3431,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4470,17 +4464,6 @@ dependencies = [
 
 [[package]]
 name = "http-body"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ceab25649e9960c0311ea418d17bee82c0dcec1bd053b5f9a66e265a693bed2"
-dependencies = [
- "bytes",
- "http 0.2.12",
- "pin-project-lite",
-]
-
-[[package]]
-name = "http-body"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca2a8f2913ee65f60facd6a5905613afaa448497a0230cc41ce022d93290bc2c"
@@ -4498,7 +4481,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "pin-project-lite",
 ]
 
@@ -4558,7 +4541,7 @@ dependencies = [
  "futures-core",
  "h2",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "httparse",
  "httpdate",
  "itoa",
@@ -4626,7 +4609,7 @@ dependencies = [
  "futures-channel",
  "futures-util",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "hyper",
  "ipnet",
  "libc",
@@ -4895,7 +4878,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -5159,7 +5142,7 @@ dependencies = [
  "either",
  "futures",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "http-body-util",
  "hyper",
  "hyper-rustls",
@@ -5319,7 +5302,7 @@ dependencies = [
  "handlebars",
  "hex",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "http-body-util",
  "jsonwebtoken",
  "layanan-integrasi",
@@ -5742,7 +5725,7 @@ dependencies = [
  "futures-util",
  "hex",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "http-body-util",
  "ipnetwork",
  "jsonwebtoken",
@@ -7843,7 +7826,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -8312,7 +8295,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "http-body-util",
  "hyper",
  "hyper-rustls",
@@ -8353,7 +8336,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "http-body-util",
  "hyper",
  "hyper-rustls",
@@ -8634,7 +8617,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -8702,7 +8685,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -10240,7 +10223,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -10649,7 +10632,7 @@ dependencies = [
  "bytes",
  "h2",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "http-body-util",
  "hyper",
  "hyper-timeout",
@@ -10765,7 +10748,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "http 1.5.0",
- "http-body 1.1.0",
+ "http-body",
  "http-body-util",
  "http-range-header",
  "httpdate",
@@ -11592,7 +11575,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
