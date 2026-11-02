@@ -969,23 +969,27 @@ async fn legacy_writes_after_startup_are_readable_at_once() {
     assert_eq!(nup, vec!["611", "612"], "{detail}");
 
     // Same result as the startup pass would give for the same input — two
-    // mechanisms, one meaning.
+    // mechanisms, one meaning. The snapshot is taken BEFORE the pass runs: a
+    // comparison of two reads that both follow it could not see the pass
+    // rewrite an item, because both reads would carry the rewrite.
+    let lama_sebelum = items_of(&get_permit(&server, lama).await).clone();
+    let baru_sebelum = items_of(&get_permit(&server, &baru).await).clone();
+    assert_eq!(lama_sebelum.len(), 3, "the snapshot must hold the items");
+    assert_eq!(baru_sebelum.len(), 2, "the snapshot must hold the items");
+
     layanan_perlengkapan::migrations::normalize_pemakaian_items(db.pool())
         .await
         .unwrap();
-    let detail2 = get_permit(&server, lama).await;
+
     assert_eq!(
-        items_of(&detail2),
-        items_of(&get_permit(&server, lama).await)
+        items_of(&get_permit(&server, lama).await),
+        &lama_sebelum,
+        "the startup pass must not touch an item the triggers already normalised"
     );
-    let nup2: Vec<&str> = items_of(&detail2)
-        .iter()
-        .map(|i| i["bmn_nup"].as_str().unwrap())
-        .collect();
     assert_eq!(
-        nup2,
-        vec!["621", "622", "623"],
-        "the startup pass must change nothing"
+        items_of(&get_permit(&server, &baru).await),
+        &baru_sebelum,
+        "nor an item written by this release"
     );
 
     teardown_test_db(&db_name).await;
