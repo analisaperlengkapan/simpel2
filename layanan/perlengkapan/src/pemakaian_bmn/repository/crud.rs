@@ -18,7 +18,15 @@ impl PemakaianBmnRepository {
         // pegawai_satker_id UUID.
         satker_code: Option<String>,
     ) -> AppResult<IzinPemakaianBmn> {
-        let client = self.pool.client().await?;
+        let mut client = self.pool.client().await?;
+        // Header and items in ONE transaction. A permit whose asset list is
+        // half-written is not a smaller permit, it is a wrong one — the SK
+        // would print the assets that made it and the conflict check would
+        // free the ones that did not.
+        let tx = client
+            .transaction()
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
 
         let id = Uuid::new_v4();
         let is_renewal = request.is_renewal.unwrap_or(false);
@@ -26,27 +34,21 @@ impl PemakaianBmnRepository {
         let query = r#"
             INSERT INTO perlengkapan.izin_pemakaian_bmn (
                 id, pegawai_nip, pegawai_nama, pegawai_satker_id, pegawai_satker_nama, pegawai_jabatan,
-                jenis_bmn, bmn_nup, bmn_kode_barang, bmn_nama_barang, bmn_merk, bmn_tahun_perolehan,
-                no_polisi, no_bpkb, no_stnk, no_rangka, no_mesin,
-                alamat, luas_tanah, luas_bangunan,
-                serial_number, spesifikasi,
-                tanggal_mulai, tanggal_selesai, keperluan, lokasi_pemakaian,
+                pegawai_golongan, pegawai_pangkat, pegawai_unit_kerja, foto_pegawai,
+                tanggal_mulai, tanggal_selesai, keperluan,
                 is_renewal, previous_permit_id, file_pendukung,
                 status, created_by, created_by_nama, satker_code, created_at, updated_at
             ) VALUES (
                 $1, $2, $3, $4, $5, $6,
-                $7, $8, $9, $10, $11, $12,
-                $13, $14, $15, $16, $17,
-                $18, $19, $20,
-                $21, $22,
-                $23, $24, $25, $26,
-                $27, $28, $29,
-                'DRAFT', $30, $31, $32, NOW(), NOW()
+                $7, $8, $9, $10,
+                $11, $12, $13,
+                $14, $15, $16,
+                'DRAFT', $17, $18, $19, NOW(), NOW()
             )
             RETURNING *
         "#;
 
-        let row = client
+        let row = tx
             .query_one(
                 query,
                 &[
@@ -56,26 +58,13 @@ impl PemakaianBmnRepository {
                     &request.pegawai_satker_id,
                     &request.pegawai_satker_nama,
                     &request.pegawai_jabatan,
-                    &request.jenis_bmn,
-                    &request.bmn_nup,
-                    &request.bmn_kode_barang,
-                    &request.bmn_nama_barang,
-                    &request.bmn_merk,
-                    &request.bmn_tahun_perolehan,
-                    &request.no_polisi,
-                    &request.no_bpkb,
-                    &request.no_stnk,
-                    &request.no_rangka,
-                    &request.no_mesin,
-                    &request.alamat,
-                    &request.luas_tanah,
-                    &request.luas_bangunan,
-                    &request.serial_number,
-                    &request.spesifikasi,
+                    &request.pegawai_golongan,
+                    &request.pegawai_pangkat,
+                    &request.pegawai_unit_kerja,
+                    &request.foto_pegawai,
                     &request.tanggal_mulai,
                     &request.tanggal_selesai,
                     &request.keperluan,
-                    &request.lokasi_pemakaian,
                     &is_renewal,
                     &request.previous_permit_id,
                     &request.file_pendukung,
@@ -87,7 +76,23 @@ impl PemakaianBmnRepository {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(self.row_to_permit(row))
+        let items = Self::insert_items(
+            &tx,
+            id,
+            &request.items,
+            request.tanggal_mulai,
+            request.tanggal_selesai,
+        )
+        .await?;
+        let row = Self::sync_permit_window(&tx, id).await?.unwrap_or(row);
+
+        tx.commit()
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        let mut permit = self.row_to_permit(row);
+        permit.bmn_items = items;
+        Ok(permit)
     }
 
     /// Get permit by ID, restricted to `scope`.
@@ -121,7 +126,14 @@ impl PemakaianBmnRepository {
             // closed for satker detail.
             .ok_or_else(|| AppError::NotFound(format!("Izin pemakaian not found: {}", id)))?;
 
-        Ok(self.row_to_permit(row))
+        // The asset list comes with the permit, always. Since V014 a permit
+        // with an empty `bmn_items` is not a permit with no assets, it is a
+        // permit that was not fully read — and the caller cannot tell those
+        // apart. Loading it here is why `renew_permit` and the SK renderer
+        // can trust what they are handed.
+        let mut permit = self.row_to_permit(row);
+        permit.bmn_items = self.get_bmn_items(id).await?;
+        Ok(permit)
     }
 
     /// Update permit (only in DRAFT status)
@@ -133,7 +145,7 @@ impl PemakaianBmnRepository {
         updated_by: Uuid,
         updated_by_nama: String,
     ) -> AppResult<IzinPemakaianBmn> {
-        let client = self.pool.client().await?;
+        let mut client = self.pool.client().await?;
 
         // First check if permit is in DRAFT status. `All`: the caller's scope
         // was already applied by the service that reached this update, and a
@@ -145,28 +157,49 @@ impl PemakaianBmnRepository {
             ));
         }
 
+        // The header's dates are DERIVED from the assets' periods and
+        // `sync_permit_window` is their only writer. A date in the request is
+        // therefore not a field to store; it is the default period for assets
+        // that do not state their own, and with no asset list in the same
+        // request it has nothing to default. Writing it to the header anyway
+        // left the permit saying 2027 while every asset — and the SK's second
+        // page — still said 2026, two answers to "until when" on one permit.
+        // A single-asset permit would make this look unambiguous, but the
+        // rule has to be the same for the permit holding twelve assets with
+        // twelve different periods, where "the" end date is not defined.
+        if request.items.is_none()
+            && (request.tanggal_mulai.is_some() || request.tanggal_selesai.is_some())
+        {
+            return Err(AppError::BadRequest(
+                "Tanggal izin ditentukan oleh jangka waktu tiap BMN. Untuk mengubah \
+                 tanggal, kirim daftar BMN (items) bersama tanggal barunya."
+                    .to_string(),
+            ));
+        }
+
+        let tx = client
+            .transaction()
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        // No date columns here, deliberately — see above. `sync_permit_window`
+        // below is the only statement that touches them.
         let query = r#"
             UPDATE perlengkapan.izin_pemakaian_bmn
-            SET tanggal_mulai = COALESCE($1, tanggal_mulai),
-                tanggal_selesai = COALESCE($2, tanggal_selesai),
-                keperluan = COALESCE($3, keperluan),
-                lokasi_pemakaian = COALESCE($4, lokasi_pemakaian),
-                file_pendukung = COALESCE($5, file_pendukung),
-                updated_by = $6,
-                updated_by_nama = $7,
+            SET keperluan = COALESCE($1, keperluan),
+                file_pendukung = COALESCE($2, file_pendukung),
+                updated_by = $3,
+                updated_by_nama = $4,
                 updated_at = NOW()
-            WHERE id = $8
+            WHERE id = $5
             RETURNING *
         "#;
 
-        let row = client
+        let row = tx
             .query_one(
                 query,
                 &[
-                    &request.tanggal_mulai,
-                    &request.tanggal_selesai,
                     &request.keperluan,
-                    &request.lokasi_pemakaian,
                     &request.file_pendukung,
                     &updated_by,
                     &updated_by_nama,
@@ -176,7 +209,40 @@ impl PemakaianBmnRepository {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(self.row_to_permit(row))
+        // What an asset without its own period defaults to: the request's
+        // date when it gave one, otherwise the permit's current window.
+        let mulai = request.tanggal_mulai.unwrap_or(current.tanggal_mulai);
+        let selesai = request.tanggal_selesai.unwrap_or(current.tanggal_selesai);
+
+        let (row, items) = match request.items.as_deref() {
+            Some(items) => {
+                let ditulis = Self::replace_items(&tx, id, items, mulai, selesai).await?;
+                let row = Self::sync_permit_window(&tx, id).await?.unwrap_or(row);
+                (row, ditulis)
+            }
+            // List untouched: read it back so the caller gets a whole permit
+            // either way. A response whose `bmn_items` is empty only because
+            // the client did not mention them would read as "assets removed".
+            None => {
+                let rows = tx
+                    .query(
+                        "SELECT * FROM perlengkapan.pemakaian_bmn_items \
+                         WHERE izin_pemakaian_id = $1 ORDER BY urutan",
+                        &[&id],
+                    )
+                    .await
+                    .map_err(|e| AppError::Database(e.to_string()))?;
+                (row, rows.iter().map(PemakaianBmnItem::from_row).collect())
+            }
+        };
+
+        tx.commit()
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        let mut permit = self.row_to_permit(row);
+        permit.bmn_items = items;
+        Ok(permit)
     }
 
     /// Update permit status

@@ -249,6 +249,22 @@ fn render_halaman_pegawai(pdf: &mut PdfBuilder, permit: &IzinPemakaianBmn, foto:
     );
 }
 
+/// Height, in mm, the closing sentence and the generated-at line need below
+/// the last table row (8 + 12 of cursor advance, plus the text itself).
+const CLOSING_BLOCK_H: f32 = 30.0;
+
+/// Start a continuation page when fewer than `needed` mm remain above the
+/// bottom margin. Returns whether a page was started, so the caller knows to
+/// repeat whatever heads a page.
+fn ensure_room(pdf: &mut PdfBuilder, needed: f32) -> bool {
+    if pdf.y - needed < pdf.geom().margin_bottom {
+        pdf.new_page();
+        true
+    } else {
+        false
+    }
+}
+
 fn render_halaman_daftar_bmn(pdf: &mut PdfBuilder, permit: &IzinPemakaianBmn) {
     pdf.write_centered("HALAMAN 2 — DAFTAR BMN", SECTION_FONT, true);
     pdf.advance(10.0);
@@ -274,21 +290,69 @@ fn render_halaman_daftar_bmn(pdf: &mut PdfBuilder, permit: &IzinPemakaianBmn) {
     .collect();
     pdf.row(&col_widths, &header_cells, true, true);
 
-    // V1 model: single BMN per permit. Render sebagai 1 row table.
-    // Saat multi-BMN refactor (post-Fase 1.5), loop melalui Vec<BmnItem>.
-    let cells: Vec<String> = vec![
-        "1".to_string(),
-        permit.bmn_kode_barang.clone(),
-        permit.bmn_nama_barang.clone(),
-        permit.bmn_nup.clone(),
-        permit.bmn_merk.clone().unwrap_or_else(|| "-".to_string()),
-        // Field `bmn_tipe` belum ada di model main; fallback "-" sampai
-        // refactor model BMN multi-field landed.
-        "-".to_string(),
-        permit.tanggal_mulai.format("%d-%m-%Y").to_string(),
-        permit.tanggal_selesai.format("%d-%m-%Y").to_string(),
-    ];
-    pdf.row(&col_widths, &cells, false, true);
+    // One row per BMN. This was a single hard-coded row under a comment that
+    // said "V1 model: single BMN per permit" — so a permit over three assets
+    // produced a letter granting one, and the other two were held with nothing
+    // signed for them. The dates come from the item, which is where a period
+    // lives since V014; the header's are only the MIN/MAX of these.
+    if permit.bmn_items.is_empty() {
+        // Says so, rather than printing an empty table that reads like a
+        // rendering fault. A permit with no asset cannot be created through
+        // the API; a legacy row can still be one.
+        pdf.row(
+            &col_widths,
+            &[
+                "-",
+                "-",
+                "(tidak ada BMN tercatat)",
+                "-",
+                "-",
+                "-",
+                "-",
+                "-",
+            ]
+            .map(String::from),
+            false,
+            true,
+        );
+    }
+    // The builder is `auto_paginate: false` — page 1 is a fixed layout — so
+    // `pdf.row` never starts a page of its own, and a table whose length
+    // depends on the data has to. Without this the rows past the bottom margin
+    // were still "drawn", at a negative y, off the sheet: the signed letter
+    // listed the first ~40 assets and silently omitted the rest, which is the
+    // single-asset bug in a new place. Each continuation page repeats the
+    // column header so a page torn off the stack still reads on its own.
+    let row_h = pdf.geom().row_h;
+    let mut halaman = 2;
+    for item in &permit.bmn_items {
+        if ensure_room(pdf, row_h) {
+            halaman += 1;
+            pdf.write_centered(
+                &format!("HALAMAN {halaman} — DAFTAR BMN (lanjutan)"),
+                SECTION_FONT,
+                true,
+            );
+            pdf.advance(10.0);
+            pdf.row(&col_widths, &header_cells, true, true);
+        }
+        let cells: Vec<String> = vec![
+            item.urutan.to_string(),
+            item.bmn_kode_barang.clone(),
+            item.bmn_nama_barang.clone(),
+            item.bmn_nup.clone(),
+            item.bmn_merk.clone().unwrap_or_else(|| "-".to_string()),
+            item.bmn_tipe.clone().unwrap_or_else(|| "-".to_string()),
+            item.tanggal_mulai.format("%d-%m-%Y").to_string(),
+            item.tanggal_selesai.format("%d-%m-%Y").to_string(),
+        ];
+        pdf.row(&col_widths, &cells, false, true);
+    }
+
+    // The closing sentence and the generated-at line take about 30 mm below
+    // the last row. A table that ends flush with the margin must not push
+    // them off the sheet either.
+    ensure_room(pdf, CLOSING_BLOCK_H);
 
     // Catatan footer
     pdf.advance(8.0);
@@ -347,10 +411,6 @@ mod tests {
             "pegawai_satker_nama": "KEJAKSAAN NEGERI JAKARTA PUSAT",
             "pegawai_jabatan": "Kasubag Perlengkapan",
             "pegawai_pangkat": "Penata Muda",
-            "jenis_bmn": "Angkutan Bermotor",
-            "bmn_nup": "1",
-            "bmn_kode_barang": "3020104001",
-            "bmn_nama_barang": "Mini Bus",
             "tanggal_mulai": "2026-01-01",
             "tanggal_selesai": "2026-12-31",
             "is_renewal": false,
@@ -423,5 +483,99 @@ mod tests {
             !teks.contains("RAHASIA"),
             "nama berkas masih bocor ke badan surat"
         );
+    }
+
+    /// One asset row. Built through `Deserialize` for the same reason as
+    /// `permit()`: the entity is wide and only the columns page 2 prints
+    /// matter here.
+    fn item(urutan: i32) -> crate::pemakaian_bmn::models::PemakaianBmnItem {
+        serde_json::from_value(serde_json::json!({
+            "id": uuid::Uuid::new_v4(),
+            "izin_pemakaian_id": "11111111-1111-4111-8111-111111111111",
+            "urutan": urutan,
+            "jenis_bmn": "LAPTOP",
+            "bmn_nup": urutan.to_string(),
+            "bmn_kode_barang": "3050102001",
+            "bmn_nama_barang": format!("Laptop-{urutan:03}"),
+            "tanggal_mulai": "2026-01-01",
+            "tanggal_selesai": "2026-12-31",
+            "detail_bmn": {},
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+        }))
+        .expect("fixture item")
+    }
+
+    /// Page 2 as `render_pdf` starts it: a fresh page, then the table.
+    fn render_daftar(n: i32) -> PdfBuilder {
+        let mut permit = permit();
+        permit.bmn_items = (1..=n).map(item).collect();
+        let mut pdf = PdfBuilder::new("SK", geom()).expect("init");
+        pdf.new_page();
+        render_halaman_daftar_bmn(&mut pdf, &permit);
+        pdf
+    }
+
+    /// The defect: `auto_paginate: false` meant row 41 onwards was drawn at a
+    /// negative y — off the sheet — so a permit over 100 assets produced a
+    /// signed letter that listed forty of them. Asserted on what was PLACED,
+    /// not on "the call returned Ok": a renderer that dropped the overflow
+    /// would also return Ok and also produce a valid PDF.
+    #[test]
+    fn daftar_bmn_yang_panjang_berlanjut_ke_halaman_berikutnya() {
+        let pdf = render_daftar(100);
+        let runs = pdf.text_runs();
+        let bawah = pdf.geom().margin_bottom;
+
+        for n in 1..=100 {
+            let nama = format!("Laptop-{n:03}");
+            assert!(
+                runs.iter().any(|(_, _, t)| t == &nama),
+                "{nama} tidak tercetak di SK — daftar terpotong"
+            );
+        }
+
+        let terendah = runs.iter().map(|r| r.1).fold(f32::INFINITY, f32::min);
+        assert!(
+            terendah >= bawah,
+            "ada teks di y={terendah} mm, di bawah margin bawah {bawah} mm — \
+             tercetak di luar lembar"
+        );
+
+        let halaman = runs.iter().map(|r| r.0).max().expect("ada teks") + 1;
+        assert!(
+            halaman >= 4,
+            "100 BMN muat di {halaman} halaman — tidak mungkin; daftar tidak berlanjut"
+        );
+    }
+
+    /// Continuation pages repeat the column header, so a page torn off the
+    /// stack still says what its columns are.
+    #[test]
+    fn halaman_lanjutan_mengulang_kepala_kolom() {
+        let runs = render_daftar(100).text_runs();
+        let halaman_dengan_kepala: std::collections::BTreeSet<usize> = runs
+            .iter()
+            .filter(|(_, _, t)| t == "Selesai")
+            .map(|r| r.0)
+            .collect();
+        let halaman_dengan_baris: std::collections::BTreeSet<usize> = runs
+            .iter()
+            .filter(|(_, _, t)| t.starts_with("Laptop-"))
+            .map(|r| r.0)
+            .collect();
+        assert_eq!(
+            halaman_dengan_kepala, halaman_dengan_baris,
+            "setiap halaman yang berisi baris BMN harus berkepala kolom"
+        );
+    }
+
+    /// The other direction: a short list must NOT grow extra pages, or the
+    /// fix is "always paginate" rather than "paginate when needed".
+    #[test]
+    fn daftar_bmn_pendek_tetap_di_halaman_dua() {
+        let runs = render_daftar(3).text_runs();
+        let halaman = runs.iter().map(|r| r.0).max().expect("ada teks") + 1;
+        assert_eq!(halaman, 2, "3 BMN seharusnya muat di halaman 2");
     }
 }

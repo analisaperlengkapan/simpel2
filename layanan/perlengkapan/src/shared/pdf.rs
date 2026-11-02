@@ -124,6 +124,42 @@ impl PdfBuilder {
         self.y = self.geom.margin_top;
     }
 
+    /// Every text run placed so far as `(page index, baseline y in mm from the
+    /// page bottom, text)`. Test-only: production code asks the finished
+    /// document, and an accessor nothing in a release build calls would be
+    /// dead code.
+    ///
+    /// It exists so a test can assert what a page count cannot: that EVERY
+    /// string a document should carry was placed, and that none was placed
+    /// below `margin_bottom` — i.e. off the sheet, where `row` with
+    /// `auto_paginate: false` will happily draw it.
+    #[cfg(test)]
+    pub fn text_runs(&self) -> Vec<(usize, f32, String)> {
+        let mut out = Vec::new();
+        for (page, ops) in self.page_ops.iter().enumerate() {
+            let mut y = None;
+            for op in ops {
+                match op {
+                    Op::SetTextCursor { pos } => y = Some(Mm::from(pos.y).0),
+                    Op::ShowText { items } => {
+                        let text: String = items
+                            .iter()
+                            .filter_map(|i| match i {
+                                TextItem::Text(t) => Some(t.as_str()),
+                                _ => None,
+                            })
+                            .collect();
+                        if let Some(y) = y {
+                            out.push((page, y, text));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        out
+    }
+
     /// Ensure `needed` mm remain below the cursor; otherwise start a new page.
     /// No-op when `geom.auto_paginate` is false.
     pub fn ensure_space(&mut self, needed: f32) {

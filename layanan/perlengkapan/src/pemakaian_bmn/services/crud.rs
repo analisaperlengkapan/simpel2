@@ -1,6 +1,7 @@
 use super::PemakaianBmnService;
 use crate::pemakaian_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::satker_scope::SatkerScope;
 use tracing::info;
 use uuid::Uuid;
 use validator::Validate;
@@ -28,6 +29,20 @@ impl PemakaianBmnService {
             return Err(AppError::BadRequest(
                 "Tanggal selesai harus lebih besar dari tanggal mulai".to_string(),
             ));
+        }
+
+        // Same rules as create, through the same function. `All` here because
+        // the caller's scope was applied by the handler that reached this, and
+        // the repository re-checks DRAFT status before writing anything.
+        if let Some(items) = request.items.as_deref() {
+            let current = self.repository.get_by_id(id, &SatkerScope::All).await?;
+            let satker = current.satker_code.clone().unwrap_or_default();
+            let mulai = request.tanggal_mulai.unwrap_or(current.tanggal_mulai);
+            let selesai = request.tanggal_selesai.unwrap_or(current.tanggal_selesai);
+            // `Some(id)`: the permit's own rows must not be reported as
+            // conflicting with themselves.
+            self.validate_items(items, mulai, selesai, &satker, Some(id))
+                .await?;
         }
 
         info!("Updating permit {} by user {}", id, user_id);

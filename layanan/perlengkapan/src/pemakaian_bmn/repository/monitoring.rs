@@ -31,25 +31,44 @@ fn permit_where(
         Some(s) if s.eq_ignore_ascii_case("semua") => {}
         Some(s) => {
             params.push(Box::new(s.to_ascii_uppercase()));
-            clauses.push(format!("status = ${}", params.len()));
+            clauses.push(format!("p.status = ${}", params.len()));
         }
-        None => clauses.push("status = 'ACTIVE'".to_string()),
+        None => clauses.push("p.status = 'ACTIVE'".to_string()),
     }
 
-    if let Some(cond) = scope.push_condition("satker_code", params) {
+    // Every predicate is qualified `p.`, and every query below aliases the
+    // permit table `p`. Since V014 several of these reads join the permit to
+    // its items, so two relations are in scope; an unqualified `status` or
+    // `satker_code` would bind by resolution order rather than by intent.
+    if let Some(cond) = scope.push_condition("p.satker_code", params) {
         clauses.push(cond);
     }
     if let Some(code) = satker_code {
         params.push(Box::new(code.to_string()));
-        clauses.push(format!("satker_code = ${}", params.len()));
+        clauses.push(format!("p.satker_code = ${}", params.len()));
     }
+    // `jenis_bmn` lives on the item since V014, and a permit can hold several
+    // kinds at once. So the filter is "holds at least one asset of this kind"
+    // — EXISTS rather than equality, which also keeps it correct for queries
+    // that do not themselves join the items.
     if let Some(jenis) = jenis_bmn {
         params.push(Box::new(jenis.to_string()));
-        clauses.push(format!("jenis_bmn = ${}", params.len()));
+        clauses.push(format!(
+            "EXISTS (SELECT 1 FROM perlengkapan.pemakaian_bmn_items ij \
+             WHERE ij.izin_pemakaian_id = p.id AND ij.jenis_bmn = ${})",
+            params.len()
+        ));
     }
 
     clauses.join(" AND ")
 }
+
+/// The assets of a permit as one comma-separated phrase, ordered as the SK
+/// prints them. Used where a report has one row per PERMIT and still has to
+/// say which assets it covers — naming only the first of several would be
+/// worse than saying nothing.
+const NAMA_BMN_AGG: &str = "(SELECT string_agg(ia.bmn_nama_barang, ', ' ORDER BY ia.urutan) \
+     FROM perlengkapan.pemakaian_bmn_items ia WHERE ia.izin_pemakaian_id = p.id)";
 
 fn param_refs(params: &[BoxedParam]) -> Vec<&(dyn tokio_postgres::types::ToSql + Sync)> {
     params
@@ -80,11 +99,33 @@ impl PemakaianBmnRepository {
             None,
             &mut params,
         );
+        // The by-kind breakdown joins the permit to its items, so it needs the
+        // kind filter on the ITEM row as well as on the permit. `permit_where`
+        // only says "this permit holds at least one asset of that kind"; with
+        // that alone, a permit holding a laptop and a car, queried for LAPTOP,
+        // contributes a CAR row to a result the caller asked to see laptops
+        // in. The breakdown therefore gets its own parameter list, so the
+        // `$n` of the extra predicate is `params.len()` rather than a guess
+        // about the order `permit_where` pushed things in.
+        let mut jenis_params: Vec<BoxedParam> = Vec::new();
+        let mut jenis_where = permit_where(
+            scope,
+            query.satker_code.as_deref(),
+            query.jenis_bmn.as_deref(),
+            None,
+            &mut jenis_params,
+        );
+        if let Some(jenis) = query.jenis_bmn.as_deref() {
+            jenis_params.push(Box::new(jenis.to_string()));
+            jenis_where.push_str(&format!(" AND i.jenis_bmn = ${}", jenis_params.len()));
+        }
+        let jenis_refs = param_refs(&jenis_params);
+
         let param_refs = param_refs(&params);
 
         // Total active permits
         let total_query = format!(
-            "SELECT COUNT(*) as total FROM perlengkapan.izin_pemakaian_bmn WHERE {where_clause}"
+            "SELECT COUNT(*) as total FROM perlengkapan.izin_pemakaian_bmn p WHERE {where_clause}"
         );
 
         let total_row = client
@@ -93,19 +134,27 @@ impl PemakaianBmnRepository {
             .map_err(|e| AppError::Database(e.to_string()))?;
         let total_active_permits: i64 = total_row.get("total");
 
-        // Permits by jenis BMN
+        // Permits by jenis BMN: how many PERMITS hold at least one asset of
+        // each kind. DISTINCT, because a permit with two laptops is one permit
+        // that uses laptops, not two — counting item rows here divided assets
+        // by permits and reported 200% for a single permit with two laptops.
+        // Numerator and denominator are now both permits drawn from the same
+        // `WHERE`, so a share can never pass 100%. The kinds are not exclusive
+        // (a permit with a car and a laptop is counted under both), so the
+        // shares do not sum to 100 — that is what "permits holding X" means.
         let jenis_query = format!(
             r#"
-            SELECT jenis_bmn, COUNT(*) as count
-            FROM perlengkapan.izin_pemakaian_bmn
-            WHERE {where_clause}
-            GROUP BY jenis_bmn
-            ORDER BY count DESC
+            SELECT i.jenis_bmn, COUNT(DISTINCT p.id) as count
+            FROM perlengkapan.pemakaian_bmn_items i
+            JOIN perlengkapan.izin_pemakaian_bmn p ON p.id = i.izin_pemakaian_id
+            WHERE {jenis_where}
+            GROUP BY i.jenis_bmn
+            ORDER BY count DESC, i.jenis_bmn
             "#
         );
 
         let jenis_rows = client
-            .query(&jenis_query, &param_refs)
+            .query(&jenis_query, &jenis_refs)
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -132,10 +181,11 @@ impl PemakaianBmnRepository {
         // across however many distinct UUIDs its rows happened to carry.
         let satker_query = format!(
             r#"
-            SELECT satker_code, MIN(pegawai_satker_nama) AS satker_nama, COUNT(*) as active_permits
-            FROM perlengkapan.izin_pemakaian_bmn
+            SELECT p.satker_code, MIN(p.pegawai_satker_nama) AS satker_nama,
+                   COUNT(*) as active_permits
+            FROM perlengkapan.izin_pemakaian_bmn p
             WHERE {where_clause}
-            GROUP BY satker_code
+            GROUP BY p.satker_code
             ORDER BY active_permits DESC
             LIMIT 10
             "#
@@ -158,16 +208,18 @@ impl PemakaianBmnRepository {
         // Expiring soon (next 30 days)
         let expiring_query = format!(
             r#"
-            SELECT id, nomor_izin, bmn_nama_barang, pegawai_nama, tanggal_selesai,
+            SELECT p.id, p.nomor_izin, {NAMA_BMN_AGG} AS bmn_nama_barang,
+                   p.pegawai_nama, p.tanggal_selesai,
                    -- `date - date` is int4 in Postgres and this field is i64,
                    -- so an uncast difference makes `row.get` panic on the FIRST
                    -- row this query ever returns. Under `panic = "abort"` that
                    -- is not a 500, it is the process. Cast in SQL, matching how
                    -- every other aggregate in this crate declares its type.
-                   (tanggal_selesai - CURRENT_DATE)::bigint as days_until_expiry
-            FROM perlengkapan.izin_pemakaian_bmn
-            WHERE {where_clause} AND tanggal_selesai BETWEEN CURRENT_DATE AND CURRENT_DATE + 30
-            ORDER BY tanggal_selesai ASC
+                   (p.tanggal_selesai - CURRENT_DATE)::bigint as days_until_expiry
+            FROM perlengkapan.izin_pemakaian_bmn p
+            WHERE {where_clause}
+              AND p.tanggal_selesai BETWEEN CURRENT_DATE AND CURRENT_DATE + 30
+            ORDER BY p.tanggal_selesai ASC
             LIMIT 10
             "#
         );
@@ -192,10 +244,11 @@ impl PemakaianBmnRepository {
         // Recent activations (last 7 days)
         let recent_query = format!(
             r#"
-            SELECT id, nomor_izin, bmn_nama_barang, pegawai_nama, approved_at
-            FROM perlengkapan.izin_pemakaian_bmn
-            WHERE {where_clause} AND approved_at >= CURRENT_DATE - 7
-            ORDER BY approved_at DESC
+            SELECT p.id, p.nomor_izin, {NAMA_BMN_AGG} AS bmn_nama_barang,
+                   p.pegawai_nama, p.approved_at
+            FROM perlengkapan.izin_pemakaian_bmn p
+            WHERE {where_clause} AND p.approved_at >= CURRENT_DATE - 7
+            ORDER BY p.approved_at DESC
             LIMIT 10
             "#
         );
@@ -266,17 +319,25 @@ impl PemakaianBmnRepository {
                 .replace('_', "\\_");
             params.push(Box::new(format!("%{escaped}%")));
             let i = params.len();
+            // Asset terms match the ITEM, people terms the permit. This
+            // listing has one row per asset, so `i` is in scope here.
             where_clause.push_str(&format!(
-                " AND (bmn_nama_barang ILIKE ${i} OR bmn_nup ILIKE ${i} \
-                 OR bmn_kode_barang ILIKE ${i} OR pegawai_nama ILIKE ${i} \
-                 OR pegawai_nip ILIKE ${i} OR COALESCE(nomor_izin, '') ILIKE ${i})"
+                " AND (i.bmn_nama_barang ILIKE ${i} OR i.bmn_nup ILIKE ${i} \
+                 OR i.bmn_kode_barang ILIKE ${i} OR p.pegawai_nama ILIKE ${i} \
+                 OR p.pegawai_nip ILIKE ${i} OR COALESCE(p.nomor_izin, '') ILIKE ${i})"
             ));
         }
 
+        // Counts ASSETS, because that is what a page of this listing returns
+        // since V014 — one row per BMN held. A permit-level COUNT would report
+        // a total the pagination can never reach.
         let total: i64 = client
             .query_one(
                 &format!(
-                    "SELECT COUNT(*) AS c FROM perlengkapan.izin_pemakaian_bmn WHERE {where_clause}"
+                    "SELECT COUNT(*) AS c \
+                     FROM perlengkapan.pemakaian_bmn_items i \
+                     JOIN perlengkapan.izin_pemakaian_bmn p ON p.id = i.izin_pemakaian_id \
+                     WHERE {where_clause}"
                 ),
                 &param_refs(&params),
             )
@@ -296,15 +357,21 @@ impl PemakaianBmnRepository {
             .query(
                 &format!(
                     r#"
-                    SELECT id, nomor_izin, satker_code, pegawai_satker_nama,
-                           bmn_kode_barang, bmn_nama_barang, bmn_nup, bmn_merk, bmn_tipe,
-                           jenis_bmn, pegawai_nip, pegawai_nama, pegawai_jabatan,
-                           tanggal_mulai, tanggal_selesai, status,
-                           (tanggal_selesai - tanggal_mulai)::bigint AS durasi_hari,
-                           (tanggal_selesai - CURRENT_DATE)::bigint AS sisa_hari
-                    FROM perlengkapan.izin_pemakaian_bmn
+                    -- One row per ASSET held, which is what "siapa memakai
+                    -- apa" means: a permit over three BMN is three lines here,
+                    -- not one line naming the first of them. Dates come from
+                    -- the item, which is where a period lives since V014.
+                    SELECT p.id, p.nomor_izin, p.satker_code, p.pegawai_satker_nama,
+                           i.bmn_kode_barang, i.bmn_nama_barang, i.bmn_nup,
+                           i.bmn_merk, i.bmn_tipe, i.jenis_bmn,
+                           p.pegawai_nip, p.pegawai_nama, p.pegawai_jabatan,
+                           i.tanggal_mulai, i.tanggal_selesai, p.status,
+                           (i.tanggal_selesai - i.tanggal_mulai)::bigint AS durasi_hari,
+                           (i.tanggal_selesai - CURRENT_DATE)::bigint AS sisa_hari
+                    FROM perlengkapan.pemakaian_bmn_items i
+                    JOIN perlengkapan.izin_pemakaian_bmn p ON p.id = i.izin_pemakaian_id
                     WHERE {where_clause}
-                    ORDER BY tanggal_selesai ASC, id ASC
+                    ORDER BY i.tanggal_selesai ASC, p.id ASC, i.urutan ASC
                     LIMIT ${limit_idx} OFFSET ${offset_idx}
                     "#
                 ),
@@ -398,7 +465,7 @@ impl PemakaianBmnRepository {
         let sedang_dipakai: i64 = client
             .query_one(
                 &format!(
-                    "SELECT COUNT(*) AS c FROM perlengkapan.izin_pemakaian_bmn WHERE {where_clause}"
+                    "SELECT COUNT(*) AS c FROM perlengkapan.izin_pemakaian_bmn p WHERE {where_clause}"
                 ),
                 &refs,
             )
@@ -410,8 +477,9 @@ impl PemakaianBmnRepository {
         let akan_expired_30d: i64 = client
             .query_one(
                 &format!(
-                    "SELECT COUNT(*) AS c FROM perlengkapan.izin_pemakaian_bmn \
-                     WHERE {where_clause} AND tanggal_selesai BETWEEN CURRENT_DATE AND CURRENT_DATE + 30"
+                    "SELECT COUNT(*) AS c FROM perlengkapan.izin_pemakaian_bmn p \
+                     WHERE {where_clause} \
+                       AND p.tanggal_selesai BETWEEN CURRENT_DATE AND CURRENT_DATE + 30"
                 ),
                 &refs,
             )
@@ -514,8 +582,14 @@ impl PemakaianBmnRepository {
         let utilized: i64 = client
             .query_one(
                 &format!(
-                    "SELECT COUNT(DISTINCT (bmn_kode_barang, bmn_nup)) AS c \
-                     FROM perlengkapan.izin_pemakaian_bmn WHERE {izin_where}"
+                    // Over the ITEMS: an asset is utilised if any permit row
+                    // names it, and past the first asset those rows used not
+                    // to exist here at all — so the "unused BMN" card counted
+                    // held assets as free.
+                    "SELECT COUNT(DISTINCT (i.bmn_kode_barang, i.bmn_nup)) AS c \
+                     FROM perlengkapan.pemakaian_bmn_items i \
+                     JOIN perlengkapan.izin_pemakaian_bmn p ON p.id = i.izin_pemakaian_id \
+                     WHERE {izin_where}"
                 ),
                 &param_refs(&izin_params),
             )

@@ -452,7 +452,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                                                         {permit.pegawai_nama.clone()}
                                                                     </td>
                                                                     <td class="px-4 py-3 text-sm">
-                                                                        {permit.bmn_nama_barang.clone()}
+                                                                        {permit.ringkasan_bmn()}
                                                                     </td>
                                                                     <td class="px-4 py-3 text-sm">
                                                                         {permit.tanggal_selesai.clone()}

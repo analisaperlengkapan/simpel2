@@ -90,15 +90,28 @@ async fn seed_active_permit(
     let id = Uuid::new_v4();
     client
         .execute(
-            "INSERT INTO perlengkapan.izin_pemakaian_bmn
-                (id, nomor_izin, jenis_bmn, bmn_nup, bmn_kode_barang, bmn_nama_barang,
-                 pegawai_nip, pegawai_nama, pegawai_jabatan,
-                 pegawai_satker_id, pegawai_satker_nama, satker_code,
-                 tanggal_mulai, tanggal_selesai, status, approved_at)
-             VALUES ($1, $2, 'LAINNYA', $3, $4, 'Barang Uji',
-                     $5, $6, 'Staf',
-                     gen_random_uuid(), $7, $8,
-                     CURRENT_DATE - 10, CURRENT_DATE + 20, 'ACTIVE', NOW())",
+            // V014: the asset lives in the item table, so the seed writes the
+            // permit and then its one item. Seeding the old columns would make
+            // this file pass against a build whose queries still read the
+            // parent — the blindness it exists to catch.
+            "WITH izin AS (
+                INSERT INTO perlengkapan.izin_pemakaian_bmn
+                    (id, nomor_izin,
+                     pegawai_nip, pegawai_nama, pegawai_jabatan,
+                     pegawai_satker_id, pegawai_satker_nama, satker_code,
+                     tanggal_mulai, tanggal_selesai, status, approved_at)
+                VALUES ($1, $2,
+                        $5, $6, 'Staf',
+                        gen_random_uuid(), $7, $8,
+                        CURRENT_DATE - 10, CURRENT_DATE + 20, 'ACTIVE', NOW())
+                RETURNING id
+             )
+             INSERT INTO perlengkapan.pemakaian_bmn_items
+                (izin_pemakaian_id, urutan, jenis_bmn, bmn_nup, bmn_kode_barang,
+                 bmn_nama_barang, tanggal_mulai, tanggal_selesai)
+             SELECT id, 1, 'LAINNYA', $3, $4, 'Barang Uji',
+                    CURRENT_DATE - 10, CURRENT_DATE + 20
+             FROM izin",
             &[
                 &id,
                 // `nomor_izin` unik: dua izin bisa sengaja menunjuk aset yang
@@ -127,13 +140,17 @@ fn create_body(nup: &str, kode_barang: &str) -> serde_json::Value {
         "pegawai_nama": "Ani Pemohon",
         "pegawai_satker_id": "00000000-0000-0000-0000-000000000009",
         "pegawai_satker_nama": "Kejaksaan Negeri Uji",
-        "jenis_bmn": "LAINNYA",
-        "bmn_nup": nup,
-        "bmn_kode_barang": kode_barang,
-        "bmn_nama_barang": "Barang Uji",
         "tanggal_mulai": "2026-01-01",
         "tanggal_selesai": "2026-12-31",
-        "keperluan": "Digunakan untuk pelaksanaan tugas kedinasan sehari-hari"
+        "keperluan": "Digunakan untuk pelaksanaan tugas kedinasan sehari-hari",
+        // V014: the asset moved into the list. One entry here, because what
+        // this file measures is the IDENTITY key of a single asset.
+        "items": [{
+            "jenis_bmn": "LAINNYA",
+            "bmn_nup": nup,
+            "bmn_kode_barang": kode_barang,
+            "bmn_nama_barang": "Barang Uji"
+        }]
     })
 }
 

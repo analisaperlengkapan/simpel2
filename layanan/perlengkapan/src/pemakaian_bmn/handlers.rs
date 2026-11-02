@@ -64,7 +64,11 @@ pub async fn create_permit(
     PemakaianBmnPolicy.authorize(&claims, PemakaianBmnAction::Create, None)?;
     // (A caller whose token names no satker is refused by the service with a 400
     // — the permit must belong to exactly one satker.)
-    info!("Creating new permit for BMN {}", request.bmn_nup);
+    info!(
+        "Creating new permit for {} BMN, pegawai {}",
+        request.items.len(),
+        request.pegawai_nip
+    );
 
     let permit = service
         .create_permit(

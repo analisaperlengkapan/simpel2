@@ -60,6 +60,11 @@ pub struct BookingConflict {
     pub holder: String,
     /// Tanggal izin aktif itu berakhir.
     pub expires: NaiveDate,
+    /// Aset yang bertabrakan. Sejak V014 satu izin memuat banyak BMN, jadi
+    /// "izin ini bentrok" tak lagi cukup — pesan errornya harus menyebut yang
+    /// mana, dan pemanggil tak bisa lagi menyimpulkannya dari kolom induk.
+    pub bmn_nup: String,
+    pub bmn_kode_barang: String,
 }
 
 /// BMN availability check response
@@ -210,7 +215,10 @@ pub struct ActiveUsageMonitoringDashboard {
     pub expiring_soon: Vec<ExpiringPermitInfo>,
     pub recent_activations: Vec<RecentActivationInfo>,
 }
-/// Permits grouped by BMN type
+/// Permits grouped by BMN type: `count` is the number of DISTINCT permits that
+/// hold at least one asset of `jenis_bmn`, and `percentage` is that over
+/// `total_active_permits`. A permit holding two kinds is counted under both,
+/// so the shares are each at most 100 but do not sum to 100.
 #[derive(Debug, Clone, Serialize)]
 pub struct PermitsByJenisBmn {
     pub jenis_bmn: String,

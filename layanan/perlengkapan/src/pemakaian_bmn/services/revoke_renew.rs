@@ -85,11 +85,56 @@ impl PemakaianBmnService {
         if let Some(bentrok) = self.repository.find_renewal_conflict(id).await? {
             return Err(AppError::BadRequest(format!(
                 "BMN {} (kode barang {}) sedang digunakan oleh {} hingga {}",
-                current.bmn_nup, current.bmn_kode_barang, bentrok.holder, bentrok.expires
+                bentrok.bmn_nup, bentrok.bmn_kode_barang, bentrok.holder, bentrok.expires
             )));
         }
 
         info!("Renewing permit {} by user {}", id, user_id);
+
+        // The renewal carries the WHOLE asset list forward. It used to send
+        // `additional_bmn_items: vec![]`, so every asset but the first was
+        // silently dropped at renewal — the permit came back one-asset-wide
+        // and the rest were left with no permit at all.
+        //
+        // Dates are deliberately NOT copied per item: a renewal is a new
+        // period for everything on the letter, and carrying the old per-item
+        // dates would produce a "renewal" that expired before it was signed.
+        // `None` here means each item takes the new permit's period.
+        if current.bmn_items.is_empty() {
+            return Err(AppError::BadRequest(
+                "Izin ini tidak memuat satu pun BMN, jadi tidak ada yang bisa diperpanjang"
+                    .to_string(),
+            ));
+        }
+        let items = current
+            .bmn_items
+            .iter()
+            .map(|it| CreateBmnItemRequest {
+                jenis_bmn: it.jenis_bmn.clone(),
+                bmn_nup: it.bmn_nup.clone(),
+                bmn_kode_barang: it.bmn_kode_barang.clone(),
+                bmn_nama_barang: it.bmn_nama_barang.clone(),
+                bmn_merk: it.bmn_merk.clone(),
+                bmn_tipe: it.bmn_tipe.clone(),
+                bmn_tahun_perolehan: it.bmn_tahun_perolehan,
+                bmn_kondisi: it.bmn_kondisi.clone(),
+                no_polisi: it.no_polisi.clone(),
+                no_bpkb: it.no_bpkb.clone(),
+                no_stnk: it.no_stnk.clone(),
+                no_rangka: it.no_rangka.clone(),
+                no_mesin: it.no_mesin.clone(),
+                alamat: it.alamat.clone(),
+                luas_tanah: it.luas_tanah,
+                luas_bangunan: it.luas_bangunan,
+                serial_number: it.serial_number.clone(),
+                spesifikasi: it.spesifikasi.clone(),
+                lokasi_pemakaian: it.lokasi_pemakaian.clone(),
+                tanggal_mulai: None,
+                tanggal_selesai: None,
+                detail_bmn: Some(it.detail_bmn.clone()),
+                keterangan: it.keterangan.clone(),
+            })
+            .collect();
 
         // Create new permit as renewal
         let create_request = CreateIzinPemakaianRequest {
@@ -102,30 +147,13 @@ impl PemakaianBmnService {
             pegawai_pangkat: current.pegawai_pangkat.clone(),
             pegawai_unit_kerja: current.pegawai_unit_kerja.clone(),
             foto_pegawai: current.foto_pegawai.clone(),
-            jenis_bmn: current.jenis_bmn.clone(),
-            bmn_nup: current.bmn_nup.clone(),
-            bmn_kode_barang: current.bmn_kode_barang.clone(),
-            bmn_nama_barang: current.bmn_nama_barang.clone(),
-            bmn_merk: current.bmn_merk.clone(),
-            bmn_tahun_perolehan: current.bmn_tahun_perolehan,
-            no_polisi: current.no_polisi.clone(),
-            no_bpkb: current.no_bpkb.clone(),
-            no_stnk: current.no_stnk.clone(),
-            no_rangka: current.no_rangka.clone(),
-            no_mesin: current.no_mesin.clone(),
-            alamat: current.alamat.clone(),
-            luas_tanah: current.luas_tanah,
-            luas_bangunan: current.luas_bangunan,
-            serial_number: current.serial_number.clone(),
-            spesifikasi: current.spesifikasi.clone(),
             tanggal_mulai: request.tanggal_mulai,
             tanggal_selesai: request.tanggal_selesai,
             keperluan: request.keperluan,
-            lokasi_pemakaian: current.lokasi_pemakaian.clone(),
             file_pendukung: current.file_pendukung.clone(),
             is_renewal: Some(true),
             previous_permit_id: Some(id),
-            additional_bmn_items: vec![],
+            items,
         };
 
         let new_permit = self

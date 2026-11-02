@@ -52,15 +52,17 @@ fn create_permit_body(nup: &str) -> serde_json::Value {
         "pegawai_nama": "Budi Santoso",
         "pegawai_satker_id": "00000000-0000-0000-0000-000000000001",
         "pegawai_satker_nama": "Kejaksaan Negeri Jakarta Selatan",
-        "jenis_bmn": "LAPTOP",
-        "bmn_nup": nup,
-        "bmn_kode_barang": "3060201003",
-        "bmn_nama_barang": "Laptop Dell Latitude 5520",
-        "bmn_merk": "Dell",
-        "serial_number": "SN-12345678",
         "tanggal_mulai": "2026-01-01",
         "tanggal_selesai": "2026-12-31",
-        "keperluan": "Digunakan untuk pelaksanaan tugas kedinasan sehari-hari"
+        "keperluan": "Digunakan untuk pelaksanaan tugas kedinasan sehari-hari",
+        "items": [{
+            "jenis_bmn": "LAPTOP",
+            "bmn_nup": nup,
+            "bmn_kode_barang": "3060201003",
+            "bmn_nama_barang": "Laptop Dell Latitude 5520",
+            "bmn_merk": "Dell",
+            "serial_number": "SN-12345678"
+        }]
     })
 }
 

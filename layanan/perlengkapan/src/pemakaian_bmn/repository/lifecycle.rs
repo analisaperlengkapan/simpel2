@@ -4,6 +4,54 @@ use crate::shared::error::{AppError, AppResult};
 use crate::shared::repo::PoolExt;
 
 impl PemakaianBmnRepository {
+    /// The permit that replaced `id`, if one did.
+    ///
+    /// Read-only. The replacing itself is done by `trg_izin_pemakaian_supersede`
+    /// (V014) in the same statement that activates the renewal, because the
+    /// workflow engine commits on its own connection and no caller can make
+    /// "activate" and "revoke the old one" a single transaction. This exists so
+    /// the service can refuse a second renewal with a clear message before it
+    /// reaches the trigger, which raises for the same condition when two
+    /// activations race.
+    pub async fn superseded_by(&self, id: uuid::Uuid) -> AppResult<Option<uuid::Uuid>> {
+        let client = self.pool.client().await?;
+        let row = client
+            .query_opt(
+                "SELECT superseded_by_id FROM perlengkapan.izin_pemakaian_bmn WHERE id = $1",
+                &[&id],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        Ok(row.and_then(|r| r.get::<_, Option<uuid::Uuid>>("superseded_by_id")))
+    }
+
+    /// Record who activated the renewal that withdrew `predecessor`.
+    ///
+    /// The withdrawal is done by `trg_izin_pemakaian_supersede` and is the
+    /// system's act; this only names the human accountable for the activation,
+    /// which the trigger cannot see. Scoped to the exact supersession
+    /// (`superseded_by_id = successor`) and to a still-empty `revoked_by`, so it
+    /// cannot rewrite the attribution of a permit revoked by hand or replaced
+    /// by a different renewal, and a second call changes nothing.
+    pub async fn attribute_supersession(
+        &self,
+        predecessor: uuid::Uuid,
+        successor: uuid::Uuid,
+        actor: uuid::Uuid,
+    ) -> AppResult<bool> {
+        let client = self.pool.client().await?;
+        let n = client
+            .execute(
+                "UPDATE perlengkapan.izin_pemakaian_bmn \
+                    SET revoked_by = $3 \
+                  WHERE id = $1 AND superseded_by_id = $2 AND revoked_by IS NULL",
+                &[&predecessor, &successor, &actor],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        Ok(n > 0)
+    }
+
     /// Auto-expire permits that have passed their end date
     /// Requirements: REQ-P010
     pub async fn auto_expire_permits(&self) -> AppResult<usize> {
@@ -66,10 +114,14 @@ impl PemakaianBmnRepository {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(rows
+        // With their assets: the expiring-permits table names what is about
+        // to lapse, and since V014 that lives only in the items.
+        let mut permits: Vec<IzinPemakaianBmn> = rows
             .into_iter()
             .map(|row| self.row_to_permit(row))
-            .collect())
+            .collect();
+        Self::attach_items(&**client, &mut permits).await?;
+        Ok(permits)
     }
 
     // ========================================================================

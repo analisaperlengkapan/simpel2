@@ -6,8 +6,13 @@ use crate::shared::satker_scope::{BoxedParam, SatkerScope};
 
 /// `scope` as a trailing `AND` over this table's `satker_code` — see the note
 /// on the shared helper it binds.
-fn scope_and(scope: &SatkerScope, params: &mut Vec<BoxedParam>) -> String {
-    crate::shared::satker_scope::scope_and(scope, "satker_code", params)
+/// `alias` is mandatory since V014: these queries now join the permit to its
+/// items, so two relations are in scope and an unqualified `satker_code` would
+/// bind by Postgres' resolution order rather than by intent. The subquery
+/// binds its OWN alias, which is the whole point — an outer binding there
+/// would scope the current holder by the wrong row.
+fn scope_and(scope: &SatkerScope, alias: &str, params: &mut Vec<BoxedParam>) -> String {
+    crate::shared::satker_scope::scope_and(scope, &format!("{alias}.satker_code"), params)
 }
 
 impl PemakaianBmnRepository {
@@ -38,7 +43,11 @@ impl PemakaianBmnRepository {
     ) -> AppResult<BmnUsageStats> {
         let client = self.pool.client().await?;
         let mut params: Vec<BoxedParam> = vec![Box::new(bmn_nup.to_string())];
-        let scope_sql = scope_and(scope, &mut params);
+        // Two bindings, two params: the outer query narrows `p`, the current-
+        // holder subquery narrows its own `p2`. Same value, stated twice, so
+        // neither depends on name resolution reaching outward.
+        let scope_sql = scope_and(scope, "p", &mut params);
+        let scope_sub = scope_and(scope, "p2", &mut params);
         let refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
             .iter()
             .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
@@ -46,19 +55,25 @@ impl PemakaianBmnRepository {
 
         let query = format!(
             r#"
+            -- Counted over ITEMS since V014: an asset's history is the
+            -- history of the rows naming it, and past the first asset those
+            -- rows were invisible to the old parent-only query.
             SELECT
-                bmn_nup,
-                bmn_nama_barang,
+                i.bmn_nup,
+                i.bmn_nama_barang,
                 COUNT(*) as total_permits,
-                COUNT(*) FILTER (WHERE status = 'ACTIVE') as active_permits,
+                COUNT(*) FILTER (WHERE p.status = 'ACTIVE') as active_permits,
                 -- SUM over an int4 difference yields int8, not int4. Reading it
                 -- as i32 panicked on the first row with any history at all.
-                SUM(tanggal_selesai - tanggal_mulai)::bigint as total_days_used,
-                (SELECT pegawai_nama FROM perlengkapan.izin_pemakaian_bmn
-                 WHERE bmn_nup = $1 AND status = 'ACTIVE'{scope_sql} LIMIT 1) as current_holder
-            FROM perlengkapan.izin_pemakaian_bmn
-            WHERE bmn_nup = $1{scope_sql}
-            GROUP BY bmn_nup, bmn_nama_barang
+                SUM(i.tanggal_selesai - i.tanggal_mulai)::bigint as total_days_used,
+                (SELECT p2.pegawai_nama
+                 FROM perlengkapan.pemakaian_bmn_items i2
+                 JOIN perlengkapan.izin_pemakaian_bmn p2 ON p2.id = i2.izin_pemakaian_id
+                 WHERE i2.bmn_nup = $1 AND p2.status = 'ACTIVE'{scope_sub} LIMIT 1) as current_holder
+            FROM perlengkapan.pemakaian_bmn_items i
+            JOIN perlengkapan.izin_pemakaian_bmn p ON p.id = i.izin_pemakaian_id
+            WHERE i.bmn_nup = $1{scope_sql}
+            GROUP BY i.bmn_nup, i.bmn_nama_barang
         "#
         );
 
@@ -70,18 +85,33 @@ impl PemakaianBmnRepository {
 
         // Get history entries. `id` breaks the created_at tie so paging and
         // repeat reads stay stable.
+        //
+        // Its OWN parameter list. The stats query above binds the scope twice
+        // (outer `p`, subquery `p2`), so its list is one entry longer than
+        // this query's placeholders; handing it the same list fails in
+        // Postgres with "bind message supplies 3 parameters, but prepared
+        // statement requires 2" — a 500 that compiles clean, and that only the
+        // scope integration test caught.
+        let mut hist_params: Vec<BoxedParam> = vec![Box::new(bmn_nup.to_string())];
+        let hist_scope = scope_and(scope, "p", &mut hist_params);
+        let hist_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = hist_params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
         let history_query = format!(
             r#"
-            SELECT id, nomor_izin, tanggal_mulai, tanggal_selesai, status, created_at
-            FROM perlengkapan.izin_pemakaian_bmn
-            WHERE bmn_nup = $1{scope_sql}
-            ORDER BY created_at DESC, id ASC
+            SELECT p.id, p.nomor_izin, i.tanggal_mulai, i.tanggal_selesai,
+                   p.status, p.created_at
+            FROM perlengkapan.pemakaian_bmn_items i
+            JOIN perlengkapan.izin_pemakaian_bmn p ON p.id = i.izin_pemakaian_id
+            WHERE i.bmn_nup = $1{hist_scope}
+            ORDER BY p.created_at DESC, p.id ASC
             LIMIT 10
         "#
         );
 
         let history_rows = client
-            .query(&history_query, &refs)
+            .query(&history_query, &hist_refs)
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -114,7 +144,7 @@ impl PemakaianBmnRepository {
     ) -> AppResult<PegawaiUsageStats> {
         let client = self.pool.client().await?;
         let mut params: Vec<BoxedParam> = vec![Box::new(pegawai_nip.to_string())];
-        let scope_sql = scope_and(scope, &mut params);
+        let scope_sql = scope_and(scope, "p", &mut params);
         let refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
             .iter()
             .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
@@ -122,14 +152,16 @@ impl PemakaianBmnRepository {
 
         let query = format!(
             r#"
+            -- Permit-level: this counts permits, not assets, so V014 changed
+            -- nothing here but the alias the scope binds to.
             SELECT
-                pegawai_nip,
-                pegawai_nama,
+                p.pegawai_nip,
+                p.pegawai_nama,
                 COUNT(*) as total_permits,
-                COUNT(*) FILTER (WHERE status = 'ACTIVE') as active_permits
-            FROM perlengkapan.izin_pemakaian_bmn
-            WHERE pegawai_nip = $1{scope_sql}
-            GROUP BY pegawai_nip, pegawai_nama
+                COUNT(*) FILTER (WHERE p.status = 'ACTIVE') as active_permits
+            FROM perlengkapan.izin_pemakaian_bmn p
+            WHERE p.pegawai_nip = $1{scope_sql}
+            GROUP BY p.pegawai_nip, p.pegawai_nama
         "#
         );
 
@@ -144,10 +176,11 @@ impl PemakaianBmnRepository {
         // Get history entries
         let history_query = format!(
             r#"
-            SELECT id, nomor_izin, tanggal_mulai, tanggal_selesai, status, created_at
-            FROM perlengkapan.izin_pemakaian_bmn
-            WHERE pegawai_nip = $1{scope_sql}
-            ORDER BY created_at DESC, id ASC
+            SELECT p.id, p.nomor_izin, p.tanggal_mulai, p.tanggal_selesai,
+                   p.status, p.created_at
+            FROM perlengkapan.izin_pemakaian_bmn p
+            WHERE p.pegawai_nip = $1{scope_sql}
+            ORDER BY p.created_at DESC, p.id ASC
             LIMIT 10
         "#
         );

@@ -3,7 +3,7 @@ use crate::pemakaian_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::satker_scope::SatkerScope;
 use crate::workflow::engine::TransitionRequest;
-use tracing::info;
+use tracing::{info, warn};
 use uuid::Uuid;
 
 impl PemakaianBmnService {
@@ -103,6 +103,23 @@ impl PemakaianBmnService {
             ));
         }
 
+        // Two renewals of one permit cannot both go live: the first replaces
+        // the permit it renews, and the second would then be "renewing" a
+        // permit that is already gone. Refused here with a sentence the caller
+        // can act on; the trigger raises the same condition for the concurrent
+        // case this read cannot see, and rolls the activation back.
+        if target_status == PemakaianBmnStatus::Active
+            && current.is_renewal
+            && let Some(sebelumnya) = current.previous_permit_id
+            && let Some(pengganti) = self.repository.superseded_by(sebelumnya).await?
+            && pengganti != id
+        {
+            return Err(AppError::Conflict(format!(
+                "Izin yang diperpanjang sudah digantikan oleh izin lain ({pengganti}); \
+                 perpanjangan ini tidak dapat diaktifkan"
+            )));
+        }
+
         info!(
             "Transitioning permit {} from {} to {} via workflow engine",
             id,
@@ -146,6 +163,50 @@ impl PemakaianBmnService {
         // Special handling for ACTIVE status
         if target_status == PemakaianBmnStatus::Active {
             info!("Permit {} is now active", id);
+
+            // A renewal takes effect the moment it is active, and the permit
+            // it renews is withdrawn at the same instant — otherwise both are
+            // ACTIVE over the same assets and the conflict check reports the
+            // old one against its own successor.
+            //
+            // Nothing to do here: `trg_izin_pemakaian_supersede` (V014) revokes
+            // the predecessor in the same statement that wrote ACTIVE. It used
+            // to be a second UPDATE issued from this function, after the
+            // engine had already committed — so a failure between the two left
+            // BOTH permits ACTIVE while the caller was told it had failed. The
+            // engine owns its own connection, so no caller can join its
+            // transaction; the trigger is the only place the two writes can be
+            // one. It also covers every path to ACTIVE, including the audited
+            // break-glass override, which comes through this function too.
+            if updated.is_renewal
+                && let Some(sebelumnya) = updated.previous_permit_id
+            {
+                info!(
+                    "Renewal {} is active; permit {} withdrawn with it",
+                    id, sebelumnya
+                );
+                // WHO is accountable. The trigger withdrew the permit as the
+                // system's automatic consequence of the renewal and cannot know
+                // the human behind the activation (the engine's connection
+                // carries no actor), so `revoked_by` is still empty. Name them
+                // now, as the previous path did. This is attribution only: the
+                // withdrawal itself is already committed and atomic, and
+                // failing the request here would tell the client an activation
+                // failed that did not. So a miss is logged, not returned. An
+                // activation that bypasses this function (a bare UPDATE) leaves
+                // the field empty, which honestly reads "unknown", rather than
+                // guessing from `updated_by`.
+                if let Err(e) = self
+                    .repository
+                    .attribute_supersession(sebelumnya, id, user_id)
+                    .await
+                {
+                    warn!(
+                        "Permit {} was withdrawn by renewal {} but recording who did it failed: {}",
+                        sebelumnya, id, e
+                    );
+                }
+            }
             // TODO(pemakaian-expiry-scheduler): hand this permit to the
             // `PemakaianBmnScheduler` (already running, see main.rs) so
             // `send_expiry_reminder` / `send_expiry_notification` fire at
