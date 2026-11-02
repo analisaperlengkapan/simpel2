@@ -51,5 +51,32 @@ pub async fn run(pool: &Pool) -> anyhow::Result<()> {
             info!("  ↳ V{} {}", m.version(), m.name());
         }
     }
+    drop(client);
+
+    // Refinery runs a version once. Anything that has to hold after EVERY
+    // start — because an older release may have written rows in the meantime —
+    // cannot live in a versioned migration.
+    normalize_pemakaian_items(pool).await
+}
+
+/// SQL that repairs `pemakaian_bmn_items` rows written without the V014 fields.
+const NORMALIZE_PEMAKAIAN_ITEMS: &str = include_str!("../sql/normalize_pemakaian_items.sql");
+
+/// Give every permit's assets a position, a kind and a period.
+///
+/// Runs on every startup, after refinery and before the service serves. V014
+/// lets the previous release keep inserting items that know nothing of the new
+/// columns (that is what makes `helm rollback` possible), but refinery will not
+/// run V014 again on the roll-forward, so those rows would reach
+/// `PemakaianBmnItem::from_row` as NULLs and panic the first request that
+/// touches their permit. This is the repair, and it is also V014's backfill.
+///
+/// One transaction, serialised across replicas by an advisory lock inside the
+/// SQL, idempotent: a start with nothing to repair writes nothing.
+pub async fn normalize_pemakaian_items(pool: &Pool) -> anyhow::Result<()> {
+    let mut client = pool.get().await?;
+    let tx = client.transaction().await?;
+    tx.batch_execute(NORMALIZE_PEMAKAIAN_ITEMS).await?;
+    tx.commit().await?;
     Ok(())
 }

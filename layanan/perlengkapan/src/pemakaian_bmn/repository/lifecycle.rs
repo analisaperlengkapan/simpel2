@@ -25,6 +25,33 @@ impl PemakaianBmnRepository {
         Ok(row.and_then(|r| r.get::<_, Option<uuid::Uuid>>("superseded_by_id")))
     }
 
+    /// Record who activated the renewal that withdrew `predecessor`.
+    ///
+    /// The withdrawal is done by `trg_izin_pemakaian_supersede` and is the
+    /// system's act; this only names the human accountable for the activation,
+    /// which the trigger cannot see. Scoped to the exact supersession
+    /// (`superseded_by_id = successor`) and to a still-empty `revoked_by`, so it
+    /// cannot rewrite the attribution of a permit revoked by hand or replaced
+    /// by a different renewal, and a second call changes nothing.
+    pub async fn attribute_supersession(
+        &self,
+        predecessor: uuid::Uuid,
+        successor: uuid::Uuid,
+        actor: uuid::Uuid,
+    ) -> AppResult<bool> {
+        let client = self.pool.client().await?;
+        let n = client
+            .execute(
+                "UPDATE perlengkapan.izin_pemakaian_bmn \
+                    SET revoked_by = $3 \
+                  WHERE id = $1 AND superseded_by_id = $2 AND revoked_by IS NULL",
+                &[&predecessor, &successor, &actor],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        Ok(n > 0)
+    }
+
     /// Auto-expire permits that have passed their end date
     /// Requirements: REQ-P010
     pub async fn auto_expire_permits(&self) -> AppResult<usize> {

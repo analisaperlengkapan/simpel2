@@ -3,7 +3,7 @@ use crate::pemakaian_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::satker_scope::SatkerScope;
 use crate::workflow::engine::TransitionRequest;
-use tracing::info;
+use tracing::{info, warn};
 use uuid::Uuid;
 
 impl PemakaianBmnService {
@@ -185,6 +185,27 @@ impl PemakaianBmnService {
                     "Renewal {} is active; permit {} withdrawn with it",
                     id, sebelumnya
                 );
+                // WHO is accountable. The trigger withdrew the permit as the
+                // system's automatic consequence of the renewal and cannot know
+                // the human behind the activation (the engine's connection
+                // carries no actor), so `revoked_by` is still empty. Name them
+                // now, as the previous path did. This is attribution only: the
+                // withdrawal itself is already committed and atomic, and
+                // failing the request here would tell the client an activation
+                // failed that did not. So a miss is logged, not returned. An
+                // activation that bypasses this function (a bare UPDATE) leaves
+                // the field empty, which honestly reads "unknown", rather than
+                // guessing from `updated_by`.
+                if let Err(e) = self
+                    .repository
+                    .attribute_supersession(sebelumnya, id, user_id)
+                    .await
+                {
+                    warn!(
+                        "Permit {} was withdrawn by renewal {} but recording who did it failed: {}",
+                        sebelumnya, id, e
+                    );
+                }
             }
             // TODO(pemakaian-expiry-scheduler): hand this permit to the
             // `PemakaianBmnScheduler` (already running, see main.rs) so

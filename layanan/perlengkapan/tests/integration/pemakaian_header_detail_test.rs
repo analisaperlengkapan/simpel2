@@ -351,6 +351,12 @@ async fn a_renewal_carries_every_asset_and_supersedes_the_old_permit() {
         Some(baru.as_str()),
         "and it points at what replaced it"
     );
+    assert_eq!(
+        lama_izin["revoked_by"].as_str(),
+        Some(APPROVER_SATKER),
+        "the human whose approval activated the renewal is on the record, as \
+         the two-step version stored — the trigger alone cannot know them: {lama_izin}"
+    );
     assert!(
         lama_izin["catatan_revocation"]
             .as_str()
@@ -551,6 +557,16 @@ async fn activating_a_renewal_withdraws_its_predecessor_in_the_same_statement() 
         "no path to ACTIVE may leave the replaced permit running"
     );
     assert_eq!(izin["superseded_by_id"].as_str(), Some(baru.as_str()));
+    assert_eq!(
+        izin["revoked_by_nama"].as_str(),
+        Some("system"),
+        "the withdrawal is the system's act"
+    );
+    assert!(
+        izin["revoked_by"].is_null(),
+        "an activation that bypassed the service names no human — NULL means \
+         unknown, not a guess from updated_by: {izin}"
+    );
     let kode: i32 = client
         .query_one(
             "SELECT status_kode FROM perlengkapan.izin_pemakaian_bmn WHERE id = $1",
@@ -723,16 +739,17 @@ async fn the_previous_release_can_still_read_the_permit() {
     teardown_test_db(&db_name).await;
 }
 
-/// V014 can be applied again, and picks up what the previous release wrote in
-/// between.
+/// The startup normaliser repairs what the previous release wrote.
 ///
-/// A rollback followed by a roll-forward is exactly that: the old release
-/// inserts a permit and an item that know nothing of `urutan`/`jenis_bmn`, and
-/// the next deploy must normalise them without touching anything already
-/// normalised. Reproduced here by writing the previous release's INSERT shapes
-/// by hand and re-running the migration file itself.
+/// A rollback followed by a roll-forward: the old release inserts a permit and
+/// an item that know nothing of `urutan`/`jenis_bmn`/the period. Refinery will
+/// NOT run V014 again, so those rows would reach `PemakaianBmnItem::from_row`
+/// as NULLs. The normaliser is what runs instead, on every start; this drives
+/// it directly with the previous release's INSERT shapes. (The end-to-end
+/// version, through the real runner that skips V014, is in
+/// `migration_runner_test`.)
 #[tokio::test]
-async fn reapplying_v014_normalises_what_the_previous_release_wrote() {
+async fn the_startup_normaliser_repairs_what_the_previous_release_wrote() {
     let (app, db, db_name) = setup_test_app().await;
     let server = TestServer::new(app);
     let client = db.pool().get().await.unwrap();
@@ -775,39 +792,51 @@ async fn reapplying_v014_normalises_what_the_previous_release_wrote() {
         .await
         .expect("the previous release's writes must still be accepted by the V014 schema");
 
-    client
-        .batch_execute(include_str!(
-            "../../migrations/V014__pemakaian_bmn_header_detail.sql"
-        ))
+    layanan_perlengkapan::migrations::normalize_pemakaian_items(db.pool())
         .await
-        .expect("V014 must be re-applicable");
+        .expect("the normaliser must run");
 
-    let rows = client
-        .query(
-            "SELECT urutan, jenis_bmn, bmn_nup FROM perlengkapan.pemakaian_bmn_items \
-             WHERE izin_pemakaian_id = 'a0000000-0000-4000-8000-0000000000c1' ORDER BY urutan",
-            &[],
-        )
-        .await
-        .unwrap();
-    let got: Vec<(i32, String, String)> = rows
-        .iter()
-        .map(|r| (r.get(0), r.get(1), r.get(2)))
-        .collect();
+    let ambil = || async {
+        client
+            .query(
+                "SELECT urutan, jenis_bmn, bmn_nup FROM perlengkapan.pemakaian_bmn_items \
+                 WHERE izin_pemakaian_id = 'a0000000-0000-4000-8000-0000000000c1' ORDER BY urutan",
+                &[],
+            )
+            .await
+            .unwrap()
+            .iter()
+            .map(|r| {
+                (
+                    r.get::<_, i32>(0),
+                    r.get::<_, String>(1),
+                    r.get::<_, String>(2),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let diharapkan = vec![
+        (1, "KENDARAAN_BERMOTOR".to_string(), "583".to_string()),
+        (2, "LAINNYA".to_string(), "584".to_string()),
+    ];
     assert_eq!(
-        got,
-        vec![
-            (1, "KENDARAAN_BERMOTOR".to_string(), "583".to_string()),
-            (2, "LAINNYA".to_string(), "584".to_string()),
-        ],
+        ambil().await,
+        diharapkan,
         "the parent's asset becomes slot 1 and the old item follows it; the \
          item's kind is LAINNYA because the old schema never recorded one"
     );
     assert_eq!(
         snapshot().await,
         sebelum,
-        "a permit this release wrote must be untouched by the second run"
+        "a permit this release wrote must be untouched"
     );
+
+    // Idempotent: a start with nothing to repair changes nothing.
+    layanan_perlengkapan::migrations::normalize_pemakaian_items(db.pool())
+        .await
+        .unwrap();
+    assert_eq!(ambil().await, diharapkan, "second run must be a no-op");
+    assert_eq!(snapshot().await, sebelum);
 
     teardown_test_db(&db_name).await;
 }

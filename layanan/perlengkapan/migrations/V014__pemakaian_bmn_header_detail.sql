@@ -70,9 +70,12 @@
 -- VALID would re-create the defect this migration fixes — a rule that cannot
 -- fire. (The parent's dead copy is dropped in the contract migration.)
 --
--- Re-applying this file is safe, including after the previous release has
--- written rows in between (a rollback and a roll-forward): every statement is
--- guarded, and the backfill only touches rows still missing their new fields.
+-- Re-applying this file is safe (every statement is guarded), which matters
+-- if an operator deletes its history row to roll back onto a binary that
+-- predates it. Rows the previous release writes in between are NOT repaired by
+-- this file — refinery would not run it again — but by the startup normaliser
+-- (sql/normalize_pemakaian_items.sql), which `migrations::run` executes on every
+-- start. The first-apply backfill is that same file.
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -97,69 +100,16 @@ ALTER TABLE perlengkapan.pemakaian_bmn_items
     ADD COLUMN IF NOT EXISTS tanggal_selesai   date;
 
 -- ---------------------------------------------------------------------------
--- 2. Move the parent's own asset down, and give the existing items the fields
---    they never had.
---
--- Slot 1 is the asset that was sitting in the parent, which was always the
--- permit's first. It is inserted FIRST, so the items that already exist are
--- numbered after it. A permit that already has a slot 1 (written by this
--- release) is left alone, which is also what makes a second run a no-op.
+-- 2. (Backfill) lives in sql/normalize_pemakaian_items.sql, not here
 -- ---------------------------------------------------------------------------
-INSERT INTO perlengkapan.pemakaian_bmn_items (
-    izin_pemakaian_id, urutan, jenis_bmn,
-    bmn_nup, bmn_kode_barang, bmn_nama_barang, bmn_merk, bmn_tipe,
-    bmn_tahun_perolehan,
-    no_polisi, no_bpkb, no_rangka, no_mesin, no_stnk,
-    alamat, luas_tanah, luas_bangunan,
-    serial_number, spesifikasi, lokasi_pemakaian,
-    tanggal_mulai, tanggal_selesai,
-    created_at, updated_at
-)
-SELECT p.id, 1, p.jenis_bmn,
-       p.bmn_nup, p.bmn_kode_barang, p.bmn_nama_barang, p.bmn_merk, p.bmn_tipe,
-       p.bmn_tahun_perolehan,
-       p.no_polisi, p.no_bpkb, p.no_rangka, p.no_mesin, p.no_stnk,
-       p.alamat, p.luas_tanah, p.luas_bangunan,
-       p.serial_number, p.spesifikasi, p.lokasi_pemakaian,
-       p.tanggal_mulai, p.tanggal_selesai,
-       COALESCE(p.created_at, now()), COALESCE(p.updated_at, now())
-FROM perlengkapan.izin_pemakaian_bmn p
-WHERE p.bmn_nup IS NOT NULL
-  AND NOT EXISTS (
-      SELECT 1 FROM perlengkapan.pemakaian_bmn_items it
-      WHERE it.izin_pemakaian_id = p.id AND it.urutan = 1
-  );
+-- The parent's own asset becomes item slot 1 and the items that already exist
+-- are numbered after it. That is not done in this file because refinery runs a
+-- version once: the previous release may write more legacy items after a
+-- rollback, and a one-shot backfill would never see them. `migrations::run`
+-- executes the same statements on every startup, after refinery and before the
+-- service serves, so the first apply and every later roll-forward take the
+-- same path.
 
--- Items that have no position yet: the ones the old schema wrote. They keep
--- their order and continue after the highest slot already taken.
---
--- `jenis_bmn` is `LAINNYA`, NOT the parent's jenis. The old item table had no
--- jenis column at all, so there is no per-item value to recover and copying
--- the parent's would label a laptop KENDARAAN_BERMOTOR — a fabrication the
--- vehicle CHECK would then reject for having no plate. LAINNYA is the enum's
--- own "unclassified" member: it records that the old schema never knew, which
--- is the truth. (The first draft of this migration did copy the parent's
--- jenis; backfilling real rows is what caught it.)
-UPDATE perlengkapan.pemakaian_bmn_items it
-SET urutan           = s.dasar + s.posisi,
-    jenis_bmn        = COALESCE(it.jenis_bmn, 'LAINNYA'),
-    lokasi_pemakaian = COALESCE(it.lokasi_pemakaian, p.lokasi_pemakaian),
-    tanggal_mulai    = COALESCE(it.tanggal_mulai, p.tanggal_mulai),
-    tanggal_selesai  = COALESCE(it.tanggal_selesai, p.tanggal_selesai)
-FROM (
-    SELECT x.id, x.izin_pemakaian_id,
-           COALESCE((
-               SELECT MAX(n.urutan) FROM perlengkapan.pemakaian_bmn_items n
-               WHERE n.izin_pemakaian_id = x.izin_pemakaian_id AND n.urutan IS NOT NULL
-           ), 0) AS dasar,
-           row_number() OVER (
-               PARTITION BY x.izin_pemakaian_id ORDER BY x.created_at, x.id
-           ) AS posisi
-    FROM perlengkapan.pemakaian_bmn_items x
-    WHERE x.urutan IS NULL
-) s
-JOIN perlengkapan.izin_pemakaian_bmn p ON p.id = s.izin_pemakaian_id
-WHERE it.id = s.id;
 
 -- ---------------------------------------------------------------------------
 -- 3. Lock the shape in — except NOT NULL, which waits for the contract phase:
@@ -336,6 +286,16 @@ COMMENT ON COLUMN perlengkapan.izin_pemakaian_bmn.superseded_by_id IS
 --
 -- `status_kode` 3006 is PemakaianBmnStatus::Revoked; the denormalised code is
 -- set here because the application only syncs it for the row it transitions.
+--
+-- Who is recorded as revoking: the SYSTEM (`revoked_by_nama = 'system'`), since
+-- the withdrawal is the automatic consequence of the renewal and not a
+-- decision anyone took about the old permit. `revoked_by` (the user id) is left
+-- NULL here because the trigger sees only the row; the service fills it with
+-- the human who activated the renewal immediately afterwards
+-- (`attribute_supersession`), as the earlier two-step version did. An
+-- activation that bypasses the service leaves it NULL, which reads "unknown"
+-- rather than a guess taken from `updated_by`. Either way `superseded_by_id`
+-- leads to the renewal, whose approval and transition audit name the people.
 CREATE OR REPLACE FUNCTION perlengkapan.supersede_previous_permit()
 RETURNS trigger
 LANGUAGE plpgsql
