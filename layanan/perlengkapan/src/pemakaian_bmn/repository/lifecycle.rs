@@ -119,8 +119,10 @@ impl PemakaianBmnRepository {
 
         // With their assets: the expiring-permits table names what is about
         // to lapse, and since V014 that lives only in the items.
-        let mut permits: Vec<IzinPemakaianBmn> =
-            rows.into_iter().map(|row| self.row_to_permit(row)).collect();
+        let mut permits: Vec<IzinPemakaianBmn> = rows
+            .into_iter()
+            .map(|row| self.row_to_permit(row))
+            .collect();
         Self::attach_items(&**client, &mut permits).await?;
         Ok(permits)
     }

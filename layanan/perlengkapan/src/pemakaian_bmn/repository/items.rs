@@ -119,7 +119,10 @@ impl PemakaianBmnRepository {
             std::collections::HashMap::new();
         for row in &rows {
             let item = PemakaianBmnItem::from_row(row);
-            per_izin.entry(item.izin_pemakaian_id).or_default().push(item);
+            per_izin
+                .entry(item.izin_pemakaian_id)
+                .or_default()
+                .push(item);
         }
         for permit in permits.iter_mut() {
             permit.bmn_items = per_izin.remove(&permit.id).unwrap_or_default();

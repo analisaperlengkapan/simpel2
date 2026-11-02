@@ -53,15 +53,25 @@ mod tests {
 
     #[test]
     fn every_listed_jenis_aset_maps_to_its_kind() {
-        assert_eq!(jenis_bmn_dari_jenis_aset("Alat Angkutan Bermotor"), "KENDARAAN_BERMOTOR");
+        assert_eq!(
+            jenis_bmn_dari_jenis_aset("Alat Angkutan Bermotor"),
+            "KENDARAAN_BERMOTOR"
+        );
         assert_eq!(jenis_bmn_dari_jenis_aset("Rumah Negara"), "RUMAH_NEGARA");
-        assert_eq!(jenis_bmn_dari_jenis_aset("Peralatan Mesin Khusus TIK"), "LAPTOP");
+        assert_eq!(
+            jenis_bmn_dari_jenis_aset("Peralatan Mesin Khusus TIK"),
+            "LAPTOP"
+        );
     }
 
     #[test]
     fn anything_else_is_lainnya() {
         for other in ["Tanah", "Gedung dan Bangunan", "TIDAK DIKETAHUI", ""] {
-            assert_eq!(jenis_bmn_dari_jenis_aset(other), JENIS_BMN_LAINNYA, "{other}");
+            assert_eq!(
+                jenis_bmn_dari_jenis_aset(other),
+                JENIS_BMN_LAINNYA,
+                "{other}"
+            );
         }
     }
 }

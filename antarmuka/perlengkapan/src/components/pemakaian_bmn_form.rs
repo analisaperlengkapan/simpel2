@@ -23,8 +23,8 @@ use crate::api::bank_aset::BankAsetItem;
 use crate::api::pemakaian_bmn::CekPegawaiResponse;
 use crate::components::reference_picker::{AsetPicker, PegawaiPicker, merk_tipe};
 use leptos_router::hooks::use_navigate;
-use lib_ui::components::icon::AppIcon;
 use lib_perlengkapan::jenis_bmn::{jenis_bmn_dari_jenis_aset, label_jenis_bmn};
+use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{CHECK_CIRCLE, PAPER_PLANE_TILT, PLUS, SPINNER, WARNING_CIRCLE, X};
 
 /// Satu BMN dalam permohonan.
@@ -392,7 +392,11 @@ pub fn PemakaianBmnForm() -> impl IntoView {
         let p = picked.map(|r| r.pegawai);
         set_pegawai_nip.set(p.as_ref().map(|p| p.nip.clone()).unwrap_or_default());
         set_pegawai_nama.set(p.as_ref().and_then(|p| p.nama.clone()).unwrap_or_default());
-        set_pegawai_pangkat.set(p.as_ref().and_then(|p| p.pangkat.clone()).unwrap_or_default());
+        set_pegawai_pangkat.set(
+            p.as_ref()
+                .and_then(|p| p.pangkat.clone())
+                .unwrap_or_default(),
+        );
         set_pegawai_unit_kerja.set(
             p.as_ref()
                 .and_then(|p| p.nama_satker.clone())
@@ -461,9 +465,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     return;
                 }
                 None => {
-                    set_error.set(Some(format!(
-                        "Ketersediaan BMN {nomor} belum diperiksa"
-                    )));
+                    set_error.set(Some(format!("Ketersediaan BMN {nomor} belum diperiksa")));
                     return;
                 }
             }

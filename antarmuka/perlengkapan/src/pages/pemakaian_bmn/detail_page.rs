@@ -382,14 +382,32 @@ fn DetailBody(
 /// is used. Blank parts are skipped rather than printed as "-".
 fn keterangan_item(it: &crate::api::pemakaian_bmn::PemakaianBmnItem) -> String {
     let mut bagian: Vec<String> = Vec::new();
-    if let Some(v) = &it.no_polisi { bagian.push(format!("No. Polisi {v}")); }
-    if let Some(v) = &it.no_bpkb { bagian.push(format!("BPKB {v}")); }
-    if let Some(v) = &it.alamat { bagian.push(v.clone()); }
-    if let Some(v) = it.luas_tanah { bagian.push(format!("Tanah {v} m²")); }
-    if let Some(v) = it.luas_bangunan { bagian.push(format!("Bangunan {v} m²")); }
-    if let Some(v) = &it.serial_number { bagian.push(format!("SN {v}")); }
-    if let Some(v) = &it.lokasi_pemakaian { bagian.push(format!("Lokasi: {v}")); }
-    if bagian.is_empty() { "-".to_string() } else { bagian.join(" · ") }
+    if let Some(v) = &it.no_polisi {
+        bagian.push(format!("No. Polisi {v}"));
+    }
+    if let Some(v) = &it.no_bpkb {
+        bagian.push(format!("BPKB {v}"));
+    }
+    if let Some(v) = &it.alamat {
+        bagian.push(v.clone());
+    }
+    if let Some(v) = it.luas_tanah {
+        bagian.push(format!("Tanah {v} m²"));
+    }
+    if let Some(v) = it.luas_bangunan {
+        bagian.push(format!("Bangunan {v} m²"));
+    }
+    if let Some(v) = &it.serial_number {
+        bagian.push(format!("SN {v}"));
+    }
+    if let Some(v) = &it.lokasi_pemakaian {
+        bagian.push(format!("Lokasi: {v}"));
+    }
+    if bagian.is_empty() {
+        "-".to_string()
+    } else {
+        bagian.join(" · ")
+    }
 }
 
 /// The satker-internal approval chain, rendered from what the backend says

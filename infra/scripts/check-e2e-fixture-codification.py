@@ -407,15 +407,15 @@ def _canaries() -> int:
         "detects: a permit whose kode barang drifts from its asset",
         ms,
         wf.replace(
-            "1, 'LAPTOP', 'E2E-A-1', '3020101003'",
-            "1, 'LAPTOP', 'E2E-A-1', '3050104001'",
+            "1, 'KENDARAAN_BERMOTOR', 'E2E-A-1', '3020101003'",
+            "1, 'KENDARAAN_BERMOTOR', 'E2E-A-1', '3050104001'",
         ),
         should_fail=True,
     )
     expect(
         "detects: a permit for a NUP no asset carries",
         ms,
-        wf.replace("1, 'LAPTOP', 'E2E-B-1'", "1, 'LAPTOP', 'E2E-Z-9'"),
+        wf.replace("1, 'KENDARAAN_BERMOTOR', 'E2E-B-1'", "1, 'KENDARAAN_BERMOTOR', 'E2E-Z-9'"),
         should_fail=True,
     )
     # The dotted/undotted split must NOT be reported: both spellings are the
