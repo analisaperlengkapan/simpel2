@@ -38,6 +38,12 @@ two seed files that a human currently maintains by hand:
   (3) Every seeded permit has at least one item, and every item belongs to a
       seeded permit. A permit with no asset is not a permit, and the header
       alone gives a reader no way to tell.
+  (4) Every item's `jenis_bmn` is what the permit form derives from its
+      asset's SIMAN `jenis_aset`. The mapping is READ from its one definition,
+      `lib/perlengkapan/src/jenis_bmn.rs`, not restated here — a third copy
+      would be one more thing to drift. The seed used to call two vehicles
+      LAPTOP "to avoid the vehicle CHECK"; once the form derived the kind, that
+      fiction would have been on screen.
 
 `penghapusan_bmn` is deliberately EXCLUDED from (2): its H2 fixture exists to
 exercise the "NUP found here but under a different barang code" branch, so a
@@ -198,12 +204,38 @@ def parse_insert(sql: str, table: str) -> list[dict[str, str | None]]:
     return rows
 
 
+JENIS_BMN_RS = ROOT / "lib" / "perlengkapan" / "src" / "jenis_bmn.rs"
+
+
+def jenis_bmn_mapping(src: str) -> tuple[dict[str, str], str]:
+    """`(jenis_aset -> jenis_bmn, default)` from the Rust table itself."""
+    table = re.search(
+        r"JENIS_BMN_DARI_JENIS_ASET:\s*&\[\(&str,\s*&str\)\]\s*=\s*&\[(?P<body>.*?)\];",
+        src,
+        re.S,
+    )
+    default = re.search(r'JENIS_BMN_LAINNYA:\s*&str\s*=\s*"([^"]+)"', src)
+    if not table or not default:
+        raise SystemExit("::error::jenis_bmn.rs: mapping table not found — did it move?")
+    pairs = dict(re.findall(r'\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)', table.group("body")))
+    if not pairs:
+        raise SystemExit("::error::jenis_bmn.rs: mapping table parsed EMPTY")
+    return pairs, default.group(1)
+
+
 def norm_kode(kode: str | None) -> str:
     """SIMAN stores ten undotted digits; the rest of the system writes dots."""
     return re.sub(r"[^0-9]", "", kode or "")
 
 
-def check(multisatker_sql: str, workflow_sql: str, harness_src: str = "") -> list[str]:
+def check(
+    multisatker_sql: str,
+    workflow_sql: str,
+    harness_src: str = "",
+    jenis_src: str | None = None,
+) -> list[str]:
+    if jenis_src is None:
+        jenis_src = JENIS_BMN_RS.read_text()
     problems: list[str] = []
 
     aset = parse_insert(strip_comments(multisatker_sql), "integrasi.siman_aset")
@@ -220,12 +252,14 @@ def check(multisatker_sql: str, workflow_sql: str, harness_src: str = "") -> lis
     # (1) one code, one name.
     by_code: dict[str, set[str]] = {}
     by_nup: dict[str, str] = {}
+    jenis_by_nup: dict[str, str] = {}
     for row in aset:
         code = norm_kode(row.get("kd_brg"))
         name = row.get("ur_sskel")
         if code:
             by_code.setdefault(code, set()).add(name or "")
             by_nup[row.get("no_aset") or ""] = code
+            jenis_by_nup[row.get("no_aset") or ""] = row.get("jenis_aset") or ""
     for code, names in sorted(by_code.items()):
         if len(names) > 1:
             problems.append(
@@ -279,6 +313,20 @@ def check(multisatker_sql: str, workflow_sql: str, harness_src: str = "") -> lis
         if row.get("id") not in with_items:
             problems.append(
                 f"izin {row.get('nomor_izin')!r} has no item — a permit with no asset."
+            )
+    # (4) the item's kind is the derivation of its asset's SIMAN kind.
+    mapping, lainnya = jenis_bmn_mapping(jenis_src)
+    for row in items:
+        nup = row.get("bmn_nup") or ""
+        jenis_aset = jenis_by_nup.get(nup)
+        if jenis_aset is None:
+            continue  # (2) already reported the unknown NUP
+        expected = mapping.get(jenis_aset.strip(), lainnya)
+        if row.get("jenis_bmn") != expected:
+            izin = nomor_of.get(row.get("izin_pemakaian_id"), row.get("izin_pemakaian_id"))
+            problems.append(
+                f"izin {izin!r} calls NUP {nup!r} {row.get('jenis_bmn')!r}, but SIMAN "
+                f"says {jenis_aset!r}, which the form derives as {expected!r}."
             )
     for row in items:
         if row.get("izin_pemakaian_id") not in nomor_of:
@@ -397,6 +445,13 @@ def _canaries() -> int:
             "('e2000000-0000-4e00-8e00-0000000b0004', 1, 'LAPTOP'",
             "('e2000000-0000-4e00-8e00-0000000b0099', 1, 'LAPTOP'",
         ),
+        should_fail=True,
+    )
+    # (4): a vehicle in SIMAN called LAPTOP in the permit — the fixture lie.
+    expect(
+        "detects: an item whose kind contradicts its SIMAN jenis_aset",
+        ms,
+        wf.replace("1, 'KENDARAAN_BERMOTOR', 'E2E-A-1'", "1, 'LAPTOP', 'E2E-A-1'"),
         should_fail=True,
     )
     return failures

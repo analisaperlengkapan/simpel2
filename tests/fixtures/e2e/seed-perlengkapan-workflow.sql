@@ -558,27 +558,36 @@ ON CONFLICT (id) DO UPDATE SET
   satker_code = EXCLUDED.satker_code,
   version = 1;
 
--- Each permit's asset. jenis_bmn LAPTOP avoids the vehicle/housing CHECKs;
+-- Each permit's asset. `jenis_bmn` is what the form DERIVES from the asset's
+-- SIMAN `jenis_aset` (lib_perlengkapan::jenis_bmn), so the seed states the same
+-- thing: E2E-A-1 and E2E-B-1 are vehicles in SIMAN (Station Wagon, Sepeda
+-- Motor), not laptops. The rows used to say LAPTOP "to avoid the vehicle CHECK"
+-- — a fixture inventing a fact the source contradicts, which the derived form
+-- would now put on screen. Vehicles carry the plate and BPKB the CHECK
+-- requires; those are operator-entered (SIMAN has no such column).
 -- `bmn_kode_barang` must equal the `kd_brg` of the SIMAN asset `bmn_nup`
--- names (see the SHAPE NOTE above).
+-- names (see the SHAPE NOTE above). check-e2e-fixture-codification.py
+-- enforces both.
 INSERT INTO perlengkapan.pemakaian_bmn_items
   (izin_pemakaian_id, urutan, jenis_bmn, bmn_nup, bmn_kode_barang, bmn_nama_barang,
-   serial_number, tanggal_mulai, tanggal_selesai)
+   serial_number, no_polisi, no_bpkb, tanggal_mulai, tanggal_selesai)
 VALUES
   ('e2000000-0000-4e00-8e00-0000000b0001', 1, 'LAPTOP', 'E2E-A-2', '3100102003', 'E2E Laptop Dinas Pinjam',
-   'SN-E2E-0001', '2026-01-01', '2026-12-31'),
-  ('e2000000-0000-4e00-8e00-0000000b0002', 1, 'LAPTOP', 'E2E-A-1', '3020101003', 'E2E Laptop Ajuan Satker',
-   'SN-E2E-0002', '2026-02-01', '2026-11-30'),
-  ('e2000000-0000-4e00-8e00-0000000b0003', 1, 'LAPTOP', 'E2E-B-1', '3020104001', 'E2E Laptop Jaksel',
-   'SN-E2E-0003', '2026-03-01', '2026-10-31'),
+   'SN-E2E-0001', NULL, NULL, '2026-01-01', '2026-12-31'),
+  ('e2000000-0000-4e00-8e00-0000000b0002', 1, 'KENDARAAN_BERMOTOR', 'E2E-A-1', '3020101003', 'E2E Laptop Ajuan Satker',
+   NULL, 'B 1001 EEE', 'BPKB-E2E-0002', '2026-02-01', '2026-11-30'),
+  ('e2000000-0000-4e00-8e00-0000000b0003', 1, 'KENDARAAN_BERMOTOR', 'E2E-B-1', '3020104001', 'E2E Laptop Jaksel',
+   NULL, 'B 2002 EEE', 'BPKB-E2E-0003', '2026-03-01', '2026-10-31'),
   ('e2000000-0000-4e00-8e00-0000000b0004', 1, 'LAPTOP', 'E2E-C-1', '3100203003', 'E2E Laptop Bandung',
-   'SN-E2E-0004', '2026-03-01', '2026-10-31')
+   'SN-E2E-0004', NULL, NULL, '2026-03-01', '2026-10-31')
 ON CONFLICT (izin_pemakaian_id, urutan) DO UPDATE SET
   jenis_bmn = EXCLUDED.jenis_bmn,
   bmn_nup = EXCLUDED.bmn_nup,
   bmn_kode_barang = EXCLUDED.bmn_kode_barang,
   bmn_nama_barang = EXCLUDED.bmn_nama_barang,
   serial_number = EXCLUDED.serial_number,
+  no_polisi = EXCLUDED.no_polisi,
+  no_bpkb = EXCLUDED.no_bpkb,
   tanggal_mulai = EXCLUDED.tanggal_mulai,
   tanggal_selesai = EXCLUDED.tanggal_selesai;
 
