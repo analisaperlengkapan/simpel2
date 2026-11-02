@@ -4,22 +4,22 @@
 -- Run by `migrations::run` on EVERY startup, after refinery and before the
 -- service binds a port. Not a refinery migration, on purpose.
 --
--- Why it is not in V014: refinery records each applied version and never runs
--- it again. V014 lets the previous release keep inserting items that know
--- nothing of `urutan`/`jenis_bmn`/the period (that is what makes rollback
--- possible). After rollback -> roll-forward those rows exist, V014 is skipped,
--- and PemakaianBmnItem::from_row would read NULL into required fields and
--- panic on the first permit that holds one. So the repair has to be something
--- that runs every time.
+-- What it is for: rows that EXIST BEFORE the V014 triggers do — the legacy
+-- items and the header-held first assets written by a release that predates
+-- V014. Right after V014 they have no position and no item row. Refinery runs
+-- V014 once, so this is what repairs them, and it must finish before any
+-- request reads them: `PemakaianBmnItem::from_row` reads NULL into required
+-- fields and panics.
+--
+-- What it is NOT for: writes that arrive later. During a rolling upgrade old
+-- pods keep writing while new pods run, and a startup pass cannot see those.
+-- V014 section 6 normalises them AT INSERT with triggers. This file also keeps
+-- every start self-healing if some row slips past both.
 --
 -- Idempotent and cheap: both statements touch only rows still missing their
--- new fields, so a startup with nothing to repair does two index-assisted
--- scans and writes nothing. The advisory lock serialises replicas that start
--- together; without it two pods could both insert a permit's slot 1 and one
--- would die on the unique constraint.
---
--- It also does the first-apply backfill: right after V014 the legacy items
--- have no position, and the parent's own asset has no item row at all.
+-- new fields, so a start with nothing to repair writes nothing. The advisory
+-- lock serialises replicas that start together; without it two pods could both
+-- insert a permit's slot 1 and one would die on the unique constraint.
 --
 -- Slot 1 is the asset that was sitting in the parent, which was always the
 -- permit's first. It is inserted FIRST, so items that already exist are

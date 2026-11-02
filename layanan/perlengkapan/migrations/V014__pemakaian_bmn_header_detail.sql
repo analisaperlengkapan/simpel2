@@ -72,10 +72,13 @@
 --
 -- Re-applying this file is safe (every statement is guarded), which matters
 -- if an operator deletes its history row to roll back onto a binary that
--- predates it. Rows the previous release writes in between are NOT repaired by
--- this file — refinery would not run it again — but by the startup normaliser
--- (sql/normalize_pemakaian_items.sql), which `migrations::run` executes on every
--- start. The first-apply backfill is that same file.
+-- predates it. Rows the previous release writes are NOT repaired by re-running
+-- this file — refinery would not run it again. Two things cover them instead:
+-- triggers (section 6) normalise each legacy write AT INSERT, so a rolling
+-- upgrade, where old pods still serve while new ones start, leaves no window;
+-- and the startup normaliser (sql/normalize_pemakaian_items.sql, run by
+-- `migrations::run` on every start) repairs what already existed before this
+-- file ran — the first-apply backfill is that same file.
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -340,3 +343,106 @@ CREATE TRIGGER trg_izin_pemakaian_supersede
           AND NEW.is_renewal IS TRUE
           AND NEW.previous_permit_id IS NOT NULL)
     EXECUTE FUNCTION perlengkapan.supersede_previous_permit();
+
+-- ---------------------------------------------------------------------------
+-- 6. The previous release keeps writing while this one starts (rolling upgrade)
+-- ---------------------------------------------------------------------------
+-- Old and new pods serve side by side during a rollout, and the old release
+-- writes in ITS shapes: a permit with the first asset on the header, and extra
+-- items that know nothing of `urutan`, `jenis_bmn` or the period. A repair that
+-- runs once at startup (sql/normalize_pemakaian_items.sql) covers what exists
+-- BEFORE a new pod serves, not what an old pod writes afterwards — and the new
+-- release reads those fields as required, so one such row makes every request
+-- for its permit fail until some pod happens to restart.
+--
+-- So the repair also happens AT INSERT, in the same transaction as the write,
+-- which leaves no window. These two triggers fire only for the old release's
+-- shapes and are inert for this release's own writes:
+--
+--   * a new-release item always supplies `urutan`      -> item trigger skipped;
+--   * a new-release header always has NULL asset cols  -> header trigger skipped.
+--
+-- Everything the old release inserts into `pemakaian_bmn_items` is covered
+-- because INSERT is the only statement it runs against that table (it never
+-- updates or deletes an item).
+--
+-- Both go with the contract migration, together with the columns they exist for.
+
+-- 6a. A permit written with its first asset on the header gets that asset as
+--     item #1 straight away, so the new release sees it (list, SK, booking
+--     check) without waiting for a restart.
+CREATE OR REPLACE FUNCTION perlengkapan.legacy_header_to_item_one()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $f$
+BEGIN
+    INSERT INTO perlengkapan.pemakaian_bmn_items (
+        izin_pemakaian_id, urutan, jenis_bmn,
+        bmn_nup, bmn_kode_barang, bmn_nama_barang, bmn_merk, bmn_tipe,
+        bmn_tahun_perolehan,
+        no_polisi, no_bpkb, no_rangka, no_mesin, no_stnk,
+        alamat, luas_tanah, luas_bangunan,
+        serial_number, spesifikasi, lokasi_pemakaian,
+        tanggal_mulai, tanggal_selesai, created_at, updated_at
+    ) VALUES (
+        NEW.id, 1, NEW.jenis_bmn,
+        NEW.bmn_nup, NEW.bmn_kode_barang, NEW.bmn_nama_barang, NEW.bmn_merk, NEW.bmn_tipe,
+        NEW.bmn_tahun_perolehan,
+        NEW.no_polisi, NEW.no_bpkb, NEW.no_rangka, NEW.no_mesin, NEW.no_stnk,
+        NEW.alamat, NEW.luas_tanah, NEW.luas_bangunan,
+        NEW.serial_number, NEW.spesifikasi, NEW.lokasi_pemakaian,
+        NEW.tanggal_mulai, NEW.tanggal_selesai, now(), now()
+    );
+    RETURN NULL;
+END
+$f$;
+
+DROP TRIGGER IF EXISTS trg_izin_pemakaian_legacy_item_one ON perlengkapan.izin_pemakaian_bmn;
+CREATE TRIGGER trg_izin_pemakaian_legacy_item_one
+    AFTER INSERT ON perlengkapan.izin_pemakaian_bmn
+    FOR EACH ROW
+    WHEN (NEW.bmn_nup IS NOT NULL)
+    EXECUTE FUNCTION perlengkapan.legacy_header_to_item_one();
+
+-- 6b. An item written without a position gets the next one, a kind and a
+--     period. The permit row is locked first, so concurrent legacy inserts for
+--     one permit number themselves one after another instead of both taking
+--     the same `max + 1` and one dying on the unique constraint.
+--
+--     `LAINNYA`, not the permit's kind, for the reason in the normaliser: the
+--     old item table never recorded a kind, so copying the header's would
+--     fabricate one.
+CREATE OR REPLACE FUNCTION perlengkapan.legacy_item_defaults()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $f$
+DECLARE
+    v_izin perlengkapan.izin_pemakaian_bmn%ROWTYPE;
+BEGIN
+    SELECT * INTO v_izin
+      FROM perlengkapan.izin_pemakaian_bmn
+     WHERE id = NEW.izin_pemakaian_id
+       FOR UPDATE;
+    IF NOT FOUND THEN
+        RETURN NEW;   -- the foreign key refuses it with a proper message
+    END IF;
+
+    NEW.urutan := (
+        SELECT COALESCE(MAX(urutan), 0) + 1
+          FROM perlengkapan.pemakaian_bmn_items
+         WHERE izin_pemakaian_id = NEW.izin_pemakaian_id
+    );
+    NEW.jenis_bmn        := COALESCE(NEW.jenis_bmn, 'LAINNYA');
+    NEW.tanggal_mulai    := COALESCE(NEW.tanggal_mulai, v_izin.tanggal_mulai);
+    NEW.tanggal_selesai  := COALESCE(NEW.tanggal_selesai, v_izin.tanggal_selesai);
+    NEW.lokasi_pemakaian := COALESCE(NEW.lokasi_pemakaian, v_izin.lokasi_pemakaian);
+    RETURN NEW;
+END
+$f$;
+
+DROP TRIGGER IF EXISTS trg_pemakaian_items_legacy_defaults ON perlengkapan.pemakaian_bmn_items;
+CREATE TRIGGER trg_pemakaian_items_legacy_defaults
+    BEFORE INSERT ON perlengkapan.pemakaian_bmn_items
+    FOR EACH ROW
+    WHEN (NEW.urutan IS NULL)
+    EXECUTE FUNCTION perlengkapan.legacy_item_defaults();

@@ -739,17 +739,17 @@ async fn the_previous_release_can_still_read_the_permit() {
     teardown_test_db(&db_name).await;
 }
 
-/// The startup normaliser repairs what the previous release wrote.
+/// The startup normaliser backfills rows that PREDATE the V014 triggers.
 ///
-/// A rollback followed by a roll-forward: the old release inserts a permit and
-/// an item that know nothing of `urutan`/`jenis_bmn`/the period. Refinery will
-/// NOT run V014 again, so those rows would reach `PemakaianBmnItem::from_row`
-/// as NULLs. The normaliser is what runs instead, on every start; this drives
-/// it directly with the previous release's INSERT shapes. (The end-to-end
-/// version, through the real runner that skips V014, is in
-/// `migration_runner_test`.)
+/// Legacy items and header-held first assets written before V014 ran have no
+/// position, and nothing has fired for them: refinery runs V014 once, so only
+/// the normaliser repairs them, before the service serves. The triggers are
+/// switched off while those rows are written, because with them on every legacy
+/// insert is already normalised and this would test nothing. The end-to-end
+/// version, through the real runner, is in `migration_runner_test`; writes that
+/// arrive AFTER a pod has started are `legacy_writes_after_startup_are_readable_at_once`.
 #[tokio::test]
-async fn the_startup_normaliser_repairs_what_the_previous_release_wrote() {
+async fn the_startup_normaliser_backfills_rows_that_predate_the_triggers() {
     let (app, db, db_name) = setup_test_app().await;
     let server = TestServer::new(app);
     let client = db.pool().get().await.unwrap();
@@ -774,11 +774,16 @@ async fn the_startup_normaliser_repairs_what_the_previous_release_wrote() {
     };
     let sebelum = snapshot().await;
 
-    // The previous release's shapes: asset on the parent, an extra item with
-    // none of the V014 columns.
+    // The previous release's shapes, as they stood BEFORE V014 existed: asset
+    // on the parent, an extra item with none of the V014 columns, and no
+    // trigger to normalise either.
     client
         .batch_execute(
-            "INSERT INTO perlengkapan.izin_pemakaian_bmn \
+            "ALTER TABLE perlengkapan.izin_pemakaian_bmn \
+               DISABLE TRIGGER trg_izin_pemakaian_legacy_item_one; \
+             ALTER TABLE perlengkapan.pemakaian_bmn_items \
+               DISABLE TRIGGER trg_pemakaian_items_legacy_defaults; \
+             INSERT INTO perlengkapan.izin_pemakaian_bmn \
                (id, jenis_bmn, bmn_nup, bmn_kode_barang, bmn_nama_barang, no_polisi, no_bpkb, \
                 pegawai_nip, pegawai_nama, pegawai_satker_id, tanggal_mulai, tanggal_selesai, status) \
              VALUES ('a0000000-0000-4000-8000-0000000000c1', 'KENDARAAN_BERMOTOR', '583', \
@@ -787,10 +792,23 @@ async fn the_startup_normaliser_repairs_what_the_previous_release_wrote() {
              INSERT INTO perlengkapan.pemakaian_bmn_items \
                (izin_pemakaian_id, bmn_nup, bmn_kode_barang, bmn_nama_barang, created_at, updated_at) \
              VALUES ('a0000000-0000-4000-8000-0000000000c1', '584', '3060201003', \
-                'Laptop kode lama', now(), now());",
+                'Laptop kode lama', now(), now()); \
+             ALTER TABLE perlengkapan.izin_pemakaian_bmn \
+               ENABLE TRIGGER trg_izin_pemakaian_legacy_item_one; \
+             ALTER TABLE perlengkapan.pemakaian_bmn_items \
+               ENABLE TRIGGER trg_pemakaian_items_legacy_defaults;",
         )
         .await
         .expect("the previous release's writes must still be accepted by the V014 schema");
+    let sisa: i64 = client
+        .query_one(
+            "SELECT count(*) FROM perlengkapan.pemakaian_bmn_items WHERE urutan IS NULL",
+            &[],
+        )
+        .await
+        .unwrap()
+        .get(0);
+    assert_eq!(sisa, 1, "precondition: the legacy item has no position");
 
     layanan_perlengkapan::migrations::normalize_pemakaian_items(db.pool())
         .await
@@ -837,6 +855,194 @@ async fn the_startup_normaliser_repairs_what_the_previous_release_wrote() {
         .unwrap();
     assert_eq!(ambil().await, diharapkan, "second run must be a no-op");
     assert_eq!(snapshot().await, sebelum);
+
+    teardown_test_db(&db_name).await;
+}
+
+/// What the previous release writes for one permit: the first asset on the
+/// header, then each extra asset as an item with none of the V014 columns —
+/// exactly its own INSERT shapes, in the order it issues them.
+fn legacy_sql(id: &str, nup: &str, extras: &[(&str, &str)]) -> String {
+    let mut sql = format!(
+        "INSERT INTO perlengkapan.izin_pemakaian_bmn \
+           (id, jenis_bmn, bmn_nup, bmn_kode_barang, bmn_nama_barang, \
+            pegawai_nip, pegawai_nama, pegawai_satker_id, pegawai_satker_nama, satker_code, \
+            tanggal_mulai, tanggal_selesai, status) \
+         VALUES ('{id}', 'LAPTOP', '{nup}', '3060201003', 'Laptop Induk {nup}', \
+            '198501012010011009', 'Eko', '00000000-0000-0000-0000-000000000001', \
+            'Kejaksaan Negeri Jakarta Selatan', '{SATKER}', \
+            '2026-04-01', '2026-10-31', 'DRAFT');"
+    );
+    for (no, nama) in extras {
+        sql.push_str(&format!(
+            " INSERT INTO perlengkapan.pemakaian_bmn_items \
+                (izin_pemakaian_id, bmn_nup, bmn_kode_barang, bmn_nama_barang, created_at, updated_at) \
+              VALUES ('{id}', '{no}', '3060201003', '{nama}', now(), now());"
+        ));
+    }
+    sql
+}
+
+/// A legacy write that lands AFTER a new pod has started is readable at once.
+///
+/// The case the startup normaliser cannot see. During a rolling upgrade old and
+/// new pods serve side by side: the new pod has already normalised and begun
+/// serving, then an old pod inserts a permit and an extra asset in its own
+/// shape. `PemakaianBmnItem::from_row` reads those fields as required, so
+/// without a repair AT INSERT every request for that permit would panic until
+/// some pod restarted. Driven through the API after the normaliser has run —
+/// the order that matters — for both ways it happens: a whole permit written by
+/// the old release, and one extra item added to a permit the new release wrote.
+#[tokio::test]
+async fn legacy_writes_after_startup_are_readable_at_once() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let client = db.pool().get().await.unwrap();
+
+    // "The new pod has started": its startup pass has already run.
+    layanan_perlengkapan::migrations::normalize_pemakaian_items(db.pool())
+        .await
+        .unwrap();
+
+    let baru = create_permit(&server, vec![laptop("611", "Laptop Baru")]).await;
+
+    // An old pod, afterwards: a permit of its own with two extras, and one more
+    // asset added to the permit the new release wrote.
+    let lama = "a0000000-0000-4000-8000-0000000000e1";
+    client
+        .batch_execute(&legacy_sql(
+            lama,
+            "621",
+            &[("622", "Laptop Tambahan A"), ("623", "Laptop Tambahan B")],
+        ))
+        .await
+        .expect("the previous release's writes must be accepted");
+    client
+        .batch_execute(&format!(
+            "INSERT INTO perlengkapan.pemakaian_bmn_items \
+               (izin_pemakaian_id, bmn_nup, bmn_kode_barang, bmn_nama_barang, created_at, updated_at) \
+             VALUES ('{baru}', '612', '3060201003', 'Tambahan dari pod lama', now(), now());"
+        ))
+        .await
+        .expect("an old pod adding an asset to a new permit");
+
+    // The permit the old release wrote: its header asset is slot 1, the extras
+    // follow in the order they were inserted, nothing is left NULL.
+    let detail = get_permit(&server, lama).await;
+    let nup: Vec<&str> = items_of(&detail)
+        .iter()
+        .map(|i| i["bmn_nup"].as_str().unwrap())
+        .collect();
+    assert_eq!(nup, vec!["621", "622", "623"], "{detail}");
+    let urutan: Vec<i64> = items_of(&detail)
+        .iter()
+        .map(|i| i["urutan"].as_i64().expect("urutan must not be null"))
+        .collect();
+    assert_eq!(urutan, vec![1, 2, 3]);
+    for i in items_of(&detail) {
+        assert!(!i["jenis_bmn"].is_null(), "{i}");
+        assert!(!i["tanggal_mulai"].is_null(), "{i}");
+        assert!(!i["tanggal_selesai"].is_null(), "{i}");
+    }
+    assert_eq!(
+        items_of(&detail)[0]["jenis_bmn"],
+        "LAPTOP",
+        "slot 1 keeps the header's kind"
+    );
+    assert_eq!(
+        items_of(&detail)[1]["jenis_bmn"],
+        "LAINNYA",
+        "an old extra item never recorded a kind; none is invented"
+    );
+    assert_eq!(
+        items_of(&detail)[1]["tanggal_selesai"],
+        "2026-10-31",
+        "the period defaults to the permit's, as the old release implied"
+    );
+
+    // The permit the new release wrote, with an old pod's asset after its own.
+    let detail = get_permit(&server, &baru).await;
+    let nup: Vec<&str> = items_of(&detail)
+        .iter()
+        .map(|i| i["bmn_nup"].as_str().unwrap())
+        .collect();
+    assert_eq!(nup, vec!["611", "612"], "{detail}");
+
+    // Same result as the startup pass would give for the same input — two
+    // mechanisms, one meaning.
+    layanan_perlengkapan::migrations::normalize_pemakaian_items(db.pool())
+        .await
+        .unwrap();
+    let detail2 = get_permit(&server, lama).await;
+    assert_eq!(
+        items_of(&detail2),
+        items_of(&get_permit(&server, lama).await)
+    );
+    let nup2: Vec<&str> = items_of(&detail2)
+        .iter()
+        .map(|i| i["bmn_nup"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        nup2,
+        vec!["621", "622", "623"],
+        "the startup pass must change nothing"
+    );
+
+    teardown_test_db(&db_name).await;
+}
+
+/// Several old pods inserting for one permit at once each get their own
+/// position. Without the permit lock they would all compute the same `max + 1`
+/// and all but one would die on the `(izin, urutan)` unique constraint — an old
+/// pod's request failing because a new release shipped.
+#[tokio::test]
+async fn concurrent_legacy_inserts_for_one_permit_all_land() {
+    let (_app, db, db_name) = setup_test_app().await;
+    let lama = "a0000000-0000-4000-8000-0000000000e2";
+    {
+        let client = db.pool().get().await.unwrap();
+        client
+            .batch_execute(&legacy_sql(lama, "631", &[]))
+            .await
+            .unwrap();
+    }
+
+    let mut tugas = Vec::new();
+    for n in 0..8 {
+        let pool = db.pool().clone();
+        tugas.push(tokio::spawn(async move {
+            let client = pool.get().await.unwrap();
+            client
+                .batch_execute(&format!(
+                    "INSERT INTO perlengkapan.pemakaian_bmn_items \
+                       (izin_pemakaian_id, bmn_nup, bmn_kode_barang, bmn_nama_barang, created_at, updated_at) \
+                     VALUES ('{lama}', '{}', '3060201003', 'Serentak {n}', now(), now());",
+                    640 + n
+                ))
+                .await
+        }));
+    }
+    for t in tugas {
+        t.await
+            .unwrap()
+            .expect("a legacy insert must not lose the race");
+    }
+
+    let client = db.pool().get().await.unwrap();
+    let rows = client
+        .query(
+            "SELECT urutan FROM perlengkapan.pemakaian_bmn_items \
+              WHERE izin_pemakaian_id = $1::text::uuid ORDER BY urutan",
+            &[&lama],
+        )
+        .await
+        .unwrap();
+    let urutan: Vec<i32> = rows.iter().map(|r| r.get(0)).collect();
+    assert_eq!(
+        urutan,
+        (1..=9).collect::<Vec<i32>>(),
+        "slot 1 plus eight distinct positions"
+    );
 
     teardown_test_db(&db_name).await;
 }

@@ -64,15 +64,20 @@ const NORMALIZE_PEMAKAIAN_ITEMS: &str = include_str!("../sql/normalize_pemakaian
 
 /// Give every permit's assets a position, a kind and a period.
 ///
-/// Runs on every startup, after refinery and before the service serves. V014
-/// lets the previous release keep inserting items that know nothing of the new
-/// columns (that is what makes `helm rollback` possible), but refinery will not
-/// run V014 again on the roll-forward, so those rows would reach
-/// `PemakaianBmnItem::from_row` as NULLs and panic the first request that
-/// touches their permit. This is the repair, and it is also V014's backfill.
+/// Runs on every startup, after refinery and before the service serves. Its job
+/// is the rows that exist BEFORE V014's triggers do: legacy items and
+/// header-held first assets from a release that predates V014, which have no
+/// position and would reach `PemakaianBmnItem::from_row` as NULLs and panic the
+/// first request that touches their permit. Refinery runs V014 once, so this
+/// is the repair — and it is also the first-apply backfill.
+///
+/// It does NOT cover writes that arrive after it ran. During a rolling upgrade
+/// old pods keep serving next to new ones, and a startup pass cannot see what
+/// they insert afterwards; V014 section 6 normalises those at insert with
+/// triggers. A start with nothing to repair writes nothing.
 ///
 /// One transaction, serialised across replicas by an advisory lock inside the
-/// SQL, idempotent: a start with nothing to repair writes nothing.
+/// SQL, idempotent.
 pub async fn normalize_pemakaian_items(pool: &Pool) -> anyhow::Result<()> {
     let mut client = pool.get().await?;
     let tx = client.transaction().await?;

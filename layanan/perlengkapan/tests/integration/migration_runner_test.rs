@@ -58,17 +58,19 @@ async fn the_runner_starts_on_a_schema_newer_than_itself() {
     teardown_test_db(&db_name).await;
 }
 
-/// After a rollback and a roll-forward, what the older release wrote is repaired
-/// even though refinery will not run V014 again.
+/// The real runner repairs rows that predate V014's triggers, on a start where
+/// refinery skips V014.
 ///
-/// This is the claim that was wrong the first time: V014 allows the previous
-/// release to keep inserting items without `urutan`/`jenis_bmn`/period, and the
-/// repair was said to happen "when V014 is re-applied". Refinery has V014 in its
-/// history and skips it, so nothing repaired anything and the first read of such
-/// a permit would have panicked on a NULL. Driven through the real runner —
-/// second `run`, V014 already recorded — not through the SQL file.
+/// V014 is already in the history, so refinery does nothing — and anything the
+/// normaliser has to fix must still be fixed before the service serves. The
+/// triggers are switched off while the legacy rows are written because with
+/// them on every legacy insert is normalised at once (that is what
+/// `legacy_writes_after_startup_are_readable_at_once` proves); this is the
+/// other half, the rows nothing fired for. Driven through the second `run`,
+/// not through the SQL file: an earlier version of this claim was "tested" by
+/// re-running the file, which is not what the runner does.
 #[tokio::test]
-async fn roll_forward_repairs_legacy_writes_although_refinery_skips_v014() {
+async fn the_runner_repairs_rows_that_predate_the_triggers_although_refinery_skips_v014() {
     let (db, db_name) = setup_test_db().await;
     let client = db.pool().get().await.unwrap();
 
@@ -90,10 +92,15 @@ async fn roll_forward_repairs_legacy_writes_although_refinery_skips_v014() {
         .await
         .expect("fresh database must migrate");
 
-    // The rolled-back release serves traffic and writes in ITS shapes.
+    // Rows written in the previous release's shapes with nothing to normalise
+    // them — what existed before V014's triggers did.
     client
         .batch_execute(
-            "INSERT INTO perlengkapan.izin_pemakaian_bmn \
+            "ALTER TABLE perlengkapan.izin_pemakaian_bmn \
+               DISABLE TRIGGER trg_izin_pemakaian_legacy_item_one; \
+             ALTER TABLE perlengkapan.pemakaian_bmn_items \
+               DISABLE TRIGGER trg_pemakaian_items_legacy_defaults; \
+             INSERT INTO perlengkapan.izin_pemakaian_bmn \
                (id, jenis_bmn, bmn_nup, bmn_kode_barang, bmn_nama_barang, \
                 pegawai_nip, pegawai_nama, pegawai_satker_id, tanggal_mulai, tanggal_selesai, status) \
              VALUES ('a0000000-0000-4000-8000-0000000000d1', 'LAPTOP', '601', '3060201003', \
@@ -102,7 +109,11 @@ async fn roll_forward_repairs_legacy_writes_although_refinery_skips_v014() {
              INSERT INTO perlengkapan.pemakaian_bmn_items \
                (izin_pemakaian_id, bmn_nup, bmn_kode_barang, bmn_nama_barang, created_at, updated_at) \
              VALUES ('a0000000-0000-4000-8000-0000000000d1', '602', '3060201003', \
-                'Laptop Tambahan', now(), now());",
+                'Laptop Tambahan', now(), now()); \
+             ALTER TABLE perlengkapan.izin_pemakaian_bmn \
+               ENABLE TRIGGER trg_izin_pemakaian_legacy_item_one; \
+             ALTER TABLE perlengkapan.pemakaian_bmn_items \
+               ENABLE TRIGGER trg_pemakaian_items_legacy_defaults;",
         )
         .await
         .unwrap();
