@@ -157,21 +157,41 @@ impl PemakaianBmnRepository {
             ));
         }
 
+        // The header's dates are DERIVED from the assets' periods and
+        // `sync_permit_window` is their only writer. A date in the request is
+        // therefore not a field to store; it is the default period for assets
+        // that do not state their own, and with no asset list in the same
+        // request it has nothing to default. Writing it to the header anyway
+        // left the permit saying 2027 while every asset — and the SK's second
+        // page — still said 2026, two answers to "until when" on one permit.
+        // A single-asset permit would make this look unambiguous, but the
+        // rule has to be the same for the permit holding twelve assets with
+        // twelve different periods, where "the" end date is not defined.
+        if request.items.is_none()
+            && (request.tanggal_mulai.is_some() || request.tanggal_selesai.is_some())
+        {
+            return Err(AppError::BadRequest(
+                "Tanggal izin ditentukan oleh jangka waktu tiap BMN. Untuk mengubah \
+                 tanggal, kirim daftar BMN (items) bersama tanggal barunya."
+                    .to_string(),
+            ));
+        }
+
         let tx = client
             .transaction()
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
+        // No date columns here, deliberately — see above. `sync_permit_window`
+        // below is the only statement that touches them.
         let query = r#"
             UPDATE perlengkapan.izin_pemakaian_bmn
-            SET tanggal_mulai = COALESCE($1, tanggal_mulai),
-                tanggal_selesai = COALESCE($2, tanggal_selesai),
-                keperluan = COALESCE($3, keperluan),
-                file_pendukung = COALESCE($4, file_pendukung),
-                updated_by = $5,
-                updated_by_nama = $6,
+            SET keperluan = COALESCE($1, keperluan),
+                file_pendukung = COALESCE($2, file_pendukung),
+                updated_by = $3,
+                updated_by_nama = $4,
                 updated_at = NOW()
-            WHERE id = $7
+            WHERE id = $5
             RETURNING *
         "#;
 
@@ -179,8 +199,6 @@ impl PemakaianBmnRepository {
             .query_one(
                 query,
                 &[
-                    &request.tanggal_mulai,
-                    &request.tanggal_selesai,
                     &request.keperluan,
                     &request.file_pendukung,
                     &updated_by,
@@ -191,11 +209,10 @@ impl PemakaianBmnRepository {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        // The permit's period after this update is what the items default to,
-        // so it is read back from the row rather than from the request — the
-        // request may well have left it alone.
-        let mulai: chrono::NaiveDate = row.get("tanggal_mulai");
-        let selesai: chrono::NaiveDate = row.get("tanggal_selesai");
+        // What an asset without its own period defaults to: the request's
+        // date when it gave one, otherwise the permit's current window.
+        let mulai = request.tanggal_mulai.unwrap_or(current.tanggal_mulai);
+        let selesai = request.tanggal_selesai.unwrap_or(current.tanggal_selesai);
 
         let (row, items) = match request.items.as_deref() {
             Some(items) => {

@@ -91,6 +91,20 @@ impl PemakaianBmnRepository {
                 .map_err(|e| AppError::Database(e.to_string()))?;
             hasil.push(PemakaianBmnItem::from_row(&row));
         }
+
+        // V014 is the EXPAND half of an expand/contract: the parent still has
+        // its asset columns, so the release before this one can read what this
+        // one wrote. They are a mirror of item #1 and nothing in this crate
+        // reads them; the SQL function is their only writer (seed files call
+        // it too), so the column list is not copied into Rust. Goes when the
+        // contract migration drops the columns.
+        tx.execute(
+            "SELECT perlengkapan.sync_izin_pemakaian_compat($1)",
+            &[&izin_pemakaian_id],
+        )
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
+
         Ok(hasil)
     }
 

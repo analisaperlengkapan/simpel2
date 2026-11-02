@@ -24,6 +24,22 @@ pub async fn run(pool: &Pool) -> anyhow::Result<()> {
     let mut client = pool.get().await?;
     // `**client` yields the `&mut tokio_postgres::Client` refinery expects.
     let report = embedded::migrations::runner()
+        // A rolled-back release is OLDER than the schema it wakes up on: the
+        // newer release applied migrations this binary has never heard of.
+        // refinery's default (`abort_missing = true`) turns that into
+        // `MissingVersion` and, because `main` propagates this error, into a
+        // pod that exits before serving — so `helm rollback` after ANY
+        // migration, however additive, produced a crash loop and the
+        // expand/contract rule in layanan/AGENTS.md bought nothing. With this
+        // off, refinery logs the unknown migration at ERROR and carries on.
+        //
+        // `abort_divergent` stays on: an applied migration whose CHECKSUM no
+        // longer matches means someone edited a file after it shipped, which
+        // is a different problem and should stop the deploy.
+        //
+        // Only a binary built WITH this line benefits: the release that
+        // introduced it still cannot be rolled back onto one that predates it.
+        .set_abort_missing(false)
         .run_async(&mut **client)
         .await?;
     let applied = report.applied_migrations();

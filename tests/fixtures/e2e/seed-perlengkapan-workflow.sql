@@ -663,4 +663,11 @@ ON CONFLICT (id) DO UPDATE SET
   justifikasi = EXCLUDED.justifikasi,
   updated_by = EXCLUDED.updated_by;
 
+-- V014 is the expand half of an expand/contract: the permit header still has
+-- its legacy asset columns, kept equal to item #1 so the previous release can
+-- read this data. The repository refreshes them after every item write; this
+-- file writes items directly, so it asks for the same refresh. One function,
+-- one column list. Goes with the contract migration.
+SELECT perlengkapan.sync_izin_pemakaian_compat(id) FROM perlengkapan.izin_pemakaian_bmn;
+
 COMMIT;

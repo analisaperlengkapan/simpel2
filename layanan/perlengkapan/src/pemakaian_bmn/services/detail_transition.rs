@@ -103,6 +103,23 @@ impl PemakaianBmnService {
             ));
         }
 
+        // Two renewals of one permit cannot both go live: the first replaces
+        // the permit it renews, and the second would then be "renewing" a
+        // permit that is already gone. Refused here with a sentence the caller
+        // can act on; the trigger raises the same condition for the concurrent
+        // case this read cannot see, and rolls the activation back.
+        if target_status == PemakaianBmnStatus::Active
+            && current.is_renewal
+            && let Some(sebelumnya) = current.previous_permit_id
+            && let Some(pengganti) = self.repository.superseded_by(sebelumnya).await?
+            && pengganti != id
+        {
+            return Err(AppError::Conflict(format!(
+                "Izin yang diperpanjang sudah digantikan oleh izin lain ({pengganti}); \
+                 perpanjangan ini tidak dapat diaktifkan"
+            )));
+        }
+
         info!(
             "Transitioning permit {} from {} to {} via workflow engine",
             id,
@@ -152,31 +169,22 @@ impl PemakaianBmnService {
             // ACTIVE over the same assets and the conflict check reports the
             // old one against its own successor.
             //
-            // Here, not in `activate_permit`: every path to ACTIVE comes
-            // through this function — the normal activation AND the audited
-            // break-glass override (`admin::break_glass`), which calls this
-            // directly. Putting it in `activate_permit` would leave a renewal
-            // activated by break-glass running alongside the permit it
-            // replaces.
+            // Nothing to do here: `trg_izin_pemakaian_supersede` (V014) revokes
+            // the predecessor in the same statement that wrote ACTIVE. It used
+            // to be a second UPDATE issued from this function, after the
+            // engine had already committed — so a failure between the two left
+            // BOTH permits ACTIVE while the caller was told it had failed. The
+            // engine owns its own connection, so no caller can join its
+            // transaction; the trigger is the only place the two writes can be
+            // one. It also covers every path to ACTIVE, including the audited
+            // break-glass override, which comes through this function too.
             if updated.is_renewal
                 && let Some(sebelumnya) = updated.previous_permit_id
             {
-                let label = updated.nomor_izin.clone().unwrap_or_else(|| id.to_string());
-                let diganti = self
-                    .repository
-                    .mark_superseded(sebelumnya, id, &label, user_id)
-                    .await?;
-                if diganti {
-                    info!("Permit {} superseded by {} ({})", sebelumnya, id, label);
-                } else {
-                    // Not an error: the earlier permit may already have been
-                    // revoked by hand. Logged, because a silent no-op and a
-                    // successful supersede would look identical.
-                    info!(
-                        "Permit {} was not ACTIVE/EXPIRED; nothing to supersede for {}",
-                        sebelumnya, id
-                    );
-                }
+                info!(
+                    "Renewal {} is active; permit {} withdrawn with it",
+                    id, sebelumnya
+                );
             }
             // TODO(pemakaian-expiry-scheduler): hand this permit to the
             // `PemakaianBmnScheduler` (already running, see main.rs) so
