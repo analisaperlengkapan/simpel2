@@ -215,7 +215,10 @@ pub struct ActiveUsageMonitoringDashboard {
     pub expiring_soon: Vec<ExpiringPermitInfo>,
     pub recent_activations: Vec<RecentActivationInfo>,
 }
-/// Permits grouped by BMN type
+/// Permits grouped by BMN type: `count` is the number of DISTINCT permits that
+/// hold at least one asset of `jenis_bmn`, and `percentage` is that over
+/// `total_active_permits`. A permit holding two kinds is counted under both,
+/// so the shares are each at most 100 but do not sum to 100.
 #[derive(Debug, Clone, Serialize)]
 pub struct PermitsByJenisBmn {
     pub jenis_bmn: String,

@@ -99,6 +99,28 @@ impl PemakaianBmnRepository {
             None,
             &mut params,
         );
+        // The by-kind breakdown joins the permit to its items, so it needs the
+        // kind filter on the ITEM row as well as on the permit. `permit_where`
+        // only says "this permit holds at least one asset of that kind"; with
+        // that alone, a permit holding a laptop and a car, queried for LAPTOP,
+        // contributes a CAR row to a result the caller asked to see laptops
+        // in. The breakdown therefore gets its own parameter list, so the
+        // `$n` of the extra predicate is `params.len()` rather than a guess
+        // about the order `permit_where` pushed things in.
+        let mut jenis_params: Vec<BoxedParam> = Vec::new();
+        let mut jenis_where = permit_where(
+            scope,
+            query.satker_code.as_deref(),
+            query.jenis_bmn.as_deref(),
+            None,
+            &mut jenis_params,
+        );
+        if let Some(jenis) = query.jenis_bmn.as_deref() {
+            jenis_params.push(Box::new(jenis.to_string()));
+            jenis_where.push_str(&format!(" AND i.jenis_bmn = ${}", jenis_params.len()));
+        }
+        let jenis_refs = param_refs(&jenis_params);
+
         let param_refs = param_refs(&params);
 
         // Total active permits
@@ -112,22 +134,27 @@ impl PemakaianBmnRepository {
             .map_err(|e| AppError::Database(e.to_string()))?;
         let total_active_permits: i64 = total_row.get("total");
 
-        // Permits by jenis BMN
+        // Permits by jenis BMN: how many PERMITS hold at least one asset of
+        // each kind. DISTINCT, because a permit with two laptops is one permit
+        // that uses laptops, not two — counting item rows here divided assets
+        // by permits and reported 200% for a single permit with two laptops.
+        // Numerator and denominator are now both permits drawn from the same
+        // `WHERE`, so a share can never pass 100%. The kinds are not exclusive
+        // (a permit with a car and a laptop is counted under both), so the
+        // shares do not sum to 100 — that is what "permits holding X" means.
         let jenis_query = format!(
             r#"
-            -- Counts ASSETS. A permit holding a vehicle and a laptop belongs
-            -- to both kinds, so counting permits would have to pick one.
-            SELECT i.jenis_bmn, COUNT(*) as count
+            SELECT i.jenis_bmn, COUNT(DISTINCT p.id) as count
             FROM perlengkapan.pemakaian_bmn_items i
             JOIN perlengkapan.izin_pemakaian_bmn p ON p.id = i.izin_pemakaian_id
-            WHERE {where_clause}
+            WHERE {jenis_where}
             GROUP BY i.jenis_bmn
-            ORDER BY count DESC
+            ORDER BY count DESC, i.jenis_bmn
             "#
         );
 
         let jenis_rows = client
-            .query(&jenis_query, &param_refs)
+            .query(&jenis_query, &jenis_refs)
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
