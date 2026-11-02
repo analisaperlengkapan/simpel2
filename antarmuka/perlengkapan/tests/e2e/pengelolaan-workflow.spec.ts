@@ -395,7 +395,9 @@ test.describe("Pengelolaan — create-form pages", () => {
    * "Cari BMN" would also match every "Cari BMN tambahan" box on the page.
    */
   async function pickAset(page: Page, needle: string, slug = "aset") {
-    const label = slug === "aset" ? "Cari BMN" : "Cari BMN tambahan";
+    // Pemakaian cards (`aset-<n>`) and the single penghapusan picker (`aset`)
+    // all carry "Cari BMN"; only penghapusan's extra rows say "tambahan".
+    const label = slug.startsWith("aset-tambahan") ? "Cari BMN tambahan" : "Cari BMN";
     const kotak = page.locator(`#${slug}-cari`);
     // The label must point at THIS picker's box. Duplicated ids would make the
     // second row's label focus the first row's input, so assert the pairing
@@ -413,13 +415,13 @@ test.describe("Pengelolaan — create-form pages", () => {
 
   test("pemakaian form resolves the asset, then reports it free", async ({ page }) => {
     await page.goto(`${BASE}/pengelolaan/pemakaian/buat`, { waitUntil: "domcontentloaded" });
-    await pickAset(page, "E2E-A-1");
+    await pickAset(page, "E2E-A-1", "aset-0");
 
     // The identity the backend was actually asked about, rendered so the
     // operator can see which asset the system means. Structural locator, not
     // getByText: substring + case-insensitive matching has passed against the
     // wrong element here before.
-    const identitas = page.getByTestId("aset-terpilih");
+    const identitas = page.getByTestId("aset-0-terpilih");
     await expect(identitas, "picked asset never rendered").toBeVisible({ timeout: 20000 });
     await expect(identitas, "kode barang must come from SIMAN kd_brg").toContainText("3020101003");
     await expect(identitas).toContainText("E2E-A-1");
@@ -427,23 +429,23 @@ test.describe("Pengelolaan — create-form pages", () => {
     // Availability is checked on pick — no separate button to press, because
     // the question needs the kode barang the picked row carries.
     // E2E-A-1 carries permit I2 at SUBMITTED, not ACTIVE — so it is free.
-    await expect(page.getByTestId("bmn-ketersediaan")).toContainText("tersedia", {
+    await expect(page.getByTestId("bmn-ketersediaan-0")).toContainText("tersedia", {
       timeout: 20000,
     });
   });
 
   test("pemakaian form reports an asset its own satker already holds", async ({ page }) => {
     await page.goto(`${BASE}/pengelolaan/pemakaian/buat`, { waitUntil: "domcontentloaded" });
-    await pickAset(page, "E2E-A-2");
+    await pickAset(page, "E2E-A-2", "aset-0");
 
-    const identitas = page.getByTestId("aset-terpilih");
+    const identitas = page.getByTestId("aset-0-terpilih");
     await expect(identitas).toBeVisible({ timeout: 20000 });
     await expect(identitas).toContainText("3100102003");
 
     // Permit I1 is ACTIVE on this asset, held by the caller's own colleague —
     // inside the satker the holder MUST be named, or the operator has no way
     // to know who to ask.
-    const status = page.getByTestId("bmn-ketersediaan");
+    const status = page.getByTestId("bmn-ketersediaan-0");
     await expect(status).toContainText("sedang digunakan", { timeout: 20000 });
     await expect(status, "in-satker holder must be named").toContainText("E2E Operator Jakpus");
   });
@@ -456,11 +458,11 @@ test.describe("Pengelolaan — create-form pages", () => {
     // Scoping happens server-side, so the row is not merely un-clickable — it
     // is never sent. Assert the empty state rather than the absence of a list:
     // "no list yet" is also what a still-running search looks like.
-    await expect(page.getByTestId("aset-kosong"), "another satker's asset was offered").toBeVisible(
+    await expect(page.getByTestId("aset-0-kosong"), "another satker's asset was offered").toBeVisible(
       { timeout: 20000 },
     );
-    await expect(page.getByTestId("aset-hasil")).toHaveCount(0);
-    await expect(page.getByTestId("aset-terpilih")).toHaveCount(0);
+    await expect(page.getByTestId("aset-0-hasil")).toHaveCount(0);
+    await expect(page.getByTestId("aset-0-terpilih")).toHaveCount(0);
     // Nothing about the other satker's holder may appear.
     await expect(page.locator("body")).not.toContainText("E2E Operator Jaksel");
   });
@@ -482,15 +484,15 @@ test.describe("Pengelolaan — create-form pages", () => {
     page,
   }) => {
     await page.goto(`${BASE}/pengelolaan/pemakaian/buat`, { waitUntil: "domcontentloaded" });
-    await pickAset(page, "E2E-A-1");
+    await pickAset(page, "E2E-A-1", "aset-0");
 
     await page.getByTestId("tambah-bmn").click();
-    await pickAset(page, "E2E-A-2", "aset-tambahan-0");
+    await pickAset(page, "E2E-A-2", "aset-1");
 
     // Each picker holds its own row. A single shared Vec would have let the
     // second pick overwrite the first.
-    await expect(page.getByTestId("aset-terpilih")).toContainText("E2E-A-1");
-    const tambahan = page.getByTestId("aset-tambahan-0-terpilih");
+    await expect(page.getByTestId("aset-0-terpilih")).toContainText("E2E-A-1");
+    const tambahan = page.getByTestId("aset-1-terpilih");
     await expect(tambahan).toContainText("E2E-A-2");
     await expect(tambahan, "kode barang must come from SIMAN kd_brg").toContainText("3100102003");
   });
@@ -503,12 +505,12 @@ test.describe("Pengelolaan — create-form pages", () => {
     // Fill only the SECOND row, then delete the first. Keying rows by position
     // would reassign identity here and hand row 1's picker the row 0 slug —
     // the pick would appear to jump to the deleted row.
-    await pickAset(page, "E2E-A-2", "aset-tambahan-1");
+    await pickAset(page, "E2E-A-2", "aset-2");
 
-    await page.getByRole("button", { name: "Hapus BMN tambahan" }).first().click();
+    await page.getByRole("button", { name: "Hapus BMN" }).first().click();
 
-    await expect(page.getByTestId("aset-tambahan-0-terpilih")).toHaveCount(0);
-    await expect(page.getByTestId("aset-tambahan-1-terpilih")).toContainText("E2E-A-2");
+    await expect(page.getByTestId("aset-1-terpilih")).toHaveCount(0);
+    await expect(page.getByTestId("aset-2-terpilih")).toContainText("E2E-A-2");
   });
 
   test("penghapusan extra item row fills its identity from the picker", async ({ page }) => {
