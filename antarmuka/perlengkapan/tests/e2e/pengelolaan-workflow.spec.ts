@@ -520,16 +520,53 @@ test.describe("Pengelolaan — create-form pages", () => {
     await page.getByRole("button", { name: "+ Tambah Item" }).click();
     await pickAset(page, "E2E-A-2", "aset-tambahan-0");
 
-    // Identity is read from the picked row, not transcribed. Only the
-    // acquisition value stays typeable: the server overrides nilai_perolehan
-    // from SIMAN for the MAIN item only, so an extra item whose asset carries
-    // no figure still needs somewhere to put one.
+    // Identity is read from the picked row, not transcribed — and so is the
+    // value. It used to be a typeable box on the grounds that the server only
+    // overrode the MAIN item's figure; that left every extra item's value in the
+    // operator's hands, and the value is what places the usulan within an
+    // authority. It is now shown, never entered.
     const tambahan = page.getByTestId("aset-tambahan-0-terpilih");
     await expect(tambahan).toContainText("3100102003");
     await expect(tambahan).toContainText("E2E-A-2");
-    // Addressed by id, not by label: the main form carries a "Nilai Perolehan
-    // (Rp)" label of its own, so getByLabel would match two elements.
-    await expect(page.locator("#nilai-tambahan-0")).toBeVisible();
+    await expect(page.getByTestId("nilai-tambahan-0")).toContainText("15.000.000");
+    await expect(
+      page.locator("#nilai-tambahan-0"),
+      "the extra item's value is no longer something the operator types",
+    ).toHaveCount(0);
+  });
+
+  test("penghapusan form no longer asks anyone to type what the picked asset already says", async ({
+    page,
+  }) => {
+    await page.goto(`${BASE}/pengelolaan/penghapusan/buat`, { waitUntil: "domcontentloaded" });
+    await pickAset(page, "E2E-A-1");
+
+    const terpilih = page.getByTestId("aset-terpilih");
+    await expect(terpilih).toContainText("Station Wagon");
+    await expect(terpilih).toContainText("3020101003");
+    // The three boxes that used to sit under the picker, filled by it and
+    // editable anyway, are gone. What is left of the value is read-only.
+    for (const id of ["#kode_barang", "#nama_barang", "#nup"]) {
+      await expect(page.locator(id), `${id} is a box to type into again`).toHaveCount(0);
+    }
+    await expect(page.locator("#nilai_perolehan")).toHaveJSProperty("readOnly", true);
+    await expect(page.locator("#nilai_perolehan")).toHaveValue("250000000");
+  });
+
+  test("penghapusan form refuses to send until an asset is picked", async ({ page }) => {
+    await page.goto(`${BASE}/pengelolaan/penghapusan/buat`, { waitUntil: "domcontentloaded" });
+    await page.locator("#tanggal").fill("2031-03-01");
+    await page.locator("#metode").selectOption("Musnah");
+    await page.locator("#alasan").fill("Rusak berat dan tidak ekonomis untuk diperbaiki");
+    await page.locator("#lampiran").fill("https://storage.example.com/lampiran-uji.pdf");
+
+    let sent = false;
+    page.on("request", (r) => {
+      if (r.method() === "POST" && r.url().endsWith("/penghapusan-bmn")) sent = true;
+    });
+    await page.getByRole("button", { name: "Simpan Draft" }).click();
+    await expect(page.getByText("Pilih BMN yang diusulkan terlebih dahulu").first()).toBeVisible();
+    expect(sent, "a request went out with no asset named").toBe(false);
   });
 
   // ── The submit itself ─────────────────────────────────────────────────────
@@ -613,6 +650,81 @@ test.describe("Pengelolaan — create-form pages", () => {
     expect(izin.pegawai_satker_nama).toBe("KEJAKSAAN NEGERI JAKARTA PUSAT");
     expect(izin.satker_code).toBe("0200010");
     expect(izin.status).toBe("DRAFT");
+  });
+
+  // The penghapusan form's submit had no spec either. It verified ONE asset on
+  // the server — the "item utama" — and wrote the rest of the list as sent, so
+  // the names and values on every extra item were whatever the form said. This
+  // presses the button with two assets and asserts both halves of the fix:
+  //   * the request names each asset by kode barang + NUP and carries no name
+  //     and no value, anywhere;
+  //   * what was stored is SIMAN's answer for BOTH assets (seed-multisatker.sql:
+  //     E2E-A-1 Station Wagon Rp 250 000 000, E2E-A-2 Note Book Rp 15 000 000).
+  test("penghapusan form files an usulan from the picked assets alone, and SIMAN fills in name and value", async ({
+    page,
+  }) => {
+    const alasan = `Uji e2e usulan penghapusan dari pilihan aset ${Date.now()}`;
+
+    await page.goto(`${BASE}/pengelolaan/penghapusan/buat`, { waitUntil: "domcontentloaded" });
+    await pickAset(page, "E2E-A-1");
+    await page.getByRole("button", { name: "+ Tambah Item" }).click();
+    await pickAset(page, "E2E-A-2", "aset-tambahan-0");
+    await page.locator("#tanggal").fill("2031-03-01");
+    await page.locator("#metode").selectOption("Musnah");
+    await page.locator("#alasan").fill(alasan);
+    await page.locator("#lampiran").fill("https://storage.example.com/lampiran-uji.pdf");
+
+    const kirim = page.waitForRequest(
+      (r) => r.method() === "POST" && r.url().endsWith("/penghapusan-bmn"),
+    );
+    const dibalas = page.waitForResponse(
+      (r) => r.request().method() === "POST" && r.url().endsWith("/penghapusan-bmn"),
+    );
+    await page.getByRole("button", { name: "Simpan Draft" }).click();
+
+    const body = (await kirim).postDataJSON() as {
+      items: Array<Record<string, unknown>>;
+    } & Record<string, unknown>;
+    for (const f of ["nama_barang", "nilai_perolehan"]) {
+      expect(Object.keys(body), `the form sent ${f}, which SIMAN already knows`).not.toContain(f);
+      for (const [i, it] of body.items.entries()) {
+        expect(Object.keys(it), `item ${i + 1} carries ${f}`).not.toContain(f);
+      }
+    }
+    expect(body.items.map((i) => i.nup)).toEqual(["E2E-A-1", "E2E-A-2"]);
+    expect(body.nup).toBe("E2E-A-1");
+
+    const balasan = await dibalas;
+    expect(balasan.status(), `submit refused: ${await balasan.text()}`).toBe(201);
+
+    const id = (await balasan.json()).data.id as string;
+    const { accessToken } = await apiLogin(page.request, credsFor(userFor("operator_a")));
+    // `/detail`, not the bare GET: only the detail response lists the items.
+    const resp = await page.request.get(`${PH_API}/${id}/detail`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    expect(resp.ok(), `GET ${id}/detail (${resp.status()})`).toBeTruthy();
+    const usulan = (await resp.json()).data;
+    expect(usulan.alasan).toBe(alasan);
+    expect(usulan.nama_barang).toBe("Station Wagon");
+    expect(Number(usulan.nilai_perolehan)).toBe(250000000);
+    const items = usulan.items as Array<{ nup: string; nama_barang: string; nilai_perolehan: number }>;
+    expect(items.map((i) => [i.nup, i.nama_barang, Number(i.nilai_perolehan)])).toEqual([
+      ["E2E-A-1", "Station Wagon", 250000000],
+      ["E2E-A-2", "Note Book", 15000000],
+    ]);
+
+    // The same assets on the screen a validator approves from. The detail page
+    // used to print the first one only, so the rest of the list was on no screen.
+    await page.goto(`${BASE}/pengelolaan/penghapusan/detail/${id}`, {
+      waitUntil: "domcontentloaded",
+    });
+    const tabel = page.getByTestId("tabel-bmn-usulan");
+    await expect(tabel).toBeVisible({ timeout: 20000 });
+    await expect(tabel.locator("tbody tr")).toHaveCount(2);
+    await expect(tabel).toContainText("Station Wagon");
+    await expect(tabel).toContainText("Note Book");
+    await expect(page.getByTestId("total-nilai-usulan")).toContainText("265.000.000");
   });
 });
 
