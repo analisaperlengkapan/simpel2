@@ -189,7 +189,37 @@ global:
   # Diverifikasi juga dengan menyapu SEMUA 99 rute GET terhadap salinan data
   # staging sebagai empat peran: rc31 jatuh tepat di tiga panggilan itu dan
   # tidak di tempat lain; rc32 0 dari 420 panggilan 5xx.
-  imageTag: v0.1.0-rc32
+  #
+  # rc32 di-deploy ke staging dan lulus 188 dari 195 spec dengan akun super asli
+  # (baseline rc30: 154/41), Bank Aset terbuka untuk pusat/wilayah/admin, nol
+  # restart backend. Tetapi ia TIDAK BOLEH DIPROMOSI JUGA, karena pengujiannya
+  # menyingkap satu cacat lagi: `GET /auth/me` macet 10 detik lalu 504 (5 dari 6
+  # percobaan, semua akun, tiap halaman portal). authenc memanggil integrasi
+  # dua kali berurutan (nama satker, lalu foto pegawai) dan keduanya di-DROP
+  # NetworkPolicy: authenc berlabel `component: identity`, simpelv1 hanya
+  # `app: simpelv1`, sedangkan `allow-backend-to-integrasi` hanya mengizinkan
+  # backend/frontend. Cacat jaringannya lebih tua (dibuat #865), tetapi foto
+  # pegawai (#903/#904, di rc31) menggandakan tunggunya melewati batas gateway.
+  #
+  # rc33 = rc32 + dua perbaikan:
+  #   #1031 permohonan pemakaian yang mulai SETELAH izin aktif berakhir boleh
+  #         diajukan (layar bilang boleh, server menolak — sejak rc30); form
+  #         menanyakan ulang saat periode berubah dan punya keadaan "berurutan"
+  #   #1032 authenc dan simpelv1 diizinkan ke integrasi (dan simpelv1 ke authenc);
+  #         penjaga NetworkPolicy kini memeriksa per KONSUMEN, bukan "port terbuka
+  #         untuk pod mana pun"
+  #   (sama PR) dokumen (konsep SK PDF, lampiran) kini di VOLUME, bukan di /tmp pod:
+  #         terukur di rc32, unduhan konsep SK menjawab 500 karena berkasnya ada di
+  #         pod lain / pod yang sudah diganti (HPA menjalankan 2 replika). Harganya:
+  #         HPA backend dimatikan dan strategi Recreate — lihat blok
+  #         `layananPerlengkapan` di bawah. Produksi BELUM disentuh.
+  #
+  # Yang DIKETAHUI dan BELUM diperbaiki (ada sebelum rilis ini, ditemukan saat
+  # menguji rc32): dbsimpelv1 kosong (0 tabel), jadi SIMPEL v1 tak melayani halaman
+  # apa pun di staging. Inbox notifikasi hanya menampilkan 50 terbaru tanpa halaman
+  # berikutnya. Label status `DRAFT`/`CANCELLED` masih mentah di dashboard dan
+  # daftar penghapusan.
+  imageTag: v0.1.0-rc33
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
@@ -273,7 +303,29 @@ layananIntegrasi:
     monsakti:   { suspend: true }
 layananPerlengkapan:
   replicas: 1
-  hpa: { enabled: true, minReplicas: 1, maxReplicas: 2, cpuUtilization: 75, memoryUtilization: 80 }
+  # Dokumen unggahan dan konsep SK disimpan di VOLUME, bukan di /tmp pod.
+  #
+  # Terukur di staging (rc32): konsep SK PDF ditulis ke /tmp/perlengkapan/docs
+  # milik SATU pod; database mencatatnya "sudah dibuat", lalu unduhannya
+  # dilayani pod LAIN (HPA menjalankan 2 replika di bawah beban) atau pod yang
+  # sudah diganti, dan menjawab 500 `read ...konsep-sk.pdf: No such file or
+  # directory`. Tiap deploy juga menghapus semua dokumen yang pernah dibuat,
+  # padahal tautannya tetap di database dan sudah dikirim ke validator.
+  #
+  # Volume `longhorn` bertipe RWO, hanya bisa dipasang pada SATU node. Tiga hal
+  # mengikutinya, dan ketiganya harus bersama:
+  #   * satu replika — HPA dimatikan, karena replika kedua tak bisa memasang
+  #     volume yang sama dan akan Pending;
+  #   * strategi Recreate — RollingUpdate menaikkan pod baru SEBELUM yang lama
+  #     turun, dan bila mendarat di node lain ia terjebak "Multi-Attach error";
+  #   * `fsGroup: 1000` (sudah ada di chart) agar pod non-root bisa menulis.
+  # Harganya: tiap deploy backend ini turun sebentar (satu replika, tanpa
+  # rolling). Produksi BELUM disentuh: itu keputusan terpisah (volume RWO + HPA
+  # tak cocok, jadi produksi butuh penyimpanan objek atau replika dikunci 1).
+  hpa: { enabled: false, minReplicas: 1, maxReplicas: 1 }
+  strategy: { type: Recreate }
+  persistence:
+    enabled: true
 simpelv1:
   enabled: true
   replicas: 2
