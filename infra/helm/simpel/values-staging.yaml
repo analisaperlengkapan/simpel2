@@ -208,14 +208,17 @@ global:
   #   #1032 authenc dan simpelv1 diizinkan ke integrasi (dan simpelv1 ke authenc);
   #         penjaga NetworkPolicy kini memeriksa per KONSUMEN, bukan "port terbuka
   #         untuk pod mana pun"
+  #   (sama PR) dokumen (konsep SK PDF, lampiran) kini di VOLUME, bukan di /tmp pod:
+  #         terukur di rc32, unduhan konsep SK menjawab 500 karena berkasnya ada di
+  #         pod lain / pod yang sudah diganti (HPA menjalankan 2 replika). Harganya:
+  #         HPA backend dimatikan dan strategi Recreate — lihat blok
+  #         `layananPerlengkapan` di bawah. Produksi BELUM disentuh.
   #
   # Yang DIKETAHUI dan BELUM diperbaiki (ada sebelum rilis ini, ditemukan saat
-  # menguji rc32): dokumen (konsep SK PDF, lampiran) disimpan di /tmp pod, jadi
-  # hilang saat pod diganti dan tak terlihat dari replika lain — HPA menjalankan 2
-  # replika di bawah beban dan unduhan konsep SK menjawab 500; PVC-nya sudah ada di
-  # chart tetapi mati (`layananPerlengkapan.persistence`). dbsimpelv1 kosong (0
-  # tabel), jadi SIMPEL v1 tak melayani halaman apa pun di staging. Inbox notifikasi
-  # hanya menampilkan 50 terbaru tanpa halaman berikutnya.
+  # menguji rc32): dbsimpelv1 kosong (0 tabel), jadi SIMPEL v1 tak melayani halaman
+  # apa pun di staging. Inbox notifikasi hanya menampilkan 50 terbaru tanpa halaman
+  # berikutnya. Label status `DRAFT`/`CANCELLED` masih mentah di dashboard dan
+  # daftar penghapusan.
   imageTag: v0.1.0-rc33
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
