@@ -11,6 +11,9 @@ impl PemakaianBmnRepository {
     pub async fn create(
         &self,
         request: CreateIzinPemakaianRequest,
+        // The holder, already resolved — from MySIMKARI for a new permit, from
+        // the first permit for a renewal. Never from the request body.
+        pegawai: PegawaiSnapshot,
         created_by: Uuid,
         created_by_nama: String,
         // Authoritative MySIMKARI satker_code of the creating operator (from JWT
@@ -53,15 +56,15 @@ impl PemakaianBmnRepository {
                 query,
                 &[
                     &id,
-                    &request.pegawai_nip,
-                    &request.pegawai_nama,
-                    &request.pegawai_satker_id,
-                    &request.pegawai_satker_nama,
-                    &request.pegawai_jabatan,
-                    &request.pegawai_golongan,
-                    &request.pegawai_pangkat,
-                    &request.pegawai_unit_kerja,
-                    &request.foto_pegawai,
+                    &pegawai.nip,
+                    &pegawai.nama,
+                    &pegawai.satker_id,
+                    &pegawai.satker_nama,
+                    &pegawai.jabatan,
+                    &pegawai.golongan,
+                    &pegawai.pangkat,
+                    &pegawai.unit_kerja,
+                    &pegawai.foto,
                     &request.tanggal_mulai,
                     &request.tanggal_selesai,
                     &request.keperluan,

@@ -73,7 +73,7 @@ impl PemakaianBmnService {
         // and no answer that distinguishes "exists elsewhere" from "does not
         // exist" (the cross-tenant existence oracle #93 closed).
         let pegawai = self.repository.find_pegawai_by_nip(nip, scope).await?;
-        let Some(pegawai) = pegawai else {
+        let Some(PegawaiRekam { info: pegawai, .. }) = pegawai else {
             return Err(AppError::BadRequest(
                 "Pegawai tidak ditemukan / tidak berada di satker bersangkutan".into(),
             ));

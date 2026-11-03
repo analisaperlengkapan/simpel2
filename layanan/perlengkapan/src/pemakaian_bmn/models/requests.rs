@@ -10,17 +10,17 @@ use validator::Validate;
 /// Request to create a new BMN usage permit
 #[derive(Debug, Clone, Deserialize, Validate)]
 pub struct CreateIzinPemakaianRequest {
+    /// The only thing about the holder the client states. Name, rank, posting,
+    /// satker and photo are read from `integrasi.mysimkari_pegawai` by this NIP
+    /// ([`PegawaiSnapshot`]), within the caller's own satker — so none of them
+    /// can be mistyped, go stale, or be claimed for someone else's staff.
+    ///
+    /// A body from the previous release still carries `pegawai_nama`,
+    /// `pegawai_satker_id` and the rest; serde drops keys it does not know, so
+    /// they are ignored rather than rejected, and what was stored is the
+    /// database's answer, not the body's.
     #[validate(length(min = 1, message = "NIP pegawai harus diisi"))]
     pub pegawai_nip: String,
-
-    pub pegawai_nama: String,
-    pub pegawai_satker_id: Uuid,
-    pub pegawai_satker_nama: String,
-    pub pegawai_jabatan: Option<String>,
-    pub pegawai_golongan: Option<String>,
-    pub pegawai_pangkat: Option<String>,
-    pub pegawai_unit_kerja: Option<String>,
-    pub foto_pegawai: Option<String>,
 
     /// Default period. It pre-fills each item that does not state its own —
     /// the authority for "until when may this asset be held" is the item.

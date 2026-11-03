@@ -139,14 +139,6 @@ impl PemakaianBmnService {
         // Create new permit as renewal
         let create_request = CreateIzinPemakaianRequest {
             pegawai_nip: current.pegawai_nip.clone(),
-            pegawai_nama: current.pegawai_nama.clone(),
-            pegawai_satker_id: current.pegawai_satker_id,
-            pegawai_satker_nama: current.pegawai_satker_nama.clone(),
-            pegawai_jabatan: current.pegawai_jabatan.clone(),
-            pegawai_golongan: current.pegawai_golongan.clone(),
-            pegawai_pangkat: current.pegawai_pangkat.clone(),
-            pegawai_unit_kerja: current.pegawai_unit_kerja.clone(),
-            foto_pegawai: current.foto_pegawai.clone(),
             tanggal_mulai: request.tanggal_mulai,
             tanggal_selesai: request.tanggal_selesai,
             keperluan: request.keperluan,
@@ -158,7 +150,13 @@ impl PemakaianBmnService {
 
         let new_permit = self
             .repository
-            .create(create_request, user_id, user_nama, satker_code)
+            .create(
+                create_request,
+                PegawaiSnapshot::dari_izin(&current),
+                user_id,
+                user_nama,
+                satker_code,
+            )
             .await?;
 
         Ok(new_permit)

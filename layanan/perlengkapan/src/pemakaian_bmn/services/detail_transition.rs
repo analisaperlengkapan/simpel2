@@ -6,6 +6,34 @@ use crate::workflow::engine::TransitionRequest;
 use tracing::{info, warn};
 use uuid::Uuid;
 
+/// How close to its end an ACTIVE permit must be before the detail page warns.
+/// The warning text states the actual number of days, so this is the only place
+/// the window is defined.
+pub(crate) const EXPIRING_SOON_DAYS: i64 = 30;
+
+/// Days left on a permit and whether to warn that it is nearly over.
+///
+/// Only a permit that is IN FORCE has a countdown. This used to count down from
+/// `tanggal_selesai` for every status, so a REVOKED permit — withdrawn the day it
+/// was superseded — still read "59 hari lagi", and a DRAFT whose dates were
+/// merely requested read as if it were running. `(None, false)` for anything
+/// else; the page renders that as "—".
+///
+/// A permit that is ACTIVE but already past its end date keeps a negative count
+/// ("Lewat N hari"): the scheduler that flips it to EXPIRED has not run yet, and
+/// the page should say so rather than go blank.
+pub(crate) fn expiry_info(
+    status: PemakaianBmnStatus,
+    tanggal_selesai: chrono::NaiveDate,
+    today: chrono::NaiveDate,
+) -> (Option<i64>, bool) {
+    if status != PemakaianBmnStatus::Active {
+        return (None, false);
+    }
+    let days = (tanggal_selesai - today).num_days();
+    (Some(days), (0..=EXPIRING_SOON_DAYS).contains(&days))
+}
+
 impl PemakaianBmnService {
     /// Get permit with allowed transitions
     ///
@@ -25,13 +53,11 @@ impl PemakaianBmnService {
             PemakaianBmnStatus::from_state_name(&izin.status).unwrap_or(PemakaianBmnStatus::Draft);
         let allowed_transitions = self.get_allowed_transitions(current_status);
 
-        // Calculate expiry info
-        let (days_until_expiry, is_expiring_soon) = {
-            let today = chrono::Utc::now().date_naive();
-            let days = (izin.tanggal_selesai - today).num_days();
-            let expiring = (0..=30).contains(&days);
-            (Some(days), expiring)
-        };
+        let (days_until_expiry, is_expiring_soon) = expiry_info(
+            current_status,
+            izin.tanggal_selesai,
+            chrono::Utc::now().date_naive(),
+        );
 
         Ok(IzinPemakaianDetailResponse {
             izin,
@@ -250,5 +276,59 @@ impl PemakaianBmnService {
                 })
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::NaiveDate;
+
+    fn d(s: &str) -> NaiveDate {
+        NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap()
+    }
+
+    #[test]
+    fn an_active_permit_counts_down_and_warns_inside_the_window() {
+        assert_eq!(
+            expiry_info(PemakaianBmnStatus::Active, d("2026-12-01"), d("2026-11-01")),
+            (Some(30), true)
+        );
+        assert_eq!(
+            expiry_info(PemakaianBmnStatus::Active, d("2026-12-02"), d("2026-11-01")),
+            (Some(31), false),
+            "one day outside the window must not warn"
+        );
+        assert_eq!(
+            expiry_info(PemakaianBmnStatus::Active, d("2026-11-01"), d("2026-11-01")),
+            (Some(0), true),
+            "the last day is still a warning"
+        );
+    }
+
+    #[test]
+    fn an_active_permit_past_its_end_date_counts_negative_without_warning() {
+        assert_eq!(
+            expiry_info(PemakaianBmnStatus::Active, d("2026-10-30"), d("2026-11-01")),
+            (Some(-2), false)
+        );
+    }
+
+    /// The defect: every status counted down from its end date, so a withdrawn
+    /// permit claimed it had 59 days left.
+    #[test]
+    fn a_permit_that_is_not_in_force_has_no_countdown() {
+        for status in [
+            PemakaianBmnStatus::Draft,
+            PemakaianBmnStatus::Submitted,
+            PemakaianBmnStatus::Revoked,
+            PemakaianBmnStatus::Expired,
+        ] {
+            assert_eq!(
+                expiry_info(status, d("2026-12-30"), d("2026-11-01")),
+                (None, false),
+                "{status:?} must not show a countdown"
+            );
+        }
     }
 }

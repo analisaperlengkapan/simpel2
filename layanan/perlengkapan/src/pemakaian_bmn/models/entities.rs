@@ -2,6 +2,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use super::responses::PegawaiInfo;
 use crate::shared::status_tone::StatusTone;
 
 // ============================================================================
@@ -210,6 +211,100 @@ impl PemakaianBmnItem {
             keterangan: row.try_get("keterangan").ok().flatten(),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
+        }
+    }
+}
+
+// ============================================================================
+// The holder of a permit
+// ============================================================================
+
+/// An employee as MySIMKARI knows them, resolved from a NIP and the caller's
+/// scope — the display record the form shows plus the one value a permit needs
+/// that the display record does not carry.
+#[derive(Debug, Clone)]
+pub struct PegawaiRekam {
+    pub info: PegawaiInfo,
+    /// Surrogate UUID of the employee's satker
+    /// ([`crate::shared::pegawai_ref::PEGAWAI_SATKER_UUID_SQL`]); `None` when
+    /// the employee's satker did not resolve.
+    pub satker_uuid: Option<Uuid>,
+}
+
+/// What a permit records about the person who holds it.
+///
+/// The client used to supply every one of these fields, so each could be
+/// mistyped, stale, or simply made up — and the form's own `satker_id` could
+/// not be produced at all (authenc never issues the claim it read), which left
+/// the permit unsubmittable. Now it is taken from `integrasi.mysimkari_pegawai`
+/// by NIP, on the server, and the request carries the NIP alone.
+///
+/// A permit stores a SNAPSHOT: the SK of a permit issued in March must keep
+/// saying who held what in March after the employee is promoted or moves, so
+/// this is copied into the row rather than joined at read time.
+#[derive(Debug, Clone)]
+pub struct PegawaiSnapshot {
+    pub nip: String,
+    pub nama: String,
+    pub satker_id: Uuid,
+    pub satker_nama: String,
+    pub jabatan: Option<String>,
+    /// Always `None` from a lookup: MySIMKARI keeps rank and grade in ONE
+    /// column (`golpang`) whose shape is not consistent, so splitting it is a
+    /// guess. The whole value goes into `pangkat`. Kept (not dropped) for a
+    /// renewal, which copies whatever the first permit holds.
+    pub golongan: Option<String>,
+    pub pangkat: Option<String>,
+    pub unit_kerja: Option<String>,
+    pub foto: Option<String>,
+}
+
+impl PegawaiSnapshot {
+    /// The snapshot a lookup yields, or the reason there is none.
+    ///
+    /// Refuses an employee a permit cannot honestly be attached to rather than
+    /// storing a blank: a permit with no holder name prints an empty SK, and one
+    /// with no satker is invisible to every satker-scoped reader.
+    pub fn dari_rekam(rekam: PegawaiRekam) -> Result<Self, &'static str> {
+        let PegawaiRekam { info, satker_uuid } = rekam;
+        let nama = info
+            .nama
+            .map(|n| n.trim().to_string())
+            .filter(|n| !n.is_empty())
+            .ok_or("Data pegawai di MySIMKARI belum memuat nama; izin tidak dapat dibuat")?;
+        let satker_id = satker_uuid
+            .ok_or("Satker pegawai tidak dikenali di MySIMKARI; izin tidak dapat dibuat")?;
+        // Kept as the lookup gave them: absent stays absent, never "".
+        let isi = |v: Option<String>| v.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+        let nama_satker = isi(info.nama_satker);
+        Ok(Self {
+            nip: info.nip,
+            nama,
+            satker_id,
+            satker_nama: nama_satker.clone().unwrap_or_default(),
+            jabatan: isi(info.jabatan),
+            golongan: None,
+            pangkat: isi(info.pangkat),
+            unit_kerja: nama_satker,
+            foto: isi(info.foto),
+        })
+    }
+
+    /// The holder of an existing permit, for its renewal. A renewal is the same
+    /// person under the same letter's terms, so it carries the first permit's
+    /// snapshot rather than asking MySIMKARI again — an employee who has since
+    /// left the satker must not make a legitimate renewal unwritable.
+    pub fn dari_izin(izin: &IzinPemakaianBmn) -> Self {
+        Self {
+            nip: izin.pegawai_nip.clone(),
+            nama: izin.pegawai_nama.clone(),
+            satker_id: izin.pegawai_satker_id,
+            satker_nama: izin.pegawai_satker_nama.clone(),
+            jabatan: izin.pegawai_jabatan.clone(),
+            golongan: izin.pegawai_golongan.clone(),
+            pangkat: izin.pegawai_pangkat.clone(),
+            unit_kerja: izin.pegawai_unit_kerja.clone(),
+            foto: izin.foto_pegawai.clone(),
         }
     }
 }

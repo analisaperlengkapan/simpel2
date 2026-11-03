@@ -614,15 +614,26 @@ fn LifecycleSummary(
         None => ("—".to_string(), "text-slate-500"),
     };
 
-    let warning_banner = expiring_soon.then(|| view! {
-        <div class="mt-3 flex items-start gap-2 rounded-lg border border-warning-500/30 bg-warning-500/10 px-3 py-2 text-xs text-warning-200">
-            <span class="mt-0.5 text-warning-300">
-                <AppIcon icon=WARNING />
-            </span>
-            <span>
-                "Izin akan berakhir dalam 7 hari. Pertimbangkan perpanjangan sebelum masa aktif habis."
-            </span>
-        </div>
+    // Angkanya diambil dari `days`, bukan ditulis tetap: backend menyalakan
+    // `expiring_soon` untuk jendela 30 hari, dan kalimat "dalam 7 hari" yang
+    // dulu tertulis di sini keliru bagi izin yang masih 20 hari lagi.
+    let warning_banner = expiring_soon.then(|| {
+        let kalimat = match days {
+            Some(0) => "Izin berakhir hari ini.".to_string(),
+            Some(d) => format!("Izin akan berakhir dalam {d} hari."),
+            None => "Izin akan segera berakhir.".to_string(),
+        };
+        view! {
+            <div class="mt-3 flex items-start gap-2 rounded-lg border border-warning-500/30 bg-warning-500/10 px-3 py-2 text-xs text-warning-200">
+                <span class="mt-0.5 text-warning-300">
+                    <AppIcon icon=WARNING />
+                </span>
+                <span data-testid="banner-akan-berakhir">
+                    {kalimat}
+                    " Pertimbangkan perpanjangan sebelum masa aktif habis."
+                </span>
+            </div>
+        }
     });
 
     view! {

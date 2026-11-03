@@ -49,9 +49,41 @@ pub const PEGAWAI_SATKER_JOIN_SQL: &str =
 /// stored `kode_satker` must be built on.
 pub const PEGAWAI_KODE_SATKER_SQL: &str = "ms_peg.kode_satker";
 
+/// A stable UUID for the employee's satker, for the one column that insists on
+/// a UUID: `izin_pemakaian_bmn.pegawai_satker_id` (`uuid NOT NULL`, no foreign
+/// key, written by the client until now).
+///
+/// Derived from the resolved `kode_satker`, and deliberately NOT cast from
+/// `mysimkari_satker.api_id`. The module docs above call `api_id` "the UUID the
+/// upstream API assigns", but the ingest stores it as free TEXT — a number is
+/// converted to its decimal text, and the e2e seed carries values such as
+/// `api-kejari-jakpus` — so a `::uuid` cast on it would turn any satker whose
+/// id is not UUID-shaped into a permit nobody can create. The code is the
+/// satker's identity everywhere else (`izin_pemakaian_bmn.satker_code`, V003),
+/// so a hash of it is the same satker every time, for every employee in it.
+///
+/// `md5(text)::uuid` rather than a v5 UUID: the `uuid` crate's `v5` feature
+/// pulls in a hash crate this service does not otherwise need, and the value is
+/// an opaque surrogate that nothing parses for a version.
+///
+/// NULL when the satker did not resolve (the 3 orphan employees); the caller
+/// must treat that as "cannot attach a permit to this person".
+pub const PEGAWAI_SATKER_UUID_SQL: &str = "md5('simpel:satker:' || ms_peg.kode_satker)::uuid";
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The surrogate must hang off the RESOLVED code. Built on `api_id` it
+    /// would be a different identity from the one the permit's `satker_code`
+    /// carries; built on `p.satker_id` it would be the mismatch this module
+    /// exists to prevent.
+    #[test]
+    fn the_satker_surrogate_is_built_on_the_resolved_code() {
+        assert!(PEGAWAI_SATKER_UUID_SQL.contains("ms_peg.kode_satker"));
+        assert!(!PEGAWAI_SATKER_UUID_SQL.contains("api_id"));
+        assert!(!PEGAWAI_SATKER_UUID_SQL.contains("p.satker_id"));
+    }
 
     /// The join and the column have to agree on the alias, and the alias has
     /// to be one a caller cannot collide with by accident.

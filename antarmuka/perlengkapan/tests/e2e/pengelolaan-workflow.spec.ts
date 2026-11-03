@@ -531,6 +531,89 @@ test.describe("Pengelolaan — create-form pages", () => {
     // (Rp)" label of its own, so getByLabel would match two elements.
     await expect(page.locator("#nilai-tambahan-0")).toBeVisible();
   });
+
+  // ── The submit itself ─────────────────────────────────────────────────────
+  // No spec used to press "Ajukan Permohonan". The form read the satker from a
+  // JWT claim (`satker_id`) that authenc never issues, so it refused to send
+  // for EVERY user ("satker_id kosong") and nothing in CI noticed: the specs
+  // above stop at the asset picker, and the integration tests post hand-written
+  // JSON rather than what the form builds.
+  //
+  // This one presses it, and asserts the two things the fix is about:
+  //   * the request carries the NIP and NOTHING ELSE about the person — every
+  //     field MySIMKARI already knows is the server's to fill, not the form's;
+  //   * what the server stored is MySIMKARI's answer (seed-multisatker.sql row
+  //     200000000000000001), read back through the API as the same operator.
+  test("pemakaian form files a permit from the NIP alone, and the server fills the person in", async ({
+    page,
+  }) => {
+    const NIP = "200000000000000001";
+    const keperluan = `Uji e2e pengajuan hanya dengan NIP ${Date.now()}`;
+
+    await page.goto(`${BASE}/pengelolaan/pemakaian/buat`, { waitUntil: "domcontentloaded" });
+
+    // Only the NIP is typed. The card is the lookup's answer, shown so the
+    // operator can see who they picked.
+    await page.locator("#pegawai-nip").fill(NIP);
+    const kartu = page.getByTestId("pegawai-terpilih");
+    await expect(kartu, "NIP lookup never resolved the employee").toBeVisible({ timeout: 20000 });
+    await expect(kartu).toContainText("E2E Operator Jakpus");
+
+    // A far-future window: nothing else in the seed is booked then.
+    await page.locator("#periode-mulai").fill("2031-03-01");
+    await page.locator("#periode-selesai").fill("2031-03-10");
+    await page.locator("#keperluan").fill(keperluan);
+
+    await pickAset(page, "E2E-A-1", "aset-0");
+    await expect(page.getByTestId("bmn-ketersediaan-0")).toContainText("tersedia", {
+      timeout: 20000,
+    });
+    // E2E-A-1 is a vehicle, so the CHECK on kendaraan rows applies.
+    await page.locator("#no-polisi-0").fill("B 1234 UJI");
+    await page.locator("#no-bpkb-0").fill("BPKB-E2E-0001");
+
+    const kirim = page.waitForRequest(
+      (r) => r.method() === "POST" && r.url().endsWith("/pemakaian-bmn"),
+    );
+    const dibalas = page.waitForResponse(
+      (r) => r.request().method() === "POST" && r.url().endsWith("/pemakaian-bmn"),
+    );
+    await page.getByRole("button", { name: "Ajukan Permohonan" }).click();
+
+    const body = (await kirim).postDataJSON() as Record<string, unknown>;
+    for (const f of [
+      "pegawai_nama",
+      "pegawai_satker_id",
+      "pegawai_satker_nama",
+      "pegawai_jabatan",
+      "pegawai_golongan",
+      "pegawai_pangkat",
+      "pegawai_unit_kerja",
+      "foto_pegawai",
+    ]) {
+      expect(Object.keys(body), `the form sent ${f}, which MySIMKARI already knows`).not.toContain(f);
+    }
+    expect(body.pegawai_nip).toBe(NIP);
+
+    const balasan = await dibalas;
+    expect(balasan.status(), `submit refused: ${await balasan.text()}`).toBe(201);
+
+    // The permit as stored, read back by id through the API.
+    const id = (await balasan.json()).data.id as string;
+    const { accessToken } = await apiLogin(page.request, credsFor(userFor("operator_a")));
+    const resp = await page.request.get(`${PM_API}/${id}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    expect(resp.ok(), `GET ${id} (${resp.status()})`).toBeTruthy();
+    const izin = (await resp.json()).data;
+    expect(izin.keperluan).toBe(keperluan);
+    expect(izin.pegawai_nama).toBe("E2E Operator Jakpus");
+    expect(izin.pegawai_jabatan).toBe("Operator Satker");
+    expect(izin.pegawai_pangkat).toBe("Penata Muda");
+    expect(izin.pegawai_satker_nama).toBe("KEJAKSAAN NEGERI JAKARTA PUSAT");
+    expect(izin.satker_code).toBe("0200010");
+    expect(izin.status).toBe("DRAFT");
+  });
 });
 
 // ── Pemakaian: satker-internal approval chain, driven through the UI (#96) ──
