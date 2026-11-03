@@ -216,6 +216,11 @@ pub struct CreateBmnItemRequest {
 pub struct BmnAvailabilityResponse {
     pub bmn_nup: String,
     pub is_available: bool,
+    /// `AVAILABLE`, `PEMAKAIAN_BERURUTAN` (a permit holds it but ends BEFORE the
+    /// requested period starts: bookable) or `OVERLAP`. Absent from an older
+    /// backend, hence optional.
+    #[serde(default)]
+    pub status: Option<String>,
     pub active_permit_id: Option<String>,
     pub active_permit_holder: Option<String>,
     pub active_permit_expires: Option<String>,
@@ -457,20 +462,34 @@ pub async fn create_pemakaian_bmn(
 pub async fn check_bmn_availability(
     bmn_nup: &str,
     bmn_kode_barang: &str,
+    tgl_mulai: Option<&str>,
+    tgl_selesai: Option<&str>,
 ) -> Result<ApiResponse<BmnAvailabilityResponse>, crate::api::AppError> {
-    auth_get_json(&format!(
+    let mut url = format!(
         "{}/bmn/{}/availability?kode_barang={}",
         PEMAKAIAN_BMN_BASE,
         urlencoding::encode(bmn_nup),
         urlencoding::encode(bmn_kode_barang)
-    ))
-    .await
+    );
+    // The period travels as a pair or not at all: the backend refuses half of
+    // one, and without it the answer is "held right now?", which calls an
+    // asset that ends before this permit starts "in use".
+    if let (Some(mulai), Some(selesai)) = (tgl_mulai, tgl_selesai) {
+        url.push_str(&format!(
+            "&tgl_mulai={}&tgl_selesai={}",
+            urlencoding::encode(mulai),
+            urlencoding::encode(selesai)
+        ));
+    }
+    auth_get_json(&url).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn check_bmn_availability(
     _bmn_nup: &str,
     _bmn_kode_barang: &str,
+    _tgl_mulai: Option<&str>,
+    _tgl_selesai: Option<&str>,
 ) -> Result<ApiResponse<BmnAvailabilityResponse>, crate::api::AppError> {
     Err(crate::api::AppError::Unknown(
         "Server-side stub".to_string(),

@@ -43,15 +43,27 @@ impl PemakaianBmnService {
     /// mengidentifikasi apa pun (lihat header `repository::lookup`).
     ///
     /// Requirements: REQ-P002, REQ-P003
+    ///
+    /// `periode` = jangka waktu yang akan diajukan. Tanpanya jawabannya buta
+    /// tanggal ("sedang dipegang sekarang?"); dengannya jawabannya untuk
+    /// periode itu, termasuk pemakaian berurutan.
     pub async fn check_bmn_availability(
         &self,
         aset: AssetIdentityQuery<'_>,
+        periode: Option<(chrono::NaiveDate, chrono::NaiveDate)>,
     ) -> AppResult<BmnAvailabilityResponse> {
+        if let Some((mulai, selesai)) = periode
+            && selesai < mulai
+        {
+            return Err(AppError::BadRequest(
+                "Tanggal selesai harus setelah tanggal mulai".into(),
+            ));
+        }
         let satker = self
             .resolve_target_satker(aset.scope, aset.milik_sendiri, aset.satker_diminta)
             .await?;
         self.repository
-            .check_bmn_availability(aset.bmn_nup, aset.bmn_kode_barang, &satker)
+            .check_bmn_availability(aset.bmn_nup, aset.bmn_kode_barang, &satker, periode)
             .await
     }
 

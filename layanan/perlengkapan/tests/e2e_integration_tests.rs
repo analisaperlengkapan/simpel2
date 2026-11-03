@@ -26,6 +26,7 @@ mod integration {
     mod pemakaian_header_detail_test;
     mod pemakaian_holder_from_nip_test;
     mod pemakaian_monitoring_scope_test;
+    mod pemakaian_sequential_booking_test;
     mod penghapusan_bmn_workflow_test;
     mod penghapusan_items_from_siman_test;
     mod rbac_403_test;
