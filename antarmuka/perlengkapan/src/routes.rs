@@ -41,7 +41,6 @@ pub mod path {
     pub const NOTIFIKASI: &str = "/perlengkapan/simpel/v2/notifikasi";
     pub const ADMIN_WORKFLOW: &str = "/perlengkapan/simpel/v2/admin/workflow";
     pub const ADMIN_WORKFLOW_MONITORING: &str = "/perlengkapan/simpel/v2/admin/workflow-monitoring";
-    pub const ADMIN_WORKFLOW_DELEGATION: &str = "/perlengkapan/simpel/v2/admin/workflow-delegation";
 
     pub const BANTUAN_PANDUAN: &str = "/perlengkapan/simpel/v2/bantuan/panduan";
     pub const BANTUAN_FAQ: &str = "/perlengkapan/simpel/v2/bantuan/faq";

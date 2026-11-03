@@ -70,7 +70,6 @@ WRITE_ALLOWLIST: dict[tuple[str, str], str] = {
     ("POST", "/bantuan/tiket/{id}/komentar"): "pemilik tiket atau staf; diputuskan TicketActor.access()",
     ("PUT", "/bantuan/tiket/{id}/status"): "khusus staf helpdesk; TicketActor.require_staff() di repository/service",
     ("POST", "/pakaian-dinas/ukuran-pakaian-pegawai"): "swalayan: NIP diambil dari klaim, bukan dari body",
-    ("POST", "/workflow/delegations/{id}/revoke"): "hanya pemberi delegasi; DelegationManager::revoke_delegation memeriksa delegator",
 }
 
 READ_ALLOWLIST: dict[tuple[str, str], str] = {

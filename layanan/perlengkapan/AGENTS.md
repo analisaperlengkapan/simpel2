@@ -301,10 +301,11 @@ sendiri bila dipasang tanpa middleware (tes).
   sebagai aktor internal dengan user id admin, catatan diberi tag `[BREAK-GLASS]`).
   `GET /admin/break-glass` terbuka bagi admin **dan** validator_pusat (pihak yang keputusannya
   ditimpa). Break-glass bergerak sepanjang edge yang didefinisikan alur; ia tak menciptakan edge.
-- **Delegasi** (`/workflow/delegations`) divalidasi (hanya role yang dipegang, bukan admin,
-  maks 30 hari, alasan, penerima ada) tetapi **belum berlaku sebagai hak akses** — setiap
-  respons memuat `berlaku: false`. Menjadikannya efektif butuh keputusan desain (token vs
-  lookup per-request + jejak audit "bertindak atas nama").
+- **Delegasi** (`/workflow/delegations`) **dihapus**: halamannya hanya terbuka bagi admin padahal
+  API menolak mendelegasikan role admin dan mewajibkan pemberi memegang role yang didelegasikan,
+  sehingga tak seorang pun bisa membuat satu pun; delegasi juga hanya catatan (`berlaku: false`),
+  tak pernah dikonsultasikan jalur otorisasi. Tabel `workflow_delegations` dibiarkan sampai
+  migrasi kontrak. Lihat bagian "Add a Workflow Definition" di bawah.
 - **Ekspor**: `ExportQuery.scope` (`#[serde(skip)]`, default `Denied`) diisi dari klaim;
   ekspor pakaian dinas (NIP+nama) & kebutuhan dibatasi satker pemanggil; roadmap/riwayat
   (kunci uuid legacy) hanya lintas-satker. Job ekspor milik pembuatnya (`created_by`).
@@ -436,14 +437,12 @@ Perlengkapan is a *single-crate* service (flat `src/`, no `crates/api/` —
 that pattern lives in authenc, not here). End-to-end:
 
 1. **Route** — register in `src/routes.rs`. Example layout (see the
-   `Workflow Delegation Routes` block circa line 510 for a fresh
-   reference):
+   `Workflow Definition Routes` block for a fresh reference):
 
    ```rust
    .route(
-       "/workflow/delegations",
-       get(crate::workflow::delegation_handlers::list_delegations_handler)
-           .post(crate::workflow::delegation_handlers::create_delegation_handler),
+       "/workflow/definitions",
+       get(crate::workflow::definition_handlers::get_workflow_definitions),
    )
    ```
 
@@ -507,9 +506,9 @@ pub struct CreatePerlengkapanRequest {
 request.validate().map_err(AppError::Validation)?;
 ```
 
-### 3. Add a Workflow Definition or Delegation
+### 3. Add a Workflow Definition
 
-The workflow engine lives in `src/workflow/`. Two ways to extend it:
+The workflow engine lives in `src/workflow/`. To add an approval flow:
 
 - **New workflow definition (a new approval flow)** — add a `default_*`
   fn to `workflow/config.rs::WorkflowConfig` that returns
@@ -520,15 +519,21 @@ The workflow engine lives in `src/workflow/`. Two ways to extend it:
   workflow needs entity-specific columns (most don't — the engine
   tables are polymorphic).
 
-- **Delegation (validator hands off to another user)** — the model is
-  already wired (`workflow/delegation.rs` + `delegation_handlers.rs`
-  routes at `/workflow/delegations`). The hot path is:
-  `POST /workflow/delegations` → `DelegationManager::create_delegation`
-  inserts into `perlengkapan.workflow_delegations`. Status transitions
-  (`Scheduled` → `Active` → `Expired`) are driven by
-  `DelegationManager::process_delegation_lifecycle()`; hook it into
-  the SLA scheduler if you add a separate cron loop. Frontend lives at
-  `antarmuka/perlengkapan/src/pages/workflow/delegation.rs`.
+Delegation (a validator handing off to another user) is **not** an extension
+point any more, and should not be re-added as it was. The page lived under `/admin` (admin role only) while
+  the backend refused to delegate an administrator role and required the
+  delegator to hold the role being delegated, so the one audience that could
+  open the page had nothing it was allowed to delegate, and the audience that
+  held delegable roles could not open it. On top of that a delegation was only
+  a record (`berlaku: false`): nothing in the authorization path consulted it.
+  The handlers, `DelegationManager`, the routes and the page are gone. The
+  table `perlengkapan.workflow_delegations` is deliberately left in place;
+  drop it in a contract migration at least one release after this code is
+  deployed (expand/contract). If delegation comes back, make it *effective*
+  first (the token or a per-request lookup carries the delegated role, and
+  the audit trail records "acting for X"), then build the form on the pickers
+  in `antarmuka/perlengkapan/src/components/reference_picker.rs` (NIP for the
+  delegate, a list of the roles the caller holds) instead of free text.
 
 ### 4. Add a Secreton-backed Service Credential
 
@@ -743,7 +748,7 @@ Snapshot as of the May 2026 stabilization sweep (Phase 1–2 of the
 | Hardcoded `pegawai_id="0"` on `/pakaian-dinas/ukuran` | ✅ Removed | Route now reads `UserSession` from context. `fetch_pegawai_ukuran` no longer appends a path-param; backend resolves pegawai from JWT NIP claim. |
 | Portal admin: Roles CRUD | ✅ Wired | Create + Delete modals in `antarmuka/portal/src/pages/admin/roles.rs`. |
 | Portal admin: Realm General settings | ✅ Wired | Editable form bound to `iam_update_realm`. Other 8 tabs carry a "Pratinjau — belum tersambung" banner pending backend endpoints. |
-| Workflow delegation (`/workflow/delegations`) | ✅ Wired | Backend handlers + REST routes added; `delegation.rs` table refs corrected to V007 schema (`workflow_delegations`). Frontend at `/admin/workflow-delegation`. |
+| Workflow delegation (`/workflow/delegations`) | ⛔ Removed | Page was admin-only while the API refused admin roles and required the delegator to hold the role, so nobody could create one; it also granted nothing. Table `workflow_delegations` kept until a contract migration. |
 | SMS / WhatsApp / Push channels | 🟡 Deferred | `NotifikasiService` still logs-and-skips these; SMTP-style adapter scaffolding can be ported once provider creds are minted into Secreton. |
 | Authorization Services (Keycloak parity: resource servers, scopes, policies, evaluate) | 🔴 Pending epic | `antarmuka/portal/src/pages/admin/permissions.rs` shows a labelled "Pratinjau" UI; no backend endpoints yet. |
 | Realm Settings tabs other than General | 🔴 Pending epic | Login/Email/Themes/Keys/Sessions/Tokens/Security/Localization need authenc settings endpoints. |

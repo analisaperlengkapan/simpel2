@@ -169,7 +169,7 @@ export default defineConfig({
       testMatch: ['**/pemakaian-monitoring.spec.ts'],
     },
     // F-E2E E-5 — Bantuan (panduan/FAQ/helpdesk ticket lifecycle incl. staff
-    // status flow), admin workflow config/monitoring/delegation, kebutuhan
+    // status flow), admin workflow config/monitoring, kebutuhan
     // buat (validator_pusat) + laporan exports, pakaian ukuran round-trip,
     // and the negative/RBAC edges. Click-driven navigation (FE-audit lesson:
     // goto()-only specs cannot catch broken links). Clears the final
