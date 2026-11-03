@@ -189,8 +189,10 @@ pub struct BankAsetFilterOptions {
     /// distinct names for 556 distinct codes on staging), so a name-keyed
     /// filter silently merges them.
     pub satker: Vec<FilterOption>,
-    /// Satker by CODE — `value` is `kdsatker_keu`, `label` the name. This is
-    /// the identity, and what the dashboard drill-down filters on.
+    /// Satker by CODE — `value` is the MySIMKARI `kode_satker`, `label` the
+    /// name. This is the identity, and what the dashboard drill-down filters
+    /// on. A satker SIMAN knows and MySIMKARI does not has no such code, so it
+    /// is absent here (it still counts in the name list and the totals).
     #[serde(default)]
     pub satker_kode: Vec<FilterOption>,
     /// Wilayah by code — `value` is digits 6-9 of `kdsatker_keu`, the same
