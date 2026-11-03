@@ -91,6 +91,11 @@ spec:
     - from:
         - podSelector: { matchLabels: { app.kubernetes.io/component: backend } }
         - podSelector: { matchLabels: { app.kubernetes.io/component: frontend } }
+        # simpelv1 membawa label `app: simpelv1`, bukan `component`, jadi selector
+        # di atas tak pernah mencakupnya; gateway sidecar-nya memanggil authenc
+        # (`AUTHENC_GATEWAY_URL`). Diukur di staging: GET authenc:8088/health dari
+        # pod simpelv1 menunggu 6 detik lalu menyerah, dari pod backend 200 dalam 18 ms.
+        - podSelector: { matchLabels: { app: simpelv1 } }
       ports:
         - { protocol: TCP, port: 8088 }
         - { protocol: TCP, port: 9088 }
@@ -99,8 +104,17 @@ spec:
 # dibukakan satu policy sendiri (authenc/postgres/secreton/redis). Integrasi
 # tidak pernah mendapat miliknya, jadi 50051/8080 tertutup untuk SEMUA pod
 # di namespace — hanya istio-ingressgateway yang boleh masuk (lewat
-# `allow-ingress-gateway`). Konsumennya: perlengkapan (gRPC fetch-at-read) dan
-# simpelv1 lewat gateway sidecar.
+# `allow-ingress-gateway`). Konsumennya: perlengkapan (gRPC fetch-at-read),
+# simpelv1 lewat gateway sidecar, dan authenc.
+#
+# authenc dan simpelv1 SEMPAT tak tercantum, dan itu terukur: authenc berlabel
+# `component: identity` (bukan backend/frontend) dan simpelv1 hanya `app:
+# simpelv1`, jadi selector component tak mencakup keduanya. Tiap panggilan
+# gRPC authenc -> integrasi menunggu ~5 detik sampai time out; `/auth/me`
+# memanggilnya dua kali berurutan (nama satker, foto pegawai), sehingga gateway
+# memutusnya di 10 detik dengan 504 — untuk SEMUA akun, di setiap halaman portal.
+# `check-netpol-service-ports.py` kini memeriksa per KONSUMEN, supaya konsumen
+# berikutnya yang labelnya lain tak lolos lagi.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -117,6 +131,8 @@ spec:
     - from:
         - podSelector: { matchLabels: { app.kubernetes.io/component: backend } }
         - podSelector: { matchLabels: { app.kubernetes.io/component: frontend } }
+        - podSelector: { matchLabels: { app.kubernetes.io/name: authenc } }
+        - podSelector: { matchLabels: { app: simpelv1 } }
       ports:
         - { protocol: TCP, port: 50051 }
         - { protocol: TCP, port: 8080 }

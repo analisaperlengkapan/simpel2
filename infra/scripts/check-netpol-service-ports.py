@@ -20,6 +20,18 @@ memperlakukan kegagalan probe sebagai "tidak memblokir", jadi tiap keputusan
 Validator Pusat diam-diam menunggu 25s + 30s sampai time out lalu lanjut. Klien
 menerima 504 dari gateway (batas 30 detik) walau transisinya berhasil.
 
+  C. Policy Ingress `allow-backend-to-integrasi` mengizinkan pod berkomponen
+     `backend` dan `frontend`. authenc berkomponen `identity`, jadi SETIAP
+     panggilan gRPC authenc -> integrasi dibuang diam-diam sampai kehabisan
+     waktu (2026-11-03): `/auth/me` memanggil integrasi dua kali berurutan
+     (nama satker, lalu foto pegawai), masing-masing menunggu ~5 detik, dan
+     gateway memutus di 10 detik dengan 504. Cek A dan B tak menangkapnya
+     karena keduanya bertanya "apakah port itu terbuka untuk pod MANA PUN di
+     namespace" dan hanya membaca URL literal; URL integrasi authenc datang dari
+     ConfigMap (`configMapKeyRef`). Cek C bertanya per KONSUMEN: pod yang
+     benar-benar memakai URL itu, apakah labelnya dicakup salah satu peer
+     `from` pada policy yang membuka port tersebut.
+
 Cakupan DITURUNKAN dari manifes yang dirender, bukan daftar tulis tangan:
 service + port-nya dari objek Service, pasangan yang dibutuhkan dari URL yang
 benar-benar dikonfigurasi. Service baru ikut tercakup pada hari ia ditambahkan.
@@ -111,7 +123,134 @@ def required_pairs(ds, alias):
     return need
 
 
+def pod_template(d):
+    """(label-map, containers) dari template pod sebuah workload; None bila bukan workload."""
+    kind = d.get("kind")
+    spec = d.get("spec") or {}
+    if kind in ("Deployment", "StatefulSet", "Job", "DaemonSet"):
+        tpl = spec.get("template") or {}
+    elif kind == "CronJob":
+        tpl = (((spec.get("jobTemplate") or {}).get("spec") or {}).get("template")) or {}
+    else:
+        return None
+    pod = tpl.get("spec") or {}
+    labels = (tpl.get("metadata") or {}).get("labels") or {}
+    return labels, (pod.get("containers") or []) + (pod.get("initContainers") or [])
+
+
+def consumer_pairs(ds, alias):
+    """{workload: (pod-labels, {(name-label, port)})} — apa yang SETIAP workload benar-benar pakai.
+
+    URL diambil dari variabel yang disebut satu per satu: `env.value` literal dan
+    `env.valueFrom.configMapKeyRef` (URL integrasi milik authenc datang dari yang
+    kedua, itulah mengapa cek lama tak melihatnya).
+    """
+    cms = {
+        (d.get("metadata") or {}).get("name"): (d.get("data") or {})
+        for d in ds
+        if d.get("kind") == "ConfigMap"
+    }
+    out = {}
+    for d in ds:
+        tpl = pod_template(d)
+        if tpl is None:
+            continue
+        labels, containers = tpl
+        own = labels.get(NAME)
+        texts = []
+        for c in containers:
+            for e in c.get("env") or []:
+                if isinstance(e.get("value"), str):
+                    texts.append(e["value"])
+                ref = ((e.get("valueFrom") or {}).get("configMapKeyRef")) or {}
+                val = (cms.get(ref.get("name")) or {}).get(ref.get("key"))
+                if isinstance(val, str):
+                    texts.append(val)
+            # `envFrom` sengaja TIDAK dibaca: ia menyalin SELURUH ConfigMap ke
+            # pod, jadi "pod menerima URL" tak berarti "pod memanggil URL" dan
+            # setiap pod menjadi konsumen setiap service. Yang dibaca hanya
+            # variabel yang DISEBUT satu per satu (literal atau configMapKeyRef):
+            # di situlah seseorang memutuskan pod ini butuh service itu.
+        need = set()
+        for t in texts:
+            for host, port in URL_RE.findall(t):
+                label = alias.get(host)
+                if label and label != own:
+                    need.add((label, int(port)))
+        if need:
+            name = f"{d.get('kind')}/{(d.get('metadata') or {}).get('name', '?')}"
+            out[name] = (labels, need)
+    return out
+
+
+def peer_admits(peer, labels):
+    """True bila peer `from` (podSelector tanpa namespaceSelector) mencakup pod berlabel `labels`."""
+    if peer.get("namespaceSelector") or peer.get("ipBlock"):
+        return False
+    sel = (peer.get("podSelector") or {}).get("matchLabels")
+    if sel is None:
+        return False
+    # podSelector kosong ({}) memilih SEMUA pod di namespace.
+    return all(labels.get(k) == v for k, v in sel.items())
+
+
+def unadmitted_consumers(ds, alias, rules):
+    """[(workload, target, port)] — konsumen yang tak dicakup policy Ingress mana pun."""
+    bad = []
+    for workload, (labels, need) in sorted(consumer_pairs(ds, alias).items()):
+        for target, port in sorted(need):
+            admitted = any(
+                d == "Ingress" and t == target and p == port
+                and any(peer_admits(peer, labels) for peer in (r.get("from") or []))
+                for _pol, d, t, p, r in rules
+            )
+            if not admitted:
+                bad.append((workload, target, port))
+    return bad
+
+
+def self_test():
+    """Kanari dua arah. Penjaga yang hanya diuji pada kasus 'lulus' tak membuktikan apa pun."""
+    def svc(name, ports):
+        return {"kind": "Service", "metadata": {"name": name},
+                "spec": {"selector": {NAME: name}, "ports": [{"port": p} for p in ports]}}
+    def wl(name, comp, env=None, env_from=None):
+        c = {"name": name, "env": env or [], "envFrom": env_from or []}
+        return {"kind": "Deployment", "metadata": {"name": name},
+                "spec": {"template": {"metadata": {"labels": {NAME: name, COMPONENT: comp}},
+                                      "spec": {"containers": [c]}}}}
+    cm = {"kind": "ConfigMap", "metadata": {"name": "cfg"}, "data": {"URL": "http://integrasi:50051"}}
+    pol = lambda comps: {"kind": "NetworkPolicy", "metadata": {"name": "allow"},
+                         "spec": {"podSelector": {"matchLabels": {NAME: "integrasi"}}, "policyTypes": ["Ingress"],
+                                  "ingress": [{"from": [{"podSelector": {"matchLabels": {COMPONENT: c}}} for c in comps],
+                                               "ports": [{"port": 50051}]}]}}
+    via_key = [{"name": "U", "valueFrom": {"configMapKeyRef": {"name": "cfg", "key": "URL"}}}]
+    via_from = [{"configMapRef": {"name": "cfg"}}]
+    cases = [
+        # (nama, dokumen, jumlah konsumen yang tak diizinkan yang HARUS ditemukan)
+        ("identity lewat configMapKeyRef, policy hanya backend/frontend", [svc("integrasi", [50051]), cm, wl("authenc", "identity", env=via_key), pol(["backend", "frontend"])], 1),
+        ("envFrom saja BUKAN bukti pemakaian (menyalin seluruh ConfigMap)", [svc("integrasi", [50051]), cm, wl("authenc", "identity", env_from=via_from), pol(["backend", "frontend"])], 0),
+        ("URL literal pada pod identity", [svc("integrasi", [50051]), wl("authenc", "identity", env=[{"name": "U", "value": "http://integrasi:50051"}]), pol(["backend"])], 1),
+        ("identity DIIZINKAN", [svc("integrasi", [50051]), cm, wl("authenc", "identity", env=via_key), pol(["backend", "frontend", "identity"])], 0),
+        ("backend sudah diizinkan", [svc("integrasi", [50051]), cm, wl("perlengkapan", "backend", env=via_key), pol(["backend", "frontend"])], 0),
+        ("workload tak memakai URL itu", [svc("integrasi", [50051]), cm, wl("portal", "frontend"), pol(["backend"])], 0),
+        ("integrasi menunjuk dirinya sendiri", [svc("integrasi", [50051]), cm, wl("integrasi", "backend", env=via_key), pol(["frontend"])], 0),
+    ]
+    gagal = []
+    for nama, ds, expect in cases:
+        _ports, alias = collect_services(ds)
+        got = len(unadmitted_consumers(ds, alias, netpol_rules(ds)))
+        if got != expect:
+            gagal.append(f"{nama}: ditemukan {got}, seharusnya {expect}")
+    if gagal:
+        print("self-test check-netpol-service-ports GAGAL:", file=sys.stderr)
+        for g in gagal:
+            print(f"  - {g}", file=sys.stderr)
+        sys.exit(2)
+
+
 def main():
+    self_test()
     label = sys.argv[1] if len(sys.argv) > 1 else "chart"
     ds = list(docs(json.load(sys.stdin)))
     svc_ports, alias = collect_services(ds)
@@ -171,6 +310,16 @@ def main():
                 f"`{target}:{port}` dipakai oleh {why}, tetapi tak ada aturan "
                 f"Egress ke port itu. Policy Egress ber-podSelector {{}} membuat "
                 f"SETIAP pod egress-restricted, jadi koneksinya time out."
+            )
+
+    # ── C. tiap KONSUMEN URL in-cluster harus dicakup peer `from` ───────────
+    if deny_ingress:
+        for workload, target, port in unadmitted_consumers(ds, alias, rules):
+            problems.append(
+                f"{workload} memakai `{target}:{port}` (dari URL terkonfigurasi), tetapi "
+                f"tak ada NetworkPolicy Ingress untuk `{target}:{port}` yang peer `from`-nya "
+                f"mencakup label pod {workload}. `default-deny-ingress` akan menelan "
+                f"koneksinya, dan penelepon menunggu sampai time out."
             )
 
     if problems:
