@@ -450,6 +450,67 @@ test.describe("Pengelolaan — create-form pages", () => {
     await expect(status, "in-satker holder must be named").toContainText("E2E Operator Jakpus");
   });
 
+  // Permit I1 holds E2E-A-2 from 2026-01-01 to 2026-12-31. The form asked only
+  // "is it held?", so it said "sedang digunakan" for ANY period, and the server
+  // refused a permit that starts years after I1 ends — although `cek-bmn` has
+  // promised "pemakaian berurutan" (an existing permit that ends before the new
+  // one starts is fine) since it was written. The screen said no to a request
+  // the rules allow.
+  //
+  // Both windows are FIXED: the seed's permit is dated, so a clock-relative
+  // window would stop overlapping it when the calendar leaves 2026.
+  test("pemakaian form tells a period that follows the held one from one that overlaps it", async ({
+    page,
+  }) => {
+    await page.goto(`${BASE}/pengelolaan/pemakaian/buat`, { waitUntil: "domcontentloaded" });
+    await page.locator("#pegawai-nip").fill("200000000000000001");
+    await expect(page.getByTestId("pegawai-terpilih")).toBeVisible({ timeout: 20000 });
+
+    // Period first, then the asset: the answer is about THIS period.
+    await page.locator("#periode-mulai").fill("2031-03-01");
+    await page.locator("#periode-selesai").fill("2031-03-10");
+    await pickAset(page, "E2E-A-2", "aset-0");
+
+    const status = page.getByTestId("bmn-ketersediaan-0");
+    await expect(status, "a period after the held one is bookable").toHaveAttribute(
+      "data-status",
+      "PEMAKAIAN_BERURUTAN",
+      { timeout: 20000 },
+    );
+    await expect(status).toContainText("tersedia");
+    // The holder is context, not a refusal: it says what comes before this permit.
+    await expect(status).toContainText("E2E Operator Jakpus");
+    await expect(status).toContainText("2026-12-31");
+
+    // Move the period onto I1's: same asset, different answer, no re-pick.
+    await page.locator("#periode-mulai").fill("2026-06-01");
+    await page.locator("#periode-selesai").fill("2026-06-10");
+    await expect(status, "an overlapping period is still refused").toContainText(
+      "sedang digunakan",
+      { timeout: 20000 },
+    );
+    await expect(status).not.toHaveAttribute("data-status", "PEMAKAIAN_BERURUTAN");
+
+    // And back: the permit that follows is FILED, not merely flagged.
+    await page.locator("#periode-mulai").fill("2031-03-01");
+    await page.locator("#periode-selesai").fill("2031-03-10");
+    await expect(status).toHaveAttribute("data-status", "PEMAKAIAN_BERURUTAN", {
+      timeout: 20000,
+    });
+    await page.locator("#keperluan").fill(`Uji e2e pemakaian berurutan ${Date.now()}`);
+    await page.locator("#serial-number-0").fill("SN-E2E-0002"); // a laptop: serial is required
+
+    const dibalas = page.waitForResponse(
+      (r) => r.request().method() === "POST" && r.url().endsWith("/pemakaian-bmn"),
+    );
+    await page.getByRole("button", { name: "Ajukan Permohonan" }).click();
+    const balasan = await dibalas;
+    expect(
+      balasan.status(),
+      `a permit that follows the held one must be accepted: ${await balasan.text()}`,
+    ).toBe(201);
+  });
+
   test("pemakaian picker never offers an asset belonging to another satker", async ({ page }) => {
     await page.goto(`${BASE}/pengelolaan/pemakaian/buat`, { waitUntil: "domcontentloaded" });
     // E2E-B-1 sits in satker 0200020. operator_a is in 0200010.

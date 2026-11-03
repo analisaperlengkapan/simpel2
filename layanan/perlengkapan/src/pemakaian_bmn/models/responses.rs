@@ -67,11 +67,31 @@ pub struct BookingConflict {
     pub bmn_kode_barang: String,
 }
 
+/// What the availability check says about the REQUESTED period.
+///
+/// Same words as `BmnCheckStatus` (what `cek-bmn` answers), so one asset in one
+/// period cannot be called two different things by two endpoints.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BmnAvailabilityState {
+    /// Nothing holds it in that period.
+    Available,
+    /// A permit holds it, but ends BEFORE the requested period starts: the new
+    /// permit follows it, which is allowed.
+    PemakaianBerurutan,
+    /// A permit holds it during the requested period (or, with no period asked
+    /// for, holds it at all): refused.
+    Overlap,
+}
+
 /// BMN availability check response
 #[derive(Debug, Clone, Serialize)]
 pub struct BmnAvailabilityResponse {
     pub bmn_nup: String,
+    /// `false` only when the asset is NOT bookable: `status == OVERLAP`.
+    /// `PEMAKAIAN_BERURUTAN` is available, with the holder shown for context.
     pub is_available: bool,
+    pub status: BmnAvailabilityState,
     pub active_permit_id: Option<Uuid>,
     pub active_permit_holder: Option<String>,
     pub active_permit_expires: Option<NaiveDate>,

@@ -218,8 +218,9 @@ impl PemakaianBmnRepository {
             .map_err(|e| AppError::Database(e.to_string()))?;
 
         // Iterasi: jika ada existing yg overlap dgn (tgl_mulai..tgl_selesai)
-        // → Overlap. Jika semua existing berakhir sebelum tgl_mulai dan ada
-        // ≥1 existing → PemakaianBerurutan. Jika kosong → Available.
+        // → Overlap. Jika tak ada yg overlap dan ≥1 existing berakhir SEBELUM
+        // tgl_mulai → PemakaianBerurutan (yang berakhir paling akhir disebut).
+        // Selain itu → Available.
         let mut latest_existing: Option<(String, chrono::NaiveDate)> = None;
         for r in &rows {
             let ex_holder: String = r.get("pegawai_nama");
@@ -234,10 +235,15 @@ impl PemakaianBmnRepository {
                     existing_sampai_tgl: ex_end,
                 });
             }
-            if latest_existing
-                .as_ref()
-                .map(|(_, prev_end)| ex_end > *prev_end)
-                .unwrap_or(true)
+            // "Berurutan" means the existing permit comes BEFORE this one. A
+            // permit that starts AFTER the requested period ends does not
+            // precede it, and telling the operator "this follows X until
+            // <a later date>" would be wrong; it is simply not in the way.
+            if ex_end < tgl_mulai
+                && latest_existing
+                    .as_ref()
+                    .map(|(_, prev_end)| ex_end > *prev_end)
+                    .unwrap_or(true)
             {
                 latest_existing = Some((ex_holder, ex_end));
             }
@@ -267,50 +273,118 @@ impl PemakaianBmnRepository {
     /// yang salah, dan `is_available = false` dari satker lain tetap SALAH
     /// walau namanya disembunyikan.
     /// Requirements: REQ-P002, REQ-P003
+    ///
+    /// `periode`:
+    /// * `None` — tanpa periode: izin `ACTIVE` mana pun menandai aset ini
+    ///   sedang dipakai, tanpa melihat tanggalnya. Itu jawaban untuk "apakah
+    ///   aset ini sedang dipegang sekarang?".
+    /// * `Some((mulai, selesai))` — jawaban untuk periode yang DIMINTA:
+    ///   `Available`, `PemakaianBerurutan` (izin yang ada berakhir sebelum
+    ///   `mulai`, jadi usulan boleh), atau `Overlap`. Definisinya satu, yang
+    ///   sama dengan [`Self::check_bmn_availability_for_period`] dan dengan
+    ///   pemeriksa jalur tulis ([`Self::find_booking_conflict`]).
     pub async fn check_bmn_availability(
         &self,
         bmn_nup: &str,
         bmn_kode_barang: &str,
         satker_code: &str,
+        periode: Option<(chrono::NaiveDate, chrono::NaiveDate)>,
     ) -> AppResult<BmnAvailabilityResponse> {
-        let conflict = self
-            .find_booking_conflict(bmn_nup, bmn_kode_barang, satker_code, None)
-            .await?;
+        let ada_pemegang = |holder: String, sampai: chrono::NaiveDate| (Some(holder), Some(sampai));
+        let Some((mulai, selesai)) = periode else {
+            let conflict = self
+                .find_booking_conflict(bmn_nup, bmn_kode_barang, satker_code, None, None)
+                .await?;
+            return Ok(match conflict {
+                Some(c) => BmnAvailabilityResponse {
+                    bmn_nup: bmn_nup.to_string(),
+                    is_available: false,
+                    status: BmnAvailabilityState::Overlap,
+                    active_permit_id: Some(c.permit_id),
+                    active_permit_holder: Some(c.holder),
+                    active_permit_expires: Some(c.expires),
+                },
+                None => BmnAvailabilityResponse {
+                    bmn_nup: bmn_nup.to_string(),
+                    is_available: true,
+                    status: BmnAvailabilityState::Available,
+                    active_permit_id: None,
+                    active_permit_holder: None,
+                    active_permit_expires: None,
+                },
+            });
+        };
 
-        Ok(match conflict {
-            Some(c) => BmnAvailabilityResponse {
-                bmn_nup: bmn_nup.to_string(),
-                is_available: false,
-                active_permit_id: Some(c.permit_id),
-                active_permit_holder: Some(c.holder),
-                active_permit_expires: Some(c.expires),
-            },
-            None => BmnAvailabilityResponse {
-                bmn_nup: bmn_nup.to_string(),
-                is_available: true,
-                active_permit_id: None,
-                active_permit_holder: None,
-                active_permit_expires: None,
-            },
+        let (is_available, status, pemegang) = match self
+            .check_bmn_availability_for_period(
+                bmn_nup,
+                bmn_kode_barang,
+                satker_code,
+                mulai,
+                selesai,
+            )
+            .await?
+        {
+            BmnCheckStatus::Available => (true, BmnAvailabilityState::Available, (None, None)),
+            BmnCheckStatus::PemakaianBerurutan {
+                existing_holder,
+                existing_sampai_tgl,
+            } => (
+                true,
+                BmnAvailabilityState::PemakaianBerurutan,
+                ada_pemegang(existing_holder, existing_sampai_tgl),
+            ),
+            BmnCheckStatus::Overlap {
+                existing_holder,
+                existing_sampai_tgl,
+            } => (
+                false,
+                BmnAvailabilityState::Overlap,
+                ada_pemegang(existing_holder, existing_sampai_tgl),
+            ),
+        };
+        Ok(BmnAvailabilityResponse {
+            bmn_nup: bmn_nup.to_string(),
+            is_available,
+            status,
+            active_permit_id: None,
+            active_permit_holder: pemegang.0,
+            active_permit_expires: pemegang.1,
         })
     }
 
-    /// Cek tabrakan untuk jalur TULIS (create / renew).
+    /// Cek tabrakan untuk jalur TULIS (create / draft-edit / renew).
     ///
-    /// Mengembalikan `None` bila aset bebas, atau tabrakannya bila sudah ada
-    /// izin `ACTIVE` atas aset yang SAMA. `exclude_permit_id` dipakai saat
+    /// Mengembalikan `None` bila aset bebas, atau tabrakannya bila ada izin
+    /// `ACTIVE` atas aset yang SAMA. `exclude_permit_id` dipakai saat
     /// perpanjangan: izin yang sedang diperpanjang tidak boleh menabrak
     /// dirinya sendiri. Pengecualian itu dilakukan DI SQL, bukan dengan
     /// membandingkan id yang dikembalikan — id yang diredaksi akan membuat
     /// perbandingan itu diam-diam menolak perpanjangan yang sah.
+    ///
+    /// `periode` = jangka waktu yang diminta untuk aset ini. Dengan periode,
+    /// hanya izin yang TUMPANG TINDIH (inklusif di kedua ujung) yang
+    /// menabrak: izin yang berakhir sebelum `mulai` memberi pemakaian
+    /// berurutan, yang memang diizinkan. Tanpa periode (`None`) izin `ACTIVE`
+    /// mana pun menabrak, apa pun tanggalnya — perilaku lama, yang dipakai
+    /// jalur yang memang tak punya periode untuk ditanyakan.
+    ///
+    /// Sebelum ini jalur tulis SELALU buta tanggal, sehingga pemakaian
+    /// berurutan yang dijanjikan `cek-bmn` tak pernah bisa diajukan: layar
+    /// bilang boleh, lalu permohonannya ditolak.
     pub async fn find_booking_conflict(
         &self,
         bmn_nup: &str,
         bmn_kode_barang: &str,
         satker_code: &str,
+        periode: Option<(chrono::NaiveDate, chrono::NaiveDate)>,
         exclude_permit_id: Option<uuid::Uuid>,
     ) -> AppResult<Option<BookingConflict>> {
         let client = self.pool.client().await?;
+        let (mulai, selesai) = match periode {
+            Some((m, s)) => (Some(m), Some(s)),
+            None => (None, None),
+        };
         let row_opt = client
             .query_opt(
                 r#"
@@ -323,10 +397,22 @@ impl PemakaianBmnRepository {
                   AND p.satker_code = $3
                   AND p.status = 'ACTIVE'
                   AND ($4::uuid IS NULL OR p.id <> $4::uuid)
+                  -- Overlap = NOT (existing ends before it starts OR existing
+                  -- starts after it ends): the same test as
+                  -- `check_bmn_availability_for_period`.
+                  AND ($5::date IS NULL
+                       OR (i.tanggal_mulai <= $6::date AND i.tanggal_selesai >= $5::date))
                 ORDER BY i.tanggal_selesai DESC
                 LIMIT 1
                 "#,
-                &[&bmn_nup, &bmn_kode_barang, &satker_code, &exclude_permit_id],
+                &[
+                    &bmn_nup,
+                    &bmn_kode_barang,
+                    &satker_code,
+                    &exclude_permit_id,
+                    &mulai,
+                    &selesai,
+                ],
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
