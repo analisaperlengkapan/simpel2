@@ -273,7 +273,29 @@ layananIntegrasi:
     monsakti:   { suspend: true }
 layananPerlengkapan:
   replicas: 1
-  hpa: { enabled: true, minReplicas: 1, maxReplicas: 2, cpuUtilization: 75, memoryUtilization: 80 }
+  # Dokumen unggahan dan konsep SK disimpan di VOLUME, bukan di /tmp pod.
+  #
+  # Terukur di staging (rc32): konsep SK PDF ditulis ke /tmp/perlengkapan/docs
+  # milik SATU pod; database mencatatnya "sudah dibuat", lalu unduhannya
+  # dilayani pod LAIN (HPA menjalankan 2 replika di bawah beban) atau pod yang
+  # sudah diganti, dan menjawab 500 `read ...konsep-sk.pdf: No such file or
+  # directory`. Tiap deploy juga menghapus semua dokumen yang pernah dibuat,
+  # padahal tautannya tetap di database dan sudah dikirim ke validator.
+  #
+  # Volume `longhorn` bertipe RWO, hanya bisa dipasang pada SATU node. Tiga hal
+  # mengikutinya, dan ketiganya harus bersama:
+  #   * satu replika — HPA dimatikan, karena replika kedua tak bisa memasang
+  #     volume yang sama dan akan Pending;
+  #   * strategi Recreate — RollingUpdate menaikkan pod baru SEBELUM yang lama
+  #     turun, dan bila mendarat di node lain ia terjebak "Multi-Attach error";
+  #   * `fsGroup: 1000` (sudah ada di chart) agar pod non-root bisa menulis.
+  # Harganya: tiap deploy backend ini turun sebentar (satu replika, tanpa
+  # rolling). Produksi BELUM disentuh: itu keputusan terpisah (volume RWO + HPA
+  # tak cocok, jadi produksi butuh penyimpanan objek atau replika dikunci 1).
+  hpa: { enabled: false, minReplicas: 1, maxReplicas: 1 }
+  strategy: { type: Recreate }
+  persistence:
+    enabled: true
 simpelv1:
   enabled: true
   replicas: 2
