@@ -140,6 +140,11 @@ fn KartuBmn(
     nomor: Signal<usize>,
     #[prop(into)] bisa_dihapus: Signal<bool>,
     #[prop(into)] on_hapus: Callback<usize>,
+    /// Periode permohonan (mulai, selesai) seperti diketik di kepala form;
+    /// string kosong bila belum diisi. Jangka khusus baris ini, bila ada,
+    /// mengalahkannya.
+    #[prop(into)]
+    periode: Signal<(String, String)>,
 ) -> impl IntoView {
     let BarisBmn {
         kunci,
@@ -155,6 +160,11 @@ fn KartuBmn(
     // karena cek ketersediaan butuh kode barang yang baru diketahui setelah
     // aset dipilih. NUP saja tidak mengidentifikasi aset: 44.017 aset di 553
     // satker sama-sama ber-NUP 1.
+    //
+    // Pemeriksaannya sendiri ada di `Effect` di bawah, bukan di sini: jawaban
+    // bergantung pada PERIODE juga, dan periode bisa diisi sebelum maupun
+    // sesudah aset dipilih, atau diubah kemudian. Memeriksa hanya saat memilih
+    // membuat layar menjawab untuk periode yang sudah tidak ada di formulir.
     let on_pick = Callback::new(move |picked: Option<BankAsetItem>| {
         galat.set(None);
         ketersediaan.set(None);
@@ -208,12 +218,54 @@ fn KartuBmn(
                  tidak dapat dipastikan. Hubungi pengelola BMN satker."
                     .to_string(),
             ));
+        }
+    });
+
+    // Tanya ulang tiap kali yang ditanyakan berubah: aset dipilih, atau
+    // periodenya (kepala form atau jangka khusus baris ini) diisi/diubah.
+    //
+    // `urutan` membuang jawaban basi: tiga ketukan tanggal berturut-turut
+    // melahirkan tiga pertanyaan, dan jawaban yang tiba paling akhir belum
+    // tentu milik pertanyaan yang paling baru.
+    let urutan = StoredValue::new(0u64);
+    Effect::new(move |_| {
+        let (nup, kode_barang, mulai_baris, selesai_baris) = isi.with(|it| {
+            (
+                it.bmn_nup.clone(),
+                it.bmn_kode_barang.clone(),
+                it.tanggal_mulai.clone(),
+                it.tanggal_selesai.clone(),
+            )
+        });
+        let (mulai_kepala, selesai_kepala) = periode.get();
+        // Tanpa aset (atau tanpa kode barang, yang `on_pick` sudah laporkan)
+        // tak ada yang bisa ditanyakan.
+        if nup.is_empty() || kode_barang.is_empty() {
             return;
         }
+        let mulai = mulai_baris.unwrap_or(mulai_kepala);
+        let selesai = selesai_baris.unwrap_or(selesai_kepala);
+        // Periode utuh dan berurutan, atau tidak sama sekali: separuh periode
+        // tak berarti apa-apa, dan tanggal ISO sama urutannya secara leksikal.
+        let (mulai, selesai) = if !mulai.is_empty() && !selesai.is_empty() && selesai >= mulai {
+            (Some(mulai), Some(selesai))
+        } else {
+            (None, None)
+        };
 
+        urutan.set_value(urutan.get_value() + 1);
+        let saya = urutan.get_value();
+        ketersediaan.set(None);
+        galat.set(None);
         memeriksa.set(true);
         leptos::task::spawn_local(async move {
-            match check_bmn_availability(&nup, &kode_barang).await {
+            let hasil =
+                check_bmn_availability(&nup, &kode_barang, mulai.as_deref(), selesai.as_deref())
+                    .await;
+            if urutan.get_value() != saya {
+                return; // pertanyaan yang lebih baru sudah diajukan
+            }
+            match hasil {
                 Ok(response) => ketersediaan.set(Some(response.data)),
                 Err(e) => galat.set(Some(format!("Gagal memeriksa ketersediaan: {e}"))),
             }
@@ -271,7 +323,31 @@ fn KartuBmn(
                     .get()
                     .map(|k| {
                         let testid = format!("bmn-ketersediaan-{kunci}");
-                        if k.is_available {
+                        if k.is_available && k.status.as_deref() == Some("PEMAKAIAN_BERURUTAN") {
+                            // Boleh diajukan: izin yang ada berakhir SEBELUM periode ini
+                            // mulai. Pemegangnya disebut agar operator tahu apa yang
+                            // mendahului, bukan agar permohonannya ditolak.
+                            view! {
+                                <div
+                                    data-testid=testid
+                                    data-status="PEMAKAIAN_BERURUTAN"
+                                    class="p-3 bg-warning-500/10 text-warning-300 rounded-lg border border-warning-500/20"
+                                >
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <AppIcon icon=WARNING_CIRCLE />
+                                        <span class="font-semibold">
+                                            "BMN tersedia setelah pemakaian sebelumnya"
+                                        </span>
+                                    </div>
+                                    <p class="text-sm">
+                                        "Masih dipegang " {k.active_permit_holder.unwrap_or_default()}
+                                        " sampai " {k.active_permit_expires.unwrap_or_default()}
+                                        ". Permohonan Anda berlaku sesudahnya, jadi tidak bertabrakan."
+                                    </p>
+                                </div>
+                            }
+                                .into_any()
+                        } else if k.is_available {
                             view! {
                                 <div
                                     data-testid=testid
@@ -601,6 +677,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                         nomor=nomor
                                         bisa_dihapus=bisa_dihapus
                                         on_hapus=hapus
+                                        periode=Signal::derive(move || {
+                                            (tanggal_mulai.get(), tanggal_selesai.get())
+                                        })
                                     />
                                 }
                             }

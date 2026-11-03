@@ -501,10 +501,16 @@ pub struct AvailabilityQuery {
     /// Satker pemilik aset. Kosong = satker pemanggil sendiri.
     #[serde(default)]
     pub satker_code: Option<String>,
+    /// Jangka waktu yang akan diajukan. Keduanya atau tidak sama sekali:
+    /// tanpa keduanya jawabannya buta tanggal ("sedang dipegang sekarang?").
+    #[serde(default)]
+    pub tgl_mulai: Option<chrono::NaiveDate>,
+    #[serde(default)]
+    pub tgl_selesai: Option<chrono::NaiveDate>,
 }
 
 /// GET /pemakaian-bmn/bmn/:bmn_nup/availability
-/// Check if a BMN is available for new permit
+/// Check if a BMN is available for new permit, optionally for a period
 pub async fn check_bmn_availability(
     State(service): State<PemakaianBmnService>,
     Path(bmn_nup): Path<String>,
@@ -515,15 +521,27 @@ pub async fn check_bmn_availability(
     // memakai NUP `1`), jadi tanpa itu jawabannya tak punya arti. Satker
     // default = satker pemanggil; bila disebut eksplisit, harus berada dalam
     // scope pemanggil — di luar itu 404, bukan 403.
+    let periode = match (query.tgl_mulai, query.tgl_selesai) {
+        (Some(mulai), Some(selesai)) => Some((mulai, selesai)),
+        (None, None) => None,
+        _ => {
+            return Err(AppError::BadRequest(
+                "tgl_mulai dan tgl_selesai harus disertakan bersama".to_string(),
+            ));
+        }
+    };
     let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
     let response = service
-        .check_bmn_availability(AssetIdentityQuery {
-            bmn_nup: &bmn_nup,
-            bmn_kode_barang: &query.kode_barang,
-            scope: &scope,
-            milik_sendiri: claims.satker_code.as_deref(),
-            satker_diminta: query.satker_code.as_deref(),
-        })
+        .check_bmn_availability(
+            AssetIdentityQuery {
+                bmn_nup: &bmn_nup,
+                bmn_kode_barang: &query.kode_barang,
+                scope: &scope,
+                milik_sendiri: claims.satker_code.as_deref(),
+                satker_diminta: query.satker_code.as_deref(),
+            },
+            periode,
+        )
         .await?;
 
     let message = if response.is_available {

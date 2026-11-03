@@ -112,6 +112,11 @@ impl PemakaianBmnService {
                     &item.bmn_nup,
                     &item.bmn_kode_barang,
                     satker,
+                    // The period THIS asset is asked for (its own, else the
+                    // permit's): only a permit that overlaps it conflicts. A
+                    // permit that ends before it starts is "pemakaian
+                    // berurutan", which `cek-bmn` has always promised.
+                    Some((mulai, selesai)),
                     exclude_permit_id,
                 )
                 .await?

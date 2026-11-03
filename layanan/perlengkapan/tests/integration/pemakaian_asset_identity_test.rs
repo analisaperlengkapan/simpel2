@@ -147,10 +147,18 @@ fn nip_di(satker: &str) -> &'static str {
 }
 
 fn create_body(nip: &str, nup: &str, kode_barang: &str) -> serde_json::Value {
+    // The permits this file seeds run CURRENT_DATE-10 .. CURRENT_DATE+20, and a
+    // booking only conflicts when its period OVERLAPS the held one. So the
+    // request is dated off the same clock: a fixed 2026 window overlapped the
+    // seed until the calendar left 2026, and then every "cannot be
+    // double-booked" assertion below would have gone quietly green-to-red for a
+    // reason that has nothing to do with identity. The window sits well inside
+    // the seed's, so a day's difference in timezone cannot move it out.
+    let hari_ini = chrono::Utc::now().date_naive();
     json!({
         "pegawai_nip": nip,
-        "tanggal_mulai": "2026-01-01",
-        "tanggal_selesai": "2026-12-31",
+        "tanggal_mulai": (hari_ini - chrono::Duration::days(5)).to_string(),
+        "tanggal_selesai": (hari_ini + chrono::Duration::days(10)).to_string(),
         "keperluan": "Digunakan untuk pelaksanaan tugas kedinasan sehari-hari",
         // V014: the asset moved into the list. One entry here, because what
         // this file measures is the IDENTITY key of a single asset.
