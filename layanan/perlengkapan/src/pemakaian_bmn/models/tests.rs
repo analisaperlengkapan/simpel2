@@ -1,4 +1,5 @@
 use super::*;
+use uuid::Uuid;
 
 #[test]
 fn test_status_from_code() {
@@ -233,4 +234,71 @@ fn an_unknown_state_is_shown_verbatim_not_renamed() {
     let (label, tone) = PemakaianBmnStatus::describe("BELUM_ADA_DI_ENUM");
     assert_eq!(label, "BELUM_ADA_DI_ENUM");
     assert_eq!(tone, crate::shared::status_tone::StatusTone::Neutral);
+}
+
+// ── The holder of a permit ───────────────────────────────────────────────
+
+fn rekam() -> PegawaiRekam {
+    PegawaiRekam {
+        info: PegawaiInfo {
+            nip: "19800101000000001".into(),
+            nama: Some("  Pegawai Uji A ".into()),
+            jabatan: Some("Staf".into()),
+            pangkat: Some("Jaksa Madya / (IV/a)".into()),
+            satker_id: Some("SKR001".into()),
+            nama_satker: Some("KEJAKSAAN NEGERI UJI A".into()),
+            foto: Some("foto.jpg".into()),
+        },
+        satker_uuid: Some(Uuid::from_u128(7)),
+    }
+}
+
+#[test]
+fn a_snapshot_copies_what_the_lookup_found() {
+    let s = PegawaiSnapshot::dari_rekam(rekam()).unwrap();
+    assert_eq!(s.nama, "Pegawai Uji A", "name is trimmed");
+    assert_eq!(s.jabatan.as_deref(), Some("Staf"));
+    assert_eq!(s.satker_id, Uuid::from_u128(7));
+    assert_eq!(s.satker_nama, "KEJAKSAAN NEGERI UJI A");
+    assert_eq!(s.unit_kerja.as_deref(), Some("KEJAKSAAN NEGERI UJI A"));
+    assert_eq!(s.foto.as_deref(), Some("foto.jpg"));
+}
+
+/// `golpang` holds rank and grade in one inconsistently-shaped string (187 of
+/// 21 328 are reversed), so it is stored whole as pangkat and never split.
+#[test]
+fn rank_and_grade_are_not_guessed_apart() {
+    let s = PegawaiSnapshot::dari_rekam(rekam()).unwrap();
+    assert_eq!(s.pangkat.as_deref(), Some("Jaksa Madya / (IV/a)"));
+    assert_eq!(s.golongan, None);
+}
+
+#[test]
+fn an_employee_with_no_name_cannot_hold_a_permit() {
+    for nama in [None, Some(String::new()), Some("   ".to_string())] {
+        let mut r = rekam();
+        r.info.nama = nama;
+        assert!(PegawaiSnapshot::dari_rekam(r).is_err());
+    }
+}
+
+#[test]
+fn an_employee_whose_satker_did_not_resolve_cannot_hold_a_permit() {
+    let mut r = rekam();
+    r.satker_uuid = None;
+    assert!(PegawaiSnapshot::dari_rekam(r).is_err());
+}
+
+/// An absent value stays absent; a blank one must not become an empty string
+/// that prints as nothing on the SK instead of the SK's "-".
+#[test]
+fn blank_optional_fields_become_absent_not_empty() {
+    let mut r = rekam();
+    r.info.jabatan = Some("  ".into());
+    r.info.pangkat = None;
+    r.info.foto = Some(String::new());
+    let s = PegawaiSnapshot::dari_rekam(r).unwrap();
+    assert_eq!(s.jabatan, None);
+    assert_eq!(s.pangkat, None);
+    assert_eq!(s.foto, None);
 }

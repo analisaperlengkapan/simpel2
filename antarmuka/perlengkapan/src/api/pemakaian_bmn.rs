@@ -167,15 +167,9 @@ pub struct PemakaianBmnItem {
 /// Request to create a new BMN usage permit
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateIzinPemakaianRequest {
+    /// The only thing about the holder the client states; the server reads
+    /// name, rank, posting, satker and photo from MySIMKARI by this NIP.
     pub pegawai_nip: String,
-    pub pegawai_nama: String,
-    pub pegawai_satker_id: String,
-    pub pegawai_satker_nama: String,
-    pub pegawai_jabatan: Option<String>,
-    pub pegawai_golongan: Option<String>,
-    pub pegawai_pangkat: Option<String>,
-    pub pegawai_unit_kerja: Option<String>,
-    pub foto_pegawai: Option<String>,
     /// Default period; each item may state its own.
     pub tanggal_mulai: String,
     pub tanggal_selesai: String,

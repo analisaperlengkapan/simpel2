@@ -57,7 +57,7 @@ impl PemakaianBmnRepository {
         &self,
         nip: &str,
         scope: &SatkerScope,
-    ) -> AppResult<Option<PegawaiInfo>> {
+    ) -> AppResult<Option<PegawaiRekam>> {
         let client = self.pool.client().await?;
         let mut params: Vec<BoxedParam> = vec![Box::new(nip.to_string())];
         let scope_sql = scope
@@ -72,26 +72,32 @@ impl PemakaianBmnRepository {
                 &format!(
                     r#"
                     SELECT p.nip, p.nama, p.jabatan, p.golpang AS pangkat,
-                           {kode_satker} AS satker_id, p.nama_satker, p.foto
+                           {kode_satker} AS satker_id,
+                           COALESCE(NULLIF(btrim(p.nama_satker), ''), ms_peg.nama_satker) AS nama_satker,
+                           p.foto, {satker_uuid} AS satker_uuid
                     FROM integrasi.mysimkari_pegawai p
                     {join}
                     WHERE p.nip = $1{scope_sql}
                     "#,
                     join = crate::shared::pegawai_ref::PEGAWAI_SATKER_JOIN_SQL,
                     kode_satker = crate::shared::pegawai_ref::PEGAWAI_KODE_SATKER_SQL,
+                    satker_uuid = crate::shared::pegawai_ref::PEGAWAI_SATKER_UUID_SQL,
                 ),
                 &as_refs(&params),
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
-        Ok(row.map(|r| PegawaiInfo {
-            nip: r.get("nip"),
-            nama: r.try_get("nama").ok().flatten(),
-            jabatan: r.try_get("jabatan").ok().flatten(),
-            pangkat: r.try_get("pangkat").ok().flatten(),
-            satker_id: r.try_get("satker_id").ok().flatten(),
-            nama_satker: r.try_get("nama_satker").ok().flatten(),
-            foto: r.try_get("foto").ok().flatten(),
+        Ok(row.map(|r| PegawaiRekam {
+            info: PegawaiInfo {
+                nip: r.get("nip"),
+                nama: r.try_get("nama").ok().flatten(),
+                jabatan: r.try_get("jabatan").ok().flatten(),
+                pangkat: r.try_get("pangkat").ok().flatten(),
+                satker_id: r.try_get("satker_id").ok().flatten(),
+                nama_satker: r.try_get("nama_satker").ok().flatten(),
+                foto: r.try_get("foto").ok().flatten(),
+            },
+            satker_uuid: r.try_get("satker_uuid").ok().flatten(),
         }))
     }
 

@@ -15,7 +15,6 @@ use crate::api::{
     BmnAvailabilityResponse, CreateBmnItemRequest, CreateIzinPemakaianRequest,
     check_bmn_availability, create_pemakaian_bmn,
 };
-use crate::features::auth::AuthService;
 use crate::routes;
 use leptos::prelude::*;
 
@@ -372,37 +371,21 @@ fn KartuBmn(
 
 #[component]
 pub fn PemakaianBmnForm() -> impl IntoView {
-    // Satu-satunya sumber identitas pegawai di formulir ini: apa pun yang
-    // dipilih di `PegawaiPicker` mengisi sinyal-sinyal di bawah, dan tidak ada
-    // kotak untuk mengetiknya sendiri.
+    // Formulir ini hanya menyimpan NIP pegawai. Nama, pangkat, jabatan, satker,
+    // unit kerja, dan foto dibaca SERVER dari `integrasi.mysimkari_pegawai`
+    // berdasarkan NIP itu saat permohonan dibuat — tidak dikirim dari sini.
     //
-    // `golongan` sengaja dibiarkan kosong. Sumbernya satu kolom, `golpang`,
-    // yang menggabungkan pangkat dan golongan — dan bentuknya tidak konsisten:
-    // dari 21.328 baris di staging, 21.141 berpola "Pangkat / (Gol)" sementara
-    // 187 sisanya justru KEBALIKANNYA ("III/d (Sena Wira)"). Memecahnya berarti
-    // menebak, dan tebakan yang salah menaruh golongan di kolom pangkat pada
-    // ratusan pegawai. Nilainya dikirim utuh sebagai pangkat.
+    // Dulu semuanya dikirim dari formulir, dan satkernya diambil dari klaim JWT
+    // `satker_id` yang tidak pernah diterbitkan authenc, sehingga tak satu pun
+    // permohonan bisa diajukan. Yang dikirim klien juga bisa salah ketik,
+    // kedaluwarsa, atau dikarang; kini tidak ada kolom yang bisa begitu.
+    //
+    // Kartu pegawai yang tampil di bawah (`PegawaiPicker`) hanya untuk
+    // memastikan operator memilih orang yang benar; ia tidak mengisi apa pun.
     let (pegawai_nip, set_pegawai_nip) = signal(String::new());
-    let (pegawai_nama, set_pegawai_nama) = signal(String::new());
-    let (pegawai_pangkat, set_pegawai_pangkat) = signal(String::new());
-    let (pegawai_unit_kerja, set_pegawai_unit_kerja) = signal(String::new());
-    let (foto_pegawai, set_foto_pegawai) = signal(String::new());
 
     let on_pick_pegawai = Callback::new(move |picked: Option<CekPegawaiResponse>| {
-        let p = picked.map(|r| r.pegawai);
-        set_pegawai_nip.set(p.as_ref().map(|p| p.nip.clone()).unwrap_or_default());
-        set_pegawai_nama.set(p.as_ref().and_then(|p| p.nama.clone()).unwrap_or_default());
-        set_pegawai_pangkat.set(
-            p.as_ref()
-                .and_then(|p| p.pangkat.clone())
-                .unwrap_or_default(),
-        );
-        set_pegawai_unit_kerja.set(
-            p.as_ref()
-                .and_then(|p| p.nama_satker.clone())
-                .unwrap_or_default(),
-        );
-        set_foto_pegawai.set(p.as_ref().and_then(|p| p.foto.clone()).unwrap_or_default());
+        set_pegawai_nip.set(picked.map(|r| r.pegawai.nip).unwrap_or_default());
     });
 
     // Daftar BMN. Dimulai dengan SATU baris: permohonan tanpa BMN bukan
@@ -478,31 +461,14 @@ pub fn PemakaianBmnForm() -> impl IntoView {
             items.push(item);
         }
 
-        // Pull satker context from the JWT-backed session. The operator MUST
-        // be attached to a satker on the authenc side for the permit to be
-        // valid — surface a clear error if the mapping hasn't synced yet.
-        let session = AuthService::load_session();
-        let satker_id = session.as_ref().and_then(|s| s.satker_id.clone());
-        let satker_nama = session.as_ref().and_then(|s| s.satker_nama.clone());
-        let Some(satker_id) = satker_id else {
-            set_error.set(Some(
-                "Anda belum terdaftar di satker manapun (satker_id kosong). \
-                 Hubungi admin perlengkapan untuk pemetaan satker."
-                    .to_string(),
-            ));
+        let nip = pegawai_nip.get();
+        if nip.trim().is_empty() {
+            set_error.set(Some("Pilih pegawai pemohon terlebih dahulu".to_string()));
             return;
-        };
+        }
 
         let request = CreateIzinPemakaianRequest {
-            pegawai_nip: pegawai_nip.get(),
-            pegawai_nama: pegawai_nama.get(),
-            pegawai_satker_id: satker_id,
-            pegawai_satker_nama: satker_nama.unwrap_or_default(),
-            pegawai_jabatan: None,
-            pegawai_golongan: None,
-            pegawai_pangkat: bukan_kosong(pegawai_pangkat.get()),
-            pegawai_unit_kerja: bukan_kosong(pegawai_unit_kerja.get()),
-            foto_pegawai: bukan_kosong(foto_pegawai.get()),
+            pegawai_nip: nip,
             tanggal_mulai: tanggal_mulai.get(),
             tanggal_selesai: tanggal_selesai.get(),
             keperluan: keperluan.get(),

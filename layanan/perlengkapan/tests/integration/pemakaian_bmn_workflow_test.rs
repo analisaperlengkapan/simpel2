@@ -48,10 +48,7 @@ const SATKER: &str = "SKR001";
 
 fn create_permit_body(nup: &str) -> serde_json::Value {
     json!({
-        "pegawai_nip": "198501012010011001",
-        "pegawai_nama": "Budi Santoso",
-        "pegawai_satker_id": "00000000-0000-0000-0000-000000000001",
-        "pegawai_satker_nama": "Kejaksaan Negeri Jakarta Selatan",
+        "pegawai_nip": "19800101000000001",
         "tanggal_mulai": "2026-01-01",
         "tanggal_selesai": "2026-12-31",
         "keperluan": "Digunakan untuk pelaksanaan tugas kedinasan sehari-hari",

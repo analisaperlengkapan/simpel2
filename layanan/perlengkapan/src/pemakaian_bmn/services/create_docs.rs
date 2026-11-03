@@ -18,6 +18,10 @@ impl PemakaianBmnService {
         // Authoritative MySIMKARI satker_code of the creating operator (from JWT
         // claims, #66), persisted for RBAC scoping.
         satker_code: Option<String>,
+        // The caller's visibility, from the same claims. The holder is looked up
+        // THROUGH it, so an operator cannot attach a permit to another satker's
+        // staff by naming their NIP.
+        scope: &SatkerScope,
     ) -> AppResult<IzinPemakaianBmn> {
         // Validate request
         request
@@ -42,6 +46,36 @@ impl PemakaianBmnService {
             })?
             .to_string();
 
+        // The holder comes from MySIMKARI, by NIP — not from the body. The form
+        // used to type name, rank, posting and satker into the request, which
+        // let any of them be wrong, and the satker could not even be produced
+        // (authenc issues no `satker_id` claim), so no permit could be filed.
+        //
+        // Not found and "found in another satker" are one answer: the lookup
+        // is scoped inside its query, so the two cannot be told apart, and
+        // telling them apart would confirm an employee exists elsewhere.
+        let rekam = self
+            .repository
+            .find_pegawai_by_nip(request.pegawai_nip.trim(), scope)
+            .await?
+            .ok_or_else(|| {
+                AppError::BadRequest(
+                    "Pegawai tidak ditemukan / tidak berada di satker bersangkutan".to_string(),
+                )
+            })?;
+        // A permit belongs to ONE satker, and that satker is the holder's. The
+        // scope already guarantees it for an operator; the explicit comparison
+        // keeps it true for any role that is ever allowed to create across
+        // satkers, instead of silently filing a permit under one satker for a
+        // person who works in another.
+        if rekam.info.satker_id.as_deref() != Some(satker.as_str()) {
+            return Err(AppError::BadRequest(
+                "Pegawai tidak ditemukan / tidak berada di satker bersangkutan".to_string(),
+            ));
+        }
+        let pegawai =
+            PegawaiSnapshot::dari_rekam(rekam).map_err(|m| AppError::BadRequest(m.to_string()))?;
+
         // Validate the permit's default period before anything derived from it.
         if request.tanggal_selesai <= request.tanggal_mulai {
             return Err(AppError::BadRequest(
@@ -64,13 +98,13 @@ impl PemakaianBmnService {
         info!(
             "Creating new permit over {} BMN for pegawai {}",
             request.items.len(),
-            request.pegawai_nip
+            pegawai.nip
         );
 
         // Header and items are written in one transaction inside `create`.
         let permit = self
             .repository
-            .create(request, user_id, user_nama, Some(satker))
+            .create(request, pegawai, user_id, user_nama, Some(satker))
             .await?;
 
         Ok(permit)

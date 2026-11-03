@@ -69,10 +69,7 @@ fn laptop(nup: &str, nama: &str) -> Value {
 
 fn create_body(items: Vec<Value>) -> Value {
     json!({
-        "pegawai_nip": "198501012010011001",
-        "pegawai_nama": "Budi Santoso",
-        "pegawai_satker_id": "00000000-0000-0000-0000-000000000001",
-        "pegawai_satker_nama": "Kejaksaan Negeri Jakarta Selatan",
+        "pegawai_nip": "19800101000000001",
         "tanggal_mulai": "2026-01-01",
         "tanggal_selesai": "2026-12-31",
         "keperluan": "Digunakan untuk pelaksanaan tugas kedinasan sehari-hari",
@@ -539,6 +536,10 @@ async fn activating_a_renewal_withdraws_its_predecessor_in_the_same_statement() 
     .await;
     let baru = renew(&server, &lama).await;
     assert_eq!(status_of(&server, &lama).await, "ACTIVE", "precondition");
+    assert!(
+        get_permit(&server, &lama).await["data"]["days_until_expiry"].is_number(),
+        "a permit in force counts down to its end date"
+    );
 
     let client = db.pool().get().await.unwrap();
     let baru_uuid = uuid::Uuid::parse_str(&baru).unwrap();
@@ -556,6 +557,13 @@ async fn activating_a_renewal_withdraws_its_predecessor_in_the_same_statement() 
         Some("REVOKED"),
         "no path to ACTIVE may leave the replaced permit running"
     );
+    // A withdrawn permit has no time left to show. The detail page used to read
+    // "59 hari lagi" off its end date.
+    assert!(
+        izin["days_until_expiry"].is_null(),
+        "a REVOKED permit still counts down: {izin}"
+    );
+    assert_eq!(izin["is_expiring_soon"], false);
     assert_eq!(izin["superseded_by_id"].as_str(), Some(baru.as_str()));
     assert_eq!(
         izin["revoked_by_nama"].as_str(),

@@ -134,12 +134,21 @@ async fn seed_active_permit(
     id
 }
 
-fn create_body(nup: &str, kode_barang: &str) -> serde_json::Value {
+/// A NIP that belongs to `satker` in the fixture (`tests/common.rs`). A permit
+/// is filed for an employee of the caller's OWN satker, so each satker's
+/// operator needs its own person; one NIP for all three would be refused for two.
+fn nip_di(satker: &str) -> &'static str {
+    match satker {
+        SATKER_A => "19800101000000001",
+        SATKER_B => "19800101000000002",
+        SATKER_C => "19800101000000003",
+        lain => panic!("no fixture employee in {lain}"),
+    }
+}
+
+fn create_body(nip: &str, nup: &str, kode_barang: &str) -> serde_json::Value {
     json!({
-        "pegawai_nip": "198501012010011001",
-        "pegawai_nama": "Ani Pemohon",
-        "pegawai_satker_id": "00000000-0000-0000-0000-000000000009",
-        "pegawai_satker_nama": "Kejaksaan Negeri Uji",
+        "pegawai_nip": nip,
         "tanggal_mulai": "2026-01-01",
         "tanggal_selesai": "2026-12-31",
         "keperluan": "Digunakan untuk pelaksanaan tugas kedinasan sehari-hari",
@@ -160,9 +169,10 @@ async fn post_create(
     nup: &str,
     kode_barang: &str,
 ) -> axum_test::TestResponse {
-    let mut req = server
-        .post("/pemakaian-bmn")
-        .json(&create_body(nup, kode_barang));
+    let mut req =
+        server
+            .post("/pemakaian-bmn")
+            .json(&create_body(nip_di(satker), nup, kode_barang));
     for (k, v) in auth_headers("operator_satker", OPERATOR, satker) {
         req = req.add_header(k, v);
     }
@@ -412,9 +422,10 @@ async fn a_caller_without_a_satker_identity_cannot_create_a_permit() {
 
     // Peran yang MEMANG boleh membuat izin, tapi klaimnya tanpa kode satker —
     // supaya yang diuji penjaga satker, bukan penjaga peran.
-    let mut req = server
-        .post("/pemakaian-bmn")
-        .json(&create_body(NUP, KODE_BARANG));
+    let mut req =
+        server
+            .post("/pemakaian-bmn")
+            .json(&create_body(nip_di(SATKER_A), NUP, KODE_BARANG));
     for (k, v) in auth_headers("operator_satker", OPERATOR, "") {
         req = req.add_header(k, v);
     }

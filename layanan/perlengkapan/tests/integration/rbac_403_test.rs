@@ -179,10 +179,7 @@ async fn test_pemakaian_rbac_403() {
         "operator_satker",
         OPERATOR,
         Some(json!({
-            "pegawai_nip": "198501012010011001",
-            "pegawai_nama": "Budi",
-            "pegawai_satker_id": "00000000-0000-0000-0000-000000000001",
-            "pegawai_satker_nama": "Kejari Jaksel",
+            "pegawai_nip": "19800101000000001",
             "tanggal_mulai": "2026-01-01",
             "tanggal_selesai": "2026-12-31",
             "keperluan": "Tugas kedinasan sehari-hari operator",

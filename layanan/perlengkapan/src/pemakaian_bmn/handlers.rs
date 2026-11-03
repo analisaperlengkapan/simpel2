@@ -70,12 +70,14 @@ pub async fn create_permit(
         request.pegawai_nip
     );
 
+    let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
     let permit = service
         .create_permit(
             request,
             claims.user_id,
             claims.username.clone(),
             claims.satker_code.clone(),
+            &scope,
         )
         .await?;
 
