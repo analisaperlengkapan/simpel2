@@ -140,7 +140,38 @@ global:
   #
   # #866/#867/#868 (readiness authenc, asersi e2e, probe integrasi) sudah
   # mendarat sebelum rc29 di-deploy tetapi belum pernah ada di image mana pun.
-  imageTag: v0.1.0-rc30
+  #
+  # rc31 = 145 commit sejak rc30, dan ini rilis PERTAMA yang membawa migrasi
+  # skema perlengkapan sejak rc30 (V009–V014) serta migrasi integrasi 006.
+  # Yang berubah perilakunya:
+  #   #1022 satu permohonan pemakaian = daftar BMN (header/detail + supersede);
+  #         V014 mengisi ulang baris lama ke bentuk baru (EXPAND saja: tak satu
+  #         kolom yang dibaca rc30 dihapus)
+  #   #1025 permohonan pemakaian cukup NIP; server mengisi orang + satkernya
+  #   #1026 usulan penghapusan: tiap aset di-resolve di SIMAN, nama/nilai dari
+  #         body diabaikan, satu aset tak ketemu menolak seluruh usulan
+  #   #1027 halaman + API Delegasi Workflow dihapus (tabel dibiarkan)
+  #   #1010 authenc menolak token non-refresh di POST /auth/refresh (MFA bypass)
+  #   #977  portal meluncurkan SIMPEL v1 dan v2 sebagai aplikasi terpisah
+  #   #883/#899/#900 pilih pegawai, aset, dan kodefikasi barang — jangan ketik
+  #   #901/#902/#903/#904/#905 pakaian dinas: bisa dimulai, kepala workflow,
+  #         foto pegawai tampil dan masuk ke SK
+  #   #878/#879/#880/#881 dasbor, satu kosakata status workflow, palet gelap
+  #   #882  pencarian pegawai yang tak pernah ketemu siapa pun
+  #   #884  dasbor bank aset: lima kueri berurutan atas 624.533 baris (4,2 dtk)
+  #         jadi satu lintasan (1,5 dtk), nilainya diverifikasi identik
+  #   #909  laporan pakaian dinas: tak lagi meminta kode satker, dan menyebut
+  #         apa yang dihitungnya
+  # Sisanya: bump dependensi (termasuk penutupan RUSTSEC, #1001) dan CI.
+  #
+  # ROLLBACK KE rc30 TIDAK AMAN setelah upgrade ini, dua alasan terukur:
+  #   * rc30 memakai `abort_missing=true`: V009–V014 tak dikenalnya, perlengkapan
+  #     keluar saat start (crash loop).
+  #   * V010 (#885) men-DROP penghapusan_bmn.asset_id/satker_id yang MASIH dibaca
+  #     kode rc30 — jadi endpoint penghapusan rc30 akan 500 walau bisa nyala.
+  # Jalan keluar bila rc31 bermasalah = roll-FORWARD (rc32), atau pulihkan DB
+  # dari cadangan sebelum upgrade. Berlaku juga untuk produksi.
+  imageTag: v0.1.0-rc31
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
