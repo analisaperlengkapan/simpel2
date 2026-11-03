@@ -41,7 +41,6 @@ use pages::pakaian_dinas::SpesifikasiPage;
 use pages::pemakaian_bmn::{PemakaianBmnDetailPage, PemakaianBmnListPage};
 use pages::penghapusan_bmn::{PenghapusanBmnDetailPage, PenghapusanBmnListPage};
 use pages::workflow::config_management::WorkflowConfigManagement;
-use pages::workflow::delegation::WorkflowDelegationPage;
 use pages::workflow::monitoring::WorkflowMonitoring;
 
 // Migrated business components
@@ -398,10 +397,6 @@ pub fn App() -> impl IntoView {
                                             <Route
                                                 path=path!("/workflow-monitoring")
                                                 view=WorkflowMonitoring
-                                            />
-                                            <Route
-                                                path=path!("/workflow-delegation")
-                                                view=WorkflowDelegationPage
                                             />
                                         </ParentRoute>
                                     </Routes>

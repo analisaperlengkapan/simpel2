@@ -6,8 +6,6 @@
 
 pub mod config;
 pub mod definition_handlers;
-pub mod delegation;
-pub mod delegation_handlers;
 pub mod engine;
 pub mod handlers;
 pub mod monitoring;

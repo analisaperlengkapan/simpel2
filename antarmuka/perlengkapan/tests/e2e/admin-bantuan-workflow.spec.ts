@@ -203,7 +203,7 @@ test.describe('Helpdesk — staff status management', () => {
 // ---------------------------------------------------------------------------
 // Admin workflow pages — render real data for admin (reached by clicking)
 // ---------------------------------------------------------------------------
-test.describe('Admin — workflow config, monitoring, delegation', () => {
+test.describe('Admin — workflow config and monitoring', () => {
   test.use({ storageState: storageStatePath('admin') });
 
   test('konfigurasi workflow lists real definitions', async ({ page, request }) => {
@@ -247,21 +247,6 @@ test.describe('Admin — workflow config, monitoring, delegation', () => {
       await expect(page.getByText(label).first(), `${label} card`).toBeVisible();
     }
   });
-
-  test('delegasi workflow renders its list (rows or honest empty state)', async ({ page }) => {
-    await page.goto(`${BASE}/dashboard`);
-    await expect(shell(page)).toBeVisible({ timeout: 20000 });
-    await clickSidebarLink(page, 'Admin', `${BASE}/admin/workflow-delegation`);
-    await expect(page).toHaveURL(new RegExp(`${BASE}/admin/workflow-delegation$`));
-    await expect(page.getByText('Delegasi Workflow').first()).toBeVisible();
-    await expect(page.getByText('Daftar Delegasi').first()).toBeVisible();
-    await expect
-      .poll(async () => {
-        const body = await page.locator('body').innerText();
-        return body.includes('Belum ada delegasi') || /Delegator|Delegate/i.test(body);
-      }, { timeout: 20000 })
-      .toBe(true);
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -285,7 +270,6 @@ test.describe('Admin surfaces denied for operator', () => {
     for (const path of [
       `${BASE}/admin/workflow`,
       `${BASE}/admin/workflow-monitoring`,
-      `${BASE}/admin/workflow-delegation`,
     ]) {
       await page.goto(path, { waitUntil: 'domcontentloaded' });
       await expect(page.getByText(FORBIDDEN).first()).toBeVisible({ timeout: 15000 });

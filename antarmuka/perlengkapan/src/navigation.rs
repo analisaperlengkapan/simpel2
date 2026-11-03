@@ -183,11 +183,6 @@ const ADMINISTRASI_GROUPS: &[NavGroup] = &[
                 icon: "fas fa-wave-square",
                 label: "Monitoring Workflow",
             },
-            NavItem {
-                href: routes::path::ADMIN_WORKFLOW_DELEGATION,
-                icon: "fas fa-people-arrows",
-                label: "Delegasi Workflow",
-            },
         ],
     },
     NavGroup {

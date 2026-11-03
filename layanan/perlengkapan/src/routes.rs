@@ -590,16 +590,6 @@ pub fn create_routes(state: AppState) -> Router {
             "/workflow/monitoring/bottlenecks",
             get(crate::workflow::handlers::get_bottlenecks),
         )
-        // ============ Workflow Delegation Routes ============
-        .route(
-            "/workflow/delegations",
-            get(crate::workflow::delegation_handlers::list_delegations_handler)
-                .post(crate::workflow::delegation_handlers::create_delegation_handler),
-        )
-        .route(
-            "/workflow/delegations/{id}/revoke",
-            post(crate::workflow::delegation_handlers::revoke_delegation_handler),
-        )
         // ============ Integrasi circuit-breaker status (FE banner) ============
         // Auth'd, lightweight view of SIMAN/MySIMKARI/MonSAKTI breaker state.
         .route(

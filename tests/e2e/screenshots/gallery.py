@@ -58,7 +58,6 @@ SECTIONS: list[tuple[str, str, str]] = [
     ("/admin/master", "Administrasi Perlengkapan", "Data referensi."),
     ("/admin/templates", "Administrasi Perlengkapan", "Template dokumen."),
     ("/admin/workflow-monitoring", "Administrasi Perlengkapan", "Pemantauan SLA alur kerja."),
-    ("/admin/workflow-delegation", "Administrasi Perlengkapan", "Pelimpahan wewenang validator."),
     ("/admin/workflow", "Administrasi Perlengkapan", "Definisi alur kerja."),
     ("/admin", "Administrasi Perlengkapan", "Halaman administrasi."),
     ("/dashboard", "Dashboard & Beranda", "Beranda aplikasi dan indeks modul."),

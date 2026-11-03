@@ -8,7 +8,7 @@
 //!   Pengelolaan BMN (Pemakaian BMN, Penghapusan)
 //!   Analitik (Analisis Kebutuhan)
 //!   Admin (Pengguna, Otorisasi, Audit Log, Master Data, Template Dokumen,
-//!          Konfigurasi/Monitoring/Delegasi Workflow) — admin role only
+//!          Konfigurasi/Monitoring Workflow) — admin role only
 //!   Bantuan (Panduan, FAQ, Helpdesk)
 
 use crate::components::session_authz::use_authz;
