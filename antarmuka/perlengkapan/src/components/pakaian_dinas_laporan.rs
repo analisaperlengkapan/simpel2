@@ -50,7 +50,9 @@ async fn query_satker_options(
 /// handler takes `Query<LaporanRekapQuery>` whose `pengajuan_id` is a plain
 /// `Uuid`, so axum rejects a request without it before the handler runs —
 ///
-///     400  Failed to deserialize query string: missing field `pengajuan_id`
+/// ```text
+/// 400  Failed to deserialize query string: missing field `pengajuan_id`
+/// ```
 ///
 /// The page mounts before anything is selected, so it fired that request on
 /// every load and the user was shown an error state instead of being told to

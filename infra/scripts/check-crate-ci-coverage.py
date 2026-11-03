@@ -26,7 +26,9 @@ For every workspace member:
                        example, and only if they have a lib target. Whether a
                        crate has one is read from its sources, not declared:
                        add the first ```rust example to a crate with no `--doc`
-                       step and this turns red.
+                       step and this turns red. A 4-space-indented block in a
+                       doc comment counts too: markdown makes it a code block
+                       and rustdoc compiles it as Rust, fence or no fence.
 It also flags a `-p <name>` in the workflow that is not a workspace member,
 which is how a crate rename quietly drops a crate from a matrix.
 
@@ -121,6 +123,57 @@ def is_runnable_doctest(info: str) -> bool:
     return all(tok in DOCTEST_ATTRS or EDITION_RE.match(tok) for tok in tokens)
 
 
+# A doc-comment line (`///` or `//!`, not `////`) and what follows the marker.
+DOC_LINE_RE = re.compile(r"^\s*//[/!](?!/)(.*)$")
+LIST_ITEM_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s")
+CODE_FENCE_RE = re.compile(r"^\s*(?:```|~~~)")
+
+
+def has_indented_code_block(text: str) -> bool:
+    """Does a doc comment hold a markdown *indented* code block?
+
+    Rustdoc treats a block indented four spaces as code and compiles it as Rust,
+    with no fence to say otherwise and no way to mark it `ignore`. That is how a
+    quoted error message (`///     400  Failed to deserialize ...`) became a
+    failing doctest in a crate whose gate believed it had none: the fence-only
+    scan above never sees it.
+
+    Markdown only opens such a block after a blank line (or at the start of the
+    comment), never as the lazy continuation of a paragraph, and an indented
+    paragraph inside a list item is not code. Both are honoured, because a guard
+    that cries wolf gets its allowlist padded instead of its comments fixed.
+    """
+    in_fence = False
+    prev_blank = True  # the start of a comment counts as "after a blank line"
+    in_code = False
+    in_list = False
+    for line in text.splitlines():
+        match = DOC_LINE_RE.match(line)
+        if not match:  # a non-doc line ends the comment; so does state
+            in_fence, prev_blank, in_code, in_list = False, True, False, False
+            continue
+        body = match.group(1)
+        if body.startswith(" "):
+            body = body[1:]  # the conventional single space after the marker
+        if CODE_FENCE_RE.match(body):
+            in_fence = not in_fence
+            prev_blank, in_code = False, False
+            continue
+        if in_fence:
+            continue
+        if not body.strip():
+            prev_blank = True
+            continue
+        indented = body.startswith("\t") or len(body) - len(body.lstrip(" ")) >= 4
+        if indented and not in_list and (prev_blank or in_code):
+            return True
+        if not indented:
+            in_list = bool(LIST_ITEM_RE.match(body))
+            in_code = False
+        prev_blank = False
+    return False
+
+
 def has_runnable_doctest(manifest: Path) -> bool:
     """True if the crate has a lib target carrying at least one live example.
 
@@ -132,8 +185,11 @@ def has_runnable_doctest(manifest: Path) -> bool:
         return False
 
     for path in sorted(src.rglob("*.rs")):
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if has_indented_code_block(text):
+            return True
         inside = False
-        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        for line in text.splitlines():
             fence = FENCE_RE.match(line)
             if not fence:
                 continue
@@ -266,6 +322,57 @@ def check(
     return problems
 
 
+INDENTED_BLOCK_CASES: list[tuple[str, str, bool]] = [
+    (
+        "an indented block after a blank line is compiled",
+        "/// Prose.\n///\n///     400  Failed to deserialize\n",
+        True,
+    ),
+    (
+        "the same text in a ```text fence is not",
+        "/// Prose.\n///\n/// ```text\n/// 400  Failed to deserialize\n/// ```\n",
+        False,
+    ),
+    (
+        "an indented line inside a fence is the fence's business",
+        "/// ```rust,ignore\n///     let x = 1;\n/// ```\n",
+        False,
+    ),
+    (
+        "an indented paragraph in a list item is not code",
+        "/// - first\n///\n///     still the first item\n",
+        False,
+    ),
+    (
+        "a lazy continuation (no blank line) is not code",
+        "/// Prose\n///     continues\n",
+        False,
+    ),
+    (
+        "a plain comment is not documentation",
+        "// Prose.\n//\n//     400  Failed\n",
+        False,
+    ),
+    (
+        "a block at the very start of the comment is compiled",
+        "///     let x = 1;\n",
+        True,
+    ),
+]
+
+
+def self_test_indented_blocks() -> int:
+    """Run the canaries for has_indented_code_block, in both directions."""
+    failures = 0
+    for description, text, expected in INDENTED_BLOCK_CASES:
+        if has_indented_code_block(text) == expected:
+            print(f"  ok   indented-block: {description}")
+        else:
+            print(f"::error::self-test FAILED — indented-block: {description}")
+            failures += 1
+    return failures
+
+
 def self_test(workflow_text: str, members: dict[str, Path], doctest_crates: set[str]) -> int:
     """Mutate the workflow in memory and assert each mutation is detected.
 
@@ -322,7 +429,7 @@ def main() -> int:
         name for name, manifest in members.items() if has_runnable_doctest(manifest)
     }
 
-    if self_test(workflow_text, members, doctest_crates):
+    if self_test(workflow_text, members, doctest_crates) or self_test_indented_blocks():
         return 1
 
     problems = check(workflow_text, members, doctest_crates)
