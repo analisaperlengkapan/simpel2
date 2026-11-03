@@ -189,7 +189,34 @@ global:
   # Diverifikasi juga dengan menyapu SEMUA 99 rute GET terhadap salinan data
   # staging sebagai empat peran: rc31 jatuh tepat di tiga panggilan itu dan
   # tidak di tempat lain; rc32 0 dari 420 panggilan 5xx.
-  imageTag: v0.1.0-rc32
+  #
+  # rc32 di-deploy ke staging dan lulus 188 dari 195 spec dengan akun super asli
+  # (baseline rc30: 154/41), Bank Aset terbuka untuk pusat/wilayah/admin, nol
+  # restart backend. Tetapi ia TIDAK BOLEH DIPROMOSI JUGA, karena pengujiannya
+  # menyingkap satu cacat lagi: `GET /auth/me` macet 10 detik lalu 504 (5 dari 6
+  # percobaan, semua akun, tiap halaman portal). authenc memanggil integrasi
+  # dua kali berurutan (nama satker, lalu foto pegawai) dan keduanya di-DROP
+  # NetworkPolicy: authenc berlabel `component: identity`, simpelv1 hanya
+  # `app: simpelv1`, sedangkan `allow-backend-to-integrasi` hanya mengizinkan
+  # backend/frontend. Cacat jaringannya lebih tua (dibuat #865), tetapi foto
+  # pegawai (#903/#904, di rc31) menggandakan tunggunya melewati batas gateway.
+  #
+  # rc33 = rc32 + dua perbaikan:
+  #   #1031 permohonan pemakaian yang mulai SETELAH izin aktif berakhir boleh
+  #         diajukan (layar bilang boleh, server menolak — sejak rc30); form
+  #         menanyakan ulang saat periode berubah dan punya keadaan "berurutan"
+  #   #1032 authenc dan simpelv1 diizinkan ke integrasi (dan simpelv1 ke authenc);
+  #         penjaga NetworkPolicy kini memeriksa per KONSUMEN, bukan "port terbuka
+  #         untuk pod mana pun"
+  #
+  # Yang DIKETAHUI dan BELUM diperbaiki (ada sebelum rilis ini, ditemukan saat
+  # menguji rc32): dokumen (konsep SK PDF, lampiran) disimpan di /tmp pod, jadi
+  # hilang saat pod diganti dan tak terlihat dari replika lain — HPA menjalankan 2
+  # replika di bawah beban dan unduhan konsep SK menjawab 500; PVC-nya sudah ada di
+  # chart tetapi mati (`layananPerlengkapan.persistence`). dbsimpelv1 kosong (0
+  # tabel), jadi SIMPEL v1 tak melayani halaman apa pun di staging. Inbox notifikasi
+  # hanya menampilkan 50 terbaru tanpa halaman berikutnya.
+  imageTag: v0.1.0-rc33
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
