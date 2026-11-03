@@ -220,7 +220,13 @@ flowchart TB
   `Denied` (**fail-closed**, 0 baris). Pemetaan dari caller `kode_satker` (MySIMKARI) → SIMAN
   `kdsatker_keu`/`wilayah_kode` lewat `integrasi.v_satker_code_map` (mapping kanonik, pemilik =
   integrasi) — **bukan** name-match. Satker yg belum ter-mapping ⇒ fail-closed (butuh override
-  `verified` di staging, P2/F5-E). Enrichment read internal (pemakaian/penghapusan auto-fill)
+  `verified` di staging, P2/F5-E). **Peta ini juga memuat baris `siman_only`** (satker yang
+  dikenal SIMAN tetapi tak punya padanan MySIMKARI; 65 di staging) dengan `kode_satker` **NULL**.
+  Query yang meng-join peta dan membaca `kode_satker` sebagai `String` WAJIB menyaring
+  `kode_satker IS NOT NULL` (atau membaca `Option`): di bawah `panic = "abort"` satu NULL
+  mematikan PROSES, bukan hanya request — itu rc31 (`bank-aset/filter-options`, 503 untuk
+  pusat/wilayah/admin). Stub `v_satker_code_map` di `tests/common.rs` meniru arm ini; jangan
+  dikosongkan lagi, karena justru bentuk itulah yang tak pernah terlihat CI. Enrichment read internal (pemakaian/penghapusan auto-fill)
   sengaja pakai `AsetScope::All` — kepemilikan satker BMN dijaga oleh workflow, bukan lookup ini.
 - Migrasi `refinery embed_migrations!` (self-migrate saat boot, `main.rs`); baseline
   `V001__baseline.sql` + `V002__seed.sql`. Boot perlengkapan **setelah** integrasi &

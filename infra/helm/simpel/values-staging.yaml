@@ -171,7 +171,25 @@ global:
   #     kode rc30 — jadi endpoint penghapusan rc30 akan 500 walau bisa nyala.
   # Jalan keluar bila rc31 bermasalah = roll-FORWARD (rc32), atau pulihkan DB
   # dari cadangan sebelum upgrade. Berlaku juga untuk produksi.
-  imageTag: v0.1.0-rc31
+  #
+  # rc31 TIDAK BOLEH DIPROMOSI. Ia di-deploy ke staging (2026-11-03) dan
+  # terbukti: layanan-perlengkapan MATI (restart berulang, exit 139) setiap kali
+  # pemanggil ber-cakupan luas (validator_pusat, validator_wilayah, admin)
+  # membuka filter Bank Aset. Akarnya satu panic di
+  # `bank_aset/repository.rs`: kueri opsi-satker meng-join
+  # `v_satker_code_map`, yang memuat 65 satker "siman_only" ber-`kode_satker`
+  # NULL; grup NULL itu dibaca sebagai `String`, dan `panic = "abort"` mengubah
+  # satu NULL menjadi satu proses mati. CI hijau karena fixture-nya tak punya
+  # satker seperti itu — stub `v_satker_code_map` membuang arm-nya.
+  #
+  # rc32 = rc31 + perbaikan itu saja: satker tanpa identitas MySIMKARI tak lagi
+  # menjadi opsi di dropdown kode (tetap tampil di dropdown nama, wilayah, dan
+  # total), stub harness kini meniru arm `siman_only`, dan tes baru
+  # mereproduksi bentuk data staging (merah di kode lama, hijau di perbaikan).
+  # Diverifikasi juga dengan menyapu SEMUA 99 rute GET terhadap salinan data
+  # staging sebagai empat peran: rc31 jatuh tepat di tiga panggilan itu dan
+  # tidak di tempat lain; rc32 0 dari 420 panggilan 5xx.
+  imageTag: v0.1.0-rc32
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`

@@ -793,6 +793,16 @@ impl BankAsetRepository {
         // filters both. Satkers SIMAN knows but MySIMKARI does not (65 on
         // staging) have no such identity and are therefore not selectable —
         // they remain visible in the unfiltered totals.
+        //
+        // "Not selectable" has to be stated in the query, because the map does
+        // not leave them out: `v_satker_code_map` carries a row for each of
+        // them with `kode_satker` NULL (`match_method = 'siman_only'`). An
+        // inner join keeps those rows, `GROUP BY` folds them into one group
+        // whose `value` is NULL, and reading that as a `String` panics — which
+        // under `panic = "abort"` kills the process, not just the request.
+        // That shipped in rc31: whoever's scope reached a SIMAN-only satker
+        // (pusat, wilayah, admin) took the backend down by opening Bank Aset.
+        // The predicate below is the sentence above, as SQL.
         let satker_kode_sql = format!(
             "SELECT m.kode_satker AS value,
                     MIN(COALESCE(m.nama_satker, a.nama_satker)) AS label,
@@ -801,6 +811,7 @@ impl BankAsetRepository {
                        FROM integrasi.siman_aset
                       WHERE kdsatker_keu IS NOT NULL AND kdsatker_keu <> ''{and_clause}) a
                JOIN integrasi.v_satker_code_map m ON m.kdsatker_keu = a.kdsatker_keu
+              WHERE m.kode_satker IS NOT NULL AND m.kode_satker <> ''
               GROUP BY m.kode_satker
               ORDER BY count DESC, value ASC
               LIMIT {FILTER_OPTION_LIMIT}"

@@ -323,13 +323,30 @@ pub async fn setup_test_db() -> (Database, String) {
     // one. That is the shape of failure this whole fixture exists to prevent.
     //
     // The base table mirrors the owner's DDL. The view is the owner's
-    // expression with the auto-derive UNION arm omitted — that arm needs the
-    // name-normalisation function chain, and reproducing it here would be a
-    // second implementation to drift from. Omitting it only makes the map
-    // SMALLER, so a scoping leak still surfaces; a larger stub could hide one.
+    // expression with the NAME-MATCHED half of the auto-derive arm omitted —
+    // that half needs the name-normalisation function chain, and reproducing
+    // it here would be a second implementation to drift from. Omitting it only
+    // makes the map SMALLER, so a scoping leak still surfaces; a larger stub
+    // could hide one.
     // `wilayah_kode` in particular is COPIED, not invented: it is
     // `substring(kdsatker_keu FROM 6 FOR 4)`, and hand-writing a different
     // formula here would certify a broken wilayah tier.
+    //
+    // The OTHER half of that arm is NOT omitted, and the reason is a defect
+    // this stub once hid. The owner's view also carries a row for every SIMAN
+    // satker MySIMKARI has no counterpart for (`match_method = 'siman_only'`),
+    // and for those `kode_satker` is NULL (integrasi migration 003: "NULL =
+    // SIMAN-only"; 65 of them on staging). A stub whose `kode_satker` is a
+    // PRIMARY KEY cannot hold a NULL, so no test ever saw one, and a query that
+    // groups on `m.kode_satker` and reads it as a `String` panicked on the
+    // first such row in rc31 — and `panic = "abort"` turns that into a dead
+    // process, not a failed request. Omitting this half did not make the map
+    // smaller in the way that matters; it removed the one shape that breaks
+    // callers.
+    //
+    // It is derived, not inserted: a SIMAN satker that no manual row maps. So
+    // it costs nothing in a test that has no such satker, and appears exactly
+    // when a test seeds one.
     client
         .execute(
             "CREATE TABLE IF NOT EXISTS integrasi.satker_code_map (
@@ -356,7 +373,21 @@ pub async fn setup_test_db() -> (Database, String) {
                     match_method,
                     TRUE AS verified
              FROM integrasi.satker_code_map
-             WHERE kdsatker_keu IS NOT NULL",
+             WHERE kdsatker_keu IS NOT NULL
+             UNION ALL
+             SELECT NULL::TEXT AS kode_satker,
+                    s.kdsatker_keu,
+                    substring(s.kdsatker_keu FROM 6 FOR 4) AS wilayah_kode,
+                    (right(s.kdsatker_keu, 2) = 'KP')      AS is_pusat,
+                    s.nama_satker,
+                    'siman_only'::TEXT AS match_method,
+                    FALSE AS verified
+             FROM (SELECT DISTINCT kdsatker_keu, nama_satker
+                     FROM integrasi.siman_aset
+                    WHERE kdsatker_keu IS NOT NULL AND nama_satker IS NOT NULL) s
+             WHERE s.kdsatker_keu NOT IN (
+                 SELECT kdsatker_keu FROM integrasi.satker_code_map
+                  WHERE kdsatker_keu IS NOT NULL)",
             &[],
         )
         .await
