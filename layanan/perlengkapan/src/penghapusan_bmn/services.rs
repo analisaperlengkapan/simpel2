@@ -12,6 +12,7 @@
 //   System: SKSigned → Completed
 // ============================================================================
 
+use super::items;
 use super::models::*;
 use super::repository::PenghapusanBmnRepository;
 use crate::bank_aset::repository::BankAsetRepository;
@@ -88,77 +89,53 @@ impl PenghapusanBmnService {
 
     /// Create a new Usulan SK Penghapusan BMN (by Operator Satker)
     ///
-    /// `nilai_perolehan` SELALU diambil dari sumber otoritatif SIMAN
-    /// (tabel cache `integrasi.siman_aset`) berdasarkan NUP + kode_barang
-    /// dari request. Nilai yg dikirim operator (jika ada) di-override.
-    /// Jika asset tidak ditemukan di SIMAN → tolak 422 (operator wajib
-    /// memilih BMN yg memang ada di SIMAN). Jika query SIMAN gagal
-    /// (DB connection error dll), graceful-fallback ke nilai operator
-    /// dgn warning log — usulan tetap dpt disimpan, verifikasi nilai
-    /// dapat dilakukan di tahap validasi wilayah/pusat.
+    /// The operator names each asset by **kode barang + NUP**; everything else
+    /// about it — standard name, acquisition value — is read from SIMAN
+    /// (`integrasi.siman_aset`) for EVERY asset on the usulan, the "item utama"
+    /// and the rest alike, and whatever the request said about them is dropped
+    /// (see [`super::items`] for what the unverified list used to allow).
+    /// One asset that does not resolve inside the caller's satker refuses the
+    /// whole usulan; a SIMAN failure refuses it too, rather than trusting the
+    /// client.
     pub async fn create(
         &self,
-        mut request: CreatePenghapusanBmnRequest,
+        request: CreatePenghapusanBmnRequest,
         created_by: Uuid,
         // Authoritative MySIMKARI satker_code of the creating operator (from JWT
         // claims, #66) — persisted for RBAC scoping; NOT the client satker_id.
         satker_code: Option<String>,
-        // What the caller may see in SIMAN. The BMN being proposed for removal
+        // What the caller may see in SIMAN. Every BMN being proposed for removal
         // must be one of THEIR satker's assets.
         aset_scope: &crate::bank_aset::AsetScope,
     ) -> AppResult<PenghapusanBmn> {
+        let named = items::named_assets(&request)?;
         info!(
-            "Creating Usulan SK Penghapusan BMN for asset: {}",
-            request.nama_barang
+            "Creating Usulan SK Penghapusan BMN for {} asset(s), first: {} / {}",
+            named.len(),
+            named[0].kode_barang,
+            named[0].nup
         );
 
+        // The value is SIMAN's, never the operator's: it is what decides whether
+        // the record is within the Wilayah's authority, and an operator who could
+        // type it could simply type a small one. The lookup is scoped to the
+        // caller (it once ran with `AsetScope::All`, so an operator could open a
+        // removal for any satker's asset), and it covers every listed asset (it
+        // once covered the first).
         let bank_repo = BankAsetRepository::new(self.pool.clone());
-        // The asset's value is SIMAN's, never the operator's: it is what decides
-        // whether the record is within the Wilayah's authority, and an operator
-        // who could type it could simply type a small one.
-        //
-        // The lookup used to run with `AsetScope::All` ("satker ownership is
-        // enforced by the workflow" — it was not: nothing compared the asset's
-        // satker to the caller's), so an operator could open a removal for any
-        // satker's asset. And a failed lookup fell back to the operator's own
-        // number. Both are closed: the lookup is scoped to the caller, and a SIMAN
-        // failure refuses the request instead of trusting the client.
-        match bank_repo
-            .find_nilai_perolehan(&request.nup, Some(&request.kode_barang), aset_scope)
-            .await
-        {
-            Ok(Some(nilai)) => {
-                request.nilai_perolehan = Some(nilai);
-            }
-            Ok(None) => {
-                return Err(AppError::BadRequest(format!(
-                    "BMN dgn NUP {} (kode_barang {}) tidak ditemukan di SIMAN untuk satker Anda. \
-                     Pastikan kode_barang & NUP cocok dgn data SIMAN.",
-                    request.nup, request.kode_barang
-                )));
-            }
-            Err(e) => {
-                warn!(
-                    "find_nilai_perolehan failed for NUP {}: {} — refusing rather than \
-                     trusting the operator-supplied value",
-                    request.nup, e
-                );
-                return Err(AppError::Internal(
-                    "Data SIMAN belum dapat diverifikasi; usulan tidak dapat dibuat sekarang. \
-                     Coba lagi beberapa saat."
-                        .to_string(),
-                ));
-            }
-        }
+        let verified = items::verify_assets(&bank_repo, &named, aset_scope).await?;
 
-        // Authority follows value. When a ceiling is configured, a value above it
-        // cannot be routed through the Wilayah, whatever the operator selected.
+        // Authority follows value, and the value is the whole usulan's. When a
+        // ceiling is configured, a package above it cannot be routed through the
+        // Wilayah, whatever the operator selected — and no number of items below
+        // the line adds up to a way around it.
         enforce_wilayah_value_ceiling(
             &request.kewenangan_penetap_sk,
-            request.nilai_perolehan,
+            Some(items::total_nilai(&verified)),
             wilayah_max_nilai_from_env(),
         )?;
 
+        let request = items::apply_verified(request, &verified);
         self.repository
             .create(request, created_by, satker_code)
             .await
@@ -396,11 +373,20 @@ impl PenghapusanBmnService {
     }
 
     /// Update penghapusan BMN (only in Draft/ReturnedToOperator status)
+    ///
+    /// The request carries no acquisition value: it used to, and a PUT could
+    /// overwrite SIMAN's figure with anything after the create-time ceiling had
+    /// already been applied to the real one. The one legitimate reason to touch
+    /// the value is a row whose figure was back-filled from the legacy
+    /// `nilai_residu` (a different quantity) and is flagged for verification;
+    /// that is re-read from SIMAN here, and the flag clears only when SIMAN
+    /// answered.
     pub async fn update(
         &self,
         id: Uuid,
         request: UpdatePenghapusanBmnRequest,
         scope: &SatkerScope,
+        aset_scope: &crate::bank_aset::AsetScope,
     ) -> AppResult<PenghapusanBmn> {
         let current = self.repository.get_by_id(id, scope).await?;
         let status = PenghapusanBmnStatus::from_state_name(&current.status).unwrap_or_default();
@@ -414,7 +400,26 @@ impl PenghapusanBmnService {
             ));
         }
 
-        self.repository.update(id, request, scope).await
+        let nilai_siman = if current.nilai_perolehan_dari_backfill {
+            match BankAsetRepository::new(self.pool.clone())
+                .find_nilai_perolehan(&current.nup, Some(&current.kode_barang), aset_scope)
+                .await
+            {
+                Ok(nilai) => nilai,
+                // Nothing untrusted is stored on this path, so a SIMAN failure
+                // can leave the row flagged and let the rest of the edit through.
+                Err(e) => {
+                    warn!("penghapusan {id}: SIMAN value refresh failed: {e}");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        self.repository
+            .update(id, request, nilai_siman, scope)
+            .await
     }
 
     /// Delete penghapusan BMN (only in Draft status)

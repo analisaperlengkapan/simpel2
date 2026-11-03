@@ -9,6 +9,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::use_navigate;
+use lib_perlengkapan::utils::format_rupiah;
 use lib_ui::components::icon::AppIcon;
 use lib_ui::hooks::{use_form, use_toast::use_toast};
 use phosphor_leptos::{FLOPPY_DISK, SPINNER, X};
@@ -17,7 +18,6 @@ use phosphor_leptos::{FLOPPY_DISK, SPINNER, X};
 #[derive(Clone, Default)]
 struct PenghapusanFormData {
     kode_barang: String,
-    nama_barang: String,
     nup: String,
     tanggal: String,
     alasan: String,
@@ -31,9 +31,9 @@ struct PenghapusanFormData {
 #[derive(Clone, Default)]
 struct ExtraItem {
     kode_barang: String,
-    nama_barang: String,
     nup: String,
-    nilai_perolehan: String,
+    /// Shown, never sent: SIMAN's figure for the picked asset.
+    nilai_perolehan: Option<f64>,
 }
 
 /// Satu baris item tambahan.
@@ -63,14 +63,15 @@ pub fn PenghapusanForm() -> impl IntoView {
     // dua pemilih.
     let kunci_berikutnya = StoredValue::new(0usize);
 
-    // Picking the asset fills the three fields that identify it. They stay
-    // editable — SIMAN's own naming is inconsistent enough that an operator
-    // sometimes has to correct it — but nobody has to transcribe them.
+    // Picking the asset is the whole of naming it. The fields below are the
+    // picked row, kept for display only: they are not editable, and the request
+    // carries kode barang + NUP and nothing else about the asset. Its name and
+    // acquisition value are SIMAN's, and the server reads both from SIMAN for
+    // every asset on the usulan — what this form held in them was never used.
     let on_pick_aset = Callback::new(move |picked: Option<BankAsetItem>| {
         let Some(item) = picked else {
             form.update(|f| {
                 f.kode_barang.clear();
-                f.nama_barang.clear();
                 f.nup.clear();
                 f.nilai_perolehan.clear();
             });
@@ -78,7 +79,6 @@ pub fn PenghapusanForm() -> impl IntoView {
         };
         form.update(|f| {
             f.kode_barang = item.kode_barang.clone().unwrap_or_default();
-            f.nama_barang = item.nama_aset.clone().unwrap_or_default();
             f.nup = item.nup.clone().unwrap_or_default();
             // Blank rather than "0" when SIMAN has no figure: a zero here would
             // travel into the SK as the asset's acquisition value.
@@ -91,38 +91,55 @@ pub fn PenghapusanForm() -> impl IntoView {
 
     let on_submit = move |ev: leptos::web_sys::SubmitEvent| {
         ev.prevent_default();
+        // The picker is the only way to name an asset, so an empty identity
+        // means nothing was picked. The three text boxes this replaced carried
+        // `required`; with them gone the browser no longer says so.
+        let utama = form.get();
+        if utama.kode_barang.trim().is_empty() || utama.nup.trim().is_empty() {
+            let msg = "Pilih BMN yang diusulkan terlebih dahulu";
+            form.finish_err(msg);
+            toast.error(msg);
+            return;
+        }
+        // An extra row nobody picked into used to be dropped without a word,
+        // which reads as "this asset is on the SK" when it is not.
+        let kosong = baris_tambahan
+            .get_untracked()
+            .iter()
+            .position(|b| b.isi.get_untracked().kode_barang.trim().is_empty());
+        if let Some(idx) = kosong {
+            let msg = format!(
+                "Item tambahan ke-{} belum memilih BMN. Pilih BMN-nya atau hapus barisnya.",
+                idx + 1
+            );
+            form.finish_err(msg.clone());
+            toast.error(msg);
+            return;
+        }
         let data = form.begin_submit();
 
-        // Rakit daftar item: item utama (field tunggal) + item tambahan valid.
+        // Item utama + item tambahan, identitasnya saja.
         let mut items: Vec<CreatePenghapusanBmnItemRequest> =
             vec![CreatePenghapusanBmnItemRequest {
                 kode_barang: data.kode_barang.clone(),
-                nama_barang: data.nama_barang.clone(),
                 nup: data.nup.clone(),
-                nilai_perolehan: data.nilai_perolehan.parse::<f64>().ok(),
                 kondisi: None,
             }];
         for baris in baris_tambahan.get_untracked() {
             let e = baris.isi.get_untracked();
-            if !e.kode_barang.trim().is_empty() && !e.nup.trim().is_empty() {
-                items.push(CreatePenghapusanBmnItemRequest {
-                    kode_barang: e.kode_barang,
-                    nama_barang: e.nama_barang,
-                    nup: e.nup,
-                    nilai_perolehan: e.nilai_perolehan.parse::<f64>().ok(),
-                    kondisi: None,
-                });
-            }
+            items.push(CreatePenghapusanBmnItemRequest {
+                kode_barang: e.kode_barang,
+                nup: e.nup,
+                kondisi: None,
+            });
         }
 
         let req = CreatePenghapusanBmnWorkflowRequest {
             kode_barang: data.kode_barang,
-            nama_barang: data.nama_barang,
             nup: data.nup,
             tanggal_penghapusan: data.tanggal,
             alasan: data.alasan,
             metode_penghapusan: data.metode,
-            nilai_perolehan: data.nilai_perolehan.parse::<f64>().ok(),
             lampiran_persyaratan: data.lampiran_persyaratan,
             catatan_operator: if data.catatan_operator.is_empty() {
                 None
@@ -171,61 +188,6 @@ pub fn PenghapusanForm() -> impl IntoView {
 
                 <AsetPicker on_pick=on_pick_aset />
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label
-                            class="block text-sm font-medium text-slate-200 mb-1"
-                            for="kode_barang"
-                        >
-                            "Kode Barang"
-                        </label>
-                        <input
-                            id="kode_barang"
-                            type="text"
-                            class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                            placeholder="Kode barang BMN"
-                            prop:value=move || form.get().kode_barang.clone()
-                            on:input=move |ev| {
-                                form.update(|f| f.kode_barang = event_target_value(&ev))
-                            }
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label
-                            class="block text-sm font-medium text-slate-200 mb-1"
-                            for="nama_barang"
-                        >
-                            "Nama Barang"
-                        </label>
-                        <input
-                            id="nama_barang"
-                            type="text"
-                            class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                            placeholder="Nama barang BMN"
-                            prop:value=move || form.get().nama_barang.clone()
-                            on:input=move |ev| {
-                                form.update(|f| f.nama_barang = event_target_value(&ev))
-                            }
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-200 mb-1" for="nup">
-                            "NUP"
-                        </label>
-                        <input
-                            id="nup"
-                            type="text"
-                            class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                            placeholder="Nomor Urut Pendaftaran"
-                            prop:value=move || form.get().nup.clone()
-                            on:input=move |ev| form.update(|f| f.nup = event_target_value(&ev))
-                            required
-                        />
-                    </div>
-                </div>
-
                 // -- Item BMN tambahan (Fase 2.8, multi-item) --
                 <div class="mt-4 rounded-lg border border-white/[0.06] bg-white/[0.03] p-4">
                     <div class="flex items-center justify-between mb-2">
@@ -255,18 +217,16 @@ pub fn PenghapusanForm() -> impl IntoView {
                         "Item utama diisi di atas. Tambahkan BMN lain bila satu usulan SK mencakup beberapa aset."
                     </p>
 
-                    // Tiap baris memilih asetnya: cari, pilih, lalu identitasnya
-                    // datang dari SIMAN. Sebelumnya baris tambahan adalah empat
-                    // kotak kosong — satu-satunya tempat di formulir ini yang
-                    // menuntut kode barang, nama barang, dan NUP diketik ulang,
-                    // padahal ketiganya ada di basis data.
+                    // Tiap baris memilih asetnya: cari, pilih, selesai. Identitas
+                    // aset (kode barang + NUP) datang dari baris yang dipilih, dan
+                    // hanya itu yang dikirim; nama dan nilai perolehannya milik
+                    // SIMAN dan diisi server untuk SETIAP BMN pada usulan.
                     //
-                    // Hanya "Nilai Perolehan" yang tersisa sebagai isian, dan
-                    // itu disengaja: server menimpa nilai perolehan dari SIMAN
-                    // untuk item UTAMA saja (`services.rs` create), sedangkan
-                    // nilai tiap item tambahan tersimpan apa adanya — jadi bila
-                    // SIMAN tak mencatat angkanya, operator masih punya tempat
-                    // untuk melengkapinya. Kosong tetap dikirim kosong, bukan 0.
+                    // Dulu nilai tiap item tambahan adalah kotak yang diketik
+                    // operator, dengan alasan server hanya menimpa nilai item
+                    // utama. Itu benar, dan itu justru lubangnya: angka yang
+                    // diketik tersimpan apa adanya dan menentukan apakah usulan
+                    // masih dalam kewenangan Wilayah. Sekarang hanya ditampilkan.
                     <Show
                         when=move || !baris_tambahan.get().is_empty()
                         fallback=|| {
@@ -291,20 +251,13 @@ pub fn PenghapusanForm() -> impl IntoView {
                                                 .kode_barang
                                                 .clone()
                                                 .unwrap_or_default();
-                                            item.nama_barang = aset
-                                                .nama_aset
-                                                .clone()
-                                                .unwrap_or_default();
                                             item.nup = aset.nup.clone().unwrap_or_default();
-                                            item.nilai_perolehan = aset
-                                                .nilai_perolehan
-                                                .map(|v| v.to_string())
-                                                .unwrap_or_default();
+                                            item.nilai_perolehan = aset.nilai_perolehan;
                                         });
                                     });
                                     let slug = format!("aset-tambahan-{}", baris.kunci);
                                     let label = "Cari BMN tambahan".to_string();
-                                    let id_nilai = format!("nilai-tambahan-{}", baris.kunci);
+                                    let testid_nilai = format!("nilai-tambahan-{}", baris.kunci);
                                     view! {
                                         <div class="relative rounded-lg border border-white/10 bg-slate-900/40 p-3">
                                             <button
@@ -321,26 +274,18 @@ pub fn PenghapusanForm() -> impl IntoView {
                                                 <AppIcon icon=X />
                                             </button>
                                             <AsetPicker slug=slug label=label on_pick=on_pick />
-                                            <div class="mt-3">
-                                                <label
-                                                    class="mb-1 block text-xs font-medium text-slate-400"
-                                                    for=id_nilai.clone()
+                                            <Show when=move || !isi.get().kode_barang.is_empty()>
+                                                <p
+                                                    data-testid=testid_nilai.clone()
+                                                    class="mt-3 text-xs text-slate-400"
                                                 >
-                                                    "Nilai Perolehan (Rp)"
-                                                </label>
-                                                <input
-                                                    id=id_nilai
-                                                    type="number"
-                                                    placeholder="Kosongkan bila SIMAN tidak mencatat nilainya"
-                                                    class="w-full px-3 py-1.5 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
-                                                    prop:value=move || isi.get().nilai_perolehan
-                                                    on:input=move |ev| {
-                                                        isi.update(|r| {
-                                                            r.nilai_perolehan = event_target_value(&ev)
-                                                        })
-                                                    }
-                                                />
-                                            </div>
+                                                    "Nilai perolehan (dari SIMAN): "
+                                                    {move || match isi.get().nilai_perolehan {
+                                                        Some(v) => format_rupiah(v),
+                                                        None => "belum tercatat di SIMAN, usulan akan ditolak".to_string(),
+                                                    }}
+                                                </p>
+                                            </Show>
                                         </div>
                                     }
                                 }
@@ -414,13 +359,13 @@ pub fn PenghapusanForm() -> impl IntoView {
                         id="nilai_perolehan"
                         type="number"
                         class="w-full cursor-not-allowed rounded-lg border border-white/[0.06] bg-white/[0.03] px-4 py-2 text-slate-400"
-                        placeholder="Diambil otomatis dari SIMAN saat submit"
+                        placeholder="Terisi setelah BMN dipilih"
                         prop:value=move || form.get().nilai_perolehan.clone()
                         readonly=true
                     />
                     <p class="mt-1 text-xs text-slate-500">
-                        "Nilai perolehan diambil langsung dari data SIMAN berdasarkan NUP + kode barang. "
-                        "Jika BMN tidak ditemukan di SIMAN, sistem akan menolak usulan."
+                        "Nama dan nilai perolehan setiap BMN diambil langsung dari data SIMAN berdasarkan kode barang + NUP. "
+                        "Jika ada BMN yang tidak ditemukan di SIMAN atau belum bernilai, sistem menolak seluruh usulan."
                     </p>
                 </div>
 

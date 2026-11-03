@@ -93,13 +93,14 @@ pub struct PenghapusanBmnWorkflow {
 /// Create SK Penghapusan BMN request (workflow)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreatePenghapusanBmnWorkflowRequest {
+    /// Identitas BMN utama: kode barang + NUP. Nama barang dan nilai perolehan
+    /// sengaja TIDAK dikirim — keduanya milik SIMAN, diisi server untuk setiap
+    /// BMN pada usulan (dan apa pun yang dikirim klien dibuang).
     pub kode_barang: String,
-    pub nama_barang: String,
     pub nup: String,
     pub tanggal_penghapusan: String,
     pub alasan: String,
     pub metode_penghapusan: String,
-    pub nilai_perolehan: Option<f64>,
     pub lampiran_persyaratan: String,
     pub catatan_operator: Option<String>,
     /// V036 (Fase 2.8): item BMN tambahan. Item pertama tetap dikirim via
@@ -144,9 +145,7 @@ pub struct PenghapusanBmnItem {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct CreatePenghapusanBmnItemRequest {
     pub kode_barang: String,
-    pub nama_barang: String,
     pub nup: String,
-    pub nilai_perolehan: Option<f64>,
     pub kondisi: Option<String>,
 }
 

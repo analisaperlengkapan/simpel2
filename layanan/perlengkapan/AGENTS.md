@@ -331,7 +331,12 @@ sendiri bila dipasang tanpa middleware (tes).
   tombol di FE.
 - Env baru: `TRUSTED_PROXY_CIDRS`, `PENGHAPUSAN_WILAYAH_MAX_NILAI` (rupiah; plafon kewenangan
   Wilayah, kosong = tak ditegakkan — angka regulasi PMK 83/2016 dan perubahannya **harus
-  dikonfirmasi** sebelum diisi).
+  dikonfirmasi** sebelum diisi). Plafon dinilai atas **total** nilai seluruh BMN pada usulan,
+  bukan nilai BMN pertama saja.
+- Usulan penghapusan: pemohon hanya menamai tiap BMN dengan **kode barang + NUP** (dalam
+  satker sendiri). Nama dan nilai perolehan SELALU dibaca dari SIMAN untuk SETIAP item
+  (`penghapusan_bmn/items.rs`) — nilai/nama dari body dibuang, bukan dipercaya. Satu BMN yang
+  tak terselesaikan menolak seluruh usulan. `PUT` tak membawa nilai perolehan.
 
 ---
 

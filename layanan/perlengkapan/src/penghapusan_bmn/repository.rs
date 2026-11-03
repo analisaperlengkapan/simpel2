@@ -357,6 +357,9 @@ impl PenghapusanBmnRepository {
         &self,
         id: Uuid,
         request: UpdatePenghapusanBmnRequest,
+        // SIMAN's figure, supplied by the service when it re-read a back-filled
+        // row — never a value from the request, which no longer has one.
+        nilai_siman: Option<f64>,
         scope: &SatkerScope,
     ) -> AppResult<PenghapusanBmn> {
         let client = self.pool.get().await?;
@@ -365,15 +368,15 @@ impl PenghapusanBmnRepository {
             Box::new(request.tanggal_penghapusan),
             Box::new(request.alasan),
             Box::new(request.metode_penghapusan),
-            Box::new(request.nilai_perolehan),
+            Box::new(nilai_siman),
             Box::new(request.lampiran_persyaratan),
             Box::new(request.catatan_operator),
             Box::new(id),
         ];
         let scope_sql = scope_and(scope, &mut params);
 
-        // V029: Saat user menyimpan nilai_perolehan baru, anggap data sudah
-        // diverifikasi → reset flag backfill ke FALSE.
+        // V029: a figure re-read from SIMAN counts as verified → reset the
+        // back-fill flag to FALSE.
         let query = format!(
             r#"
             UPDATE perlengkapan.penghapusan_bmn

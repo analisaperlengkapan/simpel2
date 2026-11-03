@@ -400,7 +400,10 @@ pub struct PenghapusanBmn {
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct CreatePenghapusanBmnRequest {
     pub kode_barang: String,
-    #[validate(length(min = 1, max = 255))]
+    /// Ignored: the standard name is SIMAN's, filled in by the server from the
+    /// asset `kode_barang` + `nup` identify (see `items`). Still accepted so a
+    /// client built before that — which always sent it — keeps working.
+    #[serde(default)]
     pub nama_barang: String,
     #[validate(length(min = 1, max = 50))]
     pub nup: String,
@@ -409,6 +412,7 @@ pub struct CreatePenghapusanBmnRequest {
     pub alasan: String,
     #[validate(length(min = 1, max = 100))]
     pub metode_penghapusan: String,
+    /// Ignored: the acquisition value is SIMAN's, never the operator's.
     pub nilai_perolehan: Option<f64>,
     // Lampiran persyaratan (required)
     #[validate(length(min = 1, message = "Lampiran persyaratan wajib dilampirkan"))]
@@ -435,10 +439,13 @@ pub struct CreatePenghapusanBmnRequest {
 pub struct CreatePenghapusanBmnItemRequest {
     #[validate(length(min = 1, max = 50))]
     pub kode_barang: String,
-    #[validate(length(min = 1, max = 255))]
+    /// Ignored on input (the server takes the name from SIMAN); always set on
+    /// what is stored and returned.
+    #[serde(default)]
     pub nama_barang: String,
     #[validate(length(min = 1, max = 50))]
     pub nup: String,
+    /// Ignored on input; SIMAN's value on what is stored.
     pub nilai_perolehan: Option<f64>,
     pub kondisi: Option<String>,
 }
@@ -487,7 +494,6 @@ pub struct UpdatePenghapusanBmnRequest {
     pub alasan: Option<String>,
     #[validate(length(min = 1, max = 100))]
     pub metode_penghapusan: Option<String>,
-    pub nilai_perolehan: Option<f64>,
     pub lampiran_persyaratan: Option<String>,
     pub catatan_operator: Option<String>,
 }

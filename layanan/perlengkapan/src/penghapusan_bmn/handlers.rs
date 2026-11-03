@@ -225,7 +225,12 @@ pub async fn update_penghapusan_bmn(
     request.validate()?;
 
     let penghapusan = service
-        .update(id, request, &SatkerScope::from_claims(&claims))
+        .update(
+            id,
+            request,
+            &SatkerScope::from_claims(&claims),
+            &crate::bank_aset::AsetScope::from_claims(&claims),
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(

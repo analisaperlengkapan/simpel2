@@ -230,6 +230,13 @@ fn DetailBody(
         .map(format_rupiah)
         .unwrap_or_else(|| "-".to_string());
     let nilai_perolehan_legacy = p.nilai_perolehan_dari_backfill;
+    // Every asset on the usulan, in SK order. The response has always carried
+    // them; this page printed the first one only, so a validator approved a
+    // usulan whose second to last assets were on no screen — though they are
+    // exactly what the SK lists.
+    let items = detail.items.clone();
+    let jumlah_item = items.len();
+    let total_nilai: f64 = items.iter().filter_map(|i| i.nilai_perolehan).sum();
     let catatan_operator = p
         .catatan_operator
         .clone()
@@ -276,6 +283,62 @@ fn DetailBody(
                     "Catatan Operator"
                 </p>
                 <p class="mt-1 text-sm text-slate-300">{catatan_operator}</p>
+            </div>
+        </SectionCard>
+
+        <SectionCard
+            title="Daftar BMN"
+            description="BMN yang diusulkan untuk dihapus. Nama dan nilai perolehan diambil dari SIMAN."
+            icon="fas fa-boxes-stacked"
+        >
+            <div class="overflow-x-auto">
+                <table data-testid="tabel-bmn-usulan" class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-white/[0.06] text-left text-xs uppercase tracking-wide text-slate-500">
+                            <th class="px-3 py-2">"No"</th>
+                            <th class="px-3 py-2">"BMN"</th>
+                            <th class="px-3 py-2">"Kode Barang / NUP"</th>
+                            <th class="px-3 py-2 text-right">"Nilai Perolehan"</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {items
+                            .into_iter()
+                            .map(|it| {
+                                view! {
+                                    <tr class="border-b border-white/[0.04] text-slate-200">
+                                        <td class="px-3 py-2 tabular-nums">{it.urutan}</td>
+                                        <td class="px-3 py-2">{it.nama_barang.clone()}</td>
+                                        <td class="px-3 py-2 tabular-nums">
+                                            {format!("{} / {}", it.kode_barang, it.nup)}
+                                        </td>
+                                        <td class="px-3 py-2 text-right tabular-nums">
+                                            {it.nilai_perolehan.map(format_rupiah).unwrap_or_else(|| "-".to_string())}
+                                        </td>
+                                    </tr>
+                                }
+                            })
+                            .collect_view()}
+                    </tbody>
+                    {(jumlah_item > 1)
+                        .then(|| {
+                            view! {
+                                <tfoot>
+                                    <tr class="text-slate-100">
+                                        <td colspan="3" class="px-3 py-2 text-right text-xs uppercase tracking-wide text-slate-500">
+                                            {format!("Total {jumlah_item} BMN")}
+                                        </td>
+                                        <td
+                                            data-testid="total-nilai-usulan"
+                                            class="px-3 py-2 text-right font-semibold tabular-nums"
+                                        >
+                                            {format_rupiah(total_nilai)}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            }
+                        })}
+                </table>
             </div>
         </SectionCard>
 
