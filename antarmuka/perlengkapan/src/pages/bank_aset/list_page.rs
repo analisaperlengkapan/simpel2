@@ -4,6 +4,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::components::A;
 use lib_ui::components::icon::AppIcon;
+use lib_ui::hooks::LatestOnly;
 use phosphor_leptos::{
     ARROW_COUNTER_CLOCKWISE, CARET_LEFT, CARET_RIGHT, CHART_LINE, EYE, MAGNIFYING_GLASS, QR_CODE,
 };
@@ -42,6 +43,11 @@ pub fn BankAsetListPage() -> impl IntoView {
     let (loading, set_loading) = signal(true);
     let (error, set_error) = signal::<Option<AppError>>(None);
     let (reload_tick, set_reload_tick) = signal(0_u32);
+    // Mencari di 624 ribu aset memakan ±10 detik dan halaman ini mengirim pencarian
+    // dua kali (ketukan + "Terapkan"). Tanpa penjaga, jawaban yang tiba PALING AKHIR
+    // menang — bukan yang ditanyakan paling akhir — lalu filter kondisi yang baru
+    // dipilih tertimpa daftar lama (4 dari 12 percobaan di staging).
+    let latest = LatestOnly::new();
 
     // Load filter options once on mount (no reactive deps → runs a single time).
     Effect::new(move |_| {
@@ -69,8 +75,13 @@ pub fn BankAsetListPage() -> impl IntoView {
         };
         set_loading.set(true);
         set_error.set(None);
+        let ticket = latest.ticket();
         spawn_local(async move {
-            match bank_aset::fetch_list(&filter).await {
+            let result = bank_aset::fetch_list(&filter).await;
+            if !latest.is_current(ticket) {
+                return;
+            }
+            match result {
                 Ok(PaginatedResponse {
                     data,
                     total,

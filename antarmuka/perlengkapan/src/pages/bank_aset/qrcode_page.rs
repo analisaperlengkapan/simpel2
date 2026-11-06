@@ -4,6 +4,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::components::A;
 use lib_ui::components::icon::AppIcon;
+use lib_ui::hooks::LatestOnly;
 use phosphor_leptos::{ARROW_LEFT, CHECKS, ERASER, MAGNIFYING_GLASS, PRINTER, X};
 use std::collections::HashSet;
 use wasm_bindgen::JsCast;
@@ -81,6 +82,9 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
     let (error, set_error) = signal::<Option<AppError>>(None);
     let (reload_tick, set_reload_tick) = signal(0_u32);
     let (show_preview, set_show_preview) = signal(false);
+    // Jawaban yang tiba paling akhir tak boleh menang atas yang ditanyakan paling
+    // akhir. Lihat `lib_ui::hooks::use_latest`.
+    let latest = LatestOnly::new();
 
     Effect::new(move |_| {
         let _ = reload_tick.get();
@@ -96,8 +100,13 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
         };
         set_loading.set(true);
         set_error.set(None);
+        let ticket = latest.ticket();
         spawn_local(async move {
-            match bank_aset::fetch_list(&filter).await {
+            let result = bank_aset::fetch_list(&filter).await;
+            if !latest.is_current(ticket) {
+                return;
+            }
+            match result {
                 Ok(PaginatedResponse { data, .. }) => set_items.set(data),
                 Err(e) => set_error.set(Some(e)),
             }

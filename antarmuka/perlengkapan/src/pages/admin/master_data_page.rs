@@ -8,6 +8,7 @@ use std::sync::Arc;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use lib_ui::hooks::LatestOnly;
 use lib_ui::utils::formatters::format_iso_local_opt;
 use phosphor_leptos::{
     ARROW_LEFT, ARROW_RIGHT, CARET_LEFT, CARET_RIGHT, CHECK, CLOCK, MAGNIFYING_GLASS, MINUS,
@@ -189,6 +190,9 @@ fn SourceDetail(source: MasterSource, #[prop(into)] on_back: Callback<()>) -> im
     let (deleting, set_deleting) = signal::<Option<MasterRecord>>(None);
     let (action_msg, set_action_msg) = signal::<Option<(bool, String)>>(None);
 
+    // Jawaban yang tiba paling akhir tak boleh menang atas yang ditanyakan paling
+    // akhir. Lihat `lib_ui::hooks::use_latest`.
+    let latest = LatestOnly::new();
     let source_key_effect = source_key.clone();
     Effect::new(move |_| {
         let _ = reload_tick.get();
@@ -198,9 +202,14 @@ fn SourceDetail(source: MasterSource, #[prop(into)] on_back: Callback<()>) -> im
         let q_opt = if q.trim().is_empty() { None } else { Some(q) };
         set_loading.set(true);
         set_error.set(None);
+        let ticket = latest.ticket();
         spawn_local(async move {
             let q_ref = q_opt.as_deref();
-            match fetch_master_records(&key, p, PER_PAGE, q_ref).await {
+            let result = fetch_master_records(&key, p, PER_PAGE, q_ref).await;
+            if !latest.is_current(ticket) {
+                return;
+            }
+            match result {
                 Ok(resp) => {
                     set_records.set(resp.data);
                     set_total.set(resp.total);

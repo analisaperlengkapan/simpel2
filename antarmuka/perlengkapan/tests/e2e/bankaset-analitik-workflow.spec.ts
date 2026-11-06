@@ -194,6 +194,55 @@ test.describe("Bank Aset — daftar controls (validator_pusat, narrowed to the s
     await expect(page.getByText("Printer (Peralatan Personal Komputer)").first()).toBeVisible();
   });
 
+  /**
+   * The list re-fetches on every filter change, and HTTP answers do not arrive in
+   * the order the questions were asked. Staging, 2026-11-06: searching `E2E-` over
+   * 624 533 rows took ~10 s and the page sent that search TWICE (the input event and
+   * "Terapkan"); the second answer landed after the "Rusak Ringan" answer and replaced
+   * it, so the dropdown said Rusak Ringan while the table listed five Baik rows
+   * (4 of 12 runs). The existing "kondisi filter" test only hit this by luck.
+   *
+   * To make the bad ordering certain at ANY server speed, every search-only answer is
+   * held back 3 s and the kondisi answer is not. A correct page ends on the kondisi
+   * result; a page without a newest-request-wins guard falls back to the five search
+   * hits once the held answers land.
+   */
+  test("a slow answer to an older search cannot overwrite the newer kondisi filter", async ({ page }) => {
+    let held = 0;
+    let released = 0;
+    await page.route("**/api/v1/perlengkapan/bank-aset?*", async (route) => {
+      const query = new URL(route.request().url()).searchParams;
+      const searchOnly = Boolean(query.get("search")) && !query.get("kondisi");
+      // Staging answers a search over 624 533 rows in ~10 s, which is Playwright's
+      // default `fetch` timeout; the hold below is what this test is about, not that.
+      // Count the hold when the request STARTS, not when the server answers: against
+      // a slow server the answer comes seconds later, and counting then would let
+      // "everything was released" be true before anything had even been held.
+      if (searchOnly) held += 1;
+      const response = await route.fetch({ timeout: 90000 });
+      if (searchOnly) await new Promise((resolve) => setTimeout(resolve, 3000));
+      await route.fulfill({ response });
+      if (searchOnly) released += 1;
+    });
+
+    await page.goto(`${BASE}/bank-aset/daftar`);
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
+    await page.getByPlaceholder("Cari nama/kode/NUP/merk...").fill(SEED_MARKER);
+    await page.getByRole("button", { name: "Terapkan" }).click();
+    // Do NOT wait for the search answer: pick the kondisi while it is still in flight.
+    const kondisi = page.getByRole("combobox").filter({ hasText: "Semua Kondisi" });
+    await expect(kondisi).toBeVisible({ timeout: 30000 });
+    await kondisi.selectOption("Rusak Ringan", { timeout: 30000 });
+    await expect.poll(() => visibleNups(page), { timeout: 60000 }).toEqual(["E2E-C-1"]);
+
+    // Now let every held (stale) answer land, and look again.
+    expect(held, "the search was actually held back").toBeGreaterThan(0);
+    await expect.poll(() => released, { timeout: 90000, message: "held search answers must be released" }).toBe(held);
+    await page.waitForTimeout(1500); // the page applies the late answers after they land
+    expect(await visibleNups(page), "a stale search answer overwrote the newer kondisi filter").toEqual(["E2E-C-1"]);
+    await expect(page.getByText("Total: 1 aset")).toBeVisible();
+  });
+
   test("jenis filter isolates the single Tanah asset", async ({ page }) => {
     await gotoSeededList(page);
 

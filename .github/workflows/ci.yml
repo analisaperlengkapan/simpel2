@@ -368,6 +368,21 @@ jobs:
       - name: Frontend query parameters reach a backend Query struct
         shell: bash
         run: python3 ./infra/scripts/check-fe-query-params-reach-backend.py
+      # A loader that re-runs on every filter change lets two requests overlap, and
+      # HTTP answers do not come back in the order they were asked: the one that
+      # lands LAST wins. Staging 2026-11-06, Bank Aset: the search (10 s over
+      # 624 533 rows) was sent twice and the second answer replaced the "Rusak
+      # Ringan" answer — dropdown says Rusak Ringan, table lists five Baik rows.
+      # Green in CI because an empty database answers in milliseconds. The cure
+      # existed once (`urutan` in pemakaian_bmn_form.rs) and was applied to the one
+      # form that was hit, not to the seven lists with the same shape; this makes
+      # `lib_ui::hooks::LatestOnly` mandatory. Self-test first: it pins both
+      # directions, including a quote inside a comment that must not hide real code.
+      - name: Frontend loaders drop stale answers
+        shell: bash
+        run: |
+          python3 ./infra/scripts/check-fe-reactive-loaders-guarded.py --self-test
+          python3 ./infra/scripts/check-fe-reactive-loaders-guarded.py
       # authenc keeps its own copies of three services' .proto files, because
       # its Dockerfile copies only `layanan/authenc` into the build context.
       # Adding a field to the owner and not the copy is a one-way silent break:
