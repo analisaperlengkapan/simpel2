@@ -19,9 +19,17 @@
 #
 # Gejalanya menipu: job hanya menggantung `queued`, TIDAK merah, dan GitHub
 # membatalkannya diam-diam di jam ke-24 sehingga terbaca seperti dibatalkan
-# manusia. INSIDEN NYATA: 2.334.0 di-deprecate 2026-08-10 → CI mati total 4 hari
-# tanpa satu pun indikator merah. Lihat `README.md` di direktori ini.
-FROM ghcr.io/actions/actions-runner:2.336.0
+# manusia. INSIDEN NYATA (2×, dan ia berulang ±tiap 3 bulan):
+#   - 2.334.0 di-deprecate 2026-08-10 → CI mati total 4 hari tanpa indikator merah.
+#   - 2.336.0 di-deprecate 2026-11-05 13:39 UTC → CI mati lagi; ARS `Outdated`,
+#     tak ada listener/ERS/runner. ci-heartbeat sudah merah, tetapi tak ada yang
+#     membacanya sampai PR lain tak kunjung mendapat check.
+# Ruleset `main` mewajibkan `CI Summary` + `Security Summary` (keduanya
+# `arc-simpel`) dan tak punya bypass: saat CI mati, TAK ADA PR yang bisa merge,
+# termasuk PR yang memperbaikinya. Karena itu image ini dibangun di GitHub-hosted
+# (`arc-runner-image.yml`, `workflow_dispatch`), dan obatnya (bump tag ARS lewat
+# Helm) tak boleh menunggu merge. Lihat `README.md` di direktori ini.
+FROM ghcr.io/actions/actions-runner:2.338.2
 
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
