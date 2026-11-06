@@ -40,13 +40,13 @@ impl PemakaianBmnRepository {
                 pegawai_golongan, pegawai_pangkat, pegawai_unit_kerja, foto_pegawai,
                 tanggal_mulai, tanggal_selesai, keperluan,
                 is_renewal, previous_permit_id, file_pendukung,
-                status, created_by, created_by_nama, satker_code, created_at, updated_at
+                status, status_kode, created_by, created_by_nama, satker_code, created_at, updated_at
             ) VALUES (
                 $1, $2, $3, $4, $5, $6,
                 $7, $8, $9, $10,
                 $11, $12, $13,
                 $14, $15, $16,
-                'DRAFT', $17, $18, $19, NOW(), NOW()
+                'DRAFT', $20, $17, $18, $19, NOW(), NOW()
             )
             RETURNING *
         "#;
@@ -74,6 +74,12 @@ impl PemakaianBmnRepository {
                     &created_by,
                     &created_by_nama,
                     &satker_code,
+                    // `status_kode` is denormalised from `status` and kept in step
+                    // by `sync_status_kode` on every TRANSITION, so a row that has
+                    // never transitioned has to be born with it. Left NULL, a
+                    // draft was invisible to anything that joins the status master
+                    // for its label (the dashboard printed the raw word DRAFT).
+                    &PemakaianBmnStatus::Draft.to_code(),
                 ],
             )
             .await

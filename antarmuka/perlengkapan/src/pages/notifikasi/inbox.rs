@@ -32,17 +32,60 @@ pub fn NotifikasiInboxPage() -> impl IntoView {
     let (unread_only, set_unread_only) = signal(false);
     let (loading, set_loading) = signal(false);
     let (error, set_error) = signal::<Option<String>>(None);
+    // A full page back means there may be more behind it; a short one means that
+    // was the end. The page used to load ONE page and stop, so a user with more
+    // notifications than the page size could never reach the older ones.
+    let (has_more, set_has_more) = signal(false);
+    let (loading_more, set_loading_more) = signal(false);
+    // Every (re)load bumps this. A "load more" that was started before the
+    // filter changed must not append rows of the OLD filter to the new list.
+    let generation = StoredValue::new(0u64);
 
     let reload = move || {
         let unread = unread_only.get();
+        generation.set_value(generation.get_value() + 1);
+        let mine = generation.get_value();
         set_loading.set(true);
         set_error.set(None);
         spawn_local(async move {
             match list_notifikasi(PAGE_SIZE, 0, unread).await {
-                Ok(rows) => set_items.set(rows),
+                Ok(rows) => {
+                    if generation.get_value() == mine {
+                        set_has_more.set(rows.len() as i64 >= PAGE_SIZE);
+                        set_items.set(rows);
+                    }
+                }
                 Err(e) => set_error.set(Some(format!("Gagal memuat notifikasi: {}", e))),
             }
             set_loading.set(false);
+        });
+    };
+
+    // Next page: everything already on screen is the offset. Rows that arrived
+    // meanwhile shift the window, so ids already shown are skipped, not shown twice.
+    let load_more = move |_| {
+        let unread = unread_only.get_untracked();
+        let offset = items.with_untracked(|r| r.len()) as i64;
+        let mine = generation.get_value();
+        set_loading_more.set(true);
+        set_error.set(None);
+        spawn_local(async move {
+            match list_notifikasi(PAGE_SIZE, offset, unread).await {
+                Ok(rows) => {
+                    if generation.get_value() == mine {
+                        set_has_more.set(rows.len() as i64 >= PAGE_SIZE);
+                        set_items.update(|cur| {
+                            for r in rows {
+                                if !cur.iter().any(|c| c.id == r.id) {
+                                    cur.push(r);
+                                }
+                            }
+                        });
+                    }
+                }
+                Err(e) => set_error.set(Some(format!("Gagal memuat notifikasi: {}", e))),
+            }
+            set_loading_more.set(false);
         });
     };
 
@@ -213,6 +256,28 @@ pub fn NotifikasiInboxPage() -> impl IntoView {
                 <p style="font-size: 0.85rem; color: #7b8ba1; text-align: center; padding: 48px 0;">
                     "Belum ada notifikasi."
                 </p>
+            </Show>
+
+            <Show when=move || !items.get().is_empty()>
+                <div
+                    data-testid="notifikasi-footer"
+                    style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; font-size: 0.78rem; color: #7b8ba1;"
+                >
+                    <span data-testid="notifikasi-jumlah">
+                        {move || format!("Menampilkan {} notifikasi", items.get().len())}
+                    </span>
+                    <Show when=move || has_more.get()>
+                        <button
+                            type="button"
+                            data-testid="notifikasi-muat-lebih"
+                            disabled=move || loading_more.get()
+                            style="padding: 7px 14px; font-size: 0.78rem; font-weight: 600; color: #e2e8f0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; cursor: pointer;"
+                            on:click=load_more
+                        >
+                            {move || if loading_more.get() { "Memuat…" } else { "Muat lebih banyak" }}
+                        </button>
+                    </Show>
+                </div>
             </Show>
         </div>
     }

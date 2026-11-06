@@ -80,6 +80,19 @@ WHERE pengajuan_satker_id IN (
         'd1000000-0000-4d00-8d00-00000000e101',
         'd1000000-0000-4d00-8d00-00000000e102');
 
+-- Notifications the suite generated for the fixture users. The helpdesk and workflow
+-- specs send some on EVERY run, and the inbox shows the newest page only, so on a
+-- database that survives the run (staging) the fixture rows sink below the first page
+-- and "inbox is scoped to operator_b" goes red for a reason that has nothing to do with
+-- scoping. Identified structurally, like the rows above: a fixture USER's notification
+-- that is not one of the fixture ids.
+DELETE FROM notifikasi.in_app_notifications
+WHERE user_id IN ('11111111-1111-4111-8111-111111111111',
+                  '22222222-2222-4222-8222-222222222222',
+                  '77777777-7777-4777-8777-777777777777')
+  AND id::text NOT LIKE 'f1000000-%'
+  AND id::text NOT LIKE 'f2000000-%';
+
 -- A permit the suite created and left ACTIVE is not just residue: since the
 -- booking check became keyed on kode satker + kode barang + NUP, an extra
 -- ACTIVE permit on a fixture asset makes the availability specs report it busy
@@ -628,6 +641,29 @@ ON CONFLICT (id) DO UPDATE SET
   action_url = EXCLUDED.action_url,
   read = EXCLUDED.read,
   read_at = EXCLUDED.read_at;
+
+-- The inbox shows ONE page (50). An inbox with more than that is how a user loses
+-- sight of everything older, so approver_satker gets 55: the newest 50 are the first
+-- page and "E2E Paginasi 55" is only reachable through "Muat lebih banyak". Newest
+-- first (n = 1 is the newest) so the order is deterministic, and every column the
+-- UI can change is restored on a re-run.
+INSERT INTO notifikasi.in_app_notifications
+  (id, user_id, notification_type, title, message, priority, category, action_url, read, read_at, created_at)
+SELECT ('f2000000-0000-4f00-8f00-' || lpad(n::text, 12, '0'))::uuid,
+       '77777777-7777-4777-8777-777777777777',
+       'workflow',
+       'E2E Paginasi ' || lpad(n::text, 2, '0'),
+       'Notifikasi ke-' || n || ' dari 55, untuk menguji halaman berikutnya.',
+       'normal', 'info', NULL, false, NULL,
+       now() - (n || ' minutes')::interval
+FROM generate_series(1, 55) AS n
+ON CONFLICT (id) DO UPDATE SET
+  user_id = EXCLUDED.user_id,
+  title = EXCLUDED.title,
+  message = EXCLUDED.message,
+  read = EXCLUDED.read,
+  read_at = EXCLUDED.read_at,
+  created_at = EXCLUDED.created_at;
 
 -- ----------------------------------------------------------------------------
 -- 10. perlengkapan: Analitik/Roadmap rows (F-E2E, screenshot completeness).

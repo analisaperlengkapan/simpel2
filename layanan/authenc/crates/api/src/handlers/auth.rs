@@ -1290,16 +1290,34 @@ pub async fn change_password_handler(
         .user_service
         .update_user(user_id, update_req)
         .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "Failed to update password");
+        .map_err(password_update_error)?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// What a failed password update means to the caller.
+///
+/// A password that breaks the policy is the CALLER's to fix, so it is a 400 that says
+/// which rule. It used to fall into the generic arm and answer 500 "Gagal mengubah
+/// password.", which tells a person nothing and tells a monitor that the server broke:
+/// every policy violation counted as an outage. The IAM admin path already maps it
+/// this way (`iam-api/src/error.rs`); this endpoint did not.
+fn password_update_error(e: authenc_types::AuthencError) -> ErrorResponse {
+    match e {
+        authenc_types::AuthencError::ValidationError(rule) => ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
+            error: "password_policy".to_string(),
+            message: format!("Password baru tidak memenuhi kebijakan: {rule}"),
+        },
+        other => {
+            tracing::error!(error = %other, "Failed to update password");
             ErrorResponse {
                 status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 error: "internal_error".to_string(),
                 message: "Gagal mengubah password.".to_string(),
             }
-        })?;
-
-    Ok(StatusCode::NO_CONTENT)
+        }
+    }
 }
 
 /// POST /api/v1/auth/password/reset - Request password reset
@@ -1419,5 +1437,29 @@ mod tests {
             captcha_token: None,
         };
         assert!(request.validate().is_err());
+    }
+}
+
+#[cfg(test)]
+mod password_update_error_tests {
+    use super::*;
+    use authenc_types::AuthencError;
+
+    #[test]
+    fn a_policy_violation_is_the_callers_400_and_names_the_rule() {
+        let r = password_update_error(AuthencError::ValidationError(
+            "Password must contain at least one uppercase letter".to_string(),
+        ));
+        assert_eq!(r.status_code, axum::http::StatusCode::BAD_REQUEST);
+        assert_eq!(r.error, "password_policy");
+        assert!(r.message.contains("uppercase letter"), "{}", r.message);
+    }
+
+    #[test]
+    fn anything_else_is_still_a_500_that_does_not_leak_the_cause() {
+        let r = password_update_error(AuthencError::ConfigError("db down".to_string()));
+        assert_eq!(r.status_code, axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(r.error, "internal_error");
+        assert!(!r.message.contains("db down"), "{}", r.message);
     }
 }

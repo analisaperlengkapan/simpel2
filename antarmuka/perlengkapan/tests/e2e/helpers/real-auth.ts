@@ -516,7 +516,15 @@ export async function filterOptions(
 /** Distinct satker names a token may see, derived from its scoped dropdown. */
 export async function allowedSatkerNames(request: APIRequestContext, token: string): Promise<string[]> {
   const opts = await filterOptions(request, token);
-  return opts.satker.map((o) => o.value).sort();
+  // TRIMMED, because that is what a person (and `allTextContents()`) sees: SIMAN
+  // stores some satker names with a leading or trailing space (4 226 assets on
+  // staging, e.g. "KEJAKSAAN NEGERI BANGGAI "). The raw value is what the filter
+  // sends back and it still matches, but compared to rendered text it made a
+  // correct dropdown look wrong: the untrimmed name even SORTS differently, so
+  // the lists disagreed in place, not just in length. The fixture has no such
+  // names, so CI could never see it. No two raw names collapse to one when
+  // trimmed (554 distinct either way on staging), so nothing is lost by this.
+  return opts.satker.map((o) => o.value.trim()).sort();
 }
 
 /**
