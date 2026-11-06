@@ -236,12 +236,29 @@ global:
   # backend 2 replika + HPA, dan template pod postgres/redis/secreton berubah
   # (nodeSelector hilang) ⇒ ketiganya restart. Dump pra-upgrade wajib.
   #
-  # Yang BELUM terbukti sebelum rilis ini jalan: pemasangan NFS dan penulisan oleh
-  # uid 1000 di node kedua, penarikan image di node kedua untuk workload staging.
-  # Hasilnya dicatat di PR/catatan sesudah rilis; produksi menunggu bukti itu.
+  # TERBUKTI di staging rc34 (2026-11-06, dua node): replika tersebar satu per
+  # node; NFS terpasang di kedua node; uid 1000 menulis ke volume RWX (akarnya
+  # `drwxrwxrwx`, `fsGroup` memang tak diterapkan ke RWX); konsep SK diunduh 12×
+  # lewat ingress = 12×200 dengan checksum identik, dari dua pod di dua node;
+  # image ditarik di node kedua. Bukti itu harus diulang di produksi saat promosi.
   # dbsimpelv1 kosong sampai `provision-simpelv1-schema.sh --apply` dijalankan;
   # DATA v1 asli tidak pernah dimuat ke staging (data nyata hanya di produksi).
-  imageTag: v0.1.0-rc34
+  #
+  # rc35 = rc34 + dua perubahan (#1042, #1043):
+  #   #1042 pemuat daftar/detail di FE perlengkapan tak lagi membiarkan jawaban
+  #         HTTP yang LEBIH LAMA menimpa yang lebih baru (`LatestOnly`, 12 pemuat).
+  #         Terukur di rc34: 4 dari 12 percobaan filter kondisi Bank Aset berakhir
+  #         dengan dropdown "Rusak Ringan" tetapi tabel berisi aset Baik. Hanya FE;
+  #         tak ada perubahan skema/API. Penjaga CI baru + spec e2e ikut.
+  #   #1043 skrip operasional `provision-simpelv1-schema.sh` ikut memasang satu
+  #         baris konfigurasi sintetis (halaman login v1 500 tanpanya). Bukan
+  #         image dan bukan chart; efeknya hanya bila skrip dijalankan.
+  #
+  # Cara memilih antara rc34 dan rc35: rc35 untuk SEMUA yang ingin dipromosikan.
+  # rc34 sah sebagai pembanding (suite 196/197; satu merah = balapan di atas).
+  # Upgrade rc34 → rc35 hanya mengganti tag (tanpa PVC/skema baru); dump
+  # pra-upgrade tetap wajib. Hasil verifikasi rc35 dicatat sesudah rilis.
+  imageTag: v0.1.0-rc35
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
