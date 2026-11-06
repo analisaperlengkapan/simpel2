@@ -139,12 +139,13 @@ layananPerlengkapan:
   # pencabutan klaim. Ukuran 20Gi: belum ada angka pemakaian nyata; Longhorn
   # mendukung perluasan volume, jadi bisa dinaikkan tanpa membuat ulang.
   #
-  # SEBELUM PROMOSI — dua hal yang staging TIDAK bisa membuktikan (semua workload
-  # staging dipaku ke simple02): (1) node kedua harus punya `nfs-common`, bila tidak
-  # pod yang jatuh di sana macet di ContainerCreating (`mount.nfs not found`);
-  # (2) `fsGroup` tak diterapkan pada volume RWX (CSIDriver Longhorn memakai
-  # `ReadWriteOnceWithFSType`), jadi uji bahwa uid 1000 benar-benar bisa menulis
-  # dari KEDUA node sebelum menganggap dokumen aman.
+  # SEBELUM PROMOSI — dua hal yang harus terbukti di staging dan DICATAT di catatan
+  # rilis (staging tak lagi dipaku ke satu node, jadi keduanya bisa diuji di sana):
+  # (1) node kedua harus punya `nfs-common`, bila tidak pod yang jatuh di sana macet
+  # di ContainerCreating (`mount.nfs not found`); (2) `fsGroup` tak diterapkan pada
+  # volume RWX (CSIDriver Longhorn memakai `ReadWriteOnceWithFSType`), jadi uid 1000
+  # harus terbukti bisa menulis dari KEDUA node. Bila catatan rilis tak menyebut
+  # replika benar-benar jatuh di dua node, anggap belum terbukti.
   persistence:
     enabled: true
     size: 20Gi

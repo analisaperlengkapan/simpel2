@@ -233,9 +233,20 @@ global:
   # Production tak punya masalah ini: PVC lamanya `Lost` dan namespace-nya
   # dibangun dari nol di F6-A, jadi lahir langsung di `longhorn-retain`.
   storageClass: longhorn
-  # Schedule semua workload ke node 'simple02' karena master tidak punya unpigz.
-  nodeSelector:
-    kubernetes.io/hostname: simple02
+  # Staging TIDAK dipaku ke satu node (dulu: semua workload ke `simple02` karena
+  # "master tidak punya unpigz", warisan migrasi Kustomize→Helm). Dipaku berarti
+  # staging tak pernah menguji apa pun yang baru terjadi saat pod jatuh di node
+  # kedua: pemasangan volume RWX lewat NFS, jaringan Calico/Istio/NetworkPolicy
+  # lintas-node, penarikan image di node itu. Produksi tak dipaku (`nodeSelector:
+  # {}`) dan berjalan di dua node yang sama, jadi staging harus sama.
+  #
+  # Node kedua `simpel.kejaksaan.go.id` (control plane, 48 CPU / 64 GB, ±7%
+  # terpakai) sudah menarik image ghcr besar (simpel2-arc-runner, postgres-operator),
+  # jadi alasan unpigz tidak terbukti menghalangi. Buktinya baru ada pada rilis
+  # pertama sesudah baris ini dihapus: bila penarikan image gagal di node itu, pod
+  # macet ImagePullBackOff dan rollout tertahan — kembalikan `nodeSelector` di sini
+  # (lewat Helm) lalu selidiki. Efek samping yang diketahui: template pod berubah,
+  # jadi postgres/redis/secreton ikut di-restart pada upgrade pertama.
 
 namespace:
   # `create: false` — the namespace object predates this release lineage and stays
@@ -316,10 +327,12 @@ layananPerlengkapan:
   # satu replika, dan produksi (HPA 2–8, 3 replika) tak bisa memakainya. Staging kini
   # berjalan seperti produksi: minimal 2 replika dan RollingUpdate.
   #
-  # BATAS BUKTI: `global.nodeSelector` memaku SEMUA workload staging ke simple02
-  # (node kedua tak punya unpigz), jadi kedua replika selalu satu node. Staging
-  # membuktikan RWX per-replika (tulis di pod A, baca di pod B) tetapi TIDAK
-  # membuktikan pemasangan NFS di node kedua — itu belum teruji sampai produksi.
+  # BUKTI: staging tak lagi dipaku ke satu node (lihat `global` di atas) dan
+  # `podAntiAffinity: preferred` mendorong kedua replika ke node berbeda, jadi
+  # tulis-di-pod-A / baca-di-pod-B ikut melewati pemasangan NFS di node kedua.
+  # `preferred`, bukan `required`: dengan 2 node, `required` + surge RollingUpdate
+  # = pod ke-3 tak punya tempat dan rollout macet. Scheduler tidak MENJANJIKAN
+  # sebaran — periksa node tiap replika setelah deploy, jangan mengandaikan.
   hpa: { enabled: true, minReplicas: 2, maxReplicas: 3, cpuUtilization: 75, memoryUtilization: 80 }
   podAntiAffinity: { type: preferred }
   persistence:

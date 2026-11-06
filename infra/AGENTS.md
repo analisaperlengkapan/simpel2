@@ -40,7 +40,7 @@ Infrastruktur SIMPEL berfokus pada **Keamanan Tingkat Tinggi (Zero-Trust)** dan 
 
 ### 3. Pemisahan Lingkungan
 
-- **Staging** (`simpelv2-staging`): 1 replica, log `debug`, mTLS PERMISSIVE, image tag **semver immutable** (`v0.1.0`), semua pod di-pin ke node `simple02`.
+- **Staging** (`simpelv2-staging`): 1 replica, log `debug`, mTLS PERMISSIVE, image tag **semver immutable** (`v0.1.0`), **tidak di-pin ke satu node** (sama seperti produksi: dua node, scheduler bebas — sebelumnya dipaku ke `simple02`, sehingga hal yang hanya terjadi di node kedua tak pernah teruji sebelum produksi).
 - **Production** (`simpelv2-production`): 3 replica HA, log `info`, mTLS STRICT, ResourceQuota & LimitRange aktif, image tag **semver immutable** (`v0.1.0` / `vMAJOR.MINOR.PATCH`), scheduling fleksibel, HTTPS redirect on.
 
 #### Alur deploy WAJIB: staging → promote → production (DILARANG prod-only)
@@ -380,6 +380,10 @@ Helm; jangan `kubectl edit`.
   (`perlengkapan-documents-pvc`, `resource-policy: keep`) TIDAK ikut berganti —
   itu sebabnya klaim RWX bernama baru. Hapus klaim lama setelah volume baru
   terverifikasi (isinya hanya berkas uji staging).
+- **Bukti di staging**: replika didorong ke node berbeda (`podAntiAffinity: preferred`
+  — bukan `required`: dengan 2 node, surge RollingUpdate membuat pod ke-3 tak punya
+  tempat). Scheduler tak menjanjikan sebaran; catat node tiap replika di catatan
+  rilis, dan anggap RWX lintas-node belum terbukti bila keduanya jatuh di satu node.
 - **Ukuran**: staging 5Gi, produksi 20Gi (`longhorn-retain`). Belum ada angka
   pemakaian nyata; volume Longhorn dapat diperluas tanpa dibuat ulang.
 - PVC ikut Velero FS backup (bukan scratch).
