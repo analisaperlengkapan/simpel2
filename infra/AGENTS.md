@@ -408,9 +408,19 @@ infra/scripts/provision-simpelv1-schema.sh --self-test
   `SET transaction_timeout` (PG17-only; staging PG16), lalu **pagar** menolak hasil
   yang masih mengandung satu pun baris data. Pagar itu sudah terbukti perlu: daftar
   kolom dump produksi memuat `;` dan regex `COPY` pertama meleset.
-- Hanya untuk namespace `*staging*`; skrip menolak yang lain. Hasil: 259 tabel + 16
-  view, 0 baris. v1 lalu menampilkan halaman **kosong**, bukan error relasi hilang.
-  Data uji v1 tetap mock — skrip ini tidak mengisinya.
+- Hanya untuk namespace `*staging*`; skrip menolak yang lain. Hasil: 259 tabel (di tiga
+  skema: `public` 184, `siman` 59, `mon_sakti` 16) + 16 view, **0 baris data bisnis**.
+- **Skema saja tidak cukup untuk halaman login.** `ViewServiceProvider` membaca
+  `ms_setting_qr` baris `id = 1` di SETIAP tampilan; pada tabel kosong
+  `->logo_aplikasi` = `ErrorException` ⇒ login v1 menjawab 500 (ketemu 2026-11-06,
+  sesudah skemanya terpasang). Karena itu `--apply` menyertakan **satu baris
+  konfigurasi sintetis** (`mock_config_sql`, ditulis di skrip, bukan diambil dari
+  dump; idempoten; sequence dimajukan) dalam transaksi yang sama. Hasil terukur:
+  halaman login v1 tampil (logo, "SIMPEL KEJAKSAAN RI", form), bukan "Internal Server
+  Error".
+- **Batasnya:** tabel pengguna/peran/menu v1 tetap kosong, jadi _login v1 yang
+  sesungguhnya_ (SSO sampai dashboard v1) belum bisa diuji di staging. Itu butuh data
+  mock tambahan dan keputusan tersendiri — jangan diisi dari dump produksi.
 
 ### Allowlist API IAM (`istio.iamAllowlist`)
 

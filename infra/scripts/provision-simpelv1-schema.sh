@@ -24,6 +24,16 @@
 #   - `ALTER ... OWNER TO ...`            → role `postgres` tak ada di staging
 #   - `CREATE SCHEMA public` / `ALTER SCHEMA public ...` → sudah ada dari initdb
 #
+# Satu baris KONFIGURASI mock ikut diterapkan (bukan data bisnis)
+# ----------------------------------------------------------------
+# Skema saja belum cukup: `ViewServiceProvider` membaca `ms_setting_qr` baris
+# `id = 1` (nama dan logo aplikasi) di SETIAP tampilan, dan `->logo_aplikasi` pada
+# baris yang tak ada = ErrorException ⇒ halaman login v1 menjawab 500 "Internal Server
+# Error" (2026-11-06, ketemu setelah skemanya terpasang). Baris itu dibuat SINTETIS di
+# `mock_config_sql` — nilainya ditulis di skrip ini, bukan diambil dari dump produksi —
+# dan idempoten (ON CONFLICT DO NOTHING). Tabel pengguna/peran/menu v1 tetap kosong:
+# login v1 yang sesungguhnya butuh data mock tambahan, di luar cakupan skrip ini.
+#
 # Pemakaian
 # ---------
 #   infra/scripts/provision-simpelv1-schema.sh [DUMP.sql.gz]            # dry-run
@@ -77,6 +87,20 @@ assert_no_data() {
   fi
 }
 
+# Konfigurasi minimum v1 — SINTETIS, bukan salinan dari produksi. Idempoten.
+mock_config_sql() {
+  cat <<'SQL'
+-- MOCK konfigurasi minimum agar halaman login v1 bisa tampil di staging.
+INSERT INTO public.ms_setting_qr
+  (id, logo, warna, logo_aplikasi, logo_aplikasi_dark, logo_kecil, copyright, nama_aplikasi, created_by)
+VALUES
+  (1, '', '#1e3a8a', '', '', '', '© 2026 SIMPEL v1 — staging (data mock)', 'SIMPEL v1 (staging)', 'seed-mock')
+ON CONFLICT DO NOTHING;
+-- id eksplisit tidak memajukan sequence: tanpa ini insert berikutnya bentrok pada id 1.
+SELECT setval('public.ms_setting_qr_id_seq', (SELECT max(id) FROM public.ms_setting_qr)) \g /dev/null
+SQL
+}
+
 self_test() {
   local tmp out
   tmp=$(mktemp -d)
@@ -127,7 +151,19 @@ SQL
   if assert_no_data "$tmp/dirty.sql" 2>/dev/null; then
     echo "SELF-TEST GAGAL: pagar meloloskan data" >&2; return 1
   fi
-  echo "self-test OK (saringan membuang data, mempertahankan DDL, pagar menolak data)"
+  # 4. Konfigurasi mock: satu baris, bertanda mock, tanpa COPY, dan idempoten.
+  local mock
+  mock=$(mock_config_sql)
+  [ "$(printf '%s\n' "$mock" | grep -c '^INSERT INTO')" -eq 1 ] \
+    || { echo "SELF-TEST GAGAL: konfigurasi mock harus tepat satu INSERT" >&2; return 1; }
+  printf '%s\n' "$mock" | grep -q 'ON CONFLICT DO NOTHING' \
+    || { echo "SELF-TEST GAGAL: konfigurasi mock tak idempoten" >&2; return 1; }
+  printf '%s\n' "$mock" | grep -q 'seed-mock' \
+    || { echo "SELF-TEST GAGAL: konfigurasi mock tak bertanda mock" >&2; return 1; }
+  if printf '%s\n' "$mock" | grep -qE '^COPY |FROM stdin'; then
+    echo "SELF-TEST GAGAL: konfigurasi mock memuat COPY" >&2; return 1
+  fi
+  echo "self-test OK (saringan membuang data, mempertahankan DDL, pagar menolak data, konfigurasi mock sah)"
 }
 
 main() {
@@ -177,9 +213,12 @@ main() {
     return 1
   fi
 
-  kubectl -n "$NAMESPACE" exec -i "$POD" -- sh -c \
-    "psql -U \"\$POSTGRES_USER\" -d $DB -v ON_ERROR_STOP=1 --single-transaction -q" <"$out"
-  echo "diterapkan: $tables tabel di $NAMESPACE/$POD ($DB), tanpa data."
+  # Skema + satu baris konfigurasi mock, dalam SATU transaksi: kalau yang kedua gagal,
+  # tak ada skema setengah jadi yang tertinggal (dan penolakan "sudah berisi tabel" di
+  # atas tak menjebak percobaan ulang).
+  { cat "$out"; mock_config_sql; } | kubectl -n "$NAMESPACE" exec -i "$POD" -- sh -c \
+    "psql -U \"\$POSTGRES_USER\" -d $DB -v ON_ERROR_STOP=1 --single-transaction -q"
+  echo "diterapkan: $tables tabel + 1 baris konfigurasi mock di $NAMESPACE/$POD ($DB); tanpa data bisnis."
 }
 
 main "$@"
