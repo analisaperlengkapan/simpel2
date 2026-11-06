@@ -5,6 +5,7 @@ use leptos::task::spawn_local;
 use leptos_router::components::A;
 use leptos_router::hooks::use_params_map;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use lib_ui::hooks::LatestOnly;
 use lib_ui::utils::formatters::format_iso_local;
 use phosphor_leptos::ARROW_LEFT;
 
@@ -34,10 +35,16 @@ pub fn BankAsetDetailPage() -> impl IntoView {
     let (error, set_error) = signal::<Option<AppError>>(None);
     let (tab, set_tab) = signal(Tab::Ringkasan);
     let (reload_tick, set_reload_tick) = signal(0_u32);
+    // Pindah dari satu id ke id lain selagi permintaan pertama belum selesai tak boleh
+    // menampilkan record pertama di bawah URL yang kedua. Tiket diambil di AWAL efek,
+    // sebelum cabang id kosong, supaya cabang itu pun membatalkan jawaban yang tertunda.
+    // Lihat `lib_ui::hooks::use_latest`.
+    let latest = LatestOnly::new();
 
     Effect::new(move |_| {
         let _ = reload_tick.get();
         let id = id_signal.get();
+        let ticket = latest.ticket();
         if id.is_empty() {
             set_loading.set(false);
             set_error.set(Some(AppError::not_found("Id aset tidak diberikan.")));
@@ -46,7 +53,11 @@ pub fn BankAsetDetailPage() -> impl IntoView {
         set_loading.set(true);
         set_error.set(None);
         spawn_local(async move {
-            match bank_aset::fetch_detail(&id).await {
+            let result = bank_aset::fetch_detail(&id).await;
+            if !latest.is_current(ticket) {
+                return;
+            }
+            match result {
                 Ok(d) => {
                     set_detail.set(Some(d));
                 }

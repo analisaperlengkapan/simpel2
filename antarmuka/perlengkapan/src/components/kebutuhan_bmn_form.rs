@@ -13,7 +13,7 @@ use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::{use_navigate, use_params_map};
 use lib_ui::components::icon::AppIcon;
-use lib_ui::hooks::{use_form, use_toast::use_toast};
+use lib_ui::hooks::{LatestOnly, use_form, use_toast::use_toast};
 use phosphor_leptos::ARROW_LEFT;
 
 #[derive(Clone, PartialEq, Default)]
@@ -70,12 +70,21 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
     let navigate = use_navigate();
     let (loading, set_loading) = signal(false);
 
-    // Load existing data if editing
+    // Load existing data if editing. Pindah record (atau ke mode buat) selagi muatan
+    // sebelumnya jalan tak boleh mengisi form dengan record lama — pengguna lalu
+    // menyunting dan menyimpan record yang salah. Tiket diambil di awal, juga untuk
+    // cabang non-edit. Lihat `lib_ui::hooks::use_latest`.
+    let latest = LatestOnly::new();
     let _load_effect = Effect::new(move || {
+        let ticket = latest.ticket();
         if let FormMode::Edit(edit_id) = mode.get() {
             set_loading.set(true);
             spawn_local(async move {
-                match fetch_kebutuhan_bmn_detail(&edit_id).await {
+                let result = fetch_kebutuhan_bmn_detail(&edit_id).await;
+                if !latest.is_current(ticket) {
+                    return;
+                }
+                match result {
                     Ok(response) => {
                         let p = response.data.pengajuan;
                         let ids: Vec<String> = response

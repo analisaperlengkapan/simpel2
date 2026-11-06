@@ -5,6 +5,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use lib_ui::components::icon::AppIcon;
+use lib_ui::hooks::LatestOnly;
 use phosphor_leptos::{CARET_LEFT, CARET_RIGHT, MAGNIFYING_GLASS};
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlInputElement, HtmlSelectElement, SubmitEvent};
@@ -32,6 +33,9 @@ pub fn AdminAuditPage() -> impl IntoView {
     let (date_to, set_date_to) = signal::<String>(String::new());
     let (search, set_search) = signal::<String>(String::new());
     let (reload_tick, set_reload_tick) = signal(0_u32);
+    // Jawaban yang tiba paling akhir tak boleh menang atas yang ditanyakan paling
+    // akhir. Lihat `lib_ui::hooks::use_latest`.
+    let latest = LatestOnly::new();
 
     Effect::new(move |_| {
         let _ = reload_tick.get();
@@ -47,8 +51,13 @@ pub fn AdminAuditPage() -> impl IntoView {
         };
         set_loading.set(true);
         set_error.set(None);
+        let ticket = latest.ticket();
         spawn_local(async move {
-            match fetch_audit_logs(&filter).await {
+            let result = fetch_audit_logs(&filter).await;
+            if !latest.is_current(ticket) {
+                return;
+            }
+            match result {
                 Ok(resp) => {
                     set_entries.set(resp.data);
                     set_total.set(resp.total);

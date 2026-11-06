@@ -4,6 +4,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::components::A;
 use lib_ui::components::icon::AppIcon;
+use lib_ui::hooks::LatestOnly;
 use phosphor_leptos::{
     ARROW_COUNTER_CLOCKWISE, CARET_LEFT, CARET_RIGHT, EYE, MAGNIFYING_GLASS, PLUS,
 };
@@ -79,6 +80,10 @@ pub fn PemakaianBmnListPage() -> impl IntoView {
     let (loading, set_loading) = signal(true);
     let (error, set_error) = signal::<Option<AppError>>(None);
     let (reload_tick, set_reload_tick) = signal(0_u32);
+    // Jawaban yang tiba paling akhir TIDAK boleh menang atas yang ditanyakan paling
+    // akhir: ganti filter selagi permintaan sebelumnya masih jalan menampilkan daftar
+    // lama di bawah filter baru. Lihat `lib_ui::hooks::use_latest`.
+    let latest = LatestOnly::new();
 
     Effect::new(move |_| {
         let _ = reload_tick.get();
@@ -88,6 +93,7 @@ pub fn PemakaianBmnListPage() -> impl IntoView {
         let jenis_val = jenis.get();
         set_loading.set(true);
         set_error.set(None);
+        let ticket = latest.ticket();
 
         spawn_local(async move {
             let (status_filter, expiring_only) = match life {
@@ -98,7 +104,7 @@ pub fn PemakaianBmnListPage() -> impl IntoView {
             let search_opt = non_empty(&search_val);
             let jenis_opt = non_empty(&jenis_val);
 
-            match pemakaian_bmn::fetch_pemakaian_bmn_list(
+            let result = pemakaian_bmn::fetch_pemakaian_bmn_list(
                 pg,
                 PER_PAGE,
                 status_filter,
@@ -107,8 +113,11 @@ pub fn PemakaianBmnListPage() -> impl IntoView {
                 None,
                 search_opt,
             )
-            .await
-            {
+            .await;
+            if !latest.is_current(ticket) {
+                return;
+            }
+            match result {
                 Ok(resp) => {
                     let filtered = if expiring_only {
                         resp.data

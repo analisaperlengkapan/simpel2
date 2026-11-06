@@ -284,6 +284,47 @@ let debounced_search = Memo::new(move |_| {
 });
 ```
 
+### Jawaban basi tak boleh menimpa yang baru (`LatestOnly`) — WAJIB
+
+Pemuat yang berjalan ulang tiap filter/halaman/pencarian/id di URL berubah
+(`Effect::new` + `spawn_local`) membiarkan beberapa permintaan tumpang tindih, dan
+jawaban HTTP **tidak** tiba menurut urutan pertanyaannya: yang tiba **paling akhir**
+menang, bukan yang ditanyakan paling akhir.
+
+Terukur di staging (2026-11-06), daftar Bank Aset: pencarian `E2E-` di 624.533 baris
+memakan ±10 detik dan halaman mengirimnya **dua kali** (ketukan + "Terapkan"). Jawaban
+kedua tiba setelah jawaban filter "Rusak Ringan" lalu menimpanya — dropdown bertuliskan
+Rusak Ringan, tabel berisi lima aset *Baik* (4 dari 12 percobaan). Hijau di CI karena
+database kosong menjawab dalam milidetik.
+
+```rust
+use lib_ui::hooks::LatestOnly;
+
+let latest = LatestOnly::new();               // sekali per pemuat, di badan komponen
+Effect::new(move |_| {
+    let filter = baca_filter();               // pembacaan reaktif
+    let ticket = latest.ticket();             // SAAT permintaan dimulai — sebelum `return` dini
+    spawn_local(async move {
+        let hasil = fetch(&filter).await;
+        if !latest.is_current(ticket) {       // ada permintaan yang lebih baru
+            return;                           // jawabannya yang berlaku; jangan sentuh sinyal apa pun
+        }
+        terbitkan(hasil);                     // termasuk `set_loading.set(false)`
+    });
+});
+```
+
+- Ambil tiket di **awal** efek, sebelum cabang `return` dini (id kosong, mode bukan
+  edit): cabang itu pun harus membatalkan jawaban yang masih tertunda.
+- Yang tersisih kembali **sebelum** menyentuh sinyal apa pun, termasuk `loading`.
+- Efek **aksi** (penghitung `*_trigger` yang menjalankan mutasi) dikecualikan: permintaan
+  yang sudah tercatat di server harus tetap melaporkan hasilnya.
+- Ditegakkan `infra/scripts/check-fe-reactive-loaders-guarded.py` (CI): efek yang
+  membaca sinyal selain `reload_tick` lalu menerbitkan sesudah `.await` wajib memuat
+  `.is_current(`. Spesifikasi e2e `a slow answer to an older search cannot overwrite the
+  newer kondisi filter` menahan jawaban pencarian 3 detik agar urutan buruknya pasti terjadi
+  secepat apa pun server.
+
 ---
 
 ## 🧪 Testing Strategy (Frontend)

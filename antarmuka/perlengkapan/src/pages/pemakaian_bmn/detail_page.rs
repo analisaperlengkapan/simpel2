@@ -5,6 +5,7 @@ use leptos::task::spawn_local;
 use leptos_router::components::A;
 use leptos_router::hooks::use_params_map;
 use lib_ui::components::icon::AppIcon;
+use lib_ui::hooks::LatestOnly;
 use phosphor_leptos::{ARROW_LEFT, PROHIBIT, REPEAT, WARNING, X};
 use wasm_bindgen::JsCast;
 use web_sys::{Event, HtmlInputElement, HtmlTextAreaElement};
@@ -37,10 +38,16 @@ pub fn PemakaianBmnDetailPage() -> impl IntoView {
     let (renew_end, set_renew_end) = signal::<String>(String::new());
     let (renew_keperluan, set_renew_keperluan) = signal::<String>(String::new());
     let (submitting, set_submitting) = signal(false);
+    // Pindah dari satu id ke id lain selagi permintaan pertama belum selesai tak boleh
+    // menampilkan record pertama di bawah URL yang kedua. Tiket diambil di AWAL efek,
+    // sebelum cabang id kosong, supaya cabang itu pun membatalkan jawaban yang tertunda.
+    // Lihat `lib_ui::hooks::use_latest`.
+    let latest = LatestOnly::new();
 
     Effect::new(move |_| {
         let _ = reload_tick.get();
         let id = id_signal.get();
+        let ticket = latest.ticket();
         if id.is_empty() {
             set_loading.set(false);
             set_error.set(Some(AppError::not_found("Id izin tidak diberikan.")));
@@ -49,7 +56,11 @@ pub fn PemakaianBmnDetailPage() -> impl IntoView {
         set_loading.set(true);
         set_error.set(None);
         spawn_local(async move {
-            match pemakaian_bmn::fetch_pemakaian_bmn_detail(&id).await {
+            let result = pemakaian_bmn::fetch_pemakaian_bmn_detail(&id).await;
+            if !latest.is_current(ticket) {
+                return;
+            }
+            match result {
                 Ok(resp) => set_detail.set(Some(resp.data)),
                 Err(e) => set_error.set(Some(e)),
             }

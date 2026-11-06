@@ -24,6 +24,7 @@ use crate::components::reference_picker::{AsetPicker, PegawaiPicker, merk_tipe};
 use leptos_router::hooks::use_navigate;
 use lib_perlengkapan::jenis_bmn::{jenis_bmn_dari_jenis_aset, label_jenis_bmn};
 use lib_ui::components::icon::AppIcon;
+use lib_ui::hooks::LatestOnly;
 use phosphor_leptos::{CHECK_CIRCLE, PAPER_PLANE_TILT, PLUS, SPINNER, WARNING_CIRCLE, X};
 
 /// Satu BMN dalam permohonan.
@@ -226,8 +227,9 @@ fn KartuBmn(
     //
     // `urutan` membuang jawaban basi: tiga ketukan tanggal berturut-turut
     // melahirkan tiga pertanyaan, dan jawaban yang tiba paling akhir belum
-    // tentu milik pertanyaan yang paling baru.
-    let urutan = StoredValue::new(0u64);
+    // tentu milik pertanyaan yang paling baru. Penjaga yang sama dipakai semua
+    // pemuat reaktif (`lib_ui::hooks::use_latest`).
+    let urutan = LatestOnly::new();
     Effect::new(move |_| {
         let (nup, kode_barang, mulai_baris, selesai_baris) = isi.with(|it| {
             (
@@ -253,8 +255,7 @@ fn KartuBmn(
             (None, None)
         };
 
-        urutan.set_value(urutan.get_value() + 1);
-        let saya = urutan.get_value();
+        let saya = urutan.ticket();
         ketersediaan.set(None);
         galat.set(None);
         memeriksa.set(true);
@@ -262,7 +263,7 @@ fn KartuBmn(
             let hasil =
                 check_bmn_availability(&nup, &kode_barang, mulai.as_deref(), selesai.as_deref())
                     .await;
-            if urutan.get_value() != saya {
+            if !urutan.is_current(saya) {
                 return; // pertanyaan yang lebih baru sudah diajukan
             }
             match hasil {

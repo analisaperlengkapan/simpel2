@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use lib_ui::components::icon::AppIcon;
+use lib_ui::hooks::LatestOnly;
 use phosphor_leptos::{ARROW_CLOCKWISE, CHECK_CIRCLE, CLOCK_COUNTER_CLOCKWISE};
 use serde::{Deserialize, Serialize};
 
@@ -297,14 +298,22 @@ pub fn WorkflowMonitoring() -> impl IntoView {
     let (error, set_error) = signal::<Option<AppError>>(None);
     let (reload_tick, set_reload_tick) = signal(0_u32);
 
+    // Refresh otomatis tiap 30 dtk dan tombol manual bisa tumpang tindih: jawaban
+    // yang lebih tua tak boleh menimpa yang lebih baru. Lihat `lib_ui::hooks::use_latest`.
+    let latest = LatestOnly::new();
+
     // Fetch both resources when tick changes.
     Effect::new(move |_| {
         let _ = reload_tick.get();
         set_loading.set(true);
         set_error.set(None);
+        let ticket = latest.ticket();
         spawn_local(async move {
             let metrics_result = fetch_workflow_metrics().await;
             let workflows_result = fetch_active_workflows().await;
+            if !latest.is_current(ticket) {
+                return;
+            }
             match (metrics_result, workflows_result) {
                 (Ok(m), Ok(w)) => {
                     set_metrics.set(Some(m));
