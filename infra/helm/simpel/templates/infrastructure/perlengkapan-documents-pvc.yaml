@@ -7,8 +7,9 @@
   dikirim ke validator. OPT-IN (`layananPerlengkapan.persistence.enabled`,
   default false) agar rilis ini tidak menambah PVC/rollout tanpa disengaja.
 
-  RWO cukup selama `replicas: 1`. Untuk replicas > 1 pakai StorageClass RWX
-  atau pindahkan ke object storage — jangan naikkan replicas di atas RWO.
+  RWX (default). RWO hanya cocok bila backend dikunci ke SATU replika dan
+  strategi `Recreate`; dengan HPA ia membuat replika kedua Pending. Longhorn
+  menyajikan RWX lewat NFS, jadi tiap node butuh `nfs-common`.
 */ -}}
 {{- $p := .Values.layananPerlengkapan.persistence -}}
 {{- if and .Values.layananPerlengkapan.enabled $p $p.enabled }}

@@ -132,6 +132,22 @@ layananPerlengkapan:
     cpuUtilization: 70
   pdb: { enabled: true, minAvailable: 2 }
   podAntiAffinity: { type: preferred }
+  # Dokumen resmi (konsep SK, SK tertandatangan, lampiran). Tanpa volume bersama,
+  # dengan 2–8 replika hampir tiap unduhan jatuh ke replika yang tak punya
+  # berkasnya (500), dan tiap deploy menghapus semuanya. RWX + `longhorn-retain`
+  # (global.storageClass produksi), jadi berkas bertahan dari pod, deploy, dan
+  # pencabutan klaim. Ukuran 20Gi: belum ada angka pemakaian nyata; Longhorn
+  # mendukung perluasan volume, jadi bisa dinaikkan tanpa membuat ulang.
+  #
+  # SEBELUM PROMOSI — dua hal yang staging TIDAK bisa membuktikan (semua workload
+  # staging dipaku ke simple02): (1) node kedua harus punya `nfs-common`, bila tidak
+  # pod yang jatuh di sana macet di ContainerCreating (`mount.nfs not found`);
+  # (2) `fsGroup` tak diterapkan pada volume RWX (CSIDriver Longhorn memakai
+  # `ReadWriteOnceWithFSType`), jadi uji bahwa uid 1000 benar-benar bisa menulis
+  # dari KEDUA node sebelum menganggap dokumen aman.
+  persistence:
+    enabled: true
+    size: 20Gi
 simpelv1:
   enabled: true
   replicas: 3

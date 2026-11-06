@@ -723,6 +723,13 @@ jobs:
               < "rendered/${f}.yaml" \
               | python3 ./infra/scripts/check-velero-volume-excludes.py "$f"
           done
+      # Penyaring skema v1 memutuskan apa yang BOLEH masuk ke staging dari dump
+      # produksi (data nyata). Pagar "hasil saringan tak boleh berisi data" sudah
+      # sekali menangkap kasus nyata (kolom ber-`;`); self-test ini mengunci
+      # kasus itu, juga arah "pagar harus MENOLAK data".
+      - name: Penyaring skema v1 membuang data dan pagarnya menolak data
+        if: steps.filter.outputs.helm == 'true'
+        run: bash ./infra/scripts/provision-simpelv1-schema.sh --self-test
       # `imagePullPolicy: Never` + tag yang bisa bergerak = pod yang TAK BISA
       # dipulihkan: kubelet tak pernah menarik, dan tak ada catatan isi mana
       # yang seharusnya jalan. Begitu image-nya hilang dari disk node, pod itu

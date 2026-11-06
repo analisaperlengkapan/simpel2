@@ -363,12 +363,50 @@ Helm; jangan `kubectl edit`.
 
 - **Masalah**: tanpa `DOCUMENT_STORAGE_PATH`, dokumen unggahan (konsep SK, surat,
   lampiran) ditulis ke `/tmp/perlengkapan/docs` — emptyDir yang **hilang saat pod
-  restart**, sementara tautannya sudah tersimpan di database.
+  diganti dan tak terlihat oleh replika lain**, sementara tautannya sudah tersimpan
+  di database. Dengan >1 replika, unduhan menjawab 500 `No such file or directory`
+  pada replika yang tak menulisnya (terukur di staging rc32).
 - **Nyalakan**: `layananPerlengkapan.persistence.enabled: true`. Membuat PVC
-  `perlengkapan-documents-pvc` (`helm.sh/resource-policy: keep`, kelas dari
+  `perlengkapan-documents` (`helm.sh/resource-policy: keep`, kelas dari
   `global.storageClass`), me-mount-nya, dan mengarahkan `DOCUMENT_STORAGE_PATH`.
-- **Batas**: `ReadWriteOnce` ⇒ tetap `replicas: 1`. Untuk `replicas > 1` butuh kelas
-  RWX atau object storage. PVC ikut Velero FS backup (bukan scratch).
+  Staging **dan** produksi menyalakannya.
+- **Mode akses = `ReadWriteMany`** (default chart). RWO hanya bisa dipasang pada satu
+  node: dengan HPA replika kedua Pending dan `RollingUpdate` terjebak
+  "Multi-Attach error"; menguncinya ke 1 replika + `Recreate` hanya menyembunyikan
+  masalah dan membuat tiap deploy **downtime**. Longhorn menyajikan RWX lewat
+  share-manager (NFS) ⇒ **setiap node wajib punya `nfs-common`**. Bila pod Pending
+  di `ContainerCreating` dengan event `mount.nfs ... not found`, itulah sebabnya.
+- **`accessModes` PVC tak dapat diubah** setelah dibuat. Klaim RWO lama
+  (`perlengkapan-documents-pvc`, `resource-policy: keep`) TIDAK ikut berganti —
+  itu sebabnya klaim RWX bernama baru. Hapus klaim lama setelah volume baru
+  terverifikasi (isinya hanya berkas uji staging).
+- **Ukuran**: staging 5Gi, produksi 20Gi (`longhorn-retain`). Belum ada angka
+  pemakaian nyata; volume Longhorn dapat diperluas tanpa dibuat ulang.
+- PVC ikut Velero FS backup (bukan scratch).
+
+### Skema database SIMPel v1 di staging (`provision-simpelv1-schema.sh`)
+
+`dbsimpelv1` di staging dibuat **kosong** (0 tabel) dan v1 tak punya migrasi di repo;
+satu-satunya sumber skemanya adalah dump produksi
+`monolith/simpelv1/database/dbsimpelv1.sql.gz` (gitignored, ±5,1 juta baris **data
+nyata**). Staging memakai data MOCK ⇒ dump itu **tidak boleh dimuat apa adanya**.
+
+```bash
+# dry-run (aman): saring jadi DDL saja, tulis ke berkas sementara, cetak ringkasan
+infra/scripts/provision-simpelv1-schema.sh /path/ke/dbsimpelv1.sql.gz
+# terapkan (satu transaksi; menolak bila dbsimpelv1 sudah berisi tabel)
+infra/scripts/provision-simpelv1-schema.sh /path/ke/dbsimpelv1.sql.gz --apply
+# uji saringan tanpa cluster/dump
+infra/scripts/provision-simpelv1-schema.sh --self-test
+```
+
+- Saringan membuang blok `COPY`, `INSERT`, `setval`, `\restrict`, `OWNER TO`, dan
+  `SET transaction_timeout` (PG17-only; staging PG16), lalu **pagar** menolak hasil
+  yang masih mengandung satu pun baris data. Pagar itu sudah terbukti perlu: daftar
+  kolom dump produksi memuat `;` dan regex `COPY` pertama meleset.
+- Hanya untuk namespace `*staging*`; skrip menolak yang lain. Hasil: 259 tabel + 16
+  view, 0 baris. v1 lalu menampilkan halaman **kosong**, bukan error relasi hilang.
+  Data uji v1 tetap mock — skrip ini tidak mengisinya.
 
 ### Allowlist API IAM (`istio.iamAllowlist`)
 
