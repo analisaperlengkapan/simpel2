@@ -418,8 +418,8 @@ infra/scripts/provision-simpelv1-schema.sh --self-test
   dump; idempoten; sequence dimajukan) dalam transaksi yang sama. Hasil terukur:
   halaman login v1 tampil (logo, "SIMPEL KEJAKSAAN RI", form), bukan "Internal Server
   Error".
-- **Batasnya:** tabel pengguna/peran/menu v1 tetap kosong, jadi *login v1 yang
-  sesungguhnya* (SSO sampai dashboard v1) belum bisa diuji di staging. Itu butuh data
+- **Batasnya:** tabel pengguna/peran/menu v1 tetap kosong, jadi _login v1 yang
+  sesungguhnya_ (SSO sampai dashboard v1) belum bisa diuji di staging. Itu butuh data
   mock tambahan dan keputusan tersendiri — jangan diisi dari dump produksi.
 
 ### Allowlist API IAM (`istio.iamAllowlist`)
