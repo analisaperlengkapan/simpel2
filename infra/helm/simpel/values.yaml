@@ -690,17 +690,26 @@ layananPerlengkapan:
   pdb: { enabled: false, minAvailable: 0 }
   terminationGracePeriodSeconds: 30
   tmpVolumeSizeLimit: 128Mi
-  # Dokumen unggahan (konsep SK/surat/lampiran). OFF = perilaku sekarang: tulis
-  # ke /tmp/perlengkapan/docs (emptyDir → hilang saat pod restart). ON = PVC
-  # `claimName` di-mount di `mountPath` dan DOCUMENT_STORAGE_PATH diarahkan ke
-  # sana. RWO ⇒ tetap replicas: 1. Nyalakan di staging dulu.
+  # Dokumen unggahan (konsep SK/surat/lampiran). OFF = tulis ke
+  # /tmp/perlengkapan/docs (emptyDir): HILANG saat pod diganti, dan tak terlihat
+  # oleh replika lain — dengan lebih dari satu replika, sebagian besar unduhan
+  # menjawab 500 "No such file", sementara database mencatatnya "sudah dibuat".
+  # ON = PVC `claimName` di-mount di `mountPath` dan DOCUMENT_STORAGE_PATH
+  # diarahkan ke sana.
+  #
+  # RWX (`ReadWriteMany`), bukan RWO, karena backend berjalan >1 replika di
+  # produksi (HPA 2–8) dan staging. RWO hanya bisa dipasang pada SATU node: replika
+  # kedua Pending, dan RollingUpdate terjebak "Multi-Attach error". Longhorn
+  # menyajikan RWX lewat share-manager (NFS), jadi SETIAP node butuh klien NFS
+  # (`nfs-common`). `accessModes` sebuah PVC tak bisa diubah setelah dibuat, itulah
+  # sebabnya namanya `perlengkapan-documents` dan bukan nama klaim RWO yang lama.
   persistence:
     enabled: false
-    claimName: perlengkapan-documents-pvc
+    claimName: perlengkapan-documents
     mountPath: /var/lib/perlengkapan/docs
     envName: DOCUMENT_STORAGE_PATH
     size: 5Gi
-    accessModes: [ReadWriteOnce]
+    accessModes: [ReadWriteMany]
 
 simpelv1:
   enabled: true

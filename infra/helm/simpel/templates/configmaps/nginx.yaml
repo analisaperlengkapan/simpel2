@@ -61,10 +61,14 @@ data:
             root /usr/share/nginx/html;
             index index.html;
 
+            # HSTS: perlengkapan has sent it since rc31; the portal, which is the page
+            # people log in on, did not. Browsers ignore it over plain HTTP (staging), so it
+            # costs nothing there and binds the moment the site is served over HTTPS.
             add_header X-Frame-Options "SAMEORIGIN" always;
             add_header X-Content-Type-Options "nosniff" always;
             add_header X-XSS-Protection "0" always;
             add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+            add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
             add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
             add_header Content-Security-Policy $simpel_csp always;
 
@@ -80,6 +84,7 @@ data:
                 add_header X-Content-Type-Options "nosniff" always;
                 add_header X-XSS-Protection "0" always;
                 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+                add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
                 add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
                 add_header Content-Security-Policy $simpel_csp always;
             }
@@ -91,6 +96,7 @@ data:
                 add_header X-Content-Type-Options "nosniff" always;
                 add_header X-XSS-Protection "0" always;
                 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+                add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
                 add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
                 add_header Content-Security-Policy $simpel_csp always;
             }
