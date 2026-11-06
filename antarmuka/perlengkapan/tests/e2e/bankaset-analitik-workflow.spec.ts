@@ -549,6 +549,35 @@ test.describe("Notifikasi — inbox read lifecycle", () => {
   });
 });
 
+// The inbox showed ONE page of 50 and stopped: a user with more notifications than
+// that could never reach the older ones (the fixture row of "operator_b" sank below the
+// first page on staging for exactly this reason). approver_satker has 55, newest
+// first, so the 55th is reachable only through "Muat lebih banyak".
+test.describe("Notifikasi — the inbox pages past the first page", () => {
+  test.use({ storageState: storageStatePath("approver_satker") });
+
+  test("older notifications are reachable with 'Muat lebih banyak'", async ({ page }) => {
+    await page.goto(`${BASE}/notifikasi`);
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
+
+    // A full first page, and the oldest fixture row is NOT on it.
+    await expect(page.getByTestId("notifikasi-jumlah")).toHaveText("Menampilkan 50 notifikasi", {
+      timeout: 20000,
+    });
+    await expect(page.getByText("E2E Paginasi 55", { exact: true })).toHaveCount(0);
+
+    const more = page.getByTestId("notifikasi-muat-lebih");
+    await expect(more, "a full page must offer the next one").toBeVisible();
+    await more.click();
+
+    // The next page is APPENDED: the oldest row appears and the count grows past 50.
+    await expect(page.getByText("E2E Paginasi 55", { exact: true })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId("notifikasi-jumlah")).not.toHaveText("Menampilkan 50 notifikasi");
+    // ...and what was already there is still there, once.
+    await expect(page.getByText("E2E Paginasi 01", { exact: true })).toHaveCount(1);
+  });
+});
+
 test.describe("Notifikasi — operator_b sees only its own row", () => {
   test.use({ storageState: storageStatePath("operator_b") });
 

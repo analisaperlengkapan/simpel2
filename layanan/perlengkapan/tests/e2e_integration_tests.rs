@@ -35,4 +35,5 @@ mod integration {
     mod satker_wilayah_test;
     mod siman_dead_columns_test;
     mod sql_relations_exist_test;
+    mod workflow_status_vocabulary_test;
 }

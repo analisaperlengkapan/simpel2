@@ -47,6 +47,15 @@ pub enum PenghapusanBmnStatus {
     KonsepSKWilayahGenerated = 4010,
     /// V029 (Fase 1.9): SK signed by Kepala Kejati dan PDF uploaded.
     SKSignedWilayah = 4011,
+    /// Usulan dibatalkan oleh operator (soft delete). BUKAN bagian dari alur:
+    /// tak ada transisi masuk atau keluar; `delete` menuliskannya langsung.
+    ///
+    /// Dulu pembatalan hanya mengubah teks `status` menjadi `CANCELLED` dan
+    /// membiarkan `status_kode` di angka terakhirnya, biasanya 4000. Akibatnya
+    /// usulan batal ikut terhitung "Draft" di statistik dasbor, dan halaman
+    /// daftar menampilkan kata mentah `CANCELLED` karena tak ada state bernama itu
+    /// untuk dicari labelnya.
+    Cancelled = 4009,
 }
 
 impl PenghapusanBmnStatus {
@@ -63,6 +72,7 @@ impl PenghapusanBmnStatus {
             4008 => Some(Self::Rejected),
             4010 => Some(Self::KonsepSKWilayahGenerated),
             4011 => Some(Self::SKSignedWilayah),
+            4009 => Some(Self::Cancelled),
             _ => None,
         }
     }
@@ -84,6 +94,7 @@ impl PenghapusanBmnStatus {
             Self::Rejected => "Ditolak",
             Self::KonsepSKWilayahGenerated => "Konsep SK Digenerate (Wilayah)",
             Self::SKSignedWilayah => "SK Ditandatangani (Wilayah)",
+            Self::Cancelled => "Dibatalkan",
         }
     }
 
@@ -109,6 +120,8 @@ impl PenghapusanBmnStatus {
             Self::Rejected => "Tolak Usulan",
             Self::KonsepSKWilayahGenerated => "Generate Konsep SK (Wilayah)",
             Self::SKSignedWilayah => "Unggah SK Tertandatangan (Wilayah)",
+            // Tak ada tombol "pindah ke Dibatalkan": pembatalan adalah `delete`.
+            Self::Cancelled => "Batalkan Usulan",
         }
     }
 
@@ -134,8 +147,9 @@ impl PenghapusanBmnStatus {
             }
             // generate_konsep_sk_wilayah / upload_signed_sk_wilayah
             Self::KonsepSKWilayahGenerated | Self::SKSignedWilayah => &["validator_wilayah"],
-            // No endpoint moves a usulan back to Draft.
-            Self::Draft => &[],
+            // No endpoint moves a usulan back to Draft, and cancelling is `delete`,
+            // which is scoped by satker, not by a transition role.
+            Self::Draft | Self::Cancelled => &[],
         }
     }
 
@@ -147,7 +161,7 @@ impl PenghapusanBmnStatus {
     /// jauh usulan itu berjalan.
     pub fn tone(&self) -> StatusTone {
         match self {
-            Self::Draft => StatusTone::Neutral,
+            Self::Draft | Self::Cancelled => StatusTone::Neutral,
             Self::SubmitWilayah | Self::SubmitPusat | Self::VerifikasiPusat => StatusTone::Info,
             // Konsep SK sudah ada tapi belum ditandatangani — masih menunggu
             // tindakan, jadi belum boleh terlihat seperti selesai.
@@ -186,6 +200,7 @@ impl PenghapusanBmnStatus {
             }
             Self::Completed => "Usulan selesai. Penghapusan BMN telah tercatat.",
             Self::Rejected => "Usulan ditolak. Periksa catatan validator untuk alasan penolakan.",
+            Self::Cancelled => "Usulan dibatalkan dan tidak diproses lebih lanjut.",
         }
     }
 
@@ -217,6 +232,7 @@ impl PenghapusanBmnStatus {
             Self::Rejected => "REJECTED",
             Self::KonsepSKWilayahGenerated => "KONSEP_SK_WILAYAH_GENERATED",
             Self::SKSignedWilayah => "SK_SIGNED_WILAYAH",
+            Self::Cancelled => "CANCELLED",
         }
     }
 
@@ -233,6 +249,7 @@ impl PenghapusanBmnStatus {
             "REJECTED" => Some(Self::Rejected),
             "KONSEP_SK_WILAYAH_GENERATED" => Some(Self::KonsepSKWilayahGenerated),
             "SK_SIGNED_WILAYAH" => Some(Self::SKSignedWilayah),
+            "CANCELLED" => Some(Self::Cancelled),
             _ => None,
         }
     }
@@ -261,7 +278,8 @@ impl PenghapusanBmnStatus {
             // V029: jalur WILAYAH.
             KonsepSKWilayahGenerated => matches!(target, SKSignedWilayah),
             SKSignedWilayah => matches!(target, Completed),
-            Completed | Rejected => false,
+            // Terminal. Cancelling is a soft delete, not a move on this graph.
+            Completed | Rejected | Cancelled => false,
         }
     }
 
@@ -277,7 +295,7 @@ impl PenghapusanBmnStatus {
             SKSigned => vec![Completed],
             KonsepSKWilayahGenerated => vec![SKSignedWilayah],
             SKSignedWilayah => vec![Completed],
-            Completed | Rejected => vec![],
+            Completed | Rejected | Cancelled => vec![],
         }
     }
 

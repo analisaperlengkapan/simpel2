@@ -410,12 +410,18 @@ impl PenghapusanBmnRepository {
     pub async fn delete(&self, id: Uuid, scope: &SatkerScope) -> AppResult<()> {
         let client = self.pool.get().await?;
 
-        let mut params: Vec<BoxedParam> = vec![Box::new(id)];
+        // `status_kode` moves with `status`: left at 4000 it kept counting a
+        // cancelled usulan as a Draft. It is bound right after the id so its
+        // placeholder is a fixed `$2`; the scope's own parameters follow.
+        let mut params: Vec<BoxedParam> = vec![
+            Box::new(id),
+            Box::new(PenghapusanBmnStatus::Cancelled.to_code()),
+        ];
         let scope_sql = scope_and(scope, &mut params);
         let query = format!(
             r#"
             UPDATE perlengkapan.penghapusan_bmn
-            SET status = 'CANCELLED', updated_at = NOW()
+            SET status = 'CANCELLED', status_kode = $2, updated_at = NOW()
             WHERE id = $1{scope_sql}
         "#
         );
