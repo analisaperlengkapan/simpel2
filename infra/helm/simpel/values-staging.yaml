@@ -214,12 +214,34 @@ global:
   #         HPA backend dimatikan dan strategi Recreate — lihat blok
   #         `layananPerlengkapan` di bawah. Produksi BELUM disentuh.
   #
-  # Yang DIKETAHUI dan BELUM diperbaiki (ada sebelum rilis ini, ditemukan saat
-  # menguji rc32): dbsimpelv1 kosong (0 tabel), jadi SIMPEL v1 tak melayani halaman
-  # apa pun di staging. Inbox notifikasi hanya menampilkan 50 terbaru tanpa halaman
-  # berikutnya. Label status `DRAFT`/`CANCELLED` masih mentah di dashboard dan
-  # daftar penghapusan.
-  imageTag: v0.1.0-rc33
+  # rc34 = rc33 + empat perubahan (#1037, #1038, #1040; #1039 hanya CI):
+  #   #1037 `status_kode` ditulis sejak lahir (permohonan pemakaian) dan saat
+  #         dibatalkan (penghapusan, kode baru 4009); lima kode tanpa baris di
+  #         master status kini punya baris (V016) ⇒ dashboard dan daftar tak lagi
+  #         mencetak `DRAFT`/`CANCELLED`/"Kode 4010" mentah. Inbox notifikasi
+  #         punya "Muat lebih banyak" (dulu berhenti di 50). Pelanggaran kebijakan
+  #         sandi di `PUT /auth/password` dijawab 400, bukan 500.
+  #   #1038 dokumen di volume RWX bersama (rc33 mengunci backend ke 1 replika +
+  #         Recreate; itu menyembunyikan 500 dan tak bisa dipakai produksi), HSTS
+  #         di portal, `provision-simpelv1-schema.sh` (skema v1 tanpa data), dan
+  #         staging TIDAK LAGI dipaku ke `simple02` (lihat komentar di bawah).
+  #   #1040 simpelv1: symfony 7.4.22 → 7.4.23 (tujuh advisori terbit 2026-11-04).
+  #
+  # Cara memilih antara rc33 dan rc34: rc34 untuk SEMUA yang ingin dipromosikan.
+  # rc33 hanya benar bila volume RWX bermasalah di staging (lalu kembali ke blok
+  # RWO di riwayat git). rc31 dan rc32 tetap TIDAK BOLEH dipromosikan.
+  #
+  # Upgrade rc33 → rc34 menyentuh lebih dari kode: PVC dokumen BARU
+  # (`perlengkapan-documents`, RWX; klaim RWO lama tetap sampai RWX terbukti),
+  # backend 2 replika + HPA, dan template pod postgres/redis/secreton berubah
+  # (nodeSelector hilang) ⇒ ketiganya restart. Dump pra-upgrade wajib.
+  #
+  # Yang BELUM terbukti sebelum rilis ini jalan: pemasangan NFS dan penulisan oleh
+  # uid 1000 di node kedua, penarikan image di node kedua untuk workload staging.
+  # Hasilnya dicatat di PR/catatan sesudah rilis; produksi menunggu bukti itu.
+  # dbsimpelv1 kosong sampai `provision-simpelv1-schema.sh --apply` dijalankan;
+  # DATA v1 asli tidak pernah dimuat ke staging (data nyata hanya di produksi).
+  imageTag: v0.1.0-rc34
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
