@@ -176,6 +176,29 @@ mereset fase ke `Pending`). Jadi bump versi runner sekaligus obat kaskadenya:
 helm upgrade arc-simpel -n arc-runners <chart> -f infra/helm/arc/values-runner-set.yaml
 ```
 
+> ⚠️ **Langkah (3) buntu bila CI sedang mati** (terjadi 2026-11-05, 2.336.0).
+> Ruleset `main` mewajibkan `CI Summary` + `Security Summary`, keduanya `runs-on:
+> arc-simpel`, dan tak punya bypass actor. Selama runner mati, **tak ada PR yang bisa
+> merge — termasuk PR yang memperbaikinya**, jadi "merge dulu, CI mendorong image"
+> tak mungkin. Jalur keluar, berurutan dari yang dianjurkan:
+>
+> 1. Tautkan paket `simpel2-arc-runner` ke repo (UI saja: Package settings → Manage
+>    Actions access → Add repository, role **Write**; `gh api
+>    /user/packages/container/simpel2-arc-runner --jq .repository` harus tak `null`).
+>    Tanpa tautan itu push dari `GITHUB_TOKEN` ditolak (`permission_denied:
+>    write_package`) — celah ini belum tertutup sejak 2026-08-18. Lalu jalankan
+>    `gh workflow run arc-runner-image.yml --ref <branch-perbaikan>`: langkah push
+>    berlaku untuk setiap event selain `pull_request`, jadi `workflow_dispatch` dari
+>    branch pun mendorong image (bangun di GitHub-hosted, jejak commit utuh).
+> 2. Build dan push dengan tangan (token `gh` butuh scope `write:packages`):
+>    `DOCKER_CONFIG=<dir kosong> docker login ghcr.io` lalu build + push tag baru
+>    dengan label OCI `source`/`revision`. Pakai direktori `DOCKER_CONFIG` sementara
+>    agar entri ghcr di `~/.docker/config.json` tak tertimpa.
+> 3. Pelonggaran ruleset sementara — keputusan pemilik repo, bukan agen.
+>
+> Setelah image ada: `helm upgrade` (langkah 4) **tidak menunggu merge** — ubah spec
+> ARS dari checkout branch perbaikan, CI hidup lagi, baru PR-nya merge seperti biasa.
+
 Langkah (3) berjalan di runner GitHub-hosted, **bukan** `arc-simpel` — kalau
 tidak, image yang dibutuhkan untuk memperbaiki runner yang mati hanya bisa
 dibangun oleh runner yang mati itu. Workflow-nya juga menolak PR yang mengubah
