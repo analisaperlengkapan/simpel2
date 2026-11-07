@@ -4,8 +4,7 @@ use uuid::Uuid;
 
 use super::*;
 
-// ============ Bulk action =====}
-
+// ============ Bulk action ============
 
 /// What came of approving several satker at once. A partial result is a normal
 /// answer (200): some rows may be at the wrong stage or outside the caller's
@@ -27,7 +26,8 @@ pub struct BulkActionBerhasil {
 pub struct BulkActionGagal {
     pub pengajuan_satker_id: Uuid,
     pub alasan: String,
-=======
+}
+
 // ============ Waiting count ============
 
 /// How much pakaian dinas work is waiting on the caller, for the dashboard.

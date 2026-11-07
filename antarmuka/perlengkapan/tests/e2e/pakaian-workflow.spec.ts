@@ -832,9 +832,7 @@ test.describe("Pakaian Dinas — a returned satker tells its operator why", () =
 async function kampanyeDuaSatker(
   request: APIRequestContext,
 ): Promise<{ pengajuanId: string; rows: string[] }> {
-  // A window around today: whatever the calendar says when this runs.
-  const tanggal = (selisih: number) =>
-    new Date(Date.now() + selisih * 86_400_000).toISOString().slice(0, 10);
+  // A window around today (Jakarta's calendar, see `hari`): whatever it says when this runs.
   const pusat = await tokenFor(request, "validator_pusat");
   const jenis = await fetchRows<{ id: string; nama: string }>(
     request, `${PD_API}/jenis?page=1&per_page=100`, pusat, "jenis list");
@@ -846,7 +844,7 @@ async function kampanyeDuaSatker(
     headers: { Authorization: `Bearer ${pusat}` },
     data: {
       nama: `E2E massal ${Date.now()}`, tahun: 2026,
-      tgl_mulai: tanggal(-60), tgl_selesai: tanggal(300),
+      tgl_mulai: hari(-60), tgl_selesai: hari(300),
       is_reguler: true, pilihan_satker: "sebagian",
       jenis_pakaian_dinas_id: pdh!.id, spesifikasi_ids: [spesifikasi[0].id],
       satker_ids: ["0200010", "0200020"],
