@@ -652,6 +652,69 @@ impl PakaianDinasService {
             .await
     }
 
+    /// Approve several satker in one request.
+    ///
+    /// Each id goes through [`Self::process_validator_action`] exactly as a
+    /// single approval does: the scoped read, the role-and-status gate, the
+    /// transition with its activity row, the audit event. Nothing about
+    /// "bulk" loosens any of it, so a row outside the caller's scope or at the
+    /// wrong stage is refused on its own and the rest still go through.
+    pub async fn process_validator_action_bulk(
+        &self,
+        request: BulkValidatorActionRequest,
+        user_nip: &str,
+        user_nama: &str,
+        user_roles: &[String],
+        scope: &SatkerScope,
+    ) -> AppResult<BulkActionResult> {
+        if request.aksi != "approve" {
+            return Err(bad_request(
+                "Aksi massal hanya untuk menyetujui; pengembalian diisi satu per satu karena butuh catatan sendiri",
+            ));
+        }
+        let mut seen = std::collections::HashSet::new();
+        let ids: Vec<Uuid> = request
+            .pengajuan_satker_ids
+            .into_iter()
+            .filter(|id| seen.insert(*id))
+            .collect();
+        if ids.is_empty() {
+            return Err(bad_request("Pilih minimal satu satker"));
+        }
+        if ids.len() > BULK_ACTION_MAX {
+            return Err(bad_request(&format!(
+                "Terlalu banyak satker dalam satu permintaan (maksimal {BULK_ACTION_MAX})"
+            )));
+        }
+
+        let mut result = BulkActionResult {
+            berhasil: Vec::new(),
+            gagal: Vec::new(),
+        };
+        for id in ids {
+            let one = ValidatorActionRequest {
+                pengajuan_satker_id: id,
+                aksi: request.aksi.clone(),
+                komentar: request.komentar.clone(),
+            };
+            match self
+                .process_validator_action(one, user_nip, user_nama, user_roles, scope)
+                .await
+            {
+                Ok(item) => result.berhasil.push(BulkActionBerhasil {
+                    pengajuan_satker_id: id,
+                    satker_id: item.satker_id,
+                    aktivitas_id: item.aktivitas_id,
+                }),
+                Err(e) => result.gagal.push(BulkActionGagal {
+                    pengajuan_satker_id: id,
+                    alasan: alasan_untuk_pengguna(&e),
+                }),
+            }
+        }
+        Ok(result)
+    }
+
     // ============ MySIMKARI Integration ============
 
     pub async fn get_pegawai_by_satker(
@@ -939,6 +1002,24 @@ impl PakaianDinasService {
 }
 
 // ============ Unit Tests ============
+
+/// Most satker one bulk request may carry. A national campaign has a few hundred;
+/// the cap keeps one request from holding a connection for minutes.
+const BULK_ACTION_MAX: usize = 300;
+
+/// The reason a single row was refused, in words the person can act on. Errors
+/// that carry a message of their own pass it on; the rest (a database fault)
+/// are not for the reader.
+fn alasan_untuk_pengguna(e: &AppError) -> String {
+    match e {
+        AppError::BadRequest(m)
+        | AppError::NotFound(m)
+        | AppError::Conflict(m)
+        | AppError::Authorization(m)
+        | AppError::WorkflowError(m) => m.clone(),
+        _ => "Terjadi kesalahan di server saat memproses satker ini".to_string(),
+    }
+}
 
 #[cfg(test)]
 mod tests {

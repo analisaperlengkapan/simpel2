@@ -236,6 +236,10 @@ pub fn create_routes(state: AppState) -> Router {
             "/pakaian-dinas/validator-action",
             post(pakaian_dinas::process_validator_action),
         )
+        .route(
+            "/pakaian-dinas/validator-action/bulk",
+            post(pakaian_dinas::process_validator_action_bulk),
+        )
         // Personal Uniform Sizes
         .route(
             "/pakaian-dinas/ukuran-pakaian-pegawai",
