@@ -834,6 +834,10 @@ test.describe("Pakaian Dinas — a refused campaign delete says why", () => {
     const nama = (await detail.json()).data.nama as string;
 
     page.on("dialog", (d) => d.accept());
+    // A short window, so the card's button is a scroll away from the banner above
+    // the list — the case on any long list. The reason must be where the operator is
+    // looking, not only somewhere on the page.
+    await page.setViewportSize({ width: 1280, height: 300 });
     await page.goto(`${BASE}/pakaian-dinas/pengajuan`, { waitUntil: "domcontentloaded" });
     const card = page.locator("div.rounded-2xl", { has: page.locator("h3", { hasText: nama }) });
     await expect(card).toBeVisible({ timeout: 20000 });
@@ -841,6 +845,7 @@ test.describe("Pakaian Dinas — a refused campaign delete says why", () => {
 
     const banner = page.getByTestId("action-error");
     await expect(banner).toBeVisible({ timeout: 15000 });
+    await expect(banner, "on screen, not above it").toBeInViewport({ ratio: 1 });
     await expect(banner).toContainText("tidak dapat dihapus");
     await expect(banner, "names the cause").toContainText("sudah mengajukan");
 
@@ -864,6 +869,7 @@ test.describe("Pakaian Dinas — a refused jenis delete says why", () => {
     await kampanyeBaru(request);
 
     page.on("dialog", (d) => d.accept());
+    await page.setViewportSize({ width: 1280, height: 300 });
     await page.goto(`${BASE}/pakaian-dinas/jenis`, { waitUntil: "domcontentloaded" });
     const row = page.locator("tr", { has: page.getByText("PDH", { exact: true }) });
     await expect(row).toBeVisible({ timeout: 20000 });
@@ -871,6 +877,7 @@ test.describe("Pakaian Dinas — a refused jenis delete says why", () => {
 
     const banner = page.getByTestId("action-error");
     await expect(banner).toBeVisible({ timeout: 15000 });
+    await expect(banner, "on screen, not above it").toBeInViewport({ ratio: 1 });
     await expect(banner, "the reason, not the database's wording").toContainText(
       "masih dipakai oleh pengajuan",
     );
