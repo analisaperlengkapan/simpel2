@@ -17,6 +17,7 @@
  *     1004 → 1008, each asserted against backend state,
  *   - the validator-action endpoint is role-gated.
  */
+import { readFileSync } from "node:fs";
 import { test, expect, type APIRequestContext } from "@playwright/test";
 import { tokenFor, storageStatePath, PERLENGKAPAN_API_URL } from "./helpers/real-auth";
 import { reachable } from "./helpers/page-load";
@@ -971,17 +972,49 @@ test.describe("Pakaian Dinas — a closed campaign tells the operator why", () =
 });
 
 type Kontrol = { jenisTambah: number; kegiatanBuat: number; kegiatanUbah: number };
-const KONTROL_PER_PERAN: [Role | "admin", Kontrol][] = [
-  ["operator_a", { jenisTambah: 0, kegiatanBuat: 0, kegiatanUbah: 0 }],
-  ["validator_wilayah", { jenisTambah: 0, kegiatanBuat: 0, kegiatanUbah: 0 }],
-  ["validator_pusat", { jenisTambah: 0, kegiatanBuat: 1, kegiatanUbah: 1 }],
-  ["admin", { jenisTambah: 1, kegiatanBuat: 0, kegiatanUbah: 0 }],
+
+/**
+ * The realm roles the session of `peran` really carries, read from the access
+ * token its login stored. The screen offers a control for a ROLE, not for a
+ * fixture name, and the "admin" session is not the same person everywhere: in CI
+ * it is the base seed user, who holds every role (admin, validator_pusat, …),
+ * while the staging fixture `…005` holds `admin` alone. Hard-coding what "admin"
+ * sees made the spec right in one place and red in the other.
+ */
+function rolesOfSession(peran: string): string[] {
+  const state = JSON.parse(readFileSync(storageStatePath(peran), "utf8")) as {
+    origins: { localStorage: { name: string; value: string }[] }[];
+  };
+  for (const origin of state.origins) {
+    const token = origin.localStorage.find((item) => item.name === "auth_token")?.value;
+    if (!token) continue;
+    const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8")) as {
+      realm_access?: { roles?: string[] };
+    };
+    return payload.realm_access?.roles ?? [];
+  }
+  throw new Error(`no stored access token for "${peran}" in ${storageStatePath(peran)}`);
+}
+
+/** Roles that hold exactly one of the two powers keep a fixed expectation; "admin" is derived from its token. */
+function kontrolDari(peran: string): Kontrol {
+  const roles = rolesOfSession(peran);
+  const pusat = roles.includes("validator_pusat") ? 1 : 0;
+  return { jenisTambah: roles.includes("admin") ? 1 : 0, kegiatanBuat: pusat, kegiatanUbah: pusat };
+}
+
+const KONTROL_PER_PERAN: [Role | "admin", () => Kontrol][] = [
+  ["operator_a", () => ({ jenisTambah: 0, kegiatanBuat: 0, kegiatanUbah: 0 })],
+  ["validator_wilayah", () => ({ jenisTambah: 0, kegiatanBuat: 0, kegiatanUbah: 0 })],
+  ["validator_pusat", () => ({ jenisTambah: 0, kegiatanBuat: 1, kegiatanUbah: 1 })],
+  ["admin", () => kontrolDari("admin")],
 ];
-for (const [peran, harap] of KONTROL_PER_PERAN) {
+for (const [peran, kontrol] of KONTROL_PER_PERAN) {
   test.describe(`Pakaian Dinas — ${peran} sees only its own controls`, () => {
     test.use({ storageState: storageStatePath(peran) });
 
     test("the master and campaign pages offer what the role may do", async ({ page }) => {
+      const harap = kontrol();
       await page.goto(`${BASE}/pakaian-dinas/jenis`, { waitUntil: "domcontentloaded" });
       await expect(page.getByRole("table")).toBeVisible({ timeout: 20000 });
       await expect(page.getByRole("button", { name: "Tambah Jenis", exact: true })).toHaveCount(
