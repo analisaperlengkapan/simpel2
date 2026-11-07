@@ -732,9 +732,9 @@ test.describe("Pakaian Dinas — pusat returns a satker to wilayah, wilayah answ
       waitUntil: "domcontentloaded",
     });
     await page.getByRole("button", { name: "Lihat Riwayat & Aksi" }).first().click({ timeout: 20000 });
-    await expect(page.getByRole("button", { name: "Teruskan ke Pusat" })).toBeVisible({
-      timeout: 20000,
-    });
+    await expect(
+      page.getByRole("button", { name: "Teruskan ke Pusat", exact: true }),
+    ).toBeVisible({ timeout: 20000 });
     await expect(page.getByRole("button", { name: "Kembalikan untuk Revisi" })).toBeVisible();
     await expect(page.getByText("mode pantau")).toHaveCount(0);
 
@@ -754,11 +754,11 @@ test.describe("Pakaian Dinas — pusat returns a satker to wilayah, wilayah answ
     // offering the moves the row has just left — it used to keep its copy of the
     // row from when it was opened, so "Teruskan ke Pusat" stayed on a satker that
     // was already at Pusat.
-    await page.getByRole("button", { name: "Teruskan ke Pusat" }).click();
+    await page.getByRole("button", { name: "Teruskan ke Pusat", exact: true }).click();
     await page.getByRole("button", { name: "Kirim", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Teruskan ke Pusat" })).toHaveCount(0, {
-      timeout: 20000,
-    });
+    await expect(
+      page.getByRole("button", { name: "Teruskan ke Pusat", exact: true }),
+    ).toHaveCount(0, { timeout: 20000 });
     await expect(page.getByRole("button", { name: "Kembalikan untuk Revisi" })).toHaveCount(0);
     await expect(page.getByText("mode pantau")).toBeVisible();
     await expect
