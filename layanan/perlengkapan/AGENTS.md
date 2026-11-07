@@ -74,7 +74,10 @@ layanan/perlengkapan/
     │                       #   cache, events, error, health, pagination, …
     ├── analisis/           # CRUD analisis_kebutuhan (eks catch-all)
     ├── export/             # generic xlsx export jobs (eks catch-all)
-    ├── audit/              # audit-log query surface
+    ├── audit/              # pembaca TUNGGAL perlengkapan.audit_log: GET /audit +
+    │                       #   GET /audit/facets (nilai modul/entitas/aksi yang ADA).
+    │                       #   /admin/audit dihapus: ia membaca workflow_transitions,
+    │                       #   yang tak pernah ditulis kode mana pun
     │
     ├── bank_aset/          # BMN catalog
     ├── kebutuhan_bmn/      # needs assessment + SIMAN integration

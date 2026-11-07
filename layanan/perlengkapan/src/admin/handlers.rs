@@ -15,9 +15,7 @@ use crate::shared::error::{AppError, AppResult};
 use crate::shared::middleware::Claims;
 use lib_perlengkapan::response::{ApiResponse, PaginatedResponse};
 
-use super::models::{
-    AuditFilter, AuditLogEntry, MasterListQuery, MasterRecord, MasterSource, MasterUpsertRequest,
-};
+use super::models::{MasterListQuery, MasterRecord, MasterSource, MasterUpsertRequest};
 use super::repository;
 
 /// Master-data administration: `Capability::Administer` (ADMIN_ROLES).
@@ -28,32 +26,6 @@ use super::repository;
 /// administering the reference data every workflow validates against.
 fn require_admin(claims: &Claims) -> AppResult<()> {
     claims.require_capability(lib_core::authz::Capability::Administer)
-}
-
-/// Workflow audit trail: `Capability::ViewAudit`.
-fn require_audit_viewer(claims: &Claims) -> AppResult<()> {
-    claims.require_capability(lib_core::authz::Capability::ViewAudit)
-}
-
-/// GET /admin/audit
-pub async fn list_audit_logs(
-    State(pool): State<Pool>,
-    claims: Claims,
-    Query(filter): Query<AuditFilter>,
-) -> AppResult<Json<PaginatedResponse<AuditLogEntry>>> {
-    require_audit_viewer(&claims)?;
-    let page = filter.page.unwrap_or(1).max(1);
-    let per_page = filter.per_page.unwrap_or(25).clamp(1, 200);
-
-    let (entries, total) = repository::list_audit_logs(&pool, &filter).await?;
-
-    Ok(Json(PaginatedResponse::new(
-        entries,
-        total,
-        page,
-        per_page,
-        "Audit log retrieved successfully".to_string(),
-    )))
 }
 
 /// GET /admin/master

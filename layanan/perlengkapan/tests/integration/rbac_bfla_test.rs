@@ -427,8 +427,6 @@ async fn admin_surfaces_are_not_open_to_validator_pusat() {
         assert_eq!(r.status_code(), 403, "{role} master list: {:?}", r.text());
         let r = call(&server, "GET", "/admin/templates", role, PUSAT, None).await;
         assert_eq!(r.status_code(), 403, "{role} templates: {:?}", r.text());
-        let r = call(&server, "GET", "/admin/audit", role, PUSAT, None).await;
-        assert_eq!(r.status_code(), 403, "{role} admin audit: {:?}", r.text());
     }
     let r = call(&server, "GET", "/admin/master", "admin", ADMIN, None).await;
     assert_eq!(r.status_code(), 200, "admin master list: {:?}", r.text());

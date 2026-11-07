@@ -1,16 +1,25 @@
-//! Admin audit log viewer — paginated activity log with user / entity /
-//! action / date-range filters. Consumes `GET /admin/audit` which lands in
-//! plan commit 19.
+//! Admin audit log viewer — the paginated cross-module trail
+//! (`perlengkapan.audit_log`, via `GET /audit`) with user / module / entity /
+//! action / date-range filters.
+//!
+//! The module, entity and action dropdowns are filled from `GET /audit/facets`,
+//! i.e. from what the trail actually contains. They used to be hand-written and
+//! described a system that was never audited (`bank_aset`, `login`, ...) while
+//! omitting what was (`tiket`, `pengajuan_satker`), and the page itself read two
+//! workflow tables nothing writes, so it was empty everywhere.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use lib_ui::components::icon::AppIcon;
 use lib_ui::hooks::LatestOnly;
+use lib_ui::utils::formatters::format_iso_local;
 use phosphor_leptos::{CARET_LEFT, CARET_RIGHT, MAGNIFYING_GLASS};
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlInputElement, HtmlSelectElement, SubmitEvent};
 
-use crate::api::admin::{AuditFilter, AuditLogEntry, fetch_audit_logs};
+use crate::api::admin::{
+    AuditFacets, AuditFilter, AuditTrailEntry, fetch_audit_facets, fetch_audit_logs,
+};
 use crate::api::error::AppError;
 use crate::components::layout::{
     EmptyState, ErrorState, LoadingState, PageBreadcrumb, PageLayout, SectionCard,
@@ -20,14 +29,15 @@ const PER_PAGE: i32 = 25;
 
 #[component]
 pub fn AdminAuditPage() -> impl IntoView {
-    let (entries, set_entries) = signal::<Vec<AuditLogEntry>>(Vec::new());
+    let (entries, set_entries) = signal::<Vec<AuditTrailEntry>>(Vec::new());
     let (total, set_total) = signal(0_i64);
     let (page, set_page) = signal(1_i32);
     let (loading, set_loading) = signal(true);
     let (error, set_error) = signal::<Option<AppError>>(None);
 
     let (actor, set_actor) = signal::<String>(String::new());
-    let (entity_type, set_entity_type) = signal::<String>(String::new());
+    let (module, set_module) = signal::<String>(String::new());
+    let (entity, set_entity) = signal::<String>(String::new());
     let (action, set_action) = signal::<String>(String::new());
     let (date_from, set_date_from) = signal::<String>(String::new());
     let (date_to, set_date_to) = signal::<String>(String::new());
@@ -37,13 +47,24 @@ pub fn AdminAuditPage() -> impl IntoView {
     // akhir. Lihat `lib_ui::hooks::use_latest`.
     let latest = LatestOnly::new();
 
+    // What the trail actually contains, for the dropdowns. One answer per visit,
+    // so there is no later question for an earlier one to overwrite.
+    let (facets, set_facets) = signal(AuditFacets::default());
+    spawn_local(async move {
+        match fetch_audit_facets().await {
+            Ok(f) => set_facets.set(f),
+            Err(e) => leptos::logging::warn!("audit facets unavailable: {e:?}"),
+        }
+    });
+
     Effect::new(move |_| {
         let _ = reload_tick.get();
         let filter = AuditFilter {
             page: page.get(),
             per_page: PER_PAGE,
             actor: Some(actor.get()).filter(|s| !s.trim().is_empty()),
-            entity_type: Some(entity_type.get()).filter(|s| !s.trim().is_empty()),
+            module: Some(module.get()).filter(|s| !s.trim().is_empty()),
+            entity: Some(entity.get()).filter(|s| !s.trim().is_empty()),
             action: Some(action.get()).filter(|s| !s.trim().is_empty()),
             date_from: Some(date_from.get()).filter(|s| !s.trim().is_empty()),
             date_to: Some(date_to.get()).filter(|s| !s.trim().is_empty()),
@@ -76,7 +97,8 @@ pub fn AdminAuditPage() -> impl IntoView {
 
     let clear_filters = move |_| {
         set_actor.set(String::new());
-        set_entity_type.set(String::new());
+        set_module.set(String::new());
+        set_entity.set(String::new());
         set_action.set(String::new());
         set_date_from.set(String::new());
         set_date_to.set(String::new());
@@ -103,7 +125,7 @@ pub fn AdminAuditPage() -> impl IntoView {
     view! {
         <PageLayout
             title="Audit Log"
-            description="Jejak audit seluruh aktivitas sistem: siapa, apa, kapan, dan entitas yang terdampak."
+            description="Jejak audit lintas modul: siapa, apa, kapan, dan rekaman yang terdampak."
             icon="fas fa-history"
             breadcrumbs=breadcrumbs
         >
@@ -114,114 +136,30 @@ pub fn AdminAuditPage() -> impl IntoView {
                             <span class="font-semibold text-slate-300">"Pengguna"</span>
                             <input
                                 type="text"
-                                placeholder="nama atau NIP"
+                                placeholder="nama pengguna atau ID pengguna"
                                 prop:value=move || actor.get()
                                 on:input=move |e| set_actor.set(event_target_value(&e))
                                 class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white placeholder:text-slate-500"
                             />
                         </label>
-                        <label class="flex flex-col gap-1 text-xs">
-                            <span class="font-semibold text-slate-300">"Jenis Entitas"</span>
-                            <select
-                                on:change=move |e| {
-                                    let v = e
-                                        .target()
-                                        .and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
-                                    if let Some(sel) = v {
-                                        set_entity_type.set(sel.value());
-                                    }
-                                }
-                                class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white"
-                            >
-                                <option value="" selected=move || entity_type.get().is_empty()>
-                                    "Semua"
-                                </option>
-                                <option
-                                    value="kebutuhan_bmn"
-                                    selected=move || entity_type.get() == "kebutuhan_bmn"
-                                >
-                                    "Kebutuhan BMN"
-                                </option>
-                                <option
-                                    value="pakaian_dinas"
-                                    selected=move || entity_type.get() == "pakaian_dinas"
-                                >
-                                    "Pakaian Dinas"
-                                </option>
-                                <option
-                                    value="pemakaian_bmn"
-                                    selected=move || entity_type.get() == "pemakaian_bmn"
-                                >
-                                    "Pemakaian BMN"
-                                </option>
-                                <option
-                                    value="penghapusan_bmn"
-                                    selected=move || entity_type.get() == "penghapusan_bmn"
-                                >
-                                    "Penghapusan BMN"
-                                </option>
-                                <option
-                                    value="bank_aset"
-                                    selected=move || entity_type.get() == "bank_aset"
-                                >
-                                    "Bank Aset"
-                                </option>
-                                <option
-                                    value="workflow"
-                                    selected=move || entity_type.get() == "workflow"
-                                >
-                                    "Workflow"
-                                </option>
-                                <option
-                                    value="master_data"
-                                    selected=move || entity_type.get() == "master_data"
-                                >
-                                    "Master Data"
-                                </option>
-                                <option value="user" selected=move || entity_type.get() == "user">
-                                    "Pengguna"
-                                </option>
-                            </select>
-                        </label>
-                        <label class="flex flex-col gap-1 text-xs">
-                            <span class="font-semibold text-slate-300">"Aksi"</span>
-                            <select
-                                on:change=move |e| {
-                                    let v = e
-                                        .target()
-                                        .and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
-                                    if let Some(sel) = v {
-                                        set_action.set(sel.value());
-                                    }
-                                }
-                                class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white"
-                            >
-                                <option value="" selected=move || action.get().is_empty()>
-                                    "Semua"
-                                </option>
-                                <option value="create" selected=move || action.get() == "create">
-                                    "Create"
-                                </option>
-                                <option value="update" selected=move || action.get() == "update">
-                                    "Update"
-                                </option>
-                                <option value="delete" selected=move || action.get() == "delete">
-                                    "Delete"
-                                </option>
-                                <option value="approve" selected=move || action.get() == "approve">
-                                    "Approve"
-                                </option>
-                                <option value="reject" selected=move || action.get() == "reject">
-                                    "Reject"
-                                </option>
-                                <option value="login" selected=move || action.get() == "login">
-                                    "Login"
-                                </option>
-                                <option value="logout" selected=move || action.get() == "logout">
-                                    "Logout"
-                                </option>
-                            </select>
-                        </label>
+                        <FacetSelect
+                            label="Modul"
+                            value=module
+                            set_value=set_module
+                            options=Signal::derive(move || facets.with(|f| f.modules.clone()))
+                        />
+                        <FacetSelect
+                            label="Jenis Entitas"
+                            value=entity
+                            set_value=set_entity
+                            options=Signal::derive(move || facets.with(|f| f.entities.clone()))
+                        />
+                        <FacetSelect
+                            label="Aksi"
+                            value=action
+                            set_value=set_action
+                            options=Signal::derive(move || facets.with(|f| f.actions.clone()))
+                        />
                         <label class="flex flex-col gap-1 text-xs">
                             <span class="font-semibold text-slate-300">"Dari tanggal"</span>
                             <input
@@ -258,7 +196,7 @@ pub fn AdminAuditPage() -> impl IntoView {
                             <span class="font-semibold text-slate-300">"Pencarian bebas"</span>
                             <input
                                 type="search"
-                                placeholder="id entitas, ringkasan..."
+                                placeholder="ringkasan, nama aksi, pengguna..."
                                 prop:value=move || search.get()
                                 on:input=move |e| set_search.set(event_target_value(&e))
                                 class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white placeholder:text-slate-500"
@@ -288,7 +226,10 @@ pub fn AdminAuditPage() -> impl IntoView {
 
             <SectionCard title="Aktivitas" icon="fas fa-scroll">
                 <div class="mb-3 text-xs text-slate-400">
-                    "Menampilkan " <strong class="text-white">{move || total.get()}</strong>
+                    "Menampilkan "
+                    <strong class="text-white" data-testid="audit-total">
+                        {move || total.get()}
+                    </strong>
                     " entri."
                 </div>
                 {move || {
@@ -326,31 +267,87 @@ pub fn AdminAuditPage() -> impl IntoView {
     }
 }
 
+/// A filter dropdown whose options are the values the trail really holds
+/// (`GET /audit/facets`), so choosing one can never match nothing.
 #[component]
-fn AuditTable(rows: ReadSignal<Vec<AuditLogEntry>>) -> impl IntoView {
+fn FacetSelect(
+    label: &'static str,
+    value: ReadSignal<String>,
+    set_value: WriteSignal<String>,
+    options: Signal<Vec<String>>,
+) -> impl IntoView {
+    view! {
+        <label class="flex flex-col gap-1 text-xs">
+            <span class="font-semibold text-slate-300">{label}</span>
+            // A <select> inside its <label> is named after the label's whole text,
+            // option texts included ("Modul Semua bantuan ..."), which is what a
+            // screen reader announces and what `getByLabel("Modul")` fails to match.
+            // Name it explicitly.
+            <select
+                aria-label=label
+                on:change=move |e| {
+                    let v = e.target().and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
+                    if let Some(sel) = v {
+                        set_value.set(sel.value());
+                    }
+                }
+                class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white"
+            >
+                <option value="" selected=move || value.get().is_empty()>
+                    "Semua"
+                </option>
+                {move || {
+                    options
+                        .get()
+                        .into_iter()
+                        .map(|opt| {
+                            // The macro moves a child before it reads the attributes, so
+                            // each use gets its own copy.
+                            let current = opt.clone();
+                            let text = opt.clone();
+                            view! {
+                                <option value=opt selected=move || value.get() == current>
+                                    {text}
+                                </option>
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                }}
+            </select>
+        </label>
+    }
+}
+
+/// Badge colour per action verb (the verbs `lib_perlengkapan::audit::AuditAction`
+/// can write). Anything else — `custom`, `export`, ... — stays neutral.
+fn action_class(verb: &str) -> &'static str {
+    match verb {
+        "create" | "approve" | "submit" => {
+            "border-success-500/30 bg-success-500/10 text-success-400"
+        }
+        "update" | "import" => "border-info-500/30 bg-info-500/10 text-info-300",
+        "delete" => "border-danger-500/30 bg-danger-500/10 text-danger-400",
+        "reject" | "cancel" => "border-warning-500/30 bg-warning-500/10 text-warning-400",
+        _ => "border-white/[0.08] bg-white/[0.04] text-slate-300",
+    }
+}
+
+const TH: &str = "border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400";
+
+#[component]
+fn AuditTable(rows: ReadSignal<Vec<AuditTrailEntry>>) -> impl IntoView {
     view! {
         <div class="overflow-x-auto rounded-xl border border-white/[0.06]">
             <table class="min-w-full border-collapse">
                 <thead>
                     <tr class="bg-white/[0.02]">
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
-                            "Waktu"
-                        </th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
-                            "Pengguna"
-                        </th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
-                            "Aksi"
-                        </th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
-                            "Entitas"
-                        </th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
-                            "Ringkasan"
-                        </th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
-                            "IP"
-                        </th>
+                        <th class=TH>"Waktu"</th>
+                        <th class=TH>"Pengguna"</th>
+                        <th class=TH>"Aksi"</th>
+                        <th class=TH>"Entitas"</th>
+                        <th class=TH>"Hasil"</th>
+                        <th class=TH>"Ringkasan"</th>
+                        <th class=TH>"IP"</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -358,65 +355,87 @@ fn AuditTable(rows: ReadSignal<Vec<AuditLogEntry>>) -> impl IntoView {
                         rows.get()
                             .into_iter()
                             .map(|entry| {
+                                // The name the writer recorded, else the user id: never blank.
                                 let actor_label = entry
                                     .actor_name
                                     .clone()
+                                    .filter(|n| !n.trim().is_empty())
+                                    .or_else(|| entry.actor_id.clone())
                                     .unwrap_or_else(|| "—".to_string());
-                                let role = entry.actor_role.clone().unwrap_or_default();
-                                let action_class = match entry.action.as_str() {
-                                    "create" => {
-                                        "border-success-500/30 bg-success-500/10 text-success-400"
-                                    }
-                                    "update" => "border-info-500/30 bg-info-500/10 text-info-300",
-                                    "delete" => {
-                                        "border-danger-500/30 bg-danger-500/10 text-danger-400"
-                                    }
-                                    "approve" => {
-                                        "border-success-500/30 bg-success-500/10 text-success-400"
-                                    }
-                                    "reject" => {
-                                        "border-warning-500/30 bg-warning-500/10 text-warning-400"
-                                    }
-                                    _ => "border-white/[0.08] bg-white/[0.04] text-slate-300",
-                                };
-                                let entity_id = entry.entity_id.clone().unwrap_or_default();
-                                let summary = entry.summary.clone().unwrap_or_default();
+                                let verb_class = action_class(&entry.action);
+                                let action_name = entry.action_name.clone().unwrap_or_default();
+                                let resource_id = entry.resource_id.clone().unwrap_or_default();
+                                let resource_id_attr = resource_id.clone();
+                                let message = entry.message.clone().unwrap_or_default();
                                 let ip = entry
-                                    .ip_address
+                                    .actor_ip
                                     .clone()
+                                    .filter(|i| !i.trim().is_empty())
                                     .unwrap_or_else(|| "—".to_string());
+                                let (result_label, result_class) = if entry.success {
+                                    (
+                                        "Berhasil",
+                                        "border-success-500/30 bg-success-500/10 text-success-400",
+                                    )
+                                } else {
+                                    (
+                                        "Gagal",
+                                        "border-danger-500/30 bg-danger-500/10 text-danger-400",
+                                    )
+                                };
                                 view! {
-                                    <tr class="border-b border-white/[0.04] align-top text-xs">
-                                        <td class="px-3 py-2 whitespace-nowrap text-slate-400">
-                                            {entry.occurred_at.clone()}
+                                    <tr
+                                        class="border-b border-white/[0.04] align-top text-xs"
+                                        data-testid="audit-row"
+                                        data-module=entry.module.clone()
+                                        data-entity=entry.resource_type.clone()
+                                        data-action=entry.action.clone()
+                                        data-resource-id=resource_id_attr
+                                    >
+                                        <td
+                                            class="px-3 py-2 whitespace-nowrap text-slate-400"
+                                            title=entry.occurred_at.clone()
+                                        >
+                                            {format_iso_local(&entry.occurred_at)}
+                                        </td>
+                                        <td class="px-3 py-2 font-semibold text-white break-all">
+                                            {actor_label}
                                         </td>
                                         <td class="px-3 py-2">
-                                            <div class="font-semibold text-white">{actor_label}</div>
-                                            {(!role.is_empty())
+                                            <span class=format!(
+                                                "inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[0.7rem] font-semibold {verb_class}",
+                                            )>{entry.action.clone()}</span>
+                                            {(!action_name.is_empty())
                                                 .then(|| {
                                                     view! {
-                                                        <div class="text-[0.65rem] text-slate-500">{role}</div>
+                                                        <div class="mt-1 text-[0.65rem] text-slate-500">
+                                                            {action_name}
+                                                        </div>
+                                                    }
+                                                })}
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <div class="font-medium text-slate-200">
+                                                {entry.resource_type.clone()}
+                                            </div>
+                                            <div class="text-[0.65rem] text-slate-500">
+                                                {entry.module.clone()}
+                                            </div>
+                                            {(!resource_id.is_empty())
+                                                .then(|| {
+                                                    view! {
+                                                        <div class="text-[0.65rem] text-slate-500 break-all">
+                                                            {resource_id}
+                                                        </div>
                                                     }
                                                 })}
                                         </td>
                                         <td class="px-3 py-2">
                                             <span class=format!(
-                                                "inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[0.7rem] font-semibold {}",
-                                                action_class,
-                                            )>{entry.action.clone()}</span>
+                                                "inline-flex items-center rounded-lg border px-2 py-0.5 text-[0.7rem] font-semibold {result_class}",
+                                            )>{result_label}</span>
                                         </td>
-                                        <td class="px-3 py-2">
-                                            <div class="font-medium text-slate-200">
-                                                {entry.entity_type.clone()}
-                                            </div>
-                                            {(!entity_id.is_empty())
-                                                .then(|| {
-                                                    view! {
-                                                        <div class="text-[0.65rem] text-slate-500">{entity_id}</div>
-                                                    }
-                                                })}
-                                        </td>
-                                        <td class="px-3 py-2 text-slate-300">{summary}</td>
+                                        <td class="px-3 py-2 text-slate-300">{message}</td>
                                         <td class="px-3 py-2 text-[0.7rem] text-slate-500">{ip}</td>
                                     </tr>
                                 }

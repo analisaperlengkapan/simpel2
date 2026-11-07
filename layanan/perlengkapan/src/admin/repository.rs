@@ -1,6 +1,6 @@
 //! # Admin Repository
 //!
-//! SQL queries backing `/admin/audit` and `/admin/master` handlers.
+//! SQL queries backing the `/admin/master` handlers.
 
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
@@ -10,121 +10,7 @@ use uuid::Uuid;
 
 use crate::shared::error::{AppError, AppResult};
 
-use super::models::{AuditFilter, AuditLogEntry, MasterRecord, MasterSource};
-
-// ═════════════════════════════════════════════════════════════════════════
-// Audit log
-// ═════════════════════════════════════════════════════════════════════════
-
-pub async fn list_audit_logs(
-    pool: &Pool,
-    filter: &AuditFilter,
-) -> AppResult<(Vec<AuditLogEntry>, i64)> {
-    let client = pool.get().await?;
-
-    let page = filter.page.unwrap_or(1).max(1);
-    let per_page = filter.per_page.unwrap_or(25).clamp(1, 200);
-    let offset = (page - 1) * per_page;
-
-    let mut where_sql = String::from("WHERE 1=1");
-    let mut params: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
-
-    if let Some(actor) = filter.actor.as_ref().filter(|s| !s.is_empty()) {
-        // actor can be UUID or plain name match
-        if let Ok(uuid) = Uuid::parse_str(actor) {
-            params.push(Box::new(uuid));
-            where_sql.push_str(&format!(" AND t.actor_user_id = ${}", params.len()));
-        } else {
-            params.push(Box::new(format!("%{}%", actor)));
-            where_sql.push_str(&format!(" AND t.actor_nama ILIKE ${}", params.len()));
-        }
-    }
-
-    if let Some(entity) = filter.entity_type.as_ref().filter(|s| !s.is_empty()) {
-        params.push(Box::new(entity.clone()));
-        where_sql.push_str(&format!(" AND i.entity_type = ${}", params.len()));
-    }
-
-    if let Some(action) = filter.action.as_ref().filter(|s| !s.is_empty()) {
-        params.push(Box::new(action.clone()));
-        where_sql.push_str(&format!(" AND t.action = ${}", params.len()));
-    }
-
-    if let Some(from) = filter.from.as_ref().filter(|s| !s.is_empty())
-        && let Ok(dt) = DateTime::parse_from_rfc3339(from)
-    {
-        params.push(Box::new(dt.with_timezone(&Utc)));
-        where_sql.push_str(&format!(" AND t.transitioned_at >= ${}", params.len()));
-    }
-
-    if let Some(to) = filter.to.as_ref().filter(|s| !s.is_empty())
-        && let Ok(dt) = DateTime::parse_from_rfc3339(to)
-    {
-        params.push(Box::new(dt.with_timezone(&Utc)));
-        where_sql.push_str(&format!(" AND t.transitioned_at <= ${}", params.len()));
-    }
-
-    if let Some(q) = filter.q.as_ref().filter(|s| !s.is_empty()) {
-        params.push(Box::new(format!("%{}%", q)));
-        let n = params.len();
-        where_sql.push_str(&format!(
-            " AND (t.komentar ILIKE ${n} OR t.action ILIKE ${n} OR t.actor_nama ILIKE ${n})"
-        ));
-    }
-
-    let count_sql = format!(
-        "SELECT COUNT(*) FROM perlengkapan.workflow_transitions t \
-         JOIN perlengkapan.workflow_instances i ON i.id = t.workflow_instance_id \
-         {where_sql}"
-    );
-
-    let params_refs: Vec<&(dyn ToSql + Sync)> = params
-        .iter()
-        .map(|p| p.as_ref() as &(dyn ToSql + Sync))
-        .collect();
-
-    let total: i64 = client
-        .query_one(count_sql.as_str(), &params_refs)
-        .await?
-        .get(0);
-
-    let list_sql = format!(
-        "SELECT t.id, t.transitioned_at, t.actor_user_id, t.actor_nama, t.actor_role, \
-                t.action, i.entity_type, i.entity_id, t.komentar, \
-                t.ip_address::TEXT AS ip_text, t.metadata \
-         FROM perlengkapan.workflow_transitions t \
-         JOIN perlengkapan.workflow_instances i ON i.id = t.workflow_instance_id \
-         {where_sql} \
-         ORDER BY t.transitioned_at DESC \
-         LIMIT {per_page} OFFSET {offset}"
-    );
-
-    let rows = client.query(list_sql.as_str(), &params_refs).await?;
-
-    let entries = rows
-        .into_iter()
-        .map(|row| {
-            let ts: DateTime<Utc> = row.get("transitioned_at");
-            let actor_id: Option<Uuid> = row.try_get("actor_user_id").ok();
-            let entity_id: Option<Uuid> = row.try_get("entity_id").ok();
-            AuditLogEntry {
-                id: row.get::<_, Uuid>("id").to_string(),
-                occurred_at: ts.to_rfc3339(),
-                actor_id: actor_id.map(|u| u.to_string()),
-                actor_name: row.try_get("actor_nama").ok(),
-                actor_role: row.try_get("actor_role").ok(),
-                action: row.get("action"),
-                entity_type: row.get("entity_type"),
-                entity_id: entity_id.map(|u| u.to_string()),
-                summary: row.try_get("komentar").ok(),
-                ip_address: row.try_get("ip_text").ok(),
-                metadata: row.try_get("metadata").ok(),
-            }
-        })
-        .collect();
-
-    Ok((entries, total))
-}
+use super::models::{MasterRecord, MasterSource};
 
 // ═════════════════════════════════════════════════════════════════════════
 // Master data catalog

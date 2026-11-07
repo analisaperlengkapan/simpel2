@@ -19,7 +19,9 @@ import { TEST_USERS, storageStatePath } from './helpers/real-auth';
 
 // /admin/audit, not /admin/users: the latter was removed (it queried
 // relations no migration creates; user admin belongs to authenc). Any
-// admin-gated route proves the gate — this one also renders real data.
+// admin-gated route proves the gate. This spec proves only the GATE (who may
+// open the page) — what the page SHOWS is asserted in admin-audit-log.spec.ts;
+// the heading alone stayed green for as long as the page was empty by design.
 const ADMIN_ROUTE = '/perlengkapan/simpel/v2/admin/audit';
 // ForbiddenPage (route guard) and the page-level guard both render this.
 const FORBIDDEN = /Akses Ditolak/i;

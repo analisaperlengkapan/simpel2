@@ -2,8 +2,7 @@
 //!
 //! Types for the BPK-ready audit reader at `GET /audit`. This reads the
 //! canonical cross-module sink `perlengkapan.audit_log` (written by every
-//! module via [`crate::contracts::AuditSink`]), as opposed to
-//! `/admin/audit` which only surfaces workflow transitions.
+//! module via [`crate::contracts::AuditSink`]).
 
 use serde::{Deserialize, Serialize};
 
@@ -66,4 +65,23 @@ pub struct AuditTrailQuery {
     /// Free-text search over message / action_name / actor_username.
     #[serde(default)]
     pub q: Option<String>,
+}
+
+/// The values that actually occur in the trail, for filter dropdowns
+/// (`GET /audit/facets`).
+///
+/// The admin page used to ship these lists hand-written, and they described a
+/// system that was never audited (`bank_aset`, `master_data`, `login`, ...)
+/// while omitting the ones that were (`tiket`, `pengajuan_satker`). Deriving the
+/// options from the table means a dropdown can only offer a value that matches
+/// at least one row, and a newly audited module appears without a frontend
+/// change.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct AuditFacets {
+    /// `module` values, sorted.
+    pub modules: Vec<String>,
+    /// `resource_type` values, sorted (the `entity` filter of `GET /audit`).
+    pub entities: Vec<String>,
+    /// `action` verbs, sorted.
+    pub actions: Vec<String>,
 }

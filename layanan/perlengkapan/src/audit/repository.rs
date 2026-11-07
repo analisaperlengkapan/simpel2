@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use crate::shared::error::AppResult;
 
-use super::models::{AuditTrailEntry, AuditTrailQuery};
+use super::models::{AuditFacets, AuditTrailEntry, AuditTrailQuery};
 
 /// A single bound parameter. Kept as a typed enum (rather than an opaque
 /// `Box<dyn ToSql>`) so [`build_filter`] stays pure and inspectable in tests.
@@ -134,6 +134,40 @@ pub async fn list_audit_trail(
     let entries = rows.into_iter().map(row_to_entry).collect();
 
     Ok((entries, total))
+}
+
+/// Distinct `module` / `resource_type` / `action` values present in the trail.
+///
+/// Three small `SELECT DISTINCT`s rather than a hard-coded list: see
+/// [`AuditFacets`]. `module` is covered by `idx_audit_log_module`; the other two
+/// columns scan the table, which is acceptable for a page an administrator
+/// opens occasionally and keeps the vocabulary honest.
+pub async fn list_audit_facets(pool: &Pool) -> AppResult<AuditFacets> {
+    let client = pool.get().await?;
+
+    // Column names are fixed literals (never user input), so interpolating them
+    // into the statement is safe; a `$N` placeholder cannot name a column.
+    async fn distinct(
+        client: &deadpool_postgres::Client,
+        column: &'static str,
+    ) -> AppResult<Vec<String>> {
+        let sql = format!(
+            "SELECT DISTINCT {column} FROM perlengkapan.audit_log \
+             WHERE {column} IS NOT NULL AND {column} <> '' ORDER BY {column}"
+        );
+        Ok(client
+            .query(sql.as_str(), &[])
+            .await?
+            .into_iter()
+            .map(|r| r.get::<_, String>(0))
+            .collect())
+    }
+
+    Ok(AuditFacets {
+        modules: distinct(&client, "module").await?,
+        entities: distinct(&client, "resource_type").await?,
+        actions: distinct(&client, "action").await?,
+    })
 }
 
 fn row_to_entry(row: tokio_postgres::Row) -> AuditTrailEntry {
