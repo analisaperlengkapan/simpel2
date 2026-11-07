@@ -474,7 +474,7 @@ impl PakaianDinasService {
         // multi-role user was checked as depended on the order the token listed
         // them in.)
         let (user_role, next_status) =
-            self.resolve_actor(satker.aktivitas_id, &request.aksi, user_roles)?;
+            Self::resolve_actor(satker.aktivitas_id, &request.aksi, user_roles)?;
         let user_role = user_role.as_str();
 
         // Persist the transition + record an activity row (atomic). This is
@@ -535,14 +535,13 @@ impl PakaianDinasService {
     /// (the caller passes them sorted). No valid role → the error for the first
     /// one, which names a role the caller actually holds.
     fn resolve_actor(
-        &self,
         current_status: i32,
         action: &str,
         roles: &[String],
     ) -> AppResult<(String, i32)> {
         let mut first_err = None;
         for role in roles {
-            match self.determine_next_status(current_status, action, role) {
+            match Self::determine_next_status(current_status, action, role) {
                 Ok(next) => return Ok((role.clone(), next)),
                 Err(e) => {
                     first_err.get_or_insert(e);
@@ -553,12 +552,7 @@ impl PakaianDinasService {
     }
 
     /// Determine the next workflow status based on current status and action
-    fn determine_next_status(
-        &self,
-        current_status: i32,
-        action: &str,
-        role: &str,
-    ) -> AppResult<i32> {
+    fn determine_next_status(current_status: i32, action: &str, role: &str) -> AppResult<i32> {
         let current = AktivitasStatus::from_i32(current_status)
             .ok_or_else(|| bad_request("Status aktivitas tidak valid"))?;
 
@@ -600,6 +594,26 @@ impl PakaianDinasService {
             }
             (AktivitasStatus::SubmitToPusat, "reject", "validator_pusat") => {
                 Ok(AktivitasStatus::RevisiWilayah.to_i32())
+            }
+
+            // Pusat sent it back to Wilayah (1007). This state had NO way out:
+            // no arm led away from it, `STATUS_DAPAT_DIUBAH` does not include
+            // it, and the frontend offered no button on it — so every
+            // "Kembalikan ke Wilayah" parked the satker there for good, and the
+            // campaign could never reach 100% Selesai.
+            //
+            // Wilayah decides, exactly as it does on a fresh submission:
+            // forward it again (the point Pusat raised is answered or does not
+            // need the satker), or send it down to the operator, who is the
+            // only role that may change the sizes (`require_role("operator_satker")`
+            // on the pengisian endpoints) — a revision that needs different
+            // data cannot be satisfied any other way. Mirrors Kebutuhan BMN,
+            // where RevisiWilayah → SubmitPusat is Wilayah's move.
+            (AktivitasStatus::RevisiWilayah, "approve", "validator_wilayah") => {
+                Ok(AktivitasStatus::SubmitToPusat.to_i32())
+            }
+            (AktivitasStatus::RevisiWilayah, "reject", "validator_wilayah") => {
+                Ok(AktivitasStatus::RevisiPelaksana.to_i32())
             }
 
             // Kejagung direct flow
@@ -1003,29 +1017,68 @@ mod tests {
         );
     }
 
+    /// Every legal move, asserted against the real state machine (the test this
+    /// replaces only checked that status labels were non-empty and never called
+    /// `determine_next_status`, so it certified a table it did not read).
     #[test]
-    fn test_determine_next_status_operator_submit() {
-        // Create a mock service (without actual repository)
-        // In production, use mockall or similar for proper mocking
-
-        // Test workflow transitions
-        let test_cases = vec![
+    fn determine_next_status_follows_the_approval_chain() {
+        let legal = [
+            // satker → wilayah
             (1000, "submit", "operator_satker", 1001),
             (1003, "submit", "operator_satker", 1001),
+            // wilayah decides
             (1001, "approve", "validator_wilayah", 1004),
             (1001, "reject", "validator_wilayah", 1003),
+            // pusat decides
             (1004, "approve", "validator_pusat", 1008),
             (1004, "reject", "validator_pusat", 1007),
+            // pusat sent it back to wilayah: wilayah forwards again or sends it down
+            (1007, "approve", "validator_wilayah", 1004),
+            (1007, "reject", "validator_wilayah", 1003),
         ];
+        for (from, aksi, role, to) in legal {
+            assert_eq!(
+                PakaianDinasService::determine_next_status(from, aksi, role).ok(),
+                Some(to),
+                "{role} {aksi} at {from} should lead to {to}"
+            );
+        }
+    }
 
-        // This is a simplified test - in production, you'd use mocking
-        for (current, _action, _role, expected) in test_cases {
-            let current_status = AktivitasStatus::from_i32(current).unwrap();
-            let expected_status = AktivitasStatus::from_i32(expected).unwrap();
+    /// No status may be a dead end unless it is final. A state with no legal move
+    /// out for any role is a place a satker can be parked forever — 1007 was one.
+    #[test]
+    fn no_working_status_is_a_dead_end() {
+        let roles = ["operator_satker", "validator_wilayah", "validator_pusat"];
+        let actions = ["submit", "approve", "reject"];
+        // 1008 (Selesai) is the end of the line; 1006 (Ditolak) is terminal by
+        // definition; 1005/1009-1012 are the legacy simpelv1 codes no v2 path
+        // enters (they are not reachable, so nothing can be parked in them).
+        for code in [1000, 1001, 1003, 1004, 1007] {
+            let has_exit = roles.iter().any(|r| {
+                actions
+                    .iter()
+                    .any(|a| PakaianDinasService::determine_next_status(code, a, r).is_ok())
+            });
+            assert!(has_exit, "status {code} has no legal move out for any role");
+        }
+    }
 
-            // Verify status labels exist
-            assert!(!current_status.label().is_empty());
-            assert!(!expected_status.label().is_empty());
+    /// The new arms are Wilayah's alone: the operator cannot resubmit straight
+    /// out of 1007 (skipping Wilayah), and Pusat cannot act on its own return.
+    #[test]
+    fn a_return_to_wilayah_can_only_be_answered_by_wilayah() {
+        for (aksi, role) in [
+            ("submit", "operator_satker"),
+            ("approve", "validator_pusat"),
+            ("reject", "validator_pusat"),
+            ("approve", "admin"),
+            ("approve", "operator_satker"),
+        ] {
+            assert!(
+                PakaianDinasService::determine_next_status(1007, aksi, role).is_err(),
+                "{role} {aksi} must not be allowed at 1007"
+            );
         }
     }
 }

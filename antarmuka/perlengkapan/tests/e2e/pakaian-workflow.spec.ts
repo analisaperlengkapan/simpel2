@@ -636,6 +636,118 @@ test.describe("Pakaian Dinas — validator pusat decides", () => {
   });
 });
 
+// ── A return to Wilayah must have a way home ────────────────────────────────
+// "Kembalikan ke Wilayah" (pusat, 1004 → 1007) used to park the satker for good:
+// no transition left 1007, the sizes stay locked, and the satker screen offered
+// nobody a button ("mode pantau"), so the campaign could never reach 100% Selesai.
+// Self-contained: it builds its own campaign, so it does not depend on which of
+// the fixture rows above earlier tests already moved.
+test.describe("Pakaian Dinas — pusat returns a satker to wilayah, wilayah answers", () => {
+  test.use({ storageState: storageStatePath("validator_wilayah") });
+
+  const SATKER = "0200010";
+
+  async function aksi(
+    request: APIRequestContext,
+    role: "operator_a" | "validator_wilayah" | "validator_pusat",
+    rowId: string,
+    action: "submit" | "approve" | "reject",
+  ): Promise<{ status: number; aktivitas?: number }> {
+    const token = await tokenFor(request, role);
+    const res = await request.post(`${PD_API}/validator-action`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { pengajuan_satker_id: rowId, aksi: action, komentar: `e2e ${role} ${action}` },
+    });
+    const body = res.ok() ? await res.json() : null;
+    return { status: res.status(), aktivitas: body?.data?.aktivitas_id };
+  }
+
+  test("1007 shows wilayah its two moves, and the loop reaches Selesai", async ({
+    page,
+    request,
+  }) => {
+    const pusat = await tokenFor(request, "validator_pusat");
+
+    // A campaign of our own, aimed at one satker.
+    const jenis = await fetchRows<{ id: string; nama: string }>(
+      request,
+      `${PD_API}/jenis?page=1&per_page=100`,
+      pusat,
+      "jenis list",
+    );
+    const pdh = jenis.find((j) => j.nama.trim().toUpperCase() === "PDH");
+    expect(pdh, "V011 seeds PDH").toBeTruthy();
+    const spesifikasi = await fetchRows<{ id: string }>(
+      request,
+      `${PD_API}/spesifikasi?page=1&per_page=100&jenis_pakaian_dinas_id=${pdh!.id}`,
+      pusat,
+      "spesifikasi list",
+    );
+    expect(spesifikasi.length, "PDH carries reference rows").toBeGreaterThan(0);
+
+    const created = await request.post(`${PD_API}/pengajuan`, {
+      headers: { Authorization: `Bearer ${pusat}` },
+      data: {
+        nama: `E2E revisi wilayah ${Date.now()}`,
+        tahun: 2026,
+        tgl_mulai: "2026-01-01",
+        tgl_selesai: "2026-12-31",
+        is_reguler: true,
+        pilihan_satker: "sebagian",
+        jenis_pakaian_dinas_id: pdh!.id,
+        spesifikasi_ids: [spesifikasi[0].id],
+        satker_ids: [SATKER],
+      },
+    });
+    expect(created.status(), await created.text()).toBe(201);
+    const pengajuanId = (await created.json()).data.id as string;
+
+    const rows = await fetchRows<{ id: string; satker_id: string; aktivitas_id: number }>(
+      request,
+      `${PD_API}/pengajuan/${pengajuanId}/satker?page=1&per_page=100`,
+      pusat,
+      "satker rows of the new campaign",
+    );
+    const row = rows.find((r) => r.satker_id === SATKER);
+    expect(row, `the campaign materialises a row for ${SATKER}`).toBeTruthy();
+    const rowId = row!.id;
+    expect(row!.aktivitas_id).toBe(1000);
+
+    // 1000 → 1001 → 1004 → pusat sends it back → 1007.
+    expect((await aksi(request, "operator_a", rowId, "submit")).aktivitas).toBe(1001);
+    expect((await aksi(request, "validator_wilayah", rowId, "approve")).aktivitas).toBe(1004);
+    expect((await aksi(request, "validator_pusat", rowId, "reject")).aktivitas).toBe(1007);
+
+    // The screen: wilayah is offered both moves, not "mode pantau".
+    await page.goto(`${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker`, {
+      waitUntil: "domcontentloaded",
+    });
+    await page.getByRole("button", { name: "Lihat Riwayat & Aksi" }).first().click({ timeout: 20000 });
+    await expect(page.getByRole("button", { name: "Teruskan ke Pusat" })).toBeVisible({
+      timeout: 20000,
+    });
+    await expect(page.getByRole("button", { name: "Kembalikan untuk Revisi" })).toBeVisible();
+    await expect(page.getByText("mode pantau")).toHaveCount(0);
+
+    // Only wilayah may answer: not the operator (would skip wilayah), not pusat.
+    for (const [role, action] of [
+      ["operator_a", "submit"],
+      ["validator_pusat", "approve"],
+      ["validator_pusat", "reject"],
+    ] as const) {
+      expect((await aksi(request, role, rowId, action)).status, `${role} ${action} at 1007`).toBe(
+        400,
+      );
+    }
+
+    // Down to the satker and back: 1007 → 1003 → 1001 → 1004 → 1008.
+    expect((await aksi(request, "validator_wilayah", rowId, "reject")).aktivitas).toBe(1003);
+    expect((await aksi(request, "operator_a", rowId, "submit")).aktivitas).toBe(1001);
+    expect((await aksi(request, "validator_wilayah", rowId, "approve")).aktivitas).toBe(1004);
+    expect((await aksi(request, "validator_pusat", rowId, "approve")).aktivitas).toBe(1008);
+  });
+});
+
 // ── RBAC: the validator-action endpoint is role-gated ───────────────────────
 test.describe("Pakaian Dinas — role-gated validator action", () => {
   test("an operator cannot drive a validator action", async ({ request }) => {

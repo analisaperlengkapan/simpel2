@@ -113,8 +113,11 @@ fn available_actions(code: i32) -> Option<(&'static str, &'static str)> {
     // The validators' moves are the validators'. An administrator is not offered
     // them: the API refuses an admin every business decision (no bypass), so the
     // button would only ever answer 403.
-    // Wilayah review pending (1001 / 1012)
-    if matches!(code, 1001 | 1012) && session.is_validator_wilayah() {
+    // Wilayah review pending (1001 / 1012), or Pusat sent it back to Wilayah
+    // (1007). Same two moves either way: forward it again, or send it down to the
+    // satker. Without 1007 here, "Kembalikan ke Wilayah" below parked the satker
+    // on a screen with no button for anyone.
+    if matches!(code, 1001 | 1007 | 1012) && session.is_validator_wilayah() {
         return Some(("Teruskan ke Pusat", "Kembalikan untuk Revisi"));
     }
     // Pusat review pending (1004 / 1010)
