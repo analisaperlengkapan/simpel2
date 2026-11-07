@@ -572,6 +572,12 @@ pub struct RosterPegawai {
     pub with_hijab: bool,
     pub sudah_diisi: bool,
     pub ukuran: Vec<UkuranPegawaiItem>,
+    /// Ukuran yang sudah tercatat untuk pegawai ini di profilnya (halaman
+    /// Ukuran), dipetakan ke kolom kampanye menurut kelompoknya (baju, celana,
+    /// sepatu). Hanya untuk pegawai yang BELUM diisi pada pengajuan ini: operator
+    /// tidak perlu mengetik ulang data yang sudah ada, cukup memeriksa.
+    #[serde(default)]
+    pub saran: Vec<UkuranPegawaiItem>,
 }
 
 /// Isi halaman pengisian: kolomnya, orangnya, dan boleh-tidaknya diubah.
