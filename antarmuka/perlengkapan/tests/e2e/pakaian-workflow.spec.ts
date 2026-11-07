@@ -665,9 +665,13 @@ async function aksiPakaian(
 }
 
 /** A campaign of our own aimed at one satker; returns its id and that satker's row (at 1000). */
-/** A calendar day, `selisih` days from today, as `YYYY-MM-DD`. */
+/**
+ * A calendar day, `selisih` days from today, as `YYYY-MM-DD`. Today is Jakarta's
+ * (UTC+7): that is the calendar the server judges a campaign's dates by, so UTC
+ * would be a day behind from 17:00 to midnight.
+ */
 const hari = (selisih: number) =>
-  new Date(Date.now() + selisih * 86_400_000).toISOString().slice(0, 10);
+  new Date(Date.now() + 7 * 3_600_000 + selisih * 86_400_000).toISOString().slice(0, 10);
 
 async function kampanyeBaru(
   request: APIRequestContext,

@@ -18,7 +18,9 @@ use axum_test::TestServer;
 use serde_json::{Value, json};
 
 fn hari(selisih: i64) -> String {
-    (chrono::Utc::now().date_naive() + chrono::Duration::days(selisih)).to_string()
+    let wib = chrono::FixedOffset::east_opt(7 * 3600).expect("UTC+7 is a valid offset");
+    (chrono::Utc::now().with_timezone(&wib).date_naive() + chrono::Duration::days(selisih))
+        .to_string()
 }
 
 async fn isi(server: &TestServer, pengajuan_id: &str, pakaian_id: &str) -> axum_test::TestResponse {
