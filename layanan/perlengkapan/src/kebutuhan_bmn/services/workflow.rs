@@ -4,8 +4,16 @@ use crate::kebutuhan_bmn::repository::{KebutuhanBmnRepository, UserInfo};
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::satker_scope::SatkerScope;
 use crate::workflow::engine::TransitionRequest;
+use lib_perlengkapan::audit::{AuditAction, AuditEvent};
 use tracing::{info, warn};
 use uuid::Uuid;
+
+/// Who performed a transition, as far as the caller knew.
+struct AuditActor<'a> {
+    user_id: Option<Uuid>,
+    info: Option<&'a UserInfo>,
+    role: &'a str,
+}
 
 impl KebutuhanBmnService {
     /// Transition pengajuan to a new status using workflow engine
@@ -189,11 +197,75 @@ impl KebutuhanBmnService {
                 &format!("Transition to {}", target_status.label()),
                 request.komentar.clone(),
                 user_id,
-                user_info,
+                user_info.clone(),
             )
             .await?;
 
+        // The per-satker activity row above is this module's own history; the
+        // cross-module trail (`/audit`, the admin Audit Log page) is a different
+        // table, and the generic engine — which would have written to it — is
+        // deliberately bypassed here. Without this the busiest workflow in the
+        // system left no trace where auditors look: 267 activity rows on staging,
+        // none in `audit_log`.
+        self.audit_satker_transition(
+            &current,
+            target_status,
+            request.komentar.as_deref(),
+            AuditActor {
+                user_id,
+                info: user_info.as_ref(),
+                role: &user_role,
+            },
+        )
+        .await;
+
         Ok(updated)
+    }
+
+    /// Emit the audit event for a committed satker transition.
+    ///
+    /// Best-effort by design, like the engine's own emission: the status change
+    /// and its activity row are already committed, and a hiccup in the audit
+    /// table must not turn a decision that happened into an error that says it
+    /// did not.
+    async fn audit_satker_transition(
+        &self,
+        from: &PengajuanKebutuhanBmnSatker,
+        to: KebutuhanBmnStatus,
+        komentar: Option<&str>,
+        actor: AuditActor<'_>,
+    ) {
+        let Some(sink) = &self.audit_sink else {
+            return;
+        };
+        let mut event =
+            AuditEvent::new("kebutuhan_bmn", AuditAction::Custom, "kebutuhan_bmn_satker")
+                .action_name("workflow.transition")
+                .resource_id(from.id.to_string())
+                .message(match komentar.filter(|k| !k.trim().is_empty()) {
+                    Some(k) => k.to_string(),
+                    None => format!("{} → {}", from.status.label(), to.label()),
+                })
+                .metadata(serde_json::json!({
+                    "from_status_kode": from.status_kode,
+                    "to_status_kode": to.to_code(),
+                    "from": from.status.label(),
+                    "to": to.label(),
+                    "pengajuan_id": from.pengajuan_id,
+                    "satker_code": from.satker_id,
+                    "actor_role": actor.role,
+                    "actor_nip": actor.info.and_then(|u| u.nip.clone()),
+                }));
+        // Name only when the caller supplied one: an empty string would show as a
+        // blank actor in the trail, which is worse than an honest absence.
+        event.actor_user_id = actor.user_id;
+        event.actor_username = actor
+            .info
+            .and_then(|u| u.nama.clone())
+            .filter(|n| !n.trim().is_empty());
+        if let Err(e) = sink.log(event).await {
+            warn!(error = %e, satker_id = %from.id, "audit sink write failed for satker transition");
+        }
     }
 
     /// Get allowed next states for a pengajuan using workflow engine

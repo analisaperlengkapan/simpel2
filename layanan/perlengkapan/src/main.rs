@@ -421,11 +421,14 @@ async fn main() -> anyhow::Result<()> {
             .with_document_generator(docs.clone())
             .with_notification_sender(notifier.clone())
             .with_audit_sink(audit_sink.clone());
+    // The satker-level transitions bypass the engine (and so its audit emission);
+    // the service records them in the cross-module trail itself.
     let mut kebutuhan_bmn_service = KebutuhanBmnService::new(
         kebutuhan_bmn_repo,
         authenc_client.clone(),
         kebutuhan_bmn_workflow_engine,
-    );
+    )
+    .with_audit_sink(audit_sink.clone());
     // #36: keep a clone for AppState so the health endpoint can read live
     // circuit-breaker state. Clones share the same Arc<IntegrasiBreakers>, so
     // this observes exactly what the services trip. Capture before the move.
