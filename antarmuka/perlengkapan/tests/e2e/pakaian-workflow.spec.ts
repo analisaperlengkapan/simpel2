@@ -664,8 +664,13 @@ async function aksiPakaian(
 }
 
 /** A campaign of our own aimed at one satker; returns its id and that satker's row (at 1000). */
+/** A calendar day, `selisih` days from today, as `YYYY-MM-DD`. */
+const hari = (selisih: number) =>
+  new Date(Date.now() + selisih * 86_400_000).toISOString().slice(0, 10);
+
 async function kampanyeBaru(
   request: APIRequestContext,
+  periode: { mulai: string; selesai: string } = { mulai: hari(-60), selesai: hari(300) },
 ): Promise<{ pengajuanId: string; rowId: string; pusat: string }> {
   const pusat = await tokenFor(request, "validator_pusat");
   const jenis = await fetchRows<{ id: string; nama: string }>(
@@ -689,8 +694,9 @@ async function kampanyeBaru(
     data: {
       nama: `E2E revisi ${Date.now()}`,
       tahun: 2026,
-      tgl_mulai: "2026-01-01",
-      tgl_selesai: "2026-12-31",
+      // Relative to today: the dates are enforced, so a fixed year would turn this red in January.
+      tgl_mulai: periode.mulai,
+      tgl_selesai: periode.selesai,
       is_reguler: true,
       pilihan_satker: "sebagian",
       jenis_pakaian_dinas_id: pdh!.id,
@@ -904,6 +910,128 @@ test.describe("Pakaian Dinas — a failed export is reported", () => {
     const banner = page.getByTestId("action-error");
     await expect(banner).toBeVisible({ timeout: 15000 });
     await expect(banner).toContainText("Cetak PDF gagal");
+  });
+});
+
+// ── Dates are enforced, and each role sees only its own controls ────────────
+// A campaign outside its dates takes no entry and no decision; the pusat
+// validator extends it. Until now the dates only drove a badge, so an operator
+// could fill and submit a campaign that said "Ditutup". And every role was
+// offered every button (an operator saw Tambah Jenis and the trash can of every
+// campaign), each answering 403.
+test.describe("Pakaian Dinas — pusat extends a closed campaign", () => {
+  test.use({ storageState: storageStatePath("validator_pusat") });
+
+  test("the end date is changed from the card and the campaign opens again", async ({
+    page,
+    request,
+  }) => {
+    const { pengajuanId, pusat } = await kampanyeBaru(request, {
+      mulai: hari(-60),
+      selesai: hari(-1),
+    });
+    const auth = { Authorization: `Bearer ${pusat}` };
+    const nama = (await (await request.get(`${PD_API}/pengajuan/${pengajuanId}`, { headers: auth })).json())
+      .data.nama as string;
+
+    await page.goto(`${BASE}/pakaian-dinas/pengajuan`, { waitUntil: "domcontentloaded" });
+    const card = page.locator("div.rounded-2xl", { has: page.locator("h3", { hasText: nama }) });
+    await expect(card).toBeVisible({ timeout: 20000 });
+    await expect(card, "a campaign past its end date says so").toContainText("Ditutup");
+
+    await card.getByTestId("ubah-kegiatan").click();
+    await card.getByTestId("ubah-selesai").fill(hari(30));
+    await card.getByTestId("simpan-ubah").click();
+
+    await expect(card).toContainText("Dibuka", { timeout: 15000 });
+    await expect(card).toContainText(`Tutup: ${hari(30)}`);
+    const body = (await (await request.get(`${PD_API}/pengajuan/${pengajuanId}`, { headers: auth })).json())
+      .data;
+    expect(body.tgl_selesai).toBe(hari(30));
+    expect(body.is_open).toBe(true);
+  });
+});
+
+test.describe("Pakaian Dinas — a closed campaign tells the operator why", () => {
+  test.use({ storageState: storageStatePath("operator_a") });
+
+  test("saving sizes after the end date shows the reason", async ({ page, request }) => {
+    const { pengajuanId } = await kampanyeBaru(request, { mulai: hari(-60), selesai: hari(-1) });
+    await page.goto(
+      `${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker/${SATKER_REVISI}/isi`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await expect(page.getByTestId("pengisian-tabel")).toBeVisible({ timeout: 20000 });
+    await page.getByRole("button", { name: /^Isi ukuran /i }).first().click();
+    const selects = page.getByTestId("dialog-ukuran").locator("select");
+    for (let i = 0; i < (await selects.count()); i++) await selects.nth(i).selectOption({ index: 1 });
+    await page.getByTestId("simpan-ukuran").click();
+    await expect(page.getByText(/sudah ditutup/i).first()).toBeVisible({ timeout: 15000 });
+  });
+});
+
+type Kontrol = { jenisTambah: number; kegiatanBuat: number; kegiatanUbah: number };
+const KONTROL_PER_PERAN: [Role | "admin", Kontrol][] = [
+  ["operator_a", { jenisTambah: 0, kegiatanBuat: 0, kegiatanUbah: 0 }],
+  ["validator_wilayah", { jenisTambah: 0, kegiatanBuat: 0, kegiatanUbah: 0 }],
+  ["validator_pusat", { jenisTambah: 0, kegiatanBuat: 1, kegiatanUbah: 1 }],
+  ["admin", { jenisTambah: 1, kegiatanBuat: 0, kegiatanUbah: 0 }],
+];
+for (const [peran, harap] of KONTROL_PER_PERAN) {
+  test.describe(`Pakaian Dinas — ${peran} sees only its own controls`, () => {
+    test.use({ storageState: storageStatePath(peran) });
+
+    test("the master and campaign pages offer what the role may do", async ({ page }) => {
+      await page.goto(`${BASE}/pakaian-dinas/jenis`, { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("table")).toBeVisible({ timeout: 20000 });
+      await expect(page.getByRole("button", { name: "Tambah Jenis", exact: true })).toHaveCount(
+        harap.jenisTambah,
+      );
+      const hapusJenis = page.getByTitle("Hapus");
+      if (harap.jenisTambah) expect(await hapusJenis.count()).toBeGreaterThan(0);
+      else await expect(hapusJenis).toHaveCount(0);
+
+      await page.goto(`${BASE}/pakaian-dinas/pengajuan`, { waitUntil: "domcontentloaded" });
+      await expect(page.locator("div.rounded-2xl h3").first()).toBeVisible({ timeout: 20000 });
+      await expect(page.getByRole("button", { name: "Buat Pengajuan", exact: true })).toHaveCount(
+        harap.kegiatanBuat,
+      );
+      const ubah = page.getByTestId("ubah-kegiatan");
+      if (harap.kegiatanUbah) expect(await ubah.count()).toBeGreaterThan(0);
+      else await expect(ubah).toHaveCount(0);
+      const hapusKegiatan = page.getByLabel("Hapus kegiatan");
+      if (harap.kegiatanUbah) expect(await hapusKegiatan.count()).toBeGreaterThan(0);
+      else await expect(hapusKegiatan).toHaveCount(0);
+    });
+  });
+}
+
+test.describe("Pakaian Dinas — the satker's sizes are filled by its operator and read by the rest", () => {
+  test("the link and the page say which one you are", async ({ browser, request }) => {
+    const { pengajuanId } = await kampanyeBaru(request);
+    const list = `${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker`;
+    const isi = `${list}/${SATKER_REVISI}/isi`;
+
+    const operator = await browser.newContext({ storageState: storageStatePath("operator_a") });
+    const po = await operator.newPage();
+    await po.goto(list, { waitUntil: "domcontentloaded" });
+    await expect(po.getByRole("link", { name: "Isi Ukuran Pegawai" })).toBeVisible({ timeout: 20000 });
+    await po.goto(isi, { waitUntil: "domcontentloaded" });
+    await expect(po.getByTestId("pengisian-tabel")).toBeVisible({ timeout: 20000 });
+    await expect(po.getByTestId("pengisian-pemantau")).toHaveCount(0);
+    await operator.close();
+
+    const wilayah = await browser.newContext({ storageState: storageStatePath("validator_wilayah") });
+    const pw = await wilayah.newPage();
+    await pw.goto(list, { waitUntil: "domcontentloaded" });
+    await expect(pw.getByRole("link", { name: "Lihat Ukuran Pegawai" })).toBeVisible({ timeout: 20000 });
+    await expect(pw.getByRole("link", { name: "Isi Ukuran Pegawai" })).toHaveCount(0);
+    await pw.goto(isi, { waitUntil: "domcontentloaded" });
+    await expect(pw.getByTestId("pengisian-tabel")).toBeVisible({ timeout: 20000 });
+    await expect(pw.getByTestId("pengisian-pemantau")).toBeVisible();
+    await expect(pw.getByTestId("ajukan-pengisian")).toHaveCount(0);
+    await expect(pw.getByRole("button", { name: /^Isi ukuran /i }).first()).toBeDisabled();
+    await wilayah.close();
   });
 });
 

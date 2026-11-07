@@ -67,6 +67,17 @@ pub struct CreatePengajuanRequest {
     #[serde(default)]
     pub wilayah_id: Option<String>,
 }
+/// Request DTO for editing a Pengajuan. Every field is optional: what is absent
+/// stays as it is. Mainly how a closed campaign is extended, since the dates are
+/// enforced.
+#[derive(Debug, Deserialize, Validate)]
+pub struct UpdatePengajuanRequest {
+    #[validate(length(min = 1, max = 255, message = "Nama pengajuan harus diisi"))]
+    pub nama: Option<String>,
+    pub deskripsi: Option<String>,
+    pub tgl_mulai: Option<NaiveDate>,
+    pub tgl_selesai: Option<NaiveDate>,
+}
 /// Request DTO for creating/updating employee with sizes
 #[derive(Debug, Deserialize, Validate)]
 pub struct CreatePegawaiUkuranRequest {

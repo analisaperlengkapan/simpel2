@@ -4,7 +4,7 @@ use crate::pakaian_dinas::models::*;
 use crate::pakaian_dinas::scope::campaign_visibility_condition;
 use crate::shared::error::{AppError, AppResult, bad_request};
 use crate::shared::satker_scope::SatkerScope;
-use chrono::Datelike;
+use chrono::{Datelike, NaiveDate};
 use tokio_postgres::types::ToSql;
 use uuid::Uuid;
 
@@ -348,6 +348,99 @@ impl PakaianDinasRepository {
             .iter()
             .map(|r| r.get::<_, String>("kode_satker"))
             .collect())
+    }
+
+    /// Refuse a change to a campaign that is outside its dates.
+    ///
+    /// After `tgl_selesai` NOTHING changes for anyone (the legacy report locks the
+    /// whole form the same way), so a closed campaign is extended by the pusat
+    /// validator, not worked around. Before `tgl_mulai`, `perlu_sudah_mulai`
+    /// decides: the satker's own entries need the window to have opened, a
+    /// validator's decision on an entry that exists does not.
+    pub async fn pastikan_periode(
+        &self,
+        pengajuan_id: Uuid,
+        perlu_sudah_mulai: bool,
+    ) -> AppResult<()> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let row = client
+            .query_opt(
+                "SELECT is_reguler, tgl_mulai, tgl_selesai \
+                 FROM perlengkapan.pengajuan_pakaian_dinas WHERE id = $1",
+                &[&pengajuan_id],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?
+            .ok_or_else(|| AppError::NotFound("Pengajuan tidak ditemukan".to_string()))?;
+        let status = status_periode(
+            row.get("is_reguler"),
+            row.get("tgl_mulai"),
+            row.get("tgl_selesai"),
+            hari_ini_wib(),
+        );
+        match status {
+            Periode::Terbuka => Ok(()),
+            Periode::BelumDibuka(mulai) if perlu_sudah_mulai => Err(bad_request(&format!(
+                "Kegiatan belum dibuka: pengisian dimulai {}",
+                mulai.format("%d-%m-%Y")
+            ))),
+            Periode::BelumDibuka(_) => Ok(()),
+            Periode::Ditutup(selesai) => Err(bad_request(&format!(
+                "Kegiatan sudah ditutup pada {}. Perubahan tidak dapat dilakukan lagi; \
+                 hubungi validator pusat untuk memperpanjang periode",
+                selesai.format("%d-%m-%Y")
+            ))),
+        }
+    }
+
+    /// Edit a campaign's name, description and dates; what is absent stays.
+    pub async fn update_pengajuan(
+        &self,
+        id: Uuid,
+        request: &UpdatePengajuanRequest,
+    ) -> AppResult<PengajuanPakaianDinas> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let row = client
+            .query_opt(
+                "SELECT nama, deskripsi, tgl_mulai, tgl_selesai \
+                 FROM perlengkapan.pengajuan_pakaian_dinas WHERE id = $1",
+                &[&id],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?
+            .ok_or_else(|| AppError::NotFound("Pengajuan tidak ditemukan".to_string()))?;
+        let nama: String = request.nama.clone().unwrap_or_else(|| row.get("nama"));
+        let deskripsi: Option<String> = request
+            .deskripsi
+            .clone()
+            .or_else(|| row.get::<_, Option<String>>("deskripsi"));
+        let mulai: Option<NaiveDate> = request.tgl_mulai.or_else(|| row.get("tgl_mulai"));
+        let selesai: Option<NaiveDate> = request.tgl_selesai.or_else(|| row.get("tgl_selesai"));
+        if let (Some(m), Some(s)) = (mulai, selesai)
+            && m > s
+        {
+            return Err(bad_request(
+                "Tanggal mulai tidak boleh lebih besar dari tanggal selesai",
+            ));
+        }
+        client
+            .execute(
+                "UPDATE perlengkapan.pengajuan_pakaian_dinas \
+                 SET nama = $2, deskripsi = $3, tgl_mulai = $4, tgl_selesai = $5, updated_at = now() \
+                 WHERE id = $1",
+                &[&id, &nama, &deskripsi, &mulai, &selesai],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        self.get_pengajuan_by_id(id).await
     }
 
     pub async fn delete_pengajuan(&self, id: Uuid) -> AppResult<()> {

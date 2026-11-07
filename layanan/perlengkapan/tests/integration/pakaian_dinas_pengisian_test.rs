@@ -96,7 +96,28 @@ pub(crate) async fn put(
 
 /// Kampanye PDH dengan satu kolom BAJU, menyasar SKR001 dan SKR002.
 /// Mengembalikan `(pengajuan_id, pakaian_id)`.
+/// A campaign window that contains today, whenever the test runs. The dates are
+/// enforced (nothing is filled or decided outside them), so a fixed year would
+/// turn every test that drives a campaign red on 1 January.
+pub(crate) fn periode_berjalan() -> (String, String) {
+    let hari = chrono::Utc::now().date_naive();
+    (
+        (hari - chrono::Duration::days(30)).to_string(),
+        (hari + chrono::Duration::days(300)).to_string(),
+    )
+}
+
 pub(crate) async fn buat_kampanye(server: &TestServer) -> (String, String) {
+    let (mulai, selesai) = periode_berjalan();
+    buat_kampanye_periode(server, &mulai, &selesai).await
+}
+
+/// [`buat_kampanye`] with an explicit window, for the tests about the window.
+pub(crate) async fn buat_kampanye_periode(
+    server: &TestServer,
+    mulai: &str,
+    selesai: &str,
+) -> (String, String) {
     let res = post(
         server,
         "/pakaian-dinas/jenis",
@@ -141,8 +162,8 @@ pub(crate) async fn buat_kampanye(server: &TestServer) -> (String, String) {
         SATKER_A,
         json!({
             "nama": "Kebutuhan Pakaian Dinas PDH 2026",
-            "tgl_mulai": "2026-01-01",
-            "tgl_selesai": "2026-12-31",
+            "tgl_mulai": mulai,
+            "tgl_selesai": selesai,
             "is_reguler": true,
             "tahun": 2026,
             "pilihan_satker": "sebagian",
