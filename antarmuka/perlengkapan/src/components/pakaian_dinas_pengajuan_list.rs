@@ -12,7 +12,7 @@ use crate::api::{
     fetch_spesifikasi_pakaian, fetch_wilayah_kejati,
 };
 use crate::components::layout::{
-    EmptyState, ErrorState, FormField, LoadingState, PageLayout, SectionCard,
+    ActionError, EmptyState, ErrorState, FormField, LoadingState, PageLayout, SectionCard,
 };
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -65,6 +65,8 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
     let (is_loading, set_is_loading) = signal(false);
     let (error_message, set_error_message) = signal(Option::<String>::None);
     let refresh_trigger = RwSignal::new(0);
+    // Why a delete was refused; shown above the cards (see `ActionError`).
+    let hapus_error = RwSignal::new(Option::<String>::None);
 
     let client: QueryClient = expect_context();
     let data_resource = client.local_resource(query_pengajuan_pakaian_dinas_page, move || {
@@ -391,6 +393,8 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                 </SectionCard>
             </Show>
 
+            <ActionError message=hapus_error />
+
             <Suspense fallback=move || {
                 view! { <LoadingState /> }
             }>
@@ -415,6 +419,7 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                                 page,
                                 set_page,
                                 refresh_trigger,
+                                hapus_error,
                             )
                         }
                     }
@@ -464,6 +469,7 @@ fn render_pengajuan_cards(
     page: ReadSignal<i32>,
     set_page: WriteSignal<i32>,
     refresh_trigger: RwSignal<i32>,
+    hapus_error: RwSignal<Option<String>>,
 ) -> AnyView {
     let on_delete = move |id: String| {
         let confirmed = web_sys::window()
@@ -476,8 +482,11 @@ fn render_pengajuan_cards(
         if confirmed {
             spawn_local(async move {
                 match delete_pengajuan_pakaian_dinas(id).await {
-                    Ok(_) => refresh_trigger.update(|v| *v += 1),
-                    Err(e) => leptos::logging::error!("Failed to delete: {}", e.user_message()),
+                    Ok(_) => {
+                        hapus_error.set(None);
+                        refresh_trigger.update(|v| *v += 1);
+                    }
+                    Err(e) => hapus_error.set(Some(e.user_message())),
                 }
             });
         }

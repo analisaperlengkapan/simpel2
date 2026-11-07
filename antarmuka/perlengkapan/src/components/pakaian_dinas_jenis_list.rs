@@ -7,7 +7,7 @@ use crate::api::{
     create_jenis_pakaian_dinas, delete_jenis_pakaian_dinas, fetch_jenis_pakaian_dinas,
 };
 use crate::components::layout::{
-    EmptyState, ErrorState, FormField, LoadingState, PageLayout, SectionCard,
+    ActionError, EmptyState, ErrorState, FormField, LoadingState, PageLayout, SectionCard,
 };
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -35,6 +35,8 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
     let (is_loading, set_is_loading) = signal(false);
     let (error_message, set_error_message) = signal(Option::<String>::None);
     let refresh_trigger = RwSignal::new(0);
+    // Why a delete was refused (a jenis that campaigns still use); shown above the table.
+    let hapus_error = RwSignal::new(Option::<String>::None);
 
     let client: QueryClient = expect_context();
     let data_resource = client.local_resource(query_jenis_pakaian_dinas_page, move || {
@@ -147,6 +149,8 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
                 </SectionCard>
             </Show>
 
+            <ActionError message=hapus_error />
+
             // Data table
             <Suspense fallback=move || {
                 view! { <LoadingState /> }
@@ -166,13 +170,11 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
                                 .into_any()
                         } else {
                             render_jenis_table(
-                                response.data,
-                                response.page,
-                                response.total,
-                                response.total_pages,
+                                response,
                                 page,
                                 set_page,
                                 refresh_trigger,
+                                hapus_error,
                             )
                         }
                     }
@@ -184,14 +186,19 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
 
 /// Renders the jenis pakaian dinas table with pagination.
 fn render_jenis_table(
-    data: Vec<JenisPakaianDinas>,
-    current_page: i32,
-    total: i64,
-    total_pages: i32,
+    response: PaginatedResponse<JenisPakaianDinas>,
     page: ReadSignal<i32>,
     set_page: WriteSignal<i32>,
     refresh_trigger: RwSignal<i32>,
+    hapus_error: RwSignal<Option<String>>,
 ) -> AnyView {
+    let PaginatedResponse {
+        data,
+        page: current_page,
+        total,
+        total_pages,
+        ..
+    } = response;
     view! {
         <SectionCard title="Daftar Jenis">
             <div class="overflow-hidden rounded-2xl border border-white/[0.06] bg-surface-panel">
@@ -263,12 +270,11 @@ fn render_jenis_table(
                                                             if confirmed {
                                                                 spawn_local(async move {
                                                                     match delete_jenis_pakaian_dinas(id).await {
-                                                                        Ok(_) => refresh_trigger.update(|v| *v += 1),
-                                                                        Err(e) => {
-                                                                            leptos::logging::error!(
-                                                                                "Failed to delete: {}", e.user_message()
-                                                                            )
+                                                                        Ok(_) => {
+                                                                            hapus_error.set(None);
+                                                                            refresh_trigger.update(|v| *v += 1);
                                                                         }
+                                                                        Err(e) => hapus_error.set(Some(e.user_message())),
                                                                     }
                                                                 });
                                                             }

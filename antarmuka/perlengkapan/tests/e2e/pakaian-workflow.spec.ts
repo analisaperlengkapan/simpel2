@@ -813,6 +813,100 @@ test.describe("Pakaian Dinas — a returned satker tells its operator why", () =
   });
 });
 
+// ── Failures that used to be silent ─────────────────────────────────────────
+// The two delete handlers and the export download ended their error arm in a
+// console log. The server had answered with the reason (a campaign with work in
+// it is not deleted; a jenis a campaign uses is not deleted) and the screen said
+// nothing, so the operator pressed the button, confirmed, and watched nothing
+// happen. An export that failed in the background did the same.
+test.describe("Pakaian Dinas — a refused campaign delete says why", () => {
+  test.use({ storageState: storageStatePath("validator_pusat") });
+
+  test("a campaign with work in it is kept, and the screen gives the reason", async ({
+    page,
+    request,
+  }) => {
+    const { pengajuanId, rowId, pusat } = await kampanyeBaru(request);
+    expect((await aksiPakaian(request, "operator_a", rowId, "submit")).aktivitas).toBe(1001);
+    const detail = await request.get(`${PD_API}/pengajuan/${pengajuanId}`, {
+      headers: { Authorization: `Bearer ${pusat}` },
+    });
+    const nama = (await detail.json()).data.nama as string;
+
+    page.on("dialog", (d) => d.accept());
+    await page.goto(`${BASE}/pakaian-dinas/pengajuan`, { waitUntil: "domcontentloaded" });
+    const card = page.locator("div.rounded-2xl", { has: page.locator("h3", { hasText: nama }) });
+    await expect(card).toBeVisible({ timeout: 20000 });
+    await card.first().locator("button").last().click();
+
+    const banner = page.getByTestId("action-error");
+    await expect(banner).toBeVisible({ timeout: 15000 });
+    await expect(banner).toContainText("tidak dapat dihapus");
+    await expect(banner, "names the cause").toContainText("sudah mengajukan");
+
+    // Nothing was thrown away: the card is still listed and the campaign still exists.
+    await expect(card).toBeVisible();
+    const kept = await request.get(`${PD_API}/pengajuan/${pengajuanId}`, {
+      headers: { Authorization: `Bearer ${pusat}` },
+    });
+    expect(kept.status()).toBe(200);
+  });
+});
+
+test.describe("Pakaian Dinas — a refused jenis delete says why", () => {
+  test.use({ storageState: storageStatePath("admin") });
+
+  test("a jenis that a campaign uses is kept, and the screen gives the reason", async ({
+    page,
+    request,
+  }) => {
+    // A campaign on PDH, so PDH is in use whatever ran before this test.
+    await kampanyeBaru(request);
+
+    page.on("dialog", (d) => d.accept());
+    await page.goto(`${BASE}/pakaian-dinas/jenis`, { waitUntil: "domcontentloaded" });
+    const row = page.locator("tr", { has: page.getByText("PDH", { exact: true }) });
+    await expect(row).toBeVisible({ timeout: 20000 });
+    await row.getByTitle("Hapus").click();
+
+    const banner = page.getByTestId("action-error");
+    await expect(banner).toBeVisible({ timeout: 15000 });
+    await expect(banner, "the reason, not the database's wording").toContainText(
+      "masih dipakai oleh pengajuan",
+    );
+    await expect(banner).not.toContainText("db error");
+    await expect(row, "and the row is still there").toBeVisible();
+  });
+});
+
+test.describe("Pakaian Dinas — a failed export is reported", () => {
+  test.use({ storageState: storageStatePath("admin") });
+
+  test("the print button says so when the server cannot produce the file", async ({ page }) => {
+    // Hold the file back with a server error; the page must not just go quiet.
+    await page.route("**/pakaian-dinas/laporan/cetak**", (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ success: false, message: "boom" }),
+      }),
+    );
+    await page.goto(`${BASE}/pakaian-dinas/laporan`, { waitUntil: "domcontentloaded" });
+    const periode = page.getByTestId("laporan-pengajuan");
+    await expect
+      .poll(() => periode.locator("option").count(), { timeout: 20000 })
+      .toBeGreaterThan(1);
+    await periode.selectOption({ index: 1 });
+    await expect(page.getByTestId("laporan-cetak-pdf")).toBeEnabled();
+    await expect(page.getByTestId("action-error")).toHaveCount(0);
+
+    await page.getByTestId("laporan-cetak-pdf").click();
+    const banner = page.getByTestId("action-error");
+    await expect(banner).toBeVisible({ timeout: 15000 });
+    await expect(banner).toContainText("Cetak PDF gagal");
+  });
+});
+
 // ── RBAC: the validator-action endpoint is role-gated ───────────────────────
 test.describe("Pakaian Dinas — role-gated validator action", () => {
   test("an operator cannot drive a validator action", async ({ request }) => {
