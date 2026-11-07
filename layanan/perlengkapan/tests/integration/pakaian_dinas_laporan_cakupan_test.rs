@@ -24,7 +24,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 const ADMIN: &str = "00000000-0000-0000-0000-000000000003";
-const PUSAT: &str = "00000000-0000-0000-0000-000000000002";
+pub(crate) const PUSAT: &str = "00000000-0000-0000-0000-000000000002";
 
 type Headers = Vec<(reqwest::header::HeaderName, reqwest::header::HeaderValue)>;
 
@@ -52,7 +52,12 @@ fn auth_headers(role: &str, user_id: &str, satker: &str) -> Headers {
     ]
 }
 
-async fn get(server: &TestServer, path: &str, role: &str, user: &str) -> axum_test::TestResponse {
+pub(crate) async fn get(
+    server: &TestServer,
+    path: &str,
+    role: &str,
+    user: &str,
+) -> axum_test::TestResponse {
     let mut req = server.get(path);
     for (k, v) in auth_headers(role, user, "PUSAT001") {
         req = req.add_header(k, v);
@@ -77,14 +82,17 @@ async fn post(
 /// One campaign, two participating satker at DIFFERENT workflow stages, each
 /// with one employee carrying one recorded size. The smallest shape in which
 /// "counts only Selesai" and "counts everything" give different answers.
-struct Fixture {
-    pengajuan_id: Uuid,
+pub(crate) struct Fixture {
+    pub(crate) pengajuan_id: Uuid,
 }
 
-const SATKER_SELESAI: &str = "SKR001";
-const SATKER_BELUM: &str = "SKR002";
+pub(crate) const SATKER_SELESAI: &str = "SKR001";
+pub(crate) const SATKER_BELUM: &str = "SKR002";
 
-async fn seed(server: &TestServer, db: &layanan_perlengkapan::shared::db::Database) -> Fixture {
+pub(crate) async fn seed(
+    server: &TestServer,
+    db: &layanan_perlengkapan::shared::db::Database,
+) -> Fixture {
     let r = post(
         server,
         "/pakaian-dinas/jenis",
