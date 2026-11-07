@@ -156,6 +156,11 @@ struct PendingAction {
 
 #[component]
 pub fn PakaianDinasSatkerDetail() -> impl IntoView {
+    // Only the satker's operator fills sizes; everyone else reads them. The link
+    // is the same page either way, so it says which it is.
+    let is_operator = AuthService::load_session()
+        .map(|s| s.has_role("operator_satker"))
+        .unwrap_or(false);
     let params = use_params_map();
     let pengajuan_id = move || {
         params.with(|p| {
@@ -305,10 +310,18 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                             &s_isi.pengajuan_id,
                                                             &s_isi.satker_id,
                                                         )
-                                                        class="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 transition hover:opacity-90"
+                                                        class=if is_operator {
+                                                            "mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 transition hover:opacity-90"
+                                                        } else {
+                                                            "mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/[0.08]"
+                                                        }
                                                     >
                                                         <AppIcon icon=PENCIL_SIMPLE size=14 />
-                                                        "Isi Ukuran Pegawai"
+                                                        {if is_operator {
+                                                            "Isi Ukuran Pegawai"
+                                                        } else {
+                                                            "Lihat Ukuran Pegawai"
+                                                        }}
                                                     </a>
                                                     <button
                                                         class="mt-2 w-full rounded-lg border border-info-500/30 bg-info-500/10 px-3 py-1.5 text-xs font-medium text-info-300 transition hover:bg-info-500/20"

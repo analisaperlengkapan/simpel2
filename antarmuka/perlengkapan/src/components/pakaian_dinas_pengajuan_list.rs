@@ -7,9 +7,10 @@
 
 use crate::api::{
     AppError, CreatePengajuanPakaianDinasRequest, JenisPakaianDinas, PaginatedResponse,
-    PengajuanPakaianDinas, SpesifikasiPakaianDinas, WilayahKejati, create_pengajuan_pakaian_dinas,
-    delete_pengajuan_pakaian_dinas, fetch_jenis_pakaian_dinas, fetch_pengajuan_pakaian_dinas,
-    fetch_spesifikasi_pakaian, fetch_wilayah_kejati,
+    PengajuanPakaianDinas, SpesifikasiPakaianDinas, UpdatePengajuanPakaianDinasRequest,
+    WilayahKejati, create_pengajuan_pakaian_dinas, delete_pengajuan_pakaian_dinas,
+    fetch_jenis_pakaian_dinas, fetch_pengajuan_pakaian_dinas, fetch_spesifikasi_pakaian,
+    fetch_wilayah_kejati, update_pengajuan_pakaian_dinas,
 };
 use crate::components::layout::{
     ActionError, EmptyState, ErrorState, FormField, LoadingState, PageLayout, SectionCard,
@@ -18,7 +19,9 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{BUILDING, CALENDAR_CHECK, CALENDAR_X, PLUS, TRASH, WARNING_CIRCLE};
+use phosphor_leptos::{
+    BUILDING, CALENDAR_CHECK, CALENDAR_X, PENCIL_SIMPLE, PLUS, TRASH, WARNING_CIRCLE,
+};
 
 async fn query_pengajuan_pakaian_dinas_page(
     key: (i32, i32),
@@ -65,8 +68,13 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
     let (is_loading, set_is_loading) = signal(false);
     let (error_message, set_error_message) = signal(Option::<String>::None);
     let refresh_trigger = RwSignal::new(0);
-    // Why a delete was refused; shown above the cards (see `ActionError`).
+    // Why a delete or an edit was refused; shown above the cards (see `ActionError`).
     let hapus_error = RwSignal::new(Option::<String>::None);
+    // Creating, editing and deleting a campaign is the pusat validator's. The
+    // server refuses everyone else, so offering the buttons only ever answered 403.
+    let can_manage = crate::features::auth::AuthService::load_session()
+        .map(|s| s.is_validator_pusat())
+        .unwrap_or(false);
 
     let client: QueryClient = expect_context();
     let data_resource = client.local_resource(query_pengajuan_pakaian_dinas_page, move || {
@@ -164,19 +172,21 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
             icon="fas fa-calendar-alt"
             description="Kelola periode pengajuan pakaian dinas per tahun"
         >
-            <div class="mb-4 flex justify-end">
-                <button
-                    class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
-                    on:click=move |_| set_show_form.update(|v| *v = !*v)
-                >
-                    <span class="text-xs">
-                        <AppIcon icon=PLUS />
-                    </span>
-                    "Buat Pengajuan"
-                </button>
-            </div>
+            <Show when=move || can_manage>
+                <div class="mb-4 flex justify-end">
+                    <button
+                        class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
+                        on:click=move |_| set_show_form.update(|v| *v = !*v)
+                    >
+                        <span class="text-xs">
+                            <AppIcon icon=PLUS />
+                        </span>
+                        "Buat Pengajuan"
+                    </button>
+                </div>
+            </Show>
 
-            <Show when=move || show_form.get()>
+            <Show when=move || show_form.get() && can_manage>
                 <SectionCard title="Buat Periode Pengajuan Baru">
                     <Show when=move || error_message.get().is_some()>
                         <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
@@ -416,10 +426,13 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                                 response.data,
                                 response.total,
                                 response.total_pages,
-                                page,
-                                set_page,
-                                refresh_trigger,
-                                hapus_error,
+                                KartuCtx {
+                                    page,
+                                    set_page,
+                                    refresh_trigger,
+                                    hapus_error,
+                                    can_manage,
+                                },
                             )
                         }
                     }
@@ -430,28 +443,29 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
 }
 
 /// Status badge for pengajuan items.
-fn status_badge(status: String, is_open: bool) -> impl IntoView {
+fn status_badge(status: String, is_open: bool, periode: String) -> impl IntoView {
     let (class, text) = if is_open {
         (
             "bg-success-500/15 text-success-300 ring-success-500/25",
             "Dibuka".to_string(),
         )
+    } else if periode == "belum_dibuka" {
+        (
+            "bg-info-500/15 text-info-300 ring-info-500/25",
+            "Belum dibuka".to_string(),
+        )
+    } else if status == "Selesai" {
+        (
+            "bg-info-500/15 text-info-300 ring-info-500/25",
+            "Selesai".to_string(),
+        )
     } else {
-        // `status` is the backend's `aktivitas_label` — the workflow step's
-        // human label from `ms_aktivitas_bmn` ("Input", "Selesai", …). It is
-        // empty only when the campaign points at an aktivitas code the lookup
-        // table does not carry, so say "Ditutup" rather than render a blank pill.
-        match status.as_str() {
-            "" => (
-                "bg-slate-500/15 text-slate-300 ring-slate-500/25",
-                "Ditutup".to_string(),
-            ),
-            "Selesai" => (
-                "bg-info-500/15 text-info-300 ring-info-500/25",
-                "Selesai".to_string(),
-            ),
-            _ => ("bg-gold-500/15 text-gold-300 ring-gold-500/25", status),
-        }
+        // Outside its dates. This used to print the workflow step's own label
+        // ("Input"), which says nothing about whether the campaign takes entries.
+        (
+            "bg-slate-500/15 text-slate-300 ring-slate-500/25",
+            "Ditutup".to_string(),
+        )
     };
     view! {
         <span class=format!(
@@ -462,15 +476,30 @@ fn status_badge(status: String, is_open: bool) -> impl IntoView {
 }
 
 /// Renders the card grid for pengajuan items.
-fn render_pengajuan_cards(
-    data: Vec<PengajuanPakaianDinas>,
-    total: i64,
-    total_pages: i32,
+/// What the card grid needs from its page: the paging and refresh signals, where
+/// a refused action is reported, and whether this user may change campaigns.
+#[derive(Clone, Copy)]
+struct KartuCtx {
     page: ReadSignal<i32>,
     set_page: WriteSignal<i32>,
     refresh_trigger: RwSignal<i32>,
     hapus_error: RwSignal<Option<String>>,
+    can_manage: bool,
+}
+
+fn render_pengajuan_cards(
+    data: Vec<PengajuanPakaianDinas>,
+    total: i64,
+    total_pages: i32,
+    ctx: KartuCtx,
 ) -> AnyView {
+    let KartuCtx {
+        page,
+        set_page,
+        refresh_trigger,
+        hapus_error,
+        can_manage,
+    } = ctx;
     let on_delete = move |id: String| {
         let confirmed = web_sys::window()
             .and_then(|w| {
@@ -499,8 +528,43 @@ fn render_pengajuan_cards(
                 children=move |item: PengajuanPakaianDinas| {
                     let item_id = item.id.clone();
                     let item_id_for_delete = item_id.clone();
+                    // The inline editor: dates are enforced, so this is how a
+                    // closed campaign is extended (and a typo is mended).
+                    let editing = RwSignal::new(false);
+                    let e_nama = RwSignal::new(item.nama.clone());
+                    let e_mulai = RwSignal::new(item.tgl_mulai.clone().unwrap_or_default());
+                    let e_selesai = RwSignal::new(item.tgl_selesai.clone().unwrap_or_default());
+                    let e_ket = RwSignal::new(item.deskripsi.clone().unwrap_or_default());
+                    let e_saving = RwSignal::new(false);
+                    // Held in a signal, which is `Copy`: the buttons below sit in
+                    // `<Show>`, whose body runs again on every toggle and so cannot
+                    // move a `String` out of its environment.
+                    let id_edit = RwSignal::new(item_id.clone());
+                    let id_del = RwSignal::new(item_id_for_delete.clone());
+                    let on_simpan = move |_| {
+                        let request = UpdatePengajuanPakaianDinasRequest {
+                            nama: Some(e_nama.get()),
+                            deskripsi: Some(e_ket.get()),
+                            tgl_mulai: Some(e_mulai.get()),
+                            tgl_selesai: Some(e_selesai.get()),
+                        };
+                        let id = id_edit.get_untracked();
+                        e_saving.set(true);
+                        spawn_local(async move {
+                            match update_pengajuan_pakaian_dinas(id, request).await {
+                                Ok(_) => {
+                                    hapus_error.set(None);
+                                    editing.set(false);
+                                    refresh_trigger.update(|v| *v += 1);
+                                }
+                                Err(e) => hapus_error.set(Some(e.user_message())),
+                            }
+                            e_saving.set(false);
+                        });
+                    };
                     let status_str = item.aktivitas_label.clone().unwrap_or_default();
                     let is_open = item.is_open;
+                    let periode = item.periode.clone();
                     let keterangan = item.deskripsi.clone();
                     let has_keterangan = keterangan.is_some();
                     view! {
@@ -514,7 +578,7 @@ fn render_pengajuan_cards(
                                         "Tahun: " {item.tahun.to_string()}
                                     </p>
                                 </div>
-                                {status_badge(status_str, is_open)}
+                                {status_badge(status_str, is_open, periode)}
                             </div>
 
                             <div class="space-y-1 text-xs text-slate-400">
@@ -540,6 +604,62 @@ fn render_pengajuan_cards(
                                 </p>
                             </Show>
 
+                            <Show when=move || editing.get()>
+                                <div class="mt-3 grid gap-2 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-xs">
+                                    <input
+                                        data-testid="ubah-nama"
+                                        aria-label="Nama kegiatan"
+                                        class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-slate-100"
+                                        prop:value=move || e_nama.get()
+                                        on:input=move |ev| e_nama.set(event_target_value(&ev))
+                                    />
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <input
+                                            type="date"
+                                            data-testid="ubah-mulai"
+                                            aria-label="Tanggal mulai"
+                                            class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-slate-100"
+                                            prop:value=move || e_mulai.get()
+                                            on:input=move |ev| e_mulai.set(event_target_value(&ev))
+                                        />
+                                        <input
+                                            type="date"
+                                            data-testid="ubah-selesai"
+                                            aria-label="Tanggal selesai"
+                                            class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-slate-100"
+                                            prop:value=move || e_selesai.get()
+                                            on:input=move |ev| e_selesai.set(event_target_value(&ev))
+                                        />
+                                    </div>
+                                    <input
+                                        data-testid="ubah-keterangan"
+                                        aria-label="Keterangan"
+                                        placeholder="Keterangan"
+                                        class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-slate-100"
+                                        prop:value=move || e_ket.get()
+                                        on:input=move |ev| e_ket.set(event_target_value(&ev))
+                                    />
+                                    <div class="flex gap-2">
+                                        <button
+                                            type="button"
+                                            data-testid="simpan-ubah"
+                                            class="rounded-lg bg-gold-gradient px-3 py-1.5 font-bold text-navy-950 disabled:opacity-50"
+                                            prop:disabled=move || e_saving.get()
+                                            on:click=on_simpan
+                                        >
+                                            "Simpan"
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="rounded-lg border border-white/10 px-3 py-1.5 text-slate-300"
+                                            on:click=move |_| editing.set(false)
+                                        >
+                                            "Batal"
+                                        </button>
+                                    </div>
+                                </div>
+                            </Show>
+
                             <div class="mt-4 flex gap-2 border-t border-white/[0.04] pt-3">
                                 <a
                                     href=crate::routes::url::pakaian_satker_list(&item_id)
@@ -550,14 +670,28 @@ fn render_pengajuan_cards(
                                     </span>
                                     "Satker"
                                 </a>
-                                <button
-                                    class="inline-flex items-center justify-center rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-1.5 text-xs text-danger-300 transition hover:bg-danger-500/20"
-                                    on:click=move |_| on_delete(item_id_for_delete.clone())
-                                >
-                                    <span class="text-2xs">
-                                        <AppIcon icon=TRASH />
-                                    </span>
-                                </button>
+                                <Show when=move || can_manage>
+                                    <button
+                                        data-testid="ubah-kegiatan"
+                                        aria-label="Ubah kegiatan"
+                                        title="Ubah nama, tanggal, keterangan"
+                                        class="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08]"
+                                        on:click=move |_| editing.update(|v| *v = !*v)
+                                    >
+                                        <span class="text-2xs">
+                                            <AppIcon icon=PENCIL_SIMPLE />
+                                        </span>
+                                    </button>
+                                    <button
+                                        aria-label="Hapus kegiatan"
+                                        class="inline-flex items-center justify-center rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-1.5 text-xs text-danger-300 transition hover:bg-danger-500/20"
+                                        on:click=move |_| on_delete(id_del.get_untracked())
+                                    >
+                                        <span class="text-2xs">
+                                            <AppIcon icon=TRASH />
+                                        </span>
+                                    </button>
+                                </Show>
                             </div>
                         </div>
                     }
