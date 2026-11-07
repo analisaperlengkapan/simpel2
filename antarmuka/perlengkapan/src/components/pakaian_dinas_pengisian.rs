@@ -26,12 +26,14 @@ use leptos_fetch::QueryClient;
 use leptos_router::hooks::use_params_map;
 
 use crate::api::pakaian_dinas::{
-    PengajuanPakaianItem, RosterPegawai, RosterPengisian, SimpanUkuranPegawaiRequest, Ukuran,
-    UkuranPegawaiItem, ValidatorActionRequest, fetch_master_ukuran, fetch_roster_pengisian,
+    PengajuanPakaianItem, PengajuanSatkerAktivitas, RosterPegawai, RosterPengisian,
+    SimpanUkuranPegawaiRequest, Ukuran, UkuranPegawaiItem, ValidatorActionRequest,
+    fetch_master_ukuran, fetch_pakaian_satker_aktivitas, fetch_roster_pengisian,
     keluarkan_pegawai_dari_pengajuan, process_validator_action, simpan_ukuran_pegawai,
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
 use lib_ui::components::icon::AppIcon;
+use lib_ui::utils::formatters::format_iso_local;
 use phosphor_leptos::{
     ARROW_LEFT, CHECK_CIRCLE, PAPER_PLANE_TILT, PENCIL_SIMPLE, WARNING_CIRCLE, X,
 };
@@ -42,6 +44,12 @@ const FIELD: &str = "focus-ring w-full rounded-lg border border-white/10 bg-whit
 async fn query_roster(key: (String, String, i32)) -> Result<RosterPengisian, crate::api::AppError> {
     let (pengajuan_id, satker_code, _trigger) = key;
     fetch_roster_pengisian(pengajuan_id, satker_code).await
+}
+
+async fn query_aktivitas(
+    pengajuan_satker_id: String,
+) -> Result<Vec<PengajuanSatkerAktivitas>, crate::api::AppError> {
+    fetch_pakaian_satker_aktivitas(pengajuan_satker_id).await
 }
 
 /// Seluruh master ukuran sekali, lalu dikelompokkan per grup di memori. Daftar
@@ -156,6 +164,62 @@ pub fn PakaianDinasPengisian() -> impl IntoView {
     }
 }
 
+/// Kode status "Revisi Pelaksana": satker dikembalikan ke operator untuk diperbaiki.
+const STATUS_REVISI_PELAKSANA: i32 = 1003;
+
+/// Mengapa pengajuan ini dikembalikan, dan oleh siapa.
+///
+/// Alasan pengembalian ditulis validator di dialog aksinya dan disimpan pada
+/// riwayat satker — tetapi satu-satunya tempat membacanya adalah panel "Lihat
+/// Riwayat & Aksi" di halaman daftar satker, satu halaman dan satu klik dari
+/// tempat operator memperbaikinya. Halaman pengisian hanya berubah dari "Isi
+/// Ukuran" menjadi "Ubah Ukuran", sehingga operator yang membuka tautan
+/// "Isi Ukuran Pegawai" tak tahu bahwa ia sedang memperbaiki apa pun, apalagi
+/// apa yang harus diperbaiki.
+#[component]
+fn CatatanRevisi(pengajuan_satker_id: String) -> impl IntoView {
+    let client: QueryClient = expect_context();
+    let riwayat = client.local_resource(query_aktivitas, move || pengajuan_satker_id.clone());
+    view! {
+        {move || {
+            let acts = riwayat.get().and_then(|r| r.ok())?;
+            // Riwayat dari yang terlama; yang dicari pengembalian TERAKHIR.
+            let revisi = acts
+                .iter()
+                .rev()
+                .find(|a| a.aktivitas_id == STATUS_REVISI_PELAKSANA)?
+                .clone();
+            let oleh = [revisi.nama.clone(), revisi.role.clone()]
+                .into_iter()
+                .flatten()
+                .filter(|x| !x.trim().is_empty())
+                .collect::<Vec<_>>()
+                .join(" · ");
+            let waktu = format_iso_local(&revisi.created_at);
+            let catatan = revisi
+                .komentar
+                .clone()
+                .filter(|c| !c.trim().is_empty())
+                .unwrap_or_else(|| "Tidak ada catatan.".to_string());
+            Some(
+                view! {
+                    <div
+                        data-testid="pengisian-catatan-revisi"
+                        class="mt-4 rounded-lg border border-danger-500/30 bg-danger-500/10 px-4 py-3 text-sm text-danger-200"
+                    >
+                        <p class="flex items-center gap-2 font-semibold">
+                            <AppIcon icon=WARNING_CIRCLE />
+                            "Dikembalikan untuk diperbaiki"
+                        </p>
+                        <p class="mt-1 text-xs text-danger-300">{oleh} " · " {waktu}</p>
+                        <p class="mt-2 whitespace-pre-line italic">{catatan}</p>
+                    </div>
+                },
+            )
+        }}
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn halaman(
     data: RosterPengisian,
@@ -174,6 +238,8 @@ fn halaman(
     let terisi = data.pegawai.iter().filter(|p| p.sudah_diisi).count();
     let dapat_diubah = data.dapat_diubah;
     let pengajuan_satker_id = data.pengajuan_satker_id.clone();
+    // `view!` memindahkan nilai ke closure tombol sebelum atribut lain dievaluasi.
+    let id_catatan_revisi = data.pengajuan_satker_id.clone();
     let kode_pengajuan = data.pengajuan_satker_id.clone();
     let _ = kode_pengajuan;
     let satker_kode = data.satker_kode.clone();
@@ -226,6 +292,9 @@ fn halaman(
                     </button>
                 </Show>
             </div>
+
+            {(data.aktivitas_id == STATUS_REVISI_PELAKSANA)
+                .then(|| view! { <CatatanRevisi pengajuan_satker_id=id_catatan_revisi.clone() /> })}
 
             <Show when=move || !dapat_diubah>
                 <p
