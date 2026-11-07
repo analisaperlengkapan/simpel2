@@ -443,6 +443,38 @@ pub async fn delete_pengajuan_pakaian(
     )))
 }
 
+/// Approve several satker at once ("Teruskan" for a wilayah validator, "Setujui"
+/// for pusat). Same coarse gate as a single action; the per-row role, status and
+/// scope checks are the single action's own.
+pub async fn process_validator_action_bulk(
+    State(service): State<PakaianDinasService>,
+    claims: Claims,
+    Json(request): Json<BulkValidatorActionRequest>,
+) -> Result<Json<ApiResponse<BulkActionResult>>, AppError> {
+    // Validators only: an operator submits one satker at a time, from its own page.
+    claims.require_any_role(&["validator_wilayah", "validator_pusat"])?;
+    let user_nip = claims.nip.as_deref().unwrap_or("unknown");
+    let user_nama = claims.name.as_deref().unwrap_or("unknown");
+    let user_roles: Vec<String> = claims.role_set().iter().map(str::to_string).collect();
+
+    let result = service
+        .process_validator_action_bulk(
+            request,
+            user_nip,
+            user_nama,
+            &user_roles,
+            &SatkerScope::from_claims(&claims),
+        )
+        .await?;
+
+    let message = format!(
+        "{} satker diproses, {} ditolak",
+        result.berhasil.len(),
+        result.gagal.len()
+    );
+    Ok(Json(ApiResponse::success(result, message)))
+}
+
 // ============ Pengajuan Satker ============
 
 pub async fn get_pengajuan_satker_list(
