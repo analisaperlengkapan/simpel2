@@ -254,11 +254,33 @@ global:
   #         baris konfigurasi sintetis (halaman login v1 500 tanpanya). Bukan
   #         image dan bukan chart; efeknya hanya bila skrip dijalankan.
   #
-  # Cara memilih antara rc34 dan rc35: rc35 untuk SEMUA yang ingin dipromosikan.
-  # rc34 sah sebagai pembanding (suite 196/197; satu merah = balapan di atas).
-  # Upgrade rc34 → rc35 hanya mengganti tag (tanpa PVC/skema baru); dump
-  # pra-upgrade tetap wajib. Hasil verifikasi rc35 dicatat sesudah rilis.
-  imageTag: v0.1.0-rc35
+  # rc36 = rc35 + tiga perubahan (#1046, #1047, #1048). Tanpa migrasi skema.
+  #   #1046 halaman Audit Log admin membaca tabel yang tak pernah ditulis
+  #         (`workflow_transitions`, 0 baris) sehingga SELALU kosong; jejak nyata
+  #         ada di `audit_log` (119 baris di staging). Kini membaca `/audit`,
+  #         dropdown Modul/Jenis Entitas/Aksi diisi dari isi jejak
+  #         (`/audit/facets`, bukan daftar tulis-tangan yang menyebut `login` dan
+  #         `bank_aset` yang tak pernah tercatat), filter tanggal mengirim instan
+  #         RFC 3339 (tanggal polos dulu dibuang diam-diam oleh server).
+  #   #1047 keputusan per-satker Kebutuhan BMN (alur terbesar) tak pernah masuk
+  #         jejak audit lintas modul karena sengaja melewati mesin workflow; kini
+  #         menulis `workflow.transition` ke `audit_log`.
+  #   #1048 alur Pakaian Dinas: satker yang dikembalikan Pusat (1007) terparkir
+  #         selamanya, kini dijawab Wilayah; panel aksi menyegarkan diri; penolakan
+  #         server tak lagi terbaca "periksa koneksi internet"; menghapus
+  #         kegiatan ditolak bila ada satker yang sudah berjalan (sebelumnya
+  #         membuang seluruh pekerjaan di dalamnya); halaman pengisian mengutip
+  #         catatan pengembalian.
+  #
+  # Catatan operasional: PVC RWO lama `perlengkapan-documents-pvc` (yatim sejak
+  # dokumen pindah ke RWX `perlengkapan-documents`, #1038) dihapus manual di
+  # staging atas izin; chart tak pernah memilikinya.
+  #
+  # Cara memilih antara rc35 dan rc36: rc36 untuk SEMUA yang ingin dipromosikan.
+  # rc35 sah sebagai pembanding. Upgrade rc35 → rc36 hanya mengganti tag (tanpa
+  # PVC/skema baru), jadi kembali ke rc35 juga aman; dump pra-upgrade tetap wajib.
+  # Hasil verifikasi rc36 dicatat sesudah rilis.
+  imageTag: v0.1.0-rc36
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
