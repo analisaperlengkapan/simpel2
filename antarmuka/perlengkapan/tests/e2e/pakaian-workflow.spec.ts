@@ -984,6 +984,61 @@ test.describe("Pakaian Dinas — a handover tells the next role", () => {
   });
 });
 
+// ── What the system already knows is not retyped ────────────────────────────
+// A pegawai's sizes are on their own profile (the Ukuran page). The operator
+// filling the satker's campaign was shown an empty dialog and typed them again.
+test.describe("Pakaian Dinas — the dialog starts from the sizes already on record", () => {
+  test.use({ storageState: storageStatePath("operator_a") });
+
+  test("a pegawai with a profile is pre-filled, and saving keeps what the operator checked", async ({
+    page,
+    request,
+  }) => {
+    // operator_a is also the employee on the roster of 0200010: set their own profile.
+    const token = await tokenFor(request, "operator_a");
+    const auth = { Authorization: `Bearer ${token}` };
+    const profil = await request.post(`${PD_API}/ukuran-pakaian-pegawai`, {
+      headers: auth,
+      data: { ukuran_baju: "L", ukuran_celana: "32", ukuran_sepatu: "41", with_hijab: false },
+    });
+    expect(profil.ok(), await profil.text()).toBeTruthy();
+
+    const { pengajuanId } = await kampanyeBaru(request);
+    await page.goto(
+      `${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker/${SATKER_REVISI}/isi`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await expect(page.getByTestId("pengisian-tabel")).toBeVisible({ timeout: 20000 });
+    await page.getByRole("button", { name: /^Isi ukuran /i }).first().click();
+
+    const dialog = page.getByTestId("dialog-ukuran");
+    await expect(dialog.getByTestId("ukuran-diisi-otomatis")).toBeVisible();
+    const selects = dialog.locator("select");
+    expect(await selects.count()).toBeGreaterThan(0);
+    for (let i = 0; i < (await selects.count()); i++) {
+      await expect(selects.nth(i), "no column is left for the operator to retype").not.toHaveValue("");
+    }
+
+    // The operator checks and saves; what is stored is what the dialog showed.
+    await page.getByTestId("simpan-ukuran").click();
+    // A size is a cell of its own. Matching the table's flattened text with \b
+    // missed it: "Penata Muda" + "32" run together as "Muda32", which has no boundary.
+    await expect(
+      page.getByTestId("pengisian-tabel").locator("td").filter({ hasText: /^\s*(L|32|41)\s*$/ }).first(),
+    ).toBeVisible({ timeout: 15000 });
+    const pusat = await tokenFor(request, "validator_pusat");
+    const roster = await request.get(
+      `${PD_API}/pengajuan/${pengajuanId}/satker/${SATKER_REVISI}/pegawai`,
+      { headers: { Authorization: `Bearer ${pusat}` } },
+    );
+    const saved = (await roster.json()).data.pegawai.find(
+      (p: { nip: string }) => p.nip === "200000000000000001",
+    );
+    expect(saved.sudah_diisi).toBe(true);
+    expect(["L", "32", "41"]).toContain(saved.ukuran[0].ukuran);
+  });
+});
+
 // ── Failures that used to be silent ─────────────────────────────────────────
 // The two delete handlers and the export download ended their error arm in a
 // console log. The server had answered with the reason (a campaign with work in

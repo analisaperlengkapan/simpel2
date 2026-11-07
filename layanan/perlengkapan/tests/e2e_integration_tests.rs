@@ -27,6 +27,7 @@ mod integration {
     mod pakaian_dinas_persetujuan_massal_test;
     mod pakaian_dinas_revisi_test;
     mod pakaian_dinas_spesifikasi_filter_test;
+    mod pakaian_dinas_ukuran_terakhir_test;
     mod pakaian_dinas_ukuran_test;
     mod pakaian_dinas_workflow_test;
     mod pegawai_satker_link_test;

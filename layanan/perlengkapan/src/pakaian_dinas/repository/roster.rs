@@ -168,14 +168,50 @@ impl PakaianDinasRepository {
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
+        // Ukuran yang sudah tercatat di profil tiap pegawai (halaman Ukuran),
+        // diambil sekali untuk seluruh satker. Operator tidak mengetik ulang data
+        // yang sudah ada di database; ia memeriksa lalu menyimpan.
+        let nips: Vec<String> = pegawai_rows.iter().map(|r| r.get("nip")).collect();
+        let profil_rows = client
+            .query(
+                "SELECT nip, ukuran_baju, ukuran_celana, ukuran_sepatu, with_hijab \
+                 FROM perlengkapan.pegawai_pakaian_dinas WHERE nip = ANY($1)",
+                &[&nips],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let profil: HashMap<String, ProfilUkuran> = profil_rows
+            .iter()
+            .map(|r| {
+                (
+                    r.get::<_, String>("nip"),
+                    ProfilUkuran {
+                        baju: r.try_get("ukuran_baju").ok().flatten(),
+                        celana: r.try_get("ukuran_celana").ok().flatten(),
+                        sepatu: r.try_get("ukuran_sepatu").ok().flatten(),
+                        with_hijab: r.try_get("with_hijab").unwrap_or(false),
+                    },
+                )
+            })
+            .collect();
+
         let pegawai = pegawai_rows
             .iter()
             .map(|row| {
                 let nip: String = row.get("nip");
+                let sudah_diisi = tersimpan.contains_key(&nip);
                 let (with_hijab, ukuran) =
                     tersimpan.get(&nip).cloned().unwrap_or((false, Vec::new()));
+                // Saran hanya untuk yang belum diisi: yang sudah diisi memakai
+                // isinya sendiri.
+                let profil_pegawai = profil.get(&nip).filter(|_| !sudah_diisi);
+                let saran = profil_pegawai
+                    .map(|p| p.saran_untuk(&pakaian))
+                    .unwrap_or_default();
+                let with_hijab = profil_pegawai.map_or(with_hijab, |p| p.with_hijab);
                 RosterPegawai {
-                    sudah_diisi: tersimpan.contains_key(&nip),
+                    sudah_diisi,
+                    saran,
                     nip,
                     nama: row.get("nama"),
                     jabatan: row.try_get("jabatan").ok().flatten(),
@@ -446,5 +482,37 @@ impl PakaianDinasRepository {
         .map_err(|e| bad_request(&e.to_string()))?;
         tx.commit().await.map_err(|e| bad_request(&e.to_string()))?;
         Ok(())
+    }
+}
+
+/// What a pegawai's own profile (the Ukuran page) already says about their sizes.
+struct ProfilUkuran {
+    baju: Option<String>,
+    celana: Option<String>,
+    sepatu: Option<String>,
+    with_hijab: bool,
+}
+
+impl ProfilUkuran {
+    /// The profile's size for each campaign column, by the column's size group.
+    /// A column whose group the profile has no size for gets no suggestion, and
+    /// so does an empty size.
+    fn saran_untuk(&self, kolom: &[PengajuanPakaianItem]) -> Vec<UkuranPegawaiItem> {
+        kolom
+            .iter()
+            .filter_map(|item| {
+                let ukuran = match item.spesifikasi_ukuran_group.to_uppercase().as_str() {
+                    "BAJU" => self.baju.as_deref(),
+                    "CELANA" => self.celana.as_deref(),
+                    "SEPATU" => self.sepatu.as_deref(),
+                    _ => None,
+                }?
+                .trim();
+                (!ukuran.is_empty()).then(|| UkuranPegawaiItem {
+                    pakaian_id: item.id,
+                    ukuran: ukuran.to_string(),
+                })
+            })
+            .collect()
     }
 }
