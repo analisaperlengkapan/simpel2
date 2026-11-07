@@ -331,6 +331,15 @@ Effect::new(move |_| {
 
 - **E2E Testing**: Gunakan Playwright untuk menguji seluruh alur pengguna (user flows) di antarmuka web, termasuk penanganan CAPTCHA jika diperlukan.
 - **Komponen**: Uji *logic* statis secara independen. Hindari menempatkan *business logic* kompleks di dalam komponen antarmuka.
+- **Halaman daftar/riwayat/audit: uji ISI-nya, bukan hanya akses dan judul.** Halaman Audit Log admin kosong
+  *menurut rancangan* (membaca dua tabel yang tak pernah ditulis) dan tetap hijau, karena spec hanya menanyakan
+  siapa yang boleh membukanya. Spec harus membuat satu peristiwa nyata lewat API lalu menegaskan barisnya muncul;
+  sebelum menyebut halaman riwayat "benar", cari **penulis** tabel sumbernya (`grep "INSERT INTO <tabel>"`).
+- **Opsi dropdown filter diturunkan dari data** (`GET /audit/facets`), bukan daftar tulis-tangan: daftar lama
+  menawarkan `bank_aset`/`login` yang tak pernah tercatat dan melewatkan `tiket`/`pengajuan_satker` yang ada.
+  Spec-nya memilih tiap opsi dan menegaskan **setidaknya satu baris**, semuanya membawa nilai itu.
+- **Filter tanggal `<input type="date">` dikirim sebagai instan RFC 3339** (awal/akhir hari di zona pemirsa);
+  `YYYY-MM-DD` polos diabaikan server tanpa error dan terbaca "filter diterapkan" padahal semua baris tampil.
 
 ---
 

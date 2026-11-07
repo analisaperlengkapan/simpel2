@@ -597,12 +597,13 @@ pub fn create_routes(state: AppState) -> Router {
             get(crate::shared::health::integrasi_circuit_status),
         )
         // ============ Cross-module audit trail (BPK-ready) ============
-        // Reads perlengkapan.audit_log (every module's AuditSink events),
-        // unlike /admin/audit which only shows workflow transitions. Pull a
+        // Reads perlengkapan.audit_log (every module's AuditSink events). Pull a
         // single record's full history via ?entity=<type>&resource_id=<id>.
+        // `/audit/facets` lists the values that actually occur in the trail, so a
+        // filter dropdown can never offer a value nothing was ever logged under.
         .route("/audit", get(crate::audit::list_audit_trail))
-        // ============ Admin Routes (audit + master data + templates) ============
-        .route("/admin/audit", get(crate::admin::list_audit_logs))
+        .route("/audit/facets", get(crate::audit::list_audit_facets))
+        // ============ Admin Routes (master data + templates) ============
         // Audited emergency override (reason mandatory, logged before acting) and
         // its review log — see `admin::break_glass`.
         .route("/admin/break-glass", get(crate::admin::list_break_glass))

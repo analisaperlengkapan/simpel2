@@ -2,6 +2,7 @@ mod common;
 
 #[cfg(test)]
 mod integration {
+    mod audit_trail_test;
     mod bank_aset_dashboard_breakdown_test;
     mod bank_aset_filter_options_test;
     mod dashboard_metrics_test;

@@ -174,11 +174,16 @@ export default defineConfig({
     // and the negative/RBAC edges. Click-driven navigation (FE-audit lesson:
     // goto()-only specs cannot catch broken links). Clears the final
     // route-coverage debt → the perlengkapan gate is BLOCKING from E-5 on.
+    //
+    // Also here: the admin Audit Log page's CONTENT (admin-audit-log.spec.ts).
+    // guards-rbac only proves who may open it; the page was empty by construction
+    // (it read two tables nothing writes) and stayed green until its content was
+    // asserted.
     {
       name: 'perlengkapan-admin-bantuan',
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
-      testMatch: ['**/admin-bantuan-workflow.spec.ts'],
+      testMatch: ['**/admin-bantuan-workflow.spec.ts', '**/admin-audit-log.spec.ts'],
     },
   ],
 

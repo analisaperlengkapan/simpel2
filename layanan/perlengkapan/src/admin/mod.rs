@@ -1,8 +1,13 @@
 //! # Admin module
 //!
-//! Audit log viewer and master data hub exposed at `/admin/*`. Master data and
-//! templates need `Capability::Administer`, the workflow audit trail needs
-//! `Capability::ViewAudit` (both `ADMIN_ROLES`); see `handlers::require_admin`.
+//! Master data hub and document templates exposed at `/admin/*`, both needing
+//! `Capability::Administer` (`ADMIN_ROLES`); see `handlers::require_admin`.
+//!
+//! There is deliberately no `/admin/audit` any more: it read
+//! `workflow_transitions` JOIN `workflow_instances`, two tables no code path ever
+//! INSERTs into, so the page it fed was empty in every environment. The audit
+//! trail lives in `perlengkapan.audit_log` and is served by `crate::audit`
+//! (`GET /audit`), which is what the admin page now calls.
 //! `break_glass` is the audited emergency override — it replaces the implicit
 //! "admin bypasses every workflow check" the API used to have.
 
@@ -25,7 +30,7 @@ pub mod templates;
 
 pub use break_glass::{break_glass_transition, list_break_glass};
 pub use handlers::{
-    create_master_record, delete_master_record, list_audit_logs, list_master_records,
-    list_master_sources, update_master_record,
+    create_master_record, delete_master_record, list_master_records, list_master_sources,
+    update_master_record,
 };
 pub use templates::{get_template, list_templates, preview_template};
