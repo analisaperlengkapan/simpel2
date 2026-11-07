@@ -505,17 +505,34 @@ fn DialogUkuran(
         .filter(|item| item.berlaku_untuk(&pegawai.jenis_kelamin))
         .collect();
 
-    let pilihan = RwSignal::new(
-        berlaku
-            .iter()
-            .map(|item| {
-                (
-                    item.id.clone(),
-                    pegawai.ukuran_untuk(&item.id).unwrap_or("").to_string(),
-                )
-            })
-            .collect::<HashMap<String, String>>(),
-    );
+    // The employee's own recorded size is the starting point where this pengajuan
+    // has none yet, so the operator checks instead of retyping what the system
+    // already holds. Only a size the column actually offers is taken (a profile
+    // value the master no longer lists is left for the operator to choose).
+    let mut terisi_otomatis = 0usize;
+    let awal: HashMap<String, String> = berlaku
+        .iter()
+        .map(|item| {
+            let tersimpan = pegawai.ukuran_untuk(&item.id).map(str::to_string);
+            let saran = pegawai
+                .saran_untuk(&item.id)
+                .filter(|s| {
+                    grup.get(&item.spesifikasi_ukuran_group)
+                        .is_some_and(|opsi| opsi.iter().any(|o| o == s))
+                })
+                .map(str::to_string);
+            let (nilai, otomatis) = match (tersimpan, saran) {
+                (Some(t), _) => (t, false),
+                (None, Some(s)) => (s, true),
+                (None, None) => (String::new(), false),
+            };
+            if otomatis {
+                terisi_otomatis += 1;
+            }
+            (item.id.clone(), nilai)
+        })
+        .collect();
+    let pilihan = RwSignal::new(awal);
     let hijab = RwSignal::new(pegawai.with_hijab);
     let sibuk = RwSignal::new(false);
     let error = RwSignal::new(Option::<String>::None);
@@ -596,6 +613,15 @@ fn DialogUkuran(
                         <AppIcon icon=X />
                     </button>
                 </div>
+
+                <Show when=move || { terisi_otomatis > 0 }>
+                    <p
+                        data-testid="ukuran-diisi-otomatis"
+                        class="mt-4 rounded-lg border border-info-500/20 bg-info-500/10 px-3 py-2 text-xs text-info-300"
+                    >
+                        "Ukuran terisi dari yang sudah tercatat untuk pegawai ini. Periksa, ubah bila perlu, lalu simpan."
+                    </p>
+                </Show>
 
                 <div class="mt-5 flex flex-col gap-4">
                     {berlaku

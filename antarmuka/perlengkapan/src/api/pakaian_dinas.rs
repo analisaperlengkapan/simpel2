@@ -1401,9 +1401,20 @@ pub struct RosterPegawai {
     pub sudah_diisi: bool,
     #[serde(default)]
     pub ukuran: Vec<UkuranPegawaiItem>,
+    /// What the pegawai's own profile already records, mapped to the campaign's
+    /// columns. Only for a pegawai not yet filled in on this pengajuan.
+    #[serde(default)]
+    pub saran: Vec<UkuranPegawaiItem>,
 }
 
 impl RosterPegawai {
+    pub fn saran_untuk(&self, pakaian_id: &str) -> Option<&str> {
+        self.saran
+            .iter()
+            .find(|u| u.pakaian_id == pakaian_id)
+            .map(|u| u.ukuran.as_str())
+    }
+
     pub fn ukuran_untuk(&self, pakaian_id: &str) -> Option<&str> {
         self.ukuran
             .iter()
