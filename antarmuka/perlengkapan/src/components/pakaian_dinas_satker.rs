@@ -197,7 +197,14 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
         };
         spawn_local(async move {
             match process_validator_action(req).await {
-                Ok(_) => {
+                Ok(resp) => {
+                    // The panel's buttons are derived from the status of the row it
+                    // holds, and it holds a COPY taken when it was opened. Without
+                    // this the list and timeline refreshed while the panel kept
+                    // offering the moves the row had just left — "Teruskan ke Pusat"
+                    // on a row already at Pusat, which can only answer an error.
+                    // The server returns the row as it is now; hold that.
+                    selected.set(Some(resp.data));
                     pending.set(None);
                     refresh.update(|v| *v += 1);
                 }

@@ -740,10 +740,30 @@ test.describe("Pakaian Dinas — pusat returns a satker to wilayah, wilayah answ
       );
     }
 
-    // Down to the satker and back: 1007 → 1003 → 1001 → 1004 → 1008.
-    expect((await aksi(request, "validator_wilayah", rowId, "reject")).aktivitas).toBe(1003);
-    expect((await aksi(request, "operator_a", rowId, "submit")).aktivitas).toBe(1001);
-    expect((await aksi(request, "validator_wilayah", rowId, "approve")).aktivitas).toBe(1004);
+    // Answer it THROUGH THE SCREEN: forward it again. The panel must then stop
+    // offering the moves the row has just left — it used to keep its copy of the
+    // row from when it was opened, so "Teruskan ke Pusat" stayed on a satker that
+    // was already at Pusat.
+    await page.getByRole("button", { name: "Teruskan ke Pusat" }).click();
+    await page.getByRole("button", { name: "Kirim", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Teruskan ke Pusat" })).toHaveCount(0, {
+      timeout: 20000,
+    });
+    await expect(page.getByRole("button", { name: "Kembalikan untuk Revisi" })).toHaveCount(0);
+    await expect(page.getByText("mode pantau")).toBeVisible();
+    await expect
+      .poll(async () => {
+        const r = await fetchRows<{ id: string; aktivitas_id: number }>(
+          request,
+          `${PD_API}/pengajuan/${pengajuanId}/satker?page=1&per_page=100`,
+          pusat,
+          "satker rows after wilayah forwards",
+        );
+        return r.find((x) => x.id === rowId)?.aktivitas_id;
+      })
+      .toBe(1004);
+
+    // And Pusat can now close it.
     expect((await aksi(request, "validator_pusat", rowId, "approve")).aktivitas).toBe(1008);
   });
 });
