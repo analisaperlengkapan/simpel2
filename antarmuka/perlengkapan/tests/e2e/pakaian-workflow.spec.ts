@@ -850,7 +850,11 @@ test.describe("Pakaian Dinas — the dialog starts from the sizes already on rec
 
     // The operator checks and saves; what is stored is what the dialog showed.
     await page.getByTestId("simpan-ukuran").click();
-    await expect(page.getByTestId("pengisian-tabel")).toContainText(/\b(L|32|41)\b/, { timeout: 15000 });
+    // A size is a cell of its own. Matching the table's flattened text with \b
+    // missed it: "Penata Muda" + "32" run together as "Muda32", which has no boundary.
+    await expect(
+      page.getByTestId("pengisian-tabel").locator("td").filter({ hasText: /^\s*(L|32|41)\s*$/ }).first(),
+    ).toBeVisible({ timeout: 15000 });
     const pusat = await tokenFor(request, "validator_pusat");
     const roster = await request.get(
       `${PD_API}/pengajuan/${pengajuanId}/satker/${SATKER_REVISI}/pegawai`,
