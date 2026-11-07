@@ -9,7 +9,9 @@ use crate::api::{
     fetch_jenis_pakaian_dinas, fetch_laporan_daftar_pegawai, fetch_laporan_rekap_ukuran,
     fetch_pengajuan_pakaian_dinas, fetch_pengajuan_satker,
 };
-use crate::components::layout::{EmptyState, ErrorState, LoadingState, PageLayout, SectionCard};
+use crate::components::layout::{
+    ActionError, EmptyState, ErrorState, LoadingState, PageLayout, SectionCard,
+};
 use leptos::prelude::*;
 use leptos_fetch::QueryClient;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
@@ -111,7 +113,12 @@ fn jenis_laporan_for_tab(tab: &str) -> &'static str {
 /// parsed. `laporan_kebutuhan_bmn.rs:59` had already documented exactly this
 /// for its own export — the pattern is copied from there rather than invented.
 #[cfg(target_arch = "wasm32")]
-fn download_export(jenis_laporan: &'static str, jenis_file: &'static str, query: LaporanQuery) {
+fn download_export(
+    jenis_laporan: &'static str,
+    jenis_file: &'static str,
+    query: LaporanQuery,
+    export_error: RwSignal<Option<String>>,
+) {
     use leptos::task::spawn_local;
     use wasm_bindgen::JsCast;
     use web_sys::{Blob, BlobPropertyBag, Url};
@@ -119,6 +126,7 @@ fn download_export(jenis_laporan: &'static str, jenis_file: &'static str, query:
     let Some(pengajuan_id) = query.pengajuan_id.clone() else {
         return;
     };
+    export_error.set(None);
     spawn_local(async move {
         let bytes =
             match export_laporan_pakaian_dinas(jenis_laporan, jenis_file, &pengajuan_id, &query)
@@ -126,7 +134,10 @@ fn download_export(jenis_laporan: &'static str, jenis_file: &'static str, query:
             {
                 Ok(b) => b,
                 Err(e) => {
-                    leptos::logging::error!("export {jenis_file} gagal: {e}");
+                    // The download runs in the background, so without this the
+                    // button simply did nothing.
+                    let label = if jenis_file == "pdf" { "PDF" } else { "Excel" };
+                    export_error.set(Some(format!("Cetak {label} gagal: {}", e.user_message())));
                     return;
                 }
             };
@@ -167,7 +178,13 @@ fn download_export(jenis_laporan: &'static str, jenis_file: &'static str, query:
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn download_export(_jenis_laporan: &'static str, _jenis_file: &'static str, _query: LaporanQuery) {}
+fn download_export(
+    _jenis_laporan: &'static str,
+    _jenis_file: &'static str,
+    _query: LaporanQuery,
+    _export_error: RwSignal<Option<String>>,
+) {
+}
 
 /// Helper to render a filter select with dark-theme styling.
 fn filter_select(
@@ -215,6 +232,8 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
     let (selected_jenis_kelamin, set_selected_jenis_kelamin) = signal(Option::<String>::None);
     let (selected_jenis_pegawai, set_selected_jenis_pegawai) = signal(Option::<String>::None);
     let (selected_eselon, set_selected_eselon) = signal(Option::<String>::None);
+    // Why the last export failed, shown under the buttons (see `ActionError`).
+    let export_error = RwSignal::new(Option::<String>::None);
 
     // `daftar_page` lives in the parent so each filter's `on:change` handler
     // can atomically reset it to 1 alongside the filter change. Keeping page
@@ -522,6 +541,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                                 eselon: selected_eselon.get(),
                                 jenis: selected_jenis_pegawai.get(),
                             },
+                            export_error,
                         );
                     }
                 >
@@ -546,6 +566,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                                 eselon: selected_eselon.get(),
                                 jenis: selected_jenis_pegawai.get(),
                             },
+                            export_error,
                         );
                     }
                 >
@@ -555,6 +576,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                     "Cetak PDF"
                 </button>
             </div>
+            <ActionError message=export_error />
 
             // Tab Content
             //

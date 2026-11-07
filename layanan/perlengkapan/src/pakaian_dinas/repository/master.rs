@@ -136,7 +136,21 @@ impl PakaianDinasRepository {
                 &[&id],
             )
             .await
-            .map_err(|e| bad_request(&e.to_string()))?;
+            .map_err(|e| {
+                // A jenis that a campaign still points at is held by a foreign key
+                // (the spesifikasi under it cascade, the campaigns do not). Its
+                // message is the database's own wording; say the reason instead.
+                let in_use = e.as_db_error().is_some_and(|d| {
+                    d.code() == &tokio_postgres::error::SqlState::FOREIGN_KEY_VIOLATION
+                });
+                if in_use {
+                    bad_request(
+                        "Jenis pakaian dinas tidak dapat dihapus: masih dipakai oleh pengajuan pakaian dinas",
+                    )
+                } else {
+                    bad_request(&e.to_string())
+                }
+            })?;
 
         if result == 0 {
             return Err(AppError::NotFound(
