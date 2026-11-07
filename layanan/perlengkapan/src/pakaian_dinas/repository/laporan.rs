@@ -22,6 +22,9 @@ use uuid::Uuid;
 /// without ever showing them.
 pub(crate) const AKTIVITAS_SELESAI: i32 = AktivitasStatus::Selesai as i32;
 
+/// MySIMKARI code of the Kejaksaan Agung, the heading of a national report.
+const PUSAT_SATKER_CODE: &str = "0100000";
+
 /// How a `jenis_pakaian_id` predicate has to be written, which depends on
 /// whether the clothing-item tables are in scope for the query being built.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -379,6 +382,152 @@ impl PakaianDinasRepository {
         Ok(rows.iter().map(|r| r.get::<_, String>(0)).collect())
     }
 
+    /// The clothing tables the rekap prints, one entry per distinct
+    /// (spesifikasi, size group, gender) of the campaign. Not narrowed to what
+    /// somebody picked: an item nobody has been measured for still gets its page.
+    pub async fn get_laporan_rekap_pakaians(
+        &self,
+        pengajuan_id: Uuid,
+        filter: &LaporanFilter,
+    ) -> AppResult<Vec<RekapPakaian>> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let mut sql = "SELECT DISTINCT spesifikasi_nama, spesifikasi_ukuran_group, \
+                       COALESCE(subspesifikasi_gender, '') AS gender \
+                       FROM perlengkapan.pengajuan_pakaian_dinas_pakaian \
+                       WHERE pengajuan_id = $1"
+            .to_string();
+        let mut params: Vec<Box<dyn ToSql + Sync + Send>> = vec![Box::new(pengajuan_id)];
+        if let Some(jenis_pakaian_id) = filter.jenis_pakaian_id {
+            sql.push_str(" AND jenis_pakaian_id = $2");
+            params.push(Box::new(jenis_pakaian_id));
+        }
+        sql.push_str(" ORDER BY spesifikasi_nama, gender");
+        let refs: Vec<&(dyn ToSql + Sync)> =
+            params.iter().map(|b| &**b as &(dyn ToSql + Sync)).collect();
+        let rows = client
+            .query(&sql, &refs[..])
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        Ok(rows
+            .iter()
+            .map(|r| RekapPakaian {
+                nama: r.get("spesifikasi_nama"),
+                ukuran_group: r.get("spesifikasi_ukuran_group"),
+                gender: r.get("gender"),
+            })
+            .collect())
+    }
+
+    /// Every satker of the campaign inside the caller's scope (and the optional
+    /// `satker_id` filter), whatever its status, in satker-code order. These are
+    /// the rows of the rekap and the headings of the daftar; the counts under
+    /// them still come only from satker that reached `Selesai`.
+    pub async fn get_laporan_satker_names(
+        &self,
+        pengajuan_id: Uuid,
+        filter: &LaporanFilter,
+        scope: &SatkerScope,
+    ) -> AppResult<Vec<String>> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let mut params: Vec<Box<dyn ToSql + Sync + Send>> = vec![Box::new(pengajuan_id)];
+        // DISTINCT ON the code: the satker master can carry the same code twice,
+        // and each copy would otherwise print its own row.
+        let mut sql =
+            "SELECT DISTINCT ON (ps.satker_id) COALESCE(s.nama_satker, ps.satker_id) AS nama \
+                       FROM perlengkapan.pengajuan_pakaian_dinas_satker ps \
+                       LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.kode_satker \
+                       WHERE ps.pengajuan_id = $1"
+                .to_string();
+        if let Some(cond) = scope.push_condition("ps.satker_id", &mut params) {
+            sql.push_str(&format!(" AND {cond}"));
+        }
+        if let Some(ref satker_id) = filter.satker_id {
+            params.push(Box::new(satker_id.clone()));
+            sql.push_str(&format!(" AND ps.satker_id = ${}", params.len()));
+        }
+        sql.push_str(" ORDER BY ps.satker_id");
+        let refs: Vec<&(dyn ToSql + Sync)> =
+            params.iter().map(|b| &**b as &(dyn ToSql + Sync)).collect();
+        let rows = client
+            .query(&sql, &refs[..])
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        Ok(rows.iter().map(|r| r.get::<_, String>("nama")).collect())
+    }
+
+    /// The second heading line of a laporan (legacy `$header->inst_nama`): the
+    /// satker's own name when the report is about one satker, otherwise
+    /// `WILAYAH <Kejati>`; a national reader gets the Kejaksaan Agung.
+    pub async fn get_laporan_inst_nama(
+        &self,
+        filter: &LaporanFilter,
+        scope: &SatkerScope,
+    ) -> AppResult<String> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let satker_name = |code: String| {
+            let client = &client;
+            async move {
+                let row = client
+                    .query_opt(
+                        "SELECT nama_satker FROM integrasi.mysimkari_satker WHERE kode_satker = $1",
+                        &[&code],
+                    )
+                    .await
+                    .map_err(|e| bad_request(&e.to_string()))?;
+                AppResult::Ok(
+                    row.map(|r| r.get::<_, String>("nama_satker"))
+                        .unwrap_or(code),
+                )
+            }
+        };
+        let one_satker = filter.satker_id.clone().or(match scope {
+            SatkerScope::Satker(code) => Some(code.clone()),
+            _ => None,
+        });
+        if let Some(code) = one_satker {
+            return satker_name(code).await;
+        }
+        let wilayah = match scope {
+            SatkerScope::Wilayah(code) => client
+                .query_opt(
+                    "SELECT wilayah_nama FROM integrasi.v_satker_wilayah WHERE kode_satker = $1",
+                    &[code],
+                )
+                .await
+                .map_err(|e| bad_request(&e.to_string()))?,
+            SatkerScope::WilayahKode(kode) => client
+                .query_opt(
+                    "SELECT wilayah_nama FROM integrasi.v_satker_wilayah \
+                     WHERE wilayah_code = $1 LIMIT 1",
+                    &[kode],
+                )
+                .await
+                .map_err(|e| bad_request(&e.to_string()))?,
+            _ => None,
+        };
+        if let Some(row) = wilayah {
+            return Ok(format!("WILAYAH {}", row.get::<_, String>("wilayah_nama")));
+        }
+        let pusat = satker_name(PUSAT_SATKER_CODE.to_string()).await?;
+        Ok(if pusat == PUSAT_SATKER_CODE {
+            "WILAYAH KEJAKSAAN AGUNG".to_string()
+        } else {
+            format!("WILAYAH {pusat}")
+        })
+    }
+
     /// Long-format daftar rows: one row per (pegawai × clothing item). Pegawai
     /// without any recorded sizes still appear once with NULL item/ukuran.
     pub async fn get_laporan_daftar_long(
@@ -415,7 +564,7 @@ impl PakaianDinasRepository {
         let query = format!(
             r#"
             SELECT
-                COALESCE(s.nama_satker, '-') AS satker_nama,
+                COALESCE(s.nama_satker, ps.satker_id) AS satker_nama,
                 psp.nip, psp.nama, psp.jabatan, psp.gol_kd, psp.jenis,
                 psp.jenis_kelamin, psp.with_hijab,
                 pp.spesifikasi_nama AS item_nama, pu.ukuran
@@ -425,7 +574,7 @@ impl PakaianDinasRepository {
             LEFT JOIN perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran pu ON psp.id = pu.pegawai_id
             LEFT JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id{}
             {}
-            ORDER BY s.nama_satker, psp.nama, pp.spesifikasi_nama
+            ORDER BY ps.satker_id, psp.nama, pp.spesifikasi_nama
             "#,
             pakaian_join_filter, where_clause
         );
@@ -473,7 +622,7 @@ impl PakaianDinasRepository {
                 pp.spesifikasi_nama AS pakaian_nama,
                 pp.spesifikasi_ukuran_group AS ukuran_group,
                 psp.jenis_kelamin AS gender,
-                COALESCE(s.nama_satker, '-') AS satker_nama,
+                COALESCE(s.nama_satker, ps.satker_id) AS satker_nama,
                 pu.ukuran,
                 COUNT(*) AS jumlah
             FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran pu
@@ -498,8 +647,8 @@ impl PakaianDinasRepository {
 
         query.push_str(
             " GROUP BY pp.spesifikasi_nama, pp.spesifikasi_ukuran_group, \
-              psp.jenis_kelamin, s.nama_satker, pu.ukuran \
-              ORDER BY pp.spesifikasi_nama, psp.jenis_kelamin, s.nama_satker, pu.ukuran",
+              psp.jenis_kelamin, s.nama_satker, ps.satker_id, pu.ukuran \
+              ORDER BY pp.spesifikasi_nama, psp.jenis_kelamin, ps.satker_id, pu.ukuran",
         );
 
         let refs: Vec<&(dyn ToSql + Sync)> =

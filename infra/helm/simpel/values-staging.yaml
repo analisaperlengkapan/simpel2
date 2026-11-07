@@ -276,11 +276,25 @@ global:
   # dokumen pindah ke RWX `perlengkapan-documents`, #1038) dihapus manual di
   # staging atas izin; chart tak pernah memilikinya.
   #
-  # Cara memilih antara rc35 dan rc36: rc36 untuk SEMUA yang ingin dipromosikan.
-  # rc35 sah sebagai pembanding. Upgrade rc35 → rc36 hanya mengganti tag (tanpa
-  # PVC/skema baru), jadi kembali ke rc35 juga aman; dump pra-upgrade tetap wajib.
-  # Hasil verifikasi rc36 dicatat sesudah rilis.
-  imageTag: v0.1.0-rc36
+  # rc37 = rc36 + dua perbaikan yang ditemukan saat menguji alur Pakaian Dinas
+  # di staging rc36 (tanpa migrasi skema):
+  #   #1050 form ukuran pribadi digambar begitu daftar ukuran tiba, sementara
+  #         ukuran tersimpan milik pegawai masih di jalan; jawaban yang terlambat
+  #         menimpa pilihan operator dan "Simpan" menyimpan ukuran lama dengan
+  #         pesan berhasil. Kini form menunggu kedua jawaban. (Terlihat sebagai
+  #         satu dari 203 tes e2e yang merah di rc36.)
+  #   #1051 hapus kegiatan, hapus jenis, dan unduh laporan yang ditolak server
+  #         tidak menampilkan apa pun (galat hanya ke konsol); kini ada banner
+  #         dengan alasannya. Menghapus jenis yang dipakai kegiatan menjawab
+  #         "Jenis pakaian dinas tidak dapat dihapus: masih dipakai oleh pengajuan
+  #         pakaian dinas", bukan teks galat basis data mentah.
+  #
+  # Cara memilih antara rc36 dan rc37: rc37 untuk SEMUA yang ingin dipromosikan.
+  # rc36 sah sebagai pembanding (suite 202/203; satu merah = balapan #1050).
+  # Upgrade rc36 → rc37 hanya mengganti tag (tanpa PVC/skema baru), jadi kembali
+  # ke rc36 juga aman; dump pra-upgrade tetap wajib. Hasil verifikasi rc37 dicatat
+  # sesudah rilis.
+  imageTag: v0.1.0-rc37
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`

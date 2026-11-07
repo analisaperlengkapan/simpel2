@@ -19,6 +19,7 @@ mod integration {
     mod pakaian_dinas_hapus_jenis_test;
     mod pakaian_dinas_hapus_kampanye_test;
     mod pakaian_dinas_laporan_cakupan_test;
+    mod pakaian_dinas_laporan_legacy_test;
     mod pakaian_dinas_pegawai_scope_test;
     mod pakaian_dinas_pengisian_test;
     mod pakaian_dinas_periode_test;
