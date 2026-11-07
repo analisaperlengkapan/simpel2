@@ -592,11 +592,16 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
 
     let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());
     let kebutuhan_bmn_workflow = WorkflowEngine::for_kebutuhan_bmn(db.pool().clone());
+    // Wired like `main.rs`: the satker-level transitions audit themselves, and a
+    // harness that omits the sink would let that emission rot unseen.
     let kebutuhan_bmn_service = KebutuhanBmnService::new(
         kebutuhan_bmn_repo,
         AuthencClient::dummy(),
         kebutuhan_bmn_workflow,
-    );
+    )
+    .with_audit_sink(std::sync::Arc::new(
+        layanan_perlengkapan::shared::audit::PgAuditSink::new(db.pool().clone()),
+    ));
 
     let dashboard_service = DashboardService::new(db.pool().clone());
     let roadmap_repo = RoadmapRepository::new(db.clone());
