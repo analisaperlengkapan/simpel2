@@ -413,6 +413,8 @@ async fn main() -> anyhow::Result<()> {
     }
     // #16/#40: audit trail for validator transitions.
     pakaian_dinas_service = pakaian_dinas_service.with_audit_sink(audit_sink.clone());
+    // Handover notifications: the next role is told when a satker reaches it.
+    pakaian_dinas_service = pakaian_dinas_service.with_notifier(notifier.clone());
 
     // Create Kebutuhan BMN service with workflow engine
     let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());

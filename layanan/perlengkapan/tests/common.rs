@@ -588,7 +588,11 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
         );
 
     let pakaian_dinas_repo = PakaianDinasRepository::new(db.pool().clone());
-    let pakaian_dinas_service = PakaianDinasService::new(pakaian_dinas_repo);
+    // The production wiring tells the next role when a satker reaches it; the
+    // harness must too, or the notification tests would pass on an app that
+    // never sends anything.
+    let pakaian_dinas_service =
+        PakaianDinasService::new(pakaian_dinas_repo).with_notifier(notifier.clone());
 
     let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());
     let kebutuhan_bmn_workflow = WorkflowEngine::for_kebutuhan_bmn(db.pool().clone());

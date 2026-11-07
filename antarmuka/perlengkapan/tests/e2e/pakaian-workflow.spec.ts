@@ -644,7 +644,7 @@ test.describe("Pakaian Dinas — validator pusat decides", () => {
 // validator's note lived only in the history panel one page away.
 // Both describes build their own campaign, so neither depends on which of the
 // fixture rows above earlier tests already moved.
-type Role = "operator_a" | "validator_wilayah" | "validator_pusat";
+type Role = "operator_a" | "operator_b" | "validator_wilayah" | "validator_pusat";
 const SATKER_REVISI = "0200010";
 
 async function aksiPakaian(
@@ -810,6 +810,77 @@ test.describe("Pakaian Dinas — a returned satker tells its operator why", () =
     await page.goto(isi, { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("pengisian-terkunci")).toBeVisible({ timeout: 20000 });
     await expect(page.getByTestId("pengisian-catatan-revisi")).toHaveCount(0);
+  });
+});
+
+// ── Handovers tell the next role ────────────────────────────────────────────
+// A satker moving to the next role used to tell nobody: the work sat in a list
+// until the next role happened to open it, and the dashboard's "Perlu Tindakan"
+// did not count it. The next role is now notified, and the dashboard counts what
+// waits on the caller.
+test.describe("Pakaian Dinas — a handover tells the next role", () => {
+  const NOTIF = `${PD_API.replace("/pakaian-dinas", "")}/notifikasi?page=1&per_page=50`;
+  const inbox = async (request: APIRequestContext, role: Role) => {
+    const token = await tokenFor(request, role);
+    const res = await request.get(NOTIF, { headers: { Authorization: `Bearer ${token}` } });
+    expect(res.ok(), await res.text()).toBeTruthy();
+    return ((await res.json()).data ?? []) as { title: string; message: string }[];
+  };
+  const dikenal = async (request: APIRequestContext, role: Role) => {
+    // Opening the campaign list is how a user becomes reachable.
+    const token = await tokenFor(request, role);
+    const res = await request.get(`${PD_API}/pengajuan?page=1&per_page=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(res.ok(), await res.text()).toBeTruthy();
+  };
+
+  test("wilayah is told when an operator submits, and the operator when it is returned", async ({
+    request,
+  }) => {
+    await dikenal(request, "validator_wilayah");
+    await dikenal(request, "operator_a");
+    const { rowId } = await kampanyeBaru(request);
+    const note = `Ukuran celana tidak sesuai ${Date.now()}`;
+
+    expect((await aksiPakaian(request, "operator_a", rowId, "submit")).aktivitas).toBe(1001);
+    const wilayah = await inbox(request, "validator_wilayah");
+    expect(
+      wilayah.some((n) => n.title === "Pakaian dinas menunggu pemeriksaan Anda"),
+      "wilayah is told something is waiting",
+    ).toBe(true);
+
+    expect(
+      (await aksiPakaian(request, "validator_wilayah", rowId, "reject", note)).aktivitas,
+    ).toBe(1003);
+    const operator = await inbox(request, "operator_a");
+    expect(
+      operator.some((n) => n.title.includes("dikembalikan") && n.message.includes(note)),
+      "the operator is told, with the validator's own words",
+    ).toBe(true);
+  });
+
+  test("the wilayah dashboard counts the satker waiting on it", async ({ browser, request }) => {
+    await dikenal(request, "validator_wilayah");
+    const { rowId } = await kampanyeBaru(request);
+    expect((await aksiPakaian(request, "operator_a", rowId, "submit")).aktivitas).toBe(1001);
+
+    const ctx = await browser.newContext({ storageState: storageStatePath("validator_wilayah") });
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
+    const tile = page.getByTestId("menunggu-pakaian-dinas");
+    await expect(tile).toBeVisible({ timeout: 30000 });
+    await expect(tile).toContainText("Pakaian Dinas Menunggu");
+    await expect(tile).toContainText("menunggu pemeriksaan Anda");
+    await ctx.close();
+
+    // A role with no turn in the flow gets no tile.
+    const admin = await browser.newContext({ storageState: storageStatePath("admin") });
+    const pa = await admin.newPage();
+    await pa.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
+    await expect(pa.getByText("Perlu Tindakan")).toBeVisible({ timeout: 30000 });
+    await expect(pa.getByTestId("menunggu-pakaian-dinas")).toHaveCount(0);
+    await admin.close();
   });
 });
 

@@ -83,6 +83,9 @@ pub struct PakaianDinasService {
     /// Cross-module audit sink (#16/#40). Opsional — `None` saat belum
     /// di-inject; transisi validator tetap berjalan, hanya tanpa jejak audit.
     audit_sink: Option<Arc<dyn AuditSink>>,
+    /// In-app notifier for handovers (a satker moving to the next role). Optional:
+    /// without it the workflow runs and nobody is told, as before.
+    notifier: Option<Arc<dyn crate::contracts::NotificationSender>>,
 }
 
 impl PakaianDinasService {
@@ -91,6 +94,7 @@ impl PakaianDinasService {
             repository,
             integrasi_client: None,
             audit_sink: None,
+            notifier: None,
         }
     }
 
@@ -102,6 +106,14 @@ impl PakaianDinasService {
 
     /// Inject cross-module audit sink (#16/#40) — jejak transisi validator
     /// pakaian dinas ke `perlengkapan.audit_log`.
+    pub fn with_notifier(
+        mut self,
+        notifier: Arc<dyn crate::contracts::NotificationSender>,
+    ) -> Self {
+        self.notifier = Some(notifier);
+        self
+    }
+
     pub fn with_audit_sink(mut self, sink: Arc<dyn AuditSink>) -> Self {
         self.audit_sink = Some(sink);
         self
@@ -512,10 +524,112 @@ impl PakaianDinasService {
             let _ = sink.log(event).await;
         }
 
+        // Tell the role whose turn it now is. Best-effort and after the commit: a
+        // notifier having a bad day never undoes a decision.
+        self.beri_tahu_transisi(&satker, next_status, request.komentar.as_deref())
+            .await;
+
         // Return the freshly-transitioned satker.
         self.repository
             .get_pengajuan_satker_by_id(request.pengajuan_satker_id, scope)
             .await
+    }
+
+    /// Satker rows waiting on the caller's role, inside the caller's scope. A
+    /// wilayah validator's are those at the wilayah step (including the ones pusat
+    /// sent back), pusat's those at the pusat step, an operator's those returned
+    /// for correction. Any other role has no turn in this flow.
+    pub async fn hitung_menunggu(
+        &self,
+        roles: &[String],
+        scope: &SatkerScope,
+    ) -> AppResult<MenungguPakaianDinas> {
+        let (peran, statuses): (&str, &[i32]) = if roles.iter().any(|r| r == "validator_wilayah") {
+            ("validator_wilayah", &[1001, 1007, 1012])
+        } else if roles.iter().any(|r| r == "validator_pusat") {
+            ("validator_pusat", &[1004, 1010])
+        } else if roles.iter().any(|r| r == "operator_satker") {
+            ("operator_satker", &[1003])
+        } else {
+            return Ok(MenungguPakaianDinas {
+                jumlah: 0,
+                peran: String::new(),
+            });
+        };
+        let jumlah = self.repository.hitung_menunggu(statuses, scope).await?;
+        Ok(MenungguPakaianDinas {
+            jumlah,
+            peran: peran.to_string(),
+        })
+    }
+
+    /// Remember the caller as somebody who can be told things (see
+    /// `migrations/V017__pengguna_dikenal.sql`). Best-effort: it never fails the
+    /// request it rides on.
+    pub async fn catat_pengguna(&self, claims: &crate::shared::middleware::Claims) {
+        let nama = claims.nama.as_deref().or(claims.name.as_deref());
+        if let Err(e) = self
+            .repository
+            .catat_pengguna(
+                claims.user_id,
+                nama,
+                &claims.roles,
+                claims.satker_code.as_deref(),
+            )
+            .await
+        {
+            tracing::warn!(error = %e, "could not record the pakaian dinas user");
+        }
+    }
+
+    /// Notify the users the satker's move hands work to.
+    async fn beri_tahu_transisi(&self, satker: &PengajuanSatker, ke: i32, catatan: Option<&str>) {
+        use crate::contracts::{NotificationChannel, NotificationMessage};
+        let Some(notifier) = &self.notifier else {
+            return;
+        };
+        let nama = satker
+            .satker_nama
+            .clone()
+            .unwrap_or_else(|| satker.satker_id.clone());
+        let Some(pesan) = super::notifikasi::pesan_untuk_transisi(ke, &nama, catatan) else {
+            return;
+        };
+        let penerima = match self
+            .repository
+            .penerima_peran(pesan.peran_tujuan, &satker.satker_id)
+            .await
+        {
+            Ok(p) => p,
+            Err(e) => {
+                tracing::warn!(error = %e, "could not resolve the notification recipients");
+                return;
+            }
+        };
+        for user_id in penerima {
+            let message = NotificationMessage {
+                event: pesan.event.to_string(),
+                recipient_user_id: user_id,
+                channels: vec![NotificationChannel::InApp],
+                priority: pesan.prioritas,
+                title: pesan.judul.clone(),
+                body: pesan.isi.clone(),
+                variables: Some(serde_json::json!({
+                    "pengajuan_id": satker.pengajuan_id,
+                    "pengajuan_satker_id": satker.id,
+                    "satker_id": satker.satker_id,
+                    "status_baru": ke,
+                })),
+                deeplink: Some(format!(
+                    "/pakaian-dinas/pengajuan/{}/satker",
+                    satker.pengajuan_id
+                )),
+                recipient_email: None,
+            };
+            if let Err(e) = notifier.send(message).await {
+                tracing::warn!(error = %e, %user_id, "pakaian dinas notification failed");
+            }
+        }
     }
 
     /// Per-satker workflow activity history (#40). Oldest-first list backing
