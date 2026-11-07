@@ -279,7 +279,12 @@ fn FacetSelect(
     view! {
         <label class="flex flex-col gap-1 text-xs">
             <span class="font-semibold text-slate-300">{label}</span>
+            // A <select> inside its <label> is named after the label's whole text,
+            // option texts included ("Modul Semua bantuan ..."), which is what a
+            // screen reader announces and what `getByLabel("Modul")` fails to match.
+            // Name it explicitly.
             <select
+                aria-label=label
                 on:change=move |e| {
                     let v = e.target().and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
                     if let Some(sel) = v {

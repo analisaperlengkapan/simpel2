@@ -29,8 +29,12 @@ const rows = (page: Page) => page.getByTestId('audit-row');
 
 /** Option values of a dropdown, minus the "Semua" (all) entry. */
 async function optionsOf(page: Page, label: string): Promise<string[]> {
-  const values = await page
-    .getByLabel(label, { exact: true })
+  // `evaluateAll` on a locator that matched nothing answers `[]`, which is also
+  // what a dropdown with no options looks like — so insist the control exists,
+  // or "the select was not found" reads as "the facets never arrived".
+  const select = page.getByLabel(label, { exact: true });
+  await expect(select, `no <select> named "${label}"`).toHaveCount(1);
+  const values = await select
     .locator('option')
     .evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value));
   return values.filter((v) => v !== '');
