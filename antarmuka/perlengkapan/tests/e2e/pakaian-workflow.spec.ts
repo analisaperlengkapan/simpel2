@@ -874,13 +874,15 @@ test.describe("Pakaian Dinas — a handover tells the next role", () => {
     await expect(tile).toContainText("menunggu pemeriksaan Anda");
     await ctx.close();
 
-    // A role with no turn in the flow gets no tile.
-    const admin = await browser.newContext({ storageState: storageStatePath("admin") });
-    const pa = await admin.newPage();
-    await pa.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
-    await expect(pa.getByText("Perlu Tindakan")).toBeVisible({ timeout: 30000 });
-    await expect(pa.getByTestId("menunggu-pakaian-dinas")).toHaveCount(0);
-    await admin.close();
+    // A role with no turn in the flow gets no tile. approver_satker holds that one
+    // role alone; the e2e "admin" is the base seed user in CI and holds every role
+    // (validator_wilayah among them), so it rightly has a turn and a tile.
+    const luar = await browser.newContext({ storageState: storageStatePath("approver_satker") });
+    const pl = await luar.newPage();
+    await pl.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
+    await expect(pl.getByText("Perlu Tindakan")).toBeVisible({ timeout: 30000 });
+    await expect(pl.getByTestId("menunggu-pakaian-dinas")).toHaveCount(0);
+    await luar.close();
   });
 });
 
