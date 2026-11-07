@@ -721,6 +721,7 @@ impl PakaianDinasService {
         &self,
         pengajuan_id: Uuid,
         filter: &LaporanFilter,
+        scope: &SatkerScope,
     ) -> AppResult<ReportHeader> {
         let pengajuan = self.get_pengajuan_by_id(pengajuan_id).await?;
         let labels = self
@@ -753,8 +754,10 @@ impl PakaianDinasService {
         if let Some(eselon) = &filter.eselon {
             filters.push(("Eselon".to_string(), eselon.clone()));
         }
+        let inst_nama = self.repository.get_laporan_inst_nama(filter, scope).await?;
         Ok(ReportHeader {
             judul: pengajuan.nama,
+            inst_nama,
             periode_mulai: pengajuan.tgl_mulai,
             periode_selesai: pengajuan.tgl_selesai,
             filters,
@@ -768,7 +771,13 @@ impl PakaianDinasService {
         filter: &LaporanFilter,
         scope: &SatkerScope,
     ) -> AppResult<DaftarReport> {
-        let header = self.build_report_header(pengajuan_id, filter).await?;
+        let header = self
+            .build_report_header(pengajuan_id, filter, scope)
+            .await?;
+        let satker_names = self
+            .repository
+            .get_laporan_satker_names(pengajuan_id, filter, scope)
+            .await?;
         // Not scoped, deliberately: the column set comes from the CAMPAIGN's
         // clothing catalogue (`..._pakaian` keyed by pengajuan_id), which is the
         // same list for every satker taking part. It reveals nothing about who
@@ -782,7 +791,7 @@ impl PakaianDinasService {
             .repository
             .get_laporan_daftar_long(pengajuan_id, filter, scope)
             .await?;
-        Ok(build_daftar_report(header, columns, rows))
+        Ok(build_daftar_report(header, columns, satker_names, rows))
     }
 
     /// Assemble the per-(pakaian × gender) rekap report with satker rows.
@@ -792,7 +801,9 @@ impl PakaianDinasService {
         filter: &LaporanFilter,
         scope: &SatkerScope,
     ) -> AppResult<RekapReport> {
-        let header = self.build_report_header(pengajuan_id, filter).await?;
+        let header = self
+            .build_report_header(pengajuan_id, filter, scope)
+            .await?;
         // Master ukuran ordering per group (by `urutan`).
         let mut ukuran_order: std::collections::HashMap<String, Vec<String>> =
             std::collections::HashMap::new();
@@ -803,7 +814,21 @@ impl PakaianDinasService {
             .repository
             .get_laporan_rekap_long(pengajuan_id, filter, scope)
             .await?;
-        Ok(build_rekap_report(header, &ukuran_order, rows))
+        let pakaians = self
+            .repository
+            .get_laporan_rekap_pakaians(pengajuan_id, filter)
+            .await?;
+        let satker_names = self
+            .repository
+            .get_laporan_satker_names(pengajuan_id, filter, scope)
+            .await?;
+        Ok(build_rekap_report(
+            header,
+            &ukuran_order,
+            pakaians,
+            satker_names,
+            rows,
+        ))
     }
 
     // ============ Workflow Integration ============
