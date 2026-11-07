@@ -61,19 +61,34 @@ pub fn UkuranPegawai(
     let existing_ukuran =
         client.local_resource(query_pegawai_ukuran, move || pegawai_id_for_fetch.clone());
 
-    // Effect to populate form when existing data loads
+    // Fill the form from what is already stored — ONCE. The form below is not
+    // drawn until this answer is in (see the `match`), so by the time anyone can
+    // pick a size the stored ones are already in place. The flag keeps a later
+    // re-run of this effect (a refetch) from replacing what the operator has
+    // chosen since.
+    let hydrated = StoredValue::new(false);
     Effect::new(move || {
-        if let Some(Ok(Some(ukuran))) = existing_ukuran.get() {
-            if let Some(baju) = ukuran.ukuran_baju {
-                set_ukuran_baju.set(baju);
+        if hydrated.get_value() {
+            return;
+        }
+        match existing_ukuran.get() {
+            Some(Ok(Some(ukuran))) => {
+                if let Some(baju) = ukuran.ukuran_baju {
+                    set_ukuran_baju.set(baju);
+                }
+                if let Some(celana) = ukuran.ukuran_celana {
+                    set_ukuran_celana.set(celana);
+                }
+                if let Some(sepatu) = ukuran.ukuran_sepatu {
+                    set_ukuran_sepatu.set(sepatu);
+                }
+                set_with_hijab.set(ukuran.with_hijab);
+                hydrated.set_value(true);
             }
-            if let Some(celana) = ukuran.ukuran_celana {
-                set_ukuran_celana.set(celana);
-            }
-            if let Some(sepatu) = ukuran.ukuran_sepatu {
-                set_ukuran_sepatu.set(sepatu);
-            }
-            set_with_hijab.set(ukuran.with_hijab);
+            // Answered, nothing stored yet (or the request failed, which the
+            // `match` below reports): nothing to apply.
+            Some(_) => hydrated.set_value(true),
+            None => {}
         }
     });
 
@@ -120,10 +135,20 @@ pub fn UkuranPegawai(
                     view! { <LoadingState message="Memuat data ukuran...".to_string() /> }
                 }>
                     {move || {
-                        match master_ukuran.get() {
-                            None => view! { <LoadingState /> }.into_any(),
-                            Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
-                            Some(Ok((baju_sizes, celana_sizes, sepatu_sizes))) => {
+                        // The form needs BOTH answers: the size lists and the
+                        // employee's stored sizes. Drawing it on the lists alone
+                        // let a slow stored-sizes answer arrive after the
+                        // operator had chosen, overwrite the choice, and the
+                        // next "Simpan" saved the old sizes under a success
+                        // message. A failed stored-sizes request is shown as an
+                        // error rather than as an empty form that would save
+                        // over what is there.
+                        match (master_ukuran.get(), existing_ukuran.get()) {
+                            (Some(Err(e)), _) | (_, Some(Err(e))) => {
+                                view! { <ErrorState error=e /> }.into_any()
+                            }
+                            (None, _) | (_, None) => view! { <LoadingState /> }.into_any(),
+                            (Some(Ok((baju_sizes, celana_sizes, sepatu_sizes))), Some(Ok(_))) => {
                                 let on_submit = move |ev: leptos::ev::SubmitEvent| {
                                     ev.prevent_default();
                                     set_success_message.set(None);

@@ -420,4 +420,58 @@ test.describe('Pakaian Dinas — ukuran pegawai', () => {
     await expect(page.getByText(/wajib diisi semua/i).first()).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Ukuran berhasil disimpan!')).toHaveCount(0);
   });
+
+  // The form used to be drawn as soon as the size LISTS arrived, while the
+  // employee's STORED sizes were still on their way. When that second answer came
+  // in after the operator had already chosen, it replaced the choice with the
+  // stored value, and "Simpan" then saved the old sizes under a success message.
+  // The first test here never noticed: it chooses the first option each time, and
+  // after one run the stored value IS the first option, so the overwrite changed
+  // nothing. This one stores sizes that differ from what it will pick and holds the
+  // stored-sizes answer back, so the order of arrival is fixed instead of lucky.
+  test('a slow answer with the stored sizes cannot overwrite what the operator picked', async ({
+    page,
+    request,
+  }) => {
+    const token = await tokenFor(request, 'operator_a');
+    const auth = { Authorization: `Bearer ${token}` };
+    const url = `${API}/pakaian-dinas/ukuran-pakaian-pegawai`;
+    const seeded = await request.post(url, {
+      headers: auth,
+      data: { ukuran_baju: 'L', ukuran_celana: '30', ukuran_sepatu: '40', with_hijab: false },
+    });
+    expect(seeded.ok(), await seeded.text()).toBeTruthy();
+
+    // Hold ONLY the stored-sizes read for 4 s (a slow link); the size lists are not held.
+    await page.route('**/pakaian-dinas/ukuran-pakaian-pegawai', async (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+      await route.continue();
+    });
+    const storedAnswered = page.waitForResponse(
+      (r) => r.url().endsWith('/pakaian-dinas/ukuran-pakaian-pegawai') && r.request().method() === 'GET',
+    );
+
+    await page.goto(`${BASE}/pakaian-dinas/ukuran`);
+    await expect(sizeForm(page)).toBeVisible({ timeout: 20000 });
+
+    // Choose a baju that is not the stored one, then let the held-back answer land.
+    await page.locator('select').nth(0).selectOption('XS');
+    await storedAnswered;
+    await page.waitForTimeout(500); // time for the page to apply it, if it is going to
+
+    await expect(page.locator('select').nth(0)).toHaveValue('XS');
+    // The stored sizes the operator did not touch are in the form.
+    await expect(page.locator('select').nth(1)).toHaveValue('30');
+    await expect(page.locator('select').nth(2)).toHaveValue('40');
+
+    // And what the screen shows is what gets saved.
+    await page.getByRole('button', { name: /Simpan/ }).click();
+    await expect(page.getByText('Ukuran berhasil disimpan!').first()).toBeVisible({
+      timeout: 15000,
+    });
+    const stored = await request.get(url, { headers: auth });
+    expect(stored.ok(), await stored.text()).toBeTruthy();
+    expect((await stored.json()).data.ukuran_baju).toBe('XS');
+  });
 });
