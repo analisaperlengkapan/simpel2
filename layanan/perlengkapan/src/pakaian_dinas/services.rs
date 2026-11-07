@@ -1003,6 +1003,24 @@ impl PakaianDinasService {
 
 // ============ Unit Tests ============
 
+/// Most satker one bulk request may carry. A national campaign has a few hundred;
+/// the cap keeps one request from holding a connection for minutes.
+const BULK_ACTION_MAX: usize = 300;
+
+/// The reason a single row was refused, in words the person can act on. Errors
+/// that carry a message of their own pass it on; the rest (a database fault)
+/// are not for the reader.
+fn alasan_untuk_pengguna(e: &AppError) -> String {
+    match e {
+        AppError::BadRequest(m)
+        | AppError::NotFound(m)
+        | AppError::Conflict(m)
+        | AppError::Authorization(m)
+        | AppError::WorkflowError(m) => m.clone(),
+        _ => "Terjadi kesalahan di server saat memproses satker ini".to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1143,23 +1161,5 @@ mod tests {
                 "{role} {aksi} must not be allowed at 1007"
             );
         }
-    }
-}
-
-/// Most satker one bulk request may carry. A national campaign has a few hundred;
-/// the cap keeps one request from holding a connection for minutes.
-const BULK_ACTION_MAX: usize = 300;
-
-/// The reason a single row was refused, in words the person can act on. Errors
-/// that carry a message of their own pass it on; the rest (a database fault)
-/// are not for the reader.
-fn alasan_untuk_pengguna(e: &AppError) -> String {
-    match e {
-        AppError::BadRequest(m)
-        | AppError::NotFound(m)
-        | AppError::Conflict(m)
-        | AppError::Authorization(m)
-        | AppError::WorkflowError(m) => m.clone(),
-        _ => "Terjadi kesalahan di server saat memproses satker ini".to_string(),
     }
 }
