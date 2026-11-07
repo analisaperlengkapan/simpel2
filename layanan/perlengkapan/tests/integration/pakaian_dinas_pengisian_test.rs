@@ -25,7 +25,7 @@ pub(crate) const SATKER_A: &str = "SKR001";
 const SATKER_B: &str = "SKR002";
 pub(crate) const NIP_A: &str = "19800101000000001";
 
-fn headers(role: &str, user: &str, satker: &str) -> Headers {
+pub(crate) fn headers(role: &str, user: &str, satker: &str) -> Headers {
     vec![
         (
             reqwest::header::HeaderName::from_static("x-user-id"),
