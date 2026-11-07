@@ -19,13 +19,13 @@ use serde_json::{Value, json};
 type Headers = Vec<(reqwest::header::HeaderName, reqwest::header::HeaderValue)>;
 
 const ADMIN: &str = "00000000-0000-0000-0000-000000000003";
-const OPERATOR: &str = "00000000-0000-0000-0000-000000000001";
-const PUSAT: &str = "00000000-0000-0000-0000-000000000002";
-const SATKER_A: &str = "SKR001";
+pub(crate) const OPERATOR: &str = "00000000-0000-0000-0000-000000000001";
+pub(crate) const PUSAT: &str = "00000000-0000-0000-0000-000000000002";
+pub(crate) const SATKER_A: &str = "SKR001";
 const SATKER_B: &str = "SKR002";
-const NIP_A: &str = "19800101000000001";
+pub(crate) const NIP_A: &str = "19800101000000001";
 
-fn headers(role: &str, user: &str, satker: &str) -> Headers {
+pub(crate) fn headers(role: &str, user: &str, satker: &str) -> Headers {
     vec![
         (
             reqwest::header::HeaderName::from_static("x-user-id"),
@@ -50,7 +50,7 @@ fn headers(role: &str, user: &str, satker: &str) -> Headers {
     ]
 }
 
-async fn post(
+pub(crate) async fn post(
     server: &TestServer,
     path: &str,
     role: &str,
@@ -65,7 +65,7 @@ async fn post(
     req.await
 }
 
-async fn get(
+pub(crate) async fn get(
     server: &TestServer,
     path: &str,
     role: &str,
@@ -79,7 +79,7 @@ async fn get(
     req.await
 }
 
-async fn put(
+pub(crate) async fn put(
     server: &TestServer,
     path: &str,
     role: &str,
@@ -96,7 +96,7 @@ async fn put(
 
 /// Kampanye PDH dengan satu kolom BAJU, menyasar SKR001 dan SKR002.
 /// Mengembalikan `(pengajuan_id, pakaian_id)`.
-async fn buat_kampanye(server: &TestServer) -> (String, String) {
+pub(crate) async fn buat_kampanye(server: &TestServer) -> (String, String) {
     let res = post(
         server,
         "/pakaian-dinas/jenis",

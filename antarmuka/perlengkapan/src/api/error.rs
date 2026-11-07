@@ -72,7 +72,15 @@ impl AppError {
                 } else {
                     errors
                         .iter()
-                        .map(|e| format!("{}: {}", e.field, e.message))
+                        .map(|e| {
+                            // "general" is the placeholder for a message that names no
+                            // field; printing it reads as "general: <the message>".
+                            if e.field == "general" {
+                                e.message.clone()
+                            } else {
+                                format!("{}: {}", e.field, e.message)
+                            }
+                        })
                         .collect::<Vec<_>>()
                         .join("; ")
                 }
@@ -179,3 +187,52 @@ fn parse_validation_body(body: &str) -> Vec<FieldError> {
 }
 
 pub type AppResult<T> = Result<T, AppError>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A refusal that reached us intact is not a connection failure. The pakaian
+    /// requests used to turn every non-2xx into `Network`, whose message tells
+    /// the user to check their internet — so "that move is not valid for this
+    /// status" read as "you are offline".
+    #[test]
+    fn a_business_refusal_shows_the_servers_own_words() {
+        let body = r#"{"success":false,"message":"Aksi 'reject' tidak valid untuk status 'Diajukan ke Pusat' dengan role 'validator_wilayah'","error_code":"BAD_REQUEST","details":null}"#;
+        let msg = AppError::from_status(400, body).user_message();
+        assert_eq!(
+            msg,
+            "Aksi 'reject' tidak valid untuk status 'Diajukan ke Pusat' dengan role 'validator_wilayah'"
+        );
+        assert!(!msg.contains("koneksi"), "{msg}");
+    }
+
+    #[test]
+    fn a_named_field_keeps_its_name() {
+        let body = r#"{"errors":[{"field":"tgl_selesai","message":"harus setelah tgl_mulai"}]}"#;
+        assert_eq!(
+            AppError::from_status(422, body).user_message(),
+            "tgl_selesai: harus setelah tgl_mulai"
+        );
+    }
+
+    #[test]
+    fn statuses_map_to_their_own_kind() {
+        assert!(matches!(
+            AppError::from_status(403, ""),
+            AppError::Forbidden(_)
+        ));
+        assert!(matches!(
+            AppError::from_status(404, ""),
+            AppError::NotFound(_)
+        ));
+        assert!(matches!(
+            AppError::from_status(500, "x"),
+            AppError::Server(_)
+        ));
+        assert!(!matches!(
+            AppError::from_status(400, "x"),
+            AppError::Network(_)
+        ));
+    }
+}

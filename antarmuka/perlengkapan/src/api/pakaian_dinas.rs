@@ -331,10 +331,11 @@ pub async fn fetch_jenis_pakaian_dinas(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: PaginatedResponse<JenisPakaianDinas> = resp.json().await?;
@@ -401,10 +402,11 @@ pub async fn create_jenis_pakaian_dinas(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: ApiResponse<JenisPakaianDinas> = resp.json().await?;
@@ -438,10 +440,11 @@ pub async fn delete_jenis_pakaian_dinas(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: ApiResponse<()> = resp.json().await?;
@@ -526,10 +529,11 @@ pub async fn fetch_spesifikasi_pakaian(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: PaginatedResponse<SpesifikasiPakaianDinas> = resp.json().await?;
@@ -578,10 +582,11 @@ pub async fn fetch_master_ukuran(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: ApiResponse<Vec<Ukuran>> = resp.json().await?;
@@ -627,10 +632,11 @@ pub async fn fetch_pengajuan_pakaian_dinas(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: PaginatedResponse<PengajuanPakaianDinas> = resp.json().await?;
@@ -673,10 +679,11 @@ pub async fn create_pengajuan_pakaian_dinas(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: ApiResponse<PengajuanPakaianDinas> = resp.json().await?;
@@ -710,10 +717,11 @@ pub async fn delete_pengajuan_pakaian_dinas(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: ApiResponse<()> = resp.json().await?;
@@ -754,10 +762,11 @@ pub async fn fetch_pengajuan_satker(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: PaginatedResponse<PengajuanSatker> = resp.json().await?;
@@ -802,10 +811,11 @@ pub async fn fetch_pakaian_satker_aktivitas(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: ApiResponse<Vec<PengajuanSatkerAktivitas>> = resp.json().await?;
@@ -838,10 +848,11 @@ pub async fn process_validator_action(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: ApiResponse<PengajuanSatker> = resp.json().await?;
@@ -880,10 +891,11 @@ pub async fn fetch_pegawai_ukuran(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: ApiResponse<Option<PegawaiPakaianDinas>> = resp.json().await?;
@@ -920,10 +932,11 @@ pub async fn upsert_pegawai_ukuran(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: ApiResponse<PegawaiPakaianDinas> = resp.json().await?;
@@ -983,10 +996,11 @@ pub async fn fetch_laporan_rekap_ukuran(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: ApiResponse<Vec<LaporanRekapUkuran>> = resp.json().await?;
@@ -1045,10 +1059,11 @@ pub async fn fetch_laporan_daftar_pegawai(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: PaginatedResponse<LaporanDaftarPegawai> = resp.json().await?;
@@ -1145,10 +1160,11 @@ pub async fn create_spesifikasi_pakaian(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: ApiResponse<SpesifikasiPakaianDinas> = resp.json().await?;
@@ -1183,10 +1199,11 @@ pub async fn delete_spesifikasi_pakaian(
     .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: ApiResponse<()> = resp.json().await?;
@@ -1223,10 +1240,11 @@ pub async fn fetch_subspesifikasi(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: PaginatedResponse<SubSpesifikasiPakaianDinas> = resp.json().await?;
@@ -1259,10 +1277,11 @@ pub async fn create_subspesifikasi(
         .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: ApiResponse<SubSpesifikasiPakaianDinas> = resp.json().await?;
@@ -1295,10 +1314,11 @@ pub async fn delete_subspesifikasi(id: String) -> Result<ApiResponse<()>, crate:
     .await?;
 
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
 
     let result: ApiResponse<()> = resp.json().await?;
@@ -1436,10 +1456,11 @@ pub async fn fetch_roster_pengisian(
         .send()
         .await?;
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
     let result: ApiResponse<RosterPengisian> = resp.json().await?;
     Ok(result.data)
@@ -1478,10 +1499,11 @@ pub async fn simpan_ukuran_pegawai(
     .send()
     .await?;
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
     let result: ApiResponse<RosterPengisian> = resp.json().await?;
     Ok(result.data)
@@ -1520,10 +1542,11 @@ pub async fn keluarkan_pegawai_dari_pengajuan(
     .send()
     .await?;
     if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
+        // The server's own words, by status — not "connection failed" for a
+        // refusal that came back perfectly well.
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
     }
     let result: ApiResponse<RosterPengisian> = resp.json().await?;
     Ok(result.data)

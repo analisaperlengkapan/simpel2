@@ -16,9 +16,11 @@ mod integration {
     mod kodefikasi_barang_test;
     mod migration_runner_test;
     mod pakaian_dinas_campaign_scope_test;
+    mod pakaian_dinas_hapus_kampanye_test;
     mod pakaian_dinas_laporan_cakupan_test;
     mod pakaian_dinas_pegawai_scope_test;
     mod pakaian_dinas_pengisian_test;
+    mod pakaian_dinas_revisi_test;
     mod pakaian_dinas_spesifikasi_filter_test;
     mod pakaian_dinas_ukuran_test;
     mod pakaian_dinas_workflow_test;

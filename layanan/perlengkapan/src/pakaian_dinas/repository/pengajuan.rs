@@ -365,32 +365,32 @@ impl PakaianDinasRepository {
             ));
         }
 
-        // Delete in order due to FK constraints
-        client.execute("DELETE FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran WHERE pengajuan_satker_id IN (SELECT id FROM perlengkapan.pengajuan_pakaian_dinas_satker WHERE pengajuan_id = $1)", &[&id]).await.ok();
-        client.execute("DELETE FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai WHERE pengajuan_satker_id IN (SELECT id FROM perlengkapan.pengajuan_pakaian_dinas_satker WHERE pengajuan_id = $1)", &[&id]).await.ok();
-        client.execute("DELETE FROM perlengkapan.pengajuan_pakaian_dinas_satker_aktivitas WHERE pengajuan_satker_id IN (SELECT id FROM perlengkapan.pengajuan_pakaian_dinas_satker WHERE pengajuan_id = $1)", &[&id]).await.ok();
-        client
-            .execute(
-                "DELETE FROM perlengkapan.pengajuan_pakaian_dinas_satker WHERE pengajuan_id = $1",
+        // The header check above is not protection: nothing ever moves the HEADER off
+        // 1000 (the workflow runs per satker, on the participation rows), so it passed
+        // for every campaign there has ever been. What a delete destroys is what the
+        // satker rows hold — sizes entered, submissions, approvals and their history —
+        // and a campaign with ANY satker past Penyiapan has work in it. Refuse that;
+        // a campaign nobody has submitted to is the only one that may go.
+        let berjalan: i64 = client
+            .query_one(
+                "SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker \
+                 WHERE pengajuan_id = $1 AND aktivitas_id <> 1000",
                 &[&id],
             )
             .await
-            .ok();
-        client
-            .execute(
-                "DELETE FROM perlengkapan.pengajuan_pakaian_dinas_pakaian WHERE pengajuan_id = $1",
-                &[&id],
-            )
-            .await
-            .ok();
-        client
-            .execute(
-                "DELETE FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = $1",
-                &[&id],
-            )
-            .await
-            .ok();
+            .map_err(|e| bad_request(&e.to_string()))?
+            .get(0);
+        if berjalan > 0 {
+            return Err(bad_request(&format!(
+                "Pengajuan tidak dapat dihapus: {berjalan} satker sudah mengajukan atau sedang \
+                 diproses. Hanya pengajuan yang belum diajukan satu pun satker yang dapat dihapus."
+            )));
+        }
 
+        // Every child table (satker rows, their pegawai / ukuran / aktivitas, the pakaian
+        // columns, satker_terpilih) references the campaign ON DELETE CASCADE, so this is
+        // ONE statement and therefore all-or-nothing. It used to be six DELETEs with
+        // `.ok()` on each: no transaction, and any failure swallowed.
         let result = client
             .execute(
                 "DELETE FROM perlengkapan.pengajuan_pakaian_dinas WHERE id = $1",
