@@ -145,3 +145,22 @@ pub async fn fetch_perlengkapan_metrics(
     }
     api_get(&url).await
 }
+
+/// Pakaian dinas work waiting on the caller, for the dashboard's "Perlu Tindakan".
+/// `peran` is empty for a role that has no turn in the flow.
+#[derive(Clone, Debug, Deserialize)]
+pub struct MenungguPakaianDinas {
+    pub jumlah: i64,
+    #[serde(default)]
+    pub peran: String,
+}
+
+#[derive(Deserialize)]
+struct MenungguBody {
+    data: MenungguPakaianDinas,
+}
+
+pub async fn fetch_pakaian_dinas_menunggu() -> Result<MenungguPakaianDinas, crate::api::AppError> {
+    let body: MenungguBody = api_get("/pakaian-dinas/menunggu").await?;
+    Ok(body.data)
+}

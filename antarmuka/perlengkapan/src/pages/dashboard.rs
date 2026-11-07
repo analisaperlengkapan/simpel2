@@ -307,6 +307,12 @@ async fn query_perlengkapan_metrics(
     fetch_perlengkapan_metrics(key.0, key.1.as_deref(), key.2.as_deref()).await
 }
 
+async fn query_pakaian_menunggu(
+    _tick: u32,
+) -> Result<crate::api::dashboard::MenungguPakaianDinas, crate::api::AppError> {
+    crate::api::dashboard::fetch_pakaian_dinas_menunggu().await
+}
+
 /// How often the page refetches, in milliseconds.
 ///
 /// 60 s rather than a few seconds: every tick is two aggregate queries over
@@ -500,6 +506,8 @@ pub fn DashboardHome() -> impl IntoView {
         )
     });
     let options_resource = client.local_resource(query_filter_options, move || f_wilayah.get());
+    // Pakaian dinas work waiting on THIS user's role; the server scopes it.
+    let menunggu_resource = client.local_resource(query_pakaian_menunggu, move || tick.get());
 
     // Stamp the clock whenever a load lands, so "60 detik lalu" is observable
     // rather than promised.
@@ -788,10 +796,43 @@ pub fn DashboardHome() -> impl IntoView {
                         }
                         None => ("-".into(), "-".into(), "-".into(), "-".into()),
                     };
+                    // The pakaian dinas tile only exists for a role that has a turn in
+                    // the flow (the server answers an empty `peran` for the rest).
+                    let menunggu = menunggu_resource
+                        .get()
+                        .and_then(|r| r.ok())
+                        .filter(|m| !m.peran.is_empty());
+                    let kolom = if menunggu.is_some() {
+                        "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5"
+                    } else {
+                        "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+                    };
+                    let tile_pakaian = menunggu.map(|m| {
+                        let subtitle = match m.peran.as_str() {
+                            "validator_wilayah" => "Satker menunggu pemeriksaan Anda",
+                            "validator_pusat" => "Satker menunggu persetujuan Anda",
+                            _ => "Satker dikembalikan untuk diperbaiki",
+                        };
+                        view! {
+                            <a
+                                data-testid="menunggu-pakaian-dinas"
+                                href=routes::path::PAKAIAN_PENGAJUAN
+                                class="block transition hover:opacity-90"
+                            >
+                                <StatCard
+                                    icon="fas fa-shirt"
+                                    label="Pakaian Dinas Menunggu"
+                                    value=format_number(m.jumlah)
+                                    subtitle=subtitle
+                                    tone="amber"
+                                />
+                            </a>
+                        }
+                    });
                     view! {
                         <div>
                             <SectionHeader title="Perlu Tindakan" tone="gold" />
-                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                            <div class=kolom>
                                 <StatCard
                                     icon="fas fa-triangle-exclamation"
                                     label="Melewati Batas Waktu"
@@ -820,6 +861,7 @@ pub fn DashboardHome() -> impl IntoView {
                                     subtitle="Seluruh usulan SK penghapusan"
                                     tone="amber"
                                 />
+                                {tile_pakaian}
                             </div>
                         </div>
                     }

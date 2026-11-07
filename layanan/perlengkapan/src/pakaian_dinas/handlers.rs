@@ -362,6 +362,8 @@ pub async fn get_all_pengajuan_pakaian(
     claims: Claims,
 ) -> Result<Json<PaginatedResponse<PengajuanPakaianDinas>>, AppError> {
     query.pagination.validate()?;
+    // Whoever opens the campaign list becomes reachable by a handover notification.
+    service.catat_pengguna(&claims).await;
     // Tiered-RBAC visibility (#72): pusat/admin see all campaigns; validator_wilayah
     // sees campaigns touching their wilayah; operator/validator_satker see only
     // campaigns targeting their satker; no satker identity → fail-closed.
@@ -491,6 +493,21 @@ pub async fn process_validator_action_bulk(
     Ok(Json(ApiResponse::success(result, message)))
 }
 
+/// How much pakaian dinas work is waiting on the caller (dashboard tile).
+pub async fn get_menunggu_pakaian_dinas(
+    State(service): State<PakaianDinasService>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<MenungguPakaianDinas>>, AppError> {
+    service.catat_pengguna(&claims).await;
+    let item = service
+        .hitung_menunggu(&claims.roles, &SatkerScope::from_claims(&claims))
+        .await?;
+    Ok(Json(ApiResponse::success(
+        item,
+        "Pekerjaan pakaian dinas yang menunggu".to_string(),
+    )))
+}
+
 // ============ Pengajuan Satker ============
 
 pub async fn get_pengajuan_satker_list(
@@ -500,6 +517,7 @@ pub async fn get_pengajuan_satker_list(
     claims: Claims,
 ) -> Result<Json<PaginatedResponse<PengajuanSatker>>, AppError> {
     pagination.validate()?;
+    service.catat_pengguna(&claims).await;
     // The campaign may be nationwide; a satker's response to it is not.
     let (items, total) = service
         .get_pengajuan_satker_list(
@@ -1057,6 +1075,7 @@ pub async fn get_roster_pengisian(
     Path((pengajuan_id, satker_code)): Path<(Uuid, String)>,
     claims: Claims,
 ) -> Result<Json<ApiResponse<RosterPengisian>>, AppError> {
+    service.catat_pengguna(&claims).await;
     let roster = service
         .repository
         .get_roster_pengisian(

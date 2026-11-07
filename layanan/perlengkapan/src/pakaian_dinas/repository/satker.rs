@@ -14,6 +14,28 @@ fn scope_and(scope: &SatkerScope, params: &mut Vec<BoxedParam>) -> String {
 }
 
 impl PakaianDinasRepository {
+    /// How many satker rows stand at one of `statuses`, inside the caller's scope.
+    /// What the dashboard's "Perlu Tindakan" shows for pakaian dinas: the rows
+    /// waiting on the caller's role.
+    pub async fn hitung_menunggu(&self, statuses: &[i32], scope: &SatkerScope) -> AppResult<i64> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let mut params: Vec<BoxedParam> = vec![Box::new(statuses.to_vec())];
+        let scope_sql = scope_and(scope, &mut params);
+        let sql = format!(
+            "SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker ps \
+             WHERE ps.aktivitas_id = ANY($1){scope_sql}"
+        );
+        let row = client
+            .query_one(&sql, &as_refs(&params))
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        Ok(row.get(0))
+    }
+
     pub async fn get_pengajuan_satker_list(
         &self,
         pengajuan_id: Uuid,
