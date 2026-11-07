@@ -98,6 +98,16 @@ pub struct ValidatorActionRequest {
     pub aksi: String, // "approve" or "reject"
     pub komentar: Option<String>,
 }
+/// Request DTO for approving several satker at once.
+///
+/// Approval only: a return needs its own note per satker, so it stays one at a
+/// time. Each id goes through exactly the path a single approval takes.
+#[derive(Debug, Deserialize)]
+pub struct BulkValidatorActionRequest {
+    pub pengajuan_satker_ids: Vec<Uuid>,
+    pub aksi: String,
+    pub komentar: Option<String>,
+}
 /// Request DTO for personal uniform sizes (self-service)
 #[derive(Debug, Deserialize, Validate)]
 pub struct UpdatePersonalUkuranRequest {

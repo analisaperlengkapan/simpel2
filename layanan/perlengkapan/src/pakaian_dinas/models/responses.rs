@@ -1,7 +1,32 @@
 use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
+use uuid::Uuid;
 
 use super::*;
+
+// ============ Bulk action ============
+
+/// What came of approving several satker at once. A partial result is a normal
+/// answer (200): some rows may be at the wrong stage or outside the caller's
+/// scope, and each says why.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkActionResult {
+    pub berhasil: Vec<BulkActionBerhasil>,
+    pub gagal: Vec<BulkActionGagal>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkActionBerhasil {
+    pub pengajuan_satker_id: Uuid,
+    pub satker_id: String,
+    pub aktivitas_id: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkActionGagal {
+    pub pengajuan_satker_id: Uuid,
+    pub alasan: String,
+}
 
 // ============ Report Models ============
 

@@ -13,9 +13,10 @@ use leptos_fetch::QueryClient;
 use leptos_router::hooks::use_params_map;
 
 use crate::api::{
-    AppError, PaginatedResponse, PengajuanSatker, PengajuanSatkerAktivitas, ValidatorActionRequest,
-    aktivitas_is_revisi, aktivitas_label, fetch_pakaian_satker_aktivitas, fetch_pengajuan_satker,
-    process_validator_action,
+    AppError, BulkActionResult, BulkValidatorActionRequest, PaginatedResponse, PengajuanSatker,
+    PengajuanSatkerAktivitas, ValidatorActionRequest, aktivitas_is_revisi, aktivitas_label,
+    fetch_pakaian_satker_aktivitas, fetch_pengajuan_satker, process_validator_action,
+    process_validator_action_bulk,
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::components::workflow_ui::{
@@ -170,6 +171,9 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
     let pending = RwSignal::new(Option::<PendingAction>::None);
     let busy = RwSignal::new(false);
     let error = RwSignal::new(Option::<String>::None);
+    // Rows ticked for a bulk approval, and what the last bulk approval came to.
+    let terpilih = RwSignal::new(Vec::<String>::new());
+    let hasil_massal = RwSignal::new(Option::<BulkActionResult>::None);
 
     let client: QueryClient = expect_context();
     let list_resource =
@@ -214,6 +218,34 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
         });
     });
 
+    // Approve every ticked satker in one request. Each goes through the same
+    // per-row checks a single approval does; the answer says which went through.
+    let on_massal = Callback::new(move |_: ()| {
+        let ids = terpilih.get();
+        if ids.is_empty() {
+            return;
+        }
+        busy.set(true);
+        error.set(None);
+        hasil_massal.set(None);
+        let req = BulkValidatorActionRequest {
+            pengajuan_satker_ids: ids,
+            aksi: "approve".to_string(),
+            komentar: None,
+        };
+        spawn_local(async move {
+            match process_validator_action_bulk(req).await {
+                Ok(resp) => {
+                    hasil_massal.set(Some(resp.data));
+                    terpilih.set(Vec::new());
+                    refresh.update(|v| *v += 1);
+                }
+                Err(e) => error.set(Some(e.user_message())),
+            }
+            busy.set(false);
+        });
+    });
+
     view! {
         <PageLayout
             title="Daftar Satker — Pengajuan Pakaian Dinas"
@@ -232,6 +264,36 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                     })
             }}
 
+            {move || {
+                hasil_massal
+                    .get()
+                    .map(|h| {
+                        let berhasil = h.berhasil.len();
+                        let gagal = h.gagal;
+                        view! {
+                            <div
+                                data-testid="hasil-massal"
+                                class="mb-4 rounded-xl border border-success-500/30 bg-success-500/[0.08] px-4 py-3 text-sm text-success-300"
+                            >
+                                <p class="font-semibold">
+                                    {format!("{berhasil} satker diproses")}
+                                    {if gagal.is_empty() {
+                                        String::new()
+                                    } else {
+                                        format!(", {} ditolak:", gagal.len())
+                                    }}
+                                </p>
+                                <ul class="mt-1 list-disc pl-5 text-warning-300">
+                                    {gagal
+                                        .into_iter()
+                                        .map(|g| view! { <li>{g.alasan}</li> })
+                                        .collect_view()}
+                                </ul>
+                            </div>
+                        }
+                    })
+            }}
+
             <Suspense fallback=move || {
                 view! { <LoadingState /> }
             }>
@@ -240,6 +302,20 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                     Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
                     Some(Ok(resp)) => {
                         let rows = resp.data;
+                        // The rows this user may move on now (a wilayah validator's
+                        // pending ones, or pusat's); only those get a tick box.
+                        let layak: Vec<String> = rows
+                            .iter()
+                            .filter(|s| available_actions(s.aktivitas_id).is_some())
+                            .map(|s| s.id.clone())
+                            .collect();
+                        let n_layak = layak.len();
+                        let label_setuju = rows
+                            .iter()
+                            .find_map(|s| available_actions(s.aktivitas_id))
+                            .map(|(approve, _)| approve)
+                            .unwrap_or("Setujui");
+                        let layak_semua = layak.clone();
                         if rows.is_empty() {
                             view! {
                                 <div class="rounded-2xl border border-white/[0.06] bg-surface-panel p-8 text-center text-sm text-slate-400">
@@ -249,6 +325,46 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                 .into_any()
                         } else {
                             view! {
+                                <Show when=move || { n_layak > 0 }>
+                                    <div
+                                        data-testid="bilah-massal"
+                                        class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-surface-panel px-4 py-3 text-sm"
+                                    >
+                                        <label class="flex items-center gap-2 text-slate-200">
+                                            <input
+                                                type="checkbox"
+                                                data-testid="pilih-semua"
+                                                class="h-4 w-4 rounded border-white/20 bg-white/[0.04]"
+                                                prop:checked=move || terpilih.get().len() == n_layak
+                                                on:change={
+                                                    let layak_semua = layak_semua.clone();
+                                                    move |ev| {
+                                                        if event_target_checked(&ev) {
+                                                            terpilih.set(layak_semua.clone());
+                                                        } else {
+                                                            terpilih.set(Vec::new());
+                                                        }
+                                                    }
+                                                }
+                                            />
+                                            {format!("Pilih semua yang menunggu ({n_layak})")}
+                                        </label>
+                                        <div class="flex items-center gap-3">
+                                            <span class="text-slate-400">
+                                                {move || format!("{} dipilih", terpilih.get().len())}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                data-testid="setujui-massal"
+                                                class="rounded-lg bg-gold-gradient px-4 py-2 text-xs font-bold text-navy-950 transition hover:opacity-90 disabled:opacity-40"
+                                                prop:disabled=move || busy.get() || terpilih.get().is_empty()
+                                                on:click=move |_| on_massal.run(())
+                                            >
+                                                {move || format!("{label_setuju} ({})", terpilih.get().len())}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </Show>
                                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
                                     <For
                                         each=move || rows.clone()
@@ -271,6 +387,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                             };
                                             let s_click = s.clone();
                                             let s_isi = s.clone();
+                                            let s_pilih = s.clone();
                                             view! {
                                                 <div class=move || {
                                                     format!(
@@ -291,7 +408,37 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                                 {kode} " · " {pegawai.to_string()} " pegawai"
                                                             </p>
                                                         </div>
-                                                        {status_badge(code)}
+                                                        <div class="flex items-center gap-2">
+                                                            {if available_actions(code).is_some() {
+                                                                let id_pilih = s_pilih.id.clone();
+                                                                let id_cek = id_pilih.clone();
+                                                                Some(
+                                                                    view! {
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            data-testid="pilih-satker"
+                                                                            aria-label=format!("Pilih {}", s_pilih.satker_nama.clone().unwrap_or_default())
+                                                                            class="h-4 w-4 rounded border-white/20 bg-white/[0.04]"
+                                                                            prop:checked=move || terpilih.get().contains(&id_cek)
+                                                                            on:change=move |ev| {
+                                                                                let on = event_target_checked(&ev);
+                                                                                let id = id_pilih.clone();
+                                                                                terpilih
+                                                                                    .update(|v| {
+                                                                                        v.retain(|x| *x != id);
+                                                                                        if on {
+                                                                                            v.push(id);
+                                                                                        }
+                                                                                    });
+                                                                            }
+                                                                        />
+                                                                    },
+                                                                )
+                                                            } else {
+                                                                None
+                                                            }}
+                                                            {status_badge(code)}
+                                                        </div>
                                                     </div>
                                                     // Tautan pengisian. Sampai
                                                     // ini ada, satu-satunya hal

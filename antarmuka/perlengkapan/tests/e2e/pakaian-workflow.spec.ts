@@ -644,7 +644,7 @@ test.describe("Pakaian Dinas — validator pusat decides", () => {
 // validator's note lived only in the history panel one page away.
 // Both describes build their own campaign, so neither depends on which of the
 // fixture rows above earlier tests already moved.
-type Role = "operator_a" | "validator_wilayah" | "validator_pusat";
+type Role = "operator_a" | "operator_b" | "validator_wilayah" | "validator_pusat";
 const SATKER_REVISI = "0200010";
 
 async function aksiPakaian(
@@ -732,9 +732,9 @@ test.describe("Pakaian Dinas — pusat returns a satker to wilayah, wilayah answ
       waitUntil: "domcontentloaded",
     });
     await page.getByRole("button", { name: "Lihat Riwayat & Aksi" }).first().click({ timeout: 20000 });
-    await expect(page.getByRole("button", { name: "Teruskan ke Pusat" })).toBeVisible({
-      timeout: 20000,
-    });
+    await expect(
+      page.getByRole("button", { name: "Teruskan ke Pusat", exact: true }),
+    ).toBeVisible({ timeout: 20000 });
     await expect(page.getByRole("button", { name: "Kembalikan untuk Revisi" })).toBeVisible();
     await expect(page.getByText("mode pantau")).toHaveCount(0);
 
@@ -754,11 +754,11 @@ test.describe("Pakaian Dinas — pusat returns a satker to wilayah, wilayah answ
     // offering the moves the row has just left — it used to keep its copy of the
     // row from when it was opened, so "Teruskan ke Pusat" stayed on a satker that
     // was already at Pusat.
-    await page.getByRole("button", { name: "Teruskan ke Pusat" }).click();
+    await page.getByRole("button", { name: "Teruskan ke Pusat", exact: true }).click();
     await page.getByRole("button", { name: "Kirim", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Teruskan ke Pusat" })).toHaveCount(0, {
-      timeout: 20000,
-    });
+    await expect(
+      page.getByRole("button", { name: "Teruskan ke Pusat", exact: true }),
+    ).toHaveCount(0, { timeout: 20000 });
     await expect(page.getByRole("button", { name: "Kembalikan untuk Revisi" })).toHaveCount(0);
     await expect(page.getByText("mode pantau")).toBeVisible();
     await expect
@@ -810,6 +810,93 @@ test.describe("Pakaian Dinas — a returned satker tells its operator why", () =
     await page.goto(isi, { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("pengisian-terkunci")).toBeVisible({ timeout: 20000 });
     await expect(page.getByTestId("pengisian-catatan-revisi")).toHaveCount(0);
+  });
+});
+
+// ── Bulk approval ───────────────────────────────────────────────────────────
+// Nationally a campaign has a few hundred satker, and the wilayah and pusat
+// validators approved them one dialog at a time. The list now lets a validator
+// tick the satker waiting on them and approve the lot in one request; each row
+// still goes through the single approval's own checks.
+async function kampanyeDuaSatker(
+  request: APIRequestContext,
+): Promise<{ pengajuanId: string; rows: string[] }> {
+  // A window around today: whatever the calendar says when this runs.
+  const tanggal = (selisih: number) =>
+    new Date(Date.now() + selisih * 86_400_000).toISOString().slice(0, 10);
+  const pusat = await tokenFor(request, "validator_pusat");
+  const jenis = await fetchRows<{ id: string; nama: string }>(
+    request, `${PD_API}/jenis?page=1&per_page=100`, pusat, "jenis list");
+  const pdh = jenis.find((j) => j.nama.trim().toUpperCase() === "PDH");
+  expect(pdh, "V011 seeds PDH").toBeTruthy();
+  const spesifikasi = await fetchRows<{ id: string }>(
+    request, `${PD_API}/spesifikasi?page=1&per_page=100&jenis_pakaian_dinas_id=${pdh!.id}`, pusat, "spesifikasi list");
+  const created = await request.post(`${PD_API}/pengajuan`, {
+    headers: { Authorization: `Bearer ${pusat}` },
+    data: {
+      nama: `E2E massal ${Date.now()}`, tahun: 2026,
+      tgl_mulai: tanggal(-60), tgl_selesai: tanggal(300),
+      is_reguler: true, pilihan_satker: "sebagian",
+      jenis_pakaian_dinas_id: pdh!.id, spesifikasi_ids: [spesifikasi[0].id],
+      satker_ids: ["0200010", "0200020"],
+    },
+  });
+  expect(created.status(), await created.text()).toBe(201);
+  const pengajuanId = (await created.json()).data.id as string;
+  const rows = await fetchRows<{ id: string; satker_id: string }>(
+    request, `${PD_API}/pengajuan/${pengajuanId}/satker?page=1&per_page=100`, pusat, "rows");
+  expect(rows.length).toBe(2);
+  return { pengajuanId, rows: rows.map((r) => r.id) };
+}
+
+test.describe("Pakaian Dinas — bulk approval", () => {
+  test("wilayah forwards two satker with one click, then pusat approves both", async ({
+    browser,
+    request,
+  }) => {
+    const { pengajuanId, rows } = await kampanyeDuaSatker(request);
+    expect((await aksiPakaian(request, "operator_a", rows[0], "submit")).aktivitas).toBe(1001);
+    expect((await aksiPakaian(request, "operator_b", rows[1], "submit")).aktivitas).toBe(1001);
+    const list = `${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker`;
+    const statuses = async () => {
+      const pusat = await tokenFor(request, "validator_pusat");
+      const r = await fetchRows<{ id: string; aktivitas_id: number }>(
+        request, `${PD_API}/pengajuan/${pengajuanId}/satker?page=1&per_page=100`, pusat, "rows");
+      return rows.map((id) => r.find((x) => x.id === id)!.aktivitas_id);
+    };
+
+    // The satker's operator is offered no bulk controls.
+    const operator = await browser.newContext({ storageState: storageStatePath("operator_a") });
+    const po = await operator.newPage();
+    await po.goto(list, { waitUntil: "domcontentloaded" });
+    await expect(po.getByRole("link", { name: "Isi Ukuran Pegawai" })).toBeVisible({ timeout: 20000 });
+    await expect(po.getByTestId("bilah-massal")).toHaveCount(0);
+    await expect(po.getByTestId("pilih-satker")).toHaveCount(0);
+    await operator.close();
+
+    // Wilayah ticks everything waiting on it and forwards the lot.
+    const wilayah = await browser.newContext({ storageState: storageStatePath("validator_wilayah") });
+    const pw = await wilayah.newPage();
+    await pw.goto(list, { waitUntil: "domcontentloaded" });
+    await expect(pw.getByTestId("bilah-massal")).toBeVisible({ timeout: 20000 });
+    await expect(pw.getByTestId("setujui-massal")).toBeDisabled();
+    await pw.getByTestId("pilih-semua").check();
+    await expect(pw.getByText("2 dipilih")).toBeVisible();
+    await pw.getByTestId("setujui-massal").click();
+    await expect(pw.getByTestId("hasil-massal")).toContainText("2 satker diproses", { timeout: 15000 });
+    expect(await statuses()).toEqual([1004, 1004]);
+    await wilayah.close();
+
+    // Pusat approves both the same way.
+    const pusatCtx = await browser.newContext({ storageState: storageStatePath("validator_pusat") });
+    const pp = await pusatCtx.newPage();
+    await pp.goto(list, { waitUntil: "domcontentloaded" });
+    await expect(pp.getByTestId("bilah-massal")).toBeVisible({ timeout: 20000 });
+    await pp.getByTestId("pilih-semua").check();
+    await pp.getByTestId("setujui-massal").click();
+    await expect(pp.getByTestId("hasil-massal")).toContainText("2 satker diproses", { timeout: 15000 });
+    expect(await statuses()).toEqual([1008, 1008]);
+    await pusatCtx.close();
   });
 });
 
