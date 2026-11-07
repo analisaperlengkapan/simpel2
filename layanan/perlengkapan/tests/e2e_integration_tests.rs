@@ -11,6 +11,7 @@ mod integration {
     mod kebutuhan_bmn_scope_test;
     mod kebutuhan_bmn_workflow_test;
     mod kebutuhan_laporan_status_label_test;
+    mod kebutuhan_satker_audit_test;
     mod kebutuhan_search_test;
     mod kodefikasi_barang_test;
     mod migration_runner_test;

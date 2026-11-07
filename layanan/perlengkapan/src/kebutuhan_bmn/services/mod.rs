@@ -11,6 +11,7 @@
 
 use std::sync::Arc;
 
+use crate::contracts::AuditSink;
 use crate::shared::grpc::clients::AuthencClient;
 use crate::shared::grpc::clients::IntegrasiClient;
 use crate::workflow::engine::WorkflowEngine;
@@ -29,6 +30,10 @@ pub struct KebutuhanBmnService {
     authenc_client: AuthencClient,
     integrasi_client: Option<IntegrasiClient>,
     workflow_engine: Arc<WorkflowEngine>,
+    /// Cross-module audit trail (`perlengkapan.audit_log`). The satker-level
+    /// transitions cannot ride the generic engine (see `transition_satker_status`),
+    /// so the engine's own audit emission never sees them; this carries it instead.
+    audit_sink: Option<Arc<dyn AuditSink>>,
 }
 
 impl KebutuhanBmnService {
@@ -43,7 +48,14 @@ impl KebutuhanBmnService {
             authenc_client,
             integrasi_client: None,
             workflow_engine: Arc::new(workflow_engine),
+            audit_sink: None,
         }
+    }
+
+    /// Record satker-level status changes in the cross-module audit trail.
+    pub fn with_audit_sink(mut self, audit_sink: Arc<dyn AuditSink>) -> Self {
+        self.audit_sink = Some(audit_sink);
+        self
     }
 
     /// Set layanan-integrasi gRPC client after construction
