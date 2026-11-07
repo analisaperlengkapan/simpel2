@@ -228,6 +228,7 @@ impl PakaianDinasRepository {
                 "Pengajuan satker ini sudah diajukan, ukurannya tidak dapat diubah lagi",
             ));
         }
+        self.pastikan_periode(pengajuan_id, true).await?;
 
         let mut client = self
             .pool
@@ -414,6 +415,7 @@ impl PakaianDinasRepository {
                 "Pengajuan satker ini sudah diajukan, isinya tidak dapat diubah lagi",
             ));
         }
+        self.pastikan_periode(pengajuan_id, true).await?;
         let mut client = self
             .pool
             .get()

@@ -37,6 +37,11 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
     let refresh_trigger = RwSignal::new(0);
     // Why a delete was refused (a jenis that campaigns still use); shown above the table.
     let hapus_error = RwSignal::new(Option::<String>::None);
+    // The master is the administrator's; the server refuses everyone else, so
+    // offering the buttons only ever answered 403.
+    let can_admin = crate::features::auth::AuthService::load_session()
+        .map(|s| s.is_admin())
+        .unwrap_or(false);
 
     let client: QueryClient = expect_context();
     let data_resource = client.local_resource(query_jenis_pakaian_dinas_page, move || {
@@ -83,20 +88,22 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
             description="Kelola master data jenis pakaian dinas"
         >
             // Action bar
-            <div class="mb-4 flex justify-end">
-                <button
-                    class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
-                    on:click=move |_| set_show_form.update(|v| *v = !*v)
-                >
-                    <span class="text-xs">
-                        <AppIcon icon=PLUS />
-                    </span>
-                    "Tambah Jenis"
-                </button>
-            </div>
+            <Show when=move || can_admin>
+                <div class="mb-4 flex justify-end">
+                    <button
+                        class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
+                        on:click=move |_| set_show_form.update(|v| *v = !*v)
+                    >
+                        <span class="text-xs">
+                            <AppIcon icon=PLUS />
+                        </span>
+                        "Tambah Jenis"
+                    </button>
+                </div>
+            </Show>
 
             // Create form
-            <Show when=move || show_form.get()>
+            <Show when=move || show_form.get() && can_admin>
                 <SectionCard title="Tambah Jenis Pakaian Dinas Baru">
                     <Show when=move || error_message.get().is_some()>
                         <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
@@ -175,6 +182,7 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
                                 set_page,
                                 refresh_trigger,
                                 hapus_error,
+                                can_admin,
                             )
                         }
                     }
@@ -191,6 +199,7 @@ fn render_jenis_table(
     set_page: WriteSignal<i32>,
     refresh_trigger: RwSignal<i32>,
     hapus_error: RwSignal<Option<String>>,
+    can_admin: bool,
 ) -> AnyView {
     let PaginatedResponse {
         data,
@@ -230,6 +239,8 @@ fn render_jenis_table(
                                 .map(|(idx, item)| {
                                     let item_id = item.id.clone();
                                     let item_id_for_delete = item_id.clone();
+                                    // A signal is `Copy`, so the `<Show>` around the delete button can run again.
+                                    let id_del = RwSignal::new(item_id_for_delete.clone());
                                     let num = ((page.get() - 1) * 20 + idx as i32 + 1).to_string();
                                     let ket = item.deskripsi.unwrap_or_else(|| "-".to_string());
                                     let date = item.created_at.chars().take(10).collect::<String>();
@@ -257,11 +268,12 @@ fn render_jenis_table(
                                                             <AppIcon icon=LIST />
                                                         </span>
                                                     </a>
+                                                    <Show when=move || can_admin>
                                                     <button
                                                         class="text-danger-400 transition hover:text-danger-300"
                                                         title="Hapus"
                                                         on:click=move |_| {
-                                                            let id = item_id_for_delete.clone();
+                                                            let id = id_del.get_untracked();
                                                             let confirmed = web_sys::window()
                                                                 .and_then(|w| {
                                                                     w.confirm_with_message("Yakin ingin menghapus?").ok()
@@ -284,6 +296,7 @@ fn render_jenis_table(
                                                             <AppIcon icon=TRASH />
                                                         </span>
                                                     </button>
+                                                    </Show>
                                                 </div>
                                             </td>
                                         </tr>

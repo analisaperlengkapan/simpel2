@@ -427,6 +427,22 @@ pub async fn create_pengajuan_pakaian(
     ))
 }
 
+pub async fn update_pengajuan_pakaian(
+    State(service): State<PakaianDinasService>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+    Json(request): Json<UpdatePengajuanRequest>,
+) -> Result<Json<ApiResponse<PengajuanPakaianDinas>>, AppError> {
+    // Same authority as creating or deleting a campaign.
+    claims.require_any_role(&["validator_pusat"])?;
+    let item = service.update_pengajuan(id, request).await?;
+
+    Ok(Json(ApiResponse::success(
+        item,
+        "Pengajuan pakaian dinas berhasil diubah".to_string(),
+    )))
+}
+
 pub async fn delete_pengajuan_pakaian(
     State(service): State<PakaianDinasService>,
     Path(id): Path<Uuid>,

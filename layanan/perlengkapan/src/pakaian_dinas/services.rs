@@ -422,6 +422,18 @@ impl PakaianDinasService {
         self.repository.delete_pengajuan(id).await
     }
 
+    pub async fn update_pengajuan(
+        &self,
+        id: Uuid,
+        request: UpdatePengajuanRequest,
+    ) -> AppResult<PengajuanPakaianDinas> {
+        use validator::Validate;
+        request
+            .validate()
+            .map_err(|e| bad_request(&e.to_string()))?;
+        self.repository.update_pengajuan(id, &request).await
+    }
+
     // ============ Pengajuan Satker ============
 
     pub async fn get_pengajuan_satker_list(
@@ -476,6 +488,13 @@ impl PakaianDinasService {
         let (user_role, next_status) =
             Self::resolve_actor(satker.aktivitas_id, &request.aksi, user_roles)?;
         let user_role = user_role.as_str();
+
+        // The campaign's dates, last: an unauthorised or impossible move is
+        // answered as that, not as "closed". After the end date nothing moves;
+        // before the start, only the satker's own submission is refused.
+        self.repository
+            .pastikan_periode(satker.pengajuan_id, request.aksi == "submit")
+            .await?;
 
         // Persist the transition + record an activity row (atomic). This is
         // the real per-satker workflow advance that replaces the prior no-op.

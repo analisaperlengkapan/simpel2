@@ -120,6 +120,10 @@ pub struct PengajuanPakaianDinas {
     pub satker_selesai: Option<i64>,
     /// Derived on the backend from `is_reguler` + `tgl_selesai`; see the entity.
     pub is_open: bool,
+    /// `belum_dibuka` / `terbuka` / `ditutup`, from the backend (WIB). Empty from an
+    /// older backend, which the badge treats as "use `is_open`".
+    #[serde(default)]
+    pub periode: String,
 }
 
 /// Create request — mirrors backend `pakaian_dinas::models::CreatePengajuanRequest`
@@ -693,6 +697,60 @@ pub async fn create_pengajuan_pakaian_dinas(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_pengajuan_pakaian_dinas(
     _request: CreatePengajuanPakaianDinasRequest,
+) -> Result<ApiResponse<PengajuanPakaianDinas>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+/// Edit request — mirrors backend `UpdatePengajuanRequest`. Every field is
+/// optional and an absent one stays as it is; mainly how a closed campaign is
+/// extended, since the dates are enforced.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct UpdatePengajuanPakaianDinasRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nama: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deskripsi: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tgl_mulai: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tgl_selesai: Option<String>,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn update_pengajuan_pakaian_dinas(
+    id: String,
+    request: UpdatePengajuanPakaianDinasRequest,
+) -> Result<ApiResponse<PengajuanPakaianDinas>, crate::api::AppError> {
+    use crate::api::client::get_auth_token;
+    use gloo_net::http::Request;
+
+    let url = format!("/api/v1/perlengkapan/pakaian-dinas/pengajuan/{}", id);
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
+
+    let resp = Request::put(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .json(&request)?
+        .send()
+        .await?;
+
+    if !resp.ok() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
+    }
+
+    let result: ApiResponse<PengajuanPakaianDinas> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn update_pengajuan_pakaian_dinas(
+    _id: String,
+    _request: UpdatePengajuanPakaianDinasRequest,
 ) -> Result<ApiResponse<PengajuanPakaianDinas>, crate::api::AppError> {
     Err(crate::api::AppError::Unknown(
         "Server-side stub".to_string(),

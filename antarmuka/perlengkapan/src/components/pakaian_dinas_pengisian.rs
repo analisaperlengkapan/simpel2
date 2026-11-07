@@ -236,7 +236,14 @@ fn halaman(
     let _ = grup;
     let total = data.pegawai.len();
     let terisi = data.pegawai.iter().filter(|p| p.sudah_diisi).count();
-    let dapat_diubah = data.dapat_diubah;
+    // Only the satker's own operator edits; a validator or administrator who opens
+    // the page is reading it. The server refuses anyone else's write, so the
+    // controls would only ever answer an error.
+    let boleh_isi = crate::features::auth::AuthService::load_session()
+        .map(|s| s.has_role("operator_satker"))
+        .unwrap_or(false);
+    let terkunci = !data.dapat_diubah;
+    let dapat_diubah = data.dapat_diubah && boleh_isi;
     let pengajuan_satker_id = data.pengajuan_satker_id.clone();
     // `view!` memindahkan nilai ke closure tombol sebelum atribut lain dievaluasi.
     let id_catatan_revisi = data.pengajuan_satker_id.clone();
@@ -296,7 +303,17 @@ fn halaman(
             {(data.aktivitas_id == STATUS_REVISI_PELAKSANA)
                 .then(|| view! { <CatatanRevisi pengajuan_satker_id=id_catatan_revisi.clone() /> })}
 
-            <Show when=move || !dapat_diubah>
+            <Show when=move || !boleh_isi>
+                <p
+                    data-testid="pengisian-pemantau"
+                    class="mt-4 flex items-start gap-2 rounded-lg border border-info-500/20 bg-info-500/10 px-3 py-2 text-sm text-info-300"
+                >
+                    <AppIcon icon=WARNING_CIRCLE />
+                    "Anda membuka halaman ini sebagai pemantau. Ukuran pegawai hanya diisi dan diajukan oleh operator satker."
+                </p>
+            </Show>
+
+            <Show when=move || terkunci>
                 <p
                     data-testid="pengisian-terkunci"
                     class="mt-4 flex items-start gap-2 rounded-lg border border-warning-500/20 bg-warning-500/10 px-3 py-2 text-sm text-warning-300"

@@ -61,6 +61,7 @@ fn test_pengajuan_is_open() {
         total_satker: None,
         satker_selesai: None,
         is_open: true,
+        periode: "terbuka".to_string(),
     };
 
     // No end date = open
