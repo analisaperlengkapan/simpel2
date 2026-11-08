@@ -23,7 +23,7 @@ authenc-grpc = { path = "../grpc" }
 lib-core = { workspace = true }
 # Client-address resolution that does not let the caller choose it
 # (`lib_backend::client_ip`): trusted-proxy aware X-Forwarded-For handling.
-lib-backend = { workspace = true }
+lib-backend = { workspace = true, features = ["grpc"] } # + grpc::ensure_crypto_provider() before the mTLS listener
 
 # External dependencies (from workspace)
 tokio = { workspace = true }
