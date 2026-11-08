@@ -60,12 +60,15 @@ config:
 
 backendConfig:
   mtlsMode: STRICT
-  # Fail-closed. authenc and secreton refuse to start their gRPC listeners
-  # without mTLS material, so the Secreton PKI must have issued
-  # GRPC_TLS_CERT_PATH / GRPC_TLS_KEY_PATH / GRPC_TLS_CA_PATH first (F6-A).
-  # Istio does not cover these hops — mtls.disableForHosts excludes authenc and
-  # secreton, and both run with istioInjection: false.
+  # Fail-closed. authenc, secreton and layanan-integrasi refuse to start their gRPC
+  # listeners without mTLS material, and every client refuses to dial without its
+  # own certificate. The chart issues the PKI itself (templates/secrets/grpc-pki.yaml,
+  # backendConfig.grpcTls) — the same path staging runs, so what is proven there is
+  # what runs here. Istio does not cover these hops — mtls.disableForHosts excludes
+  # authenc and secreton, and both run with istioInjection: false.
   grpcAllowInsecure: "false"
+  grpcTls:
+    enabled: true
 
 # ─── Workload sizing — HA ──────────────────────────────────────────────────────
 postgres:

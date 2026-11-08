@@ -85,3 +85,13 @@ full-backend = [
   "storage",
   "env-config",
 ]
+
+[dev-dependencies]
+# grpc::client handshake test (tests/grpc_client_mtls.rs): certificates are minted
+# at runtime — a checked-in cert expires one day and turns a security test into a
+# flake that someone deletes.
+rcgen = { workspace = true }
+tempfile = { workspace = true }
+tokio-stream = { workspace = true, features = ["net"] }
+tonic-prost = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "time"] }

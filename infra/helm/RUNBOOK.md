@@ -357,6 +357,30 @@ Multi-step (butuh koordinasi):
 
 ---
 
+### 5.x Rotasi PKI gRPC (mTLS antar-layanan)
+
+Hop gRPC (authenc `:9088`, secreton `:9000`, layanan-integrasi `:50051`) memakai mTLS dengan PKI yang
+**diterbitkan chart sendiri** (`backendConfig.grpcTls`, `templates/secrets/grpc-pki.yaml`): satu CA
+(`grpc-pki-ca`) + satu Secret per identitas (`grpc-tls-authenc|secreton|layanan-integrasi|layanan-perlengkapan|gateway`,
+berisi sertifikat+kunci workload itu saja). Render berikutnya MEMAKAI ULANG Secret yang ada (`lookup`), jadi
+`helm upgrade` biasa tidak menerbitkan ulang apa pun. Ini PKI internal — terpisah dari sertifikat DigiCert (§6).
+
+```bash
+# Kapan kedaluwarsa? (CA 10 tahun, daun 3 tahun sejak terbit)
+for s in authenc secreton layanan-integrasi layanan-perlengkapan gateway; do
+  printf '%-22s ' $s; kubectl -n simpelv2-<env> get secret grpc-tls-$s -o jsonpath='{.data.tls\.crt}' | base64 -d | openssl x509 -noout -enddate
+done
+
+# Rotasi (jadwalkan SEBELUM kedaluwarsa; sertifikat yang basi memutus hop tanpa pesan yang jelas):
+kubectl -n simpelv2-<env> delete secret grpc-pki-ca grpc-tls-authenc grpc-tls-secreton \
+  grpc-tls-layanan-integrasi grpc-tls-layanan-perlengkapan grpc-tls-gateway
+helm upgrade simpel ...   # perintah §1.7 / §2 yang sama; Helm membuat ulang Secret yang hilang
+for d in authenc layanan-integrasi layanan-perlengkapan simpelv1; do kubectl -n simpelv2-<env> rollout restart deploy/$d; done
+kubectl -n simpelv2-<env> rollout restart statefulset/secreton
+```
+
+Berkas dibaca saat start, jadi restart wajib. Semua pod harus memakai CA yang SAMA — jangan restart sebagian.
+
 ## 6. TLS Cert Renewal (DigiCert)
 
 DigiCert cert berlaku 1 tahun. Reminder rotate H-30 sebelum expire.

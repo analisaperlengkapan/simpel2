@@ -131,12 +131,19 @@ tolerations:
 {{- default (printf "redis://redis-service.%s.svc.cluster.local:6379" (include "simpel.namespace" .)) .Values.config.redisUrl -}}
 {{- end -}}
 
+{{/* simpel.grpcScheme — https bila hop gRPC memakai mTLS, selain itu http. Klien menolak
+     pasangan yang tak cocok (lib_backend::grpc::client), jadi skema dan materi TLS tak
+     bisa berbeda diam-diam. */}}
+{{- define "simpel.grpcScheme" -}}
+{{- if .Values.backendConfig.grpcTls.enabled -}}https{{- else -}}http{{- end -}}
+{{- end -}}
+
 {{- define "simpel.authencGrpcUrl" -}}
-{{- default (printf "http://authenc.%s.svc.cluster.local:9088" (include "simpel.namespace" .)) .Values.backendConfig.authencGrpcUrl -}}
+{{- default (printf "%s://authenc.%s.svc.cluster.local:9088" (include "simpel.grpcScheme" .) (include "simpel.namespace" .)) .Values.backendConfig.authencGrpcUrl -}}
 {{- end -}}
 
 {{- define "simpel.secretonGrpcUrl" -}}
-{{- default (printf "http://secreton.%s.svc.cluster.local:9000" (include "simpel.namespace" .)) .Values.backendConfig.secretonGrpcUrl -}}
+{{- default (printf "%s://secreton.%s.svc.cluster.local:9000" (include "simpel.grpcScheme" .) (include "simpel.namespace" .)) .Values.backendConfig.secretonGrpcUrl -}}
 {{- end -}}
 
 {{- define "simpel.secretonEndpoint" -}}
@@ -144,7 +151,7 @@ tolerations:
 {{- end -}}
 
 {{- define "simpel.integrasiGrpcUrl" -}}
-{{- default (printf "http://layanan-integrasi.%s.svc.cluster.local:50051" (include "simpel.namespace" .)) .Values.backendConfig.integrasiGrpcUrl -}}
+{{- default (printf "%s://layanan-integrasi.%s.svc.cluster.local:50051" (include "simpel.grpcScheme" .) (include "simpel.namespace" .)) .Values.backendConfig.integrasiGrpcUrl -}}
 {{- end -}}
 
 {{- define "simpel.simpelv1DbHost" -}}

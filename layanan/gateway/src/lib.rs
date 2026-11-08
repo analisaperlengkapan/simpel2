@@ -98,9 +98,15 @@ pub struct AppState {
 
 impl AppState {
     pub fn connect_lazy(cfg: &GatewayConfig) -> anyhow::Result<Self> {
-        let authenc_ch = Channel::from_shared(cfg.authenc_grpc_url.clone())?.connect_lazy();
-        let secreton_ch = Channel::from_shared(cfg.secreton_grpc_url.clone())?.connect_lazy();
-        let integrasi_ch = Channel::from_shared(cfg.integrasi_grpc_url.clone())?.connect_lazy();
+        // mTLS comes from GRPC_CLIENT_{CA,CERT,KEY}_PATH (lib_backend::grpc::client):
+        // all three unset = plaintext http://, all three set = mTLS https://, any
+        // other combination (or a URL that disagrees with it) fails startup here.
+        let authenc_ch =
+            lib_backend::grpc::client::endpoint_from_env(&cfg.authenc_grpc_url)?.connect_lazy();
+        let secreton_ch =
+            lib_backend::grpc::client::endpoint_from_env(&cfg.secreton_grpc_url)?.connect_lazy();
+        let integrasi_ch =
+            lib_backend::grpc::client::endpoint_from_env(&cfg.integrasi_grpc_url)?.connect_lazy();
         Ok(Self {
             authenc: AuthencServiceClient::new(authenc_ch),
             secreton: SecretonServiceClient::new(secreton_ch),

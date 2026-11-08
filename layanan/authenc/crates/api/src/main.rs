@@ -158,29 +158,37 @@ impl TokenGenerator for JwtTokenGenerator {
     }
 }
 
-/// Load gRPC mTLS material from Secreton-provisioned file paths, if configured.
+/// Load gRPC mTLS material from the configured file paths, if configured.
 ///
 /// Requires `GRPC_TLS_CERT_PATH` + `GRPC_TLS_KEY_PATH`; when `GRPC_TLS_CA_PATH`
 /// is also set the server enforces mutual auth (clients must present a cert
-/// signed by the CA). Returns `None` when not configured, so callers can decide
-/// whether to refuse startup (production) or run plaintext (dev).
-fn load_grpc_tls() -> Option<authenc_grpc::TlsConfig> {
-    let cert = std::env::var("GRPC_TLS_CERT_PATH").ok()?;
-    let key = std::env::var("GRPC_TLS_KEY_PATH").ok()?;
+/// signed by the CA).
+///
+/// * not configured            -> `Ok(None)`, so the caller can decide whether to
+///   refuse startup (production) or run plaintext (dev);
+/// * configured and loadable   -> `Ok(Some(..))`;
+/// * configured but UNLOADABLE -> `Err`. This used to log a warning and return
+///   `None`, which outside production meant "the operator asked for mTLS, the
+///   volume was missing or the PEM was bad, so serve PLAINTEXT instead" — the
+///   one failure where being quiet turns a security setting into a no-op.
+fn load_grpc_tls() -> std::result::Result<Option<authenc_grpc::TlsConfig>, String> {
+    let (Ok(cert), Ok(key)) = (
+        std::env::var("GRPC_TLS_CERT_PATH"),
+        std::env::var("GRPC_TLS_KEY_PATH"),
+    ) else {
+        return Ok(None);
+    };
     let ca = std::env::var("GRPC_TLS_CA_PATH").ok();
     let mutual = ca.is_some();
     match authenc_grpc::TlsConfig::from_files(&cert, &key, ca) {
         Ok(cfg) => {
             info!("gRPC mTLS enabled (mutual_auth={})", mutual);
-            Some(cfg)
+            Ok(Some(cfg))
         }
-        Err(e) => {
-            warn!(
-                "Failed to load gRPC TLS material from configured paths: {}",
-                e
-            );
-            None
-        }
+        Err(e) => Err(format!(
+            "gRPC TLS was requested (GRPC_TLS_CERT_PATH={cert}) but its material cannot be \
+             loaded: {e} — refusing to fall back to plaintext"
+        )),
     }
 }
 
@@ -401,7 +409,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         // mTLS material (Secreton-provisioned). When a CA cert is supplied the
         // server requires clients to present a cert signed by it — mutual auth,
         // the zero-trust transport for the mesh. Fail closed in production.
-        let tls_config = load_grpc_tls();
+        let tls_config = load_grpc_tls()?;
         let is_production = std::env::var("APP_ENVIRONMENT")
             .map(|v| v.eq_ignore_ascii_case("production"))
             .unwrap_or(false);

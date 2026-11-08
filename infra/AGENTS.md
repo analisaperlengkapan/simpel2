@@ -240,6 +240,14 @@ Pemeriksaan pertama menemukan hal-hal yang akan menggagalkan hari pertama:
   Job hook `authenc-bootstrap` (`authenc.bootstrapAdmin.enabled: true` hanya di produksi), yang juga
   membuat administrator pertama. Staging mematikannya karena fixture e2e memakai akun-akun itu.
 - **`app-2026` dihapus** (chart, matrix rilis, CI, `monolith/APP-2026/`) atas perintah pemilik sistem.
+- **mTLS gRPC** (authenc, secreton, layanan-integrasi) — `backendConfig.grpcTls.enabled: true` di staging DAN
+  produksi, `grpcAllowInsecure: "false"`. Dulu staging memakai opt-out `GRPC_ALLOW_INSECURE=true`, jadi jalur
+  yang diwajibkan produksi (authenc & secreton MENOLAK start tanpa materi mTLS) tak pernah dijalankan siapa pun.
+  PKI diterbitkan chart (`templates/secrets/grpc-pki.yaml`, sprig `genCA`/`genSignedCert`, dipakai-ulang lewat
+  `lookup`); tiap workload hanya memasang sertifikat+kuncinya sendiri; klien memakai `lib_backend::grpc::client`
+  (fail-closed: konfigurasi setengah-jadi atau `http://` dengan materi TLS ditolak saat start). Service port gRPC
+  jadi `appProtocol: tls` (Envoy tak boleh mem-parse TLS sebagai HTTP/2). `check-grpc-tls-wiring.py` (CI) memeriksa
+  lima titik itu dari hasil render. Rotasi: `RUNBOOK.md` §5.x.
 
 Urutan lengkap: `infra/helm/RUNBOOK.md` §1.
 

@@ -1,6 +1,8 @@
 {{- if .Values.simpelv1.enabled }}
 {{- $cfg := .Values.simpelv1 -}}
 {{- $env := $cfg.env -}}
+{{- $grpcTlsOn := and (dig "grpcTls" "enabled" false .Values.backendConfig) $cfg.gateway.enabled -}}
+{{- $grpcTlsMount := dig "grpcTls" "mountPath" "/etc/grpc-tls" .Values.backendConfig -}}
 {{- $dbHost := include "simpel.simpelv1DbHost" . -}}
 {{- $redisHost := include "simpel.simpelv1RedisHost" . -}}
 apiVersion: v1
@@ -281,6 +283,17 @@ spec:
               valueFrom: { configMapKeyRef: { name: backend-config, key: SECRETON_GRPC_URL, optional: true } }
             - name: INTEGRASI_GRPC_URL
               valueFrom: { configMapKeyRef: { name: backend-config, key: INTEGRASI_GRPC_URL, optional: true } }
+            {{- if $grpcTlsOn }}
+            # Sertifikat KLIEN workload `gateway` (Secret grpc-tls-gateway) — hanya sidecar ini
+            # yang memasangnya, bukan container PHP/nginx di pod yang sama.
+            - { name: GRPC_CLIENT_CERT_PATH, value: {{ printf "%s/tls.crt" $grpcTlsMount | quote }} }
+            - { name: GRPC_CLIENT_KEY_PATH,  value: {{ printf "%s/tls.key" $grpcTlsMount | quote }} }
+            - { name: GRPC_CLIENT_CA_PATH,   value: {{ printf "%s/ca.crt" $grpcTlsMount | quote }} }
+            {{- end }}
+          {{- if $grpcTlsOn }}
+          volumeMounts:
+            - { name: grpc-tls, mountPath: {{ $grpcTlsMount }}, readOnly: true }
+          {{- end }}
           resources:
             {{- toYaml $cfg.gateway.resources | nindent 12 }}
           startupProbe:
@@ -301,6 +314,10 @@ spec:
             failureThreshold: 3
         {{- end }}
       volumes:
+        {{- if $grpcTlsOn }}
+        - name: grpc-tls
+          secret: { secretName: grpc-tls-gateway, defaultMode: 288 }   # 0440, grup fsGroup
+        {{- end }}
         {{- if eq $cfg.dbBackup.source "configMap" }}
         - name: db-backup
           configMap: { name: {{ $cfg.dbBackup.name }} }

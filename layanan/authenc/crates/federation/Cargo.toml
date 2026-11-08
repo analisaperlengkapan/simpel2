@@ -6,6 +6,8 @@ edition = "2024"
 rust-version.workspace = true
 
 [dependencies]
+# gRPC client mTLS (grpc::client) — only the `grpc` feature: tonic + rustls.
+lib-backend = { workspace = true, features = ["grpc"] }
 # Workspace dependencies
 authenc-types = { path = "../types" }
 authenc-core = { path = "../core", features = ["ldap"] }

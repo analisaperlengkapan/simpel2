@@ -51,7 +51,10 @@ pub struct SecretonClient {
 
 impl SecretonClient {
     pub async fn connect(addr: String) -> Result<Self> {
-        let client = SecretonServiceClient::connect(addr).await?;
+        let channel = lib_backend::grpc::client::endpoint_from_env(&addr)?
+            .connect()
+            .await?;
+        let client = SecretonServiceClient::new(channel);
         Ok(Self { client })
     }
 
@@ -167,7 +170,7 @@ impl AuthencClient {
     /// a slow upstream produces a failed *call* (surfaced as 401) instead of a
     /// permanently degraded *client*. Same pattern as `layanan/gateway`.
     pub fn connect_lazy(addr: String) -> Result<Self> {
-        let channel = Channel::from_shared(addr)?.connect_lazy();
+        let channel = lib_backend::grpc::client::endpoint_from_env(&addr)?.connect_lazy();
         Ok(Self {
             client: Some(AuthencServiceClient::new(channel)),
         })
@@ -294,7 +297,10 @@ pub struct IntegrasiClient {
 impl IntegrasiClient {
     /// Connect to the integrasi gRPC service
     pub async fn connect(addr: String) -> Result<Self> {
-        let client = IntegrasiServiceClient::connect(addr).await?;
+        let channel = lib_backend::grpc::client::endpoint_from_env(&addr)?
+            .connect()
+            .await?;
+        let client = IntegrasiServiceClient::new(channel);
         Ok(Self {
             client,
             breakers: Arc::new(IntegrasiBreakers::new()),

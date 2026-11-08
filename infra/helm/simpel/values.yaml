@@ -231,6 +231,26 @@ backendConfig:
   grpcAllowInsecure: "true"
   serviceMesh: istio
   mtlsMode: ""                             # default: ikut .Values.mtls.mode
+  # mTLS untuk hop gRPC (authenc :9088, secreton :9000, layanan-integrasi :50051).
+  # ON ⇒ chart menerbitkan PKI-nya sendiri (templates/secrets/grpc-pki.yaml), memasang
+  # sertifikat tiap workload, dan mengubah semua *_GRPC_URL menjadi https://.
+  # Istio TIDAK menutup hop ini (authenc/secreton tanpa sidecar, ter-exclude dari
+  # mesh mTLS), jadi tanpa ini kontrol akses-nya hanya NetworkPolicy. Produksi
+  # WAJIB menyalakannya: authenc & secreton menolak start tanpa materi mTLS.
+  grpcTls:
+    enabled: false
+    caValidityDays: 3650
+    certValidityDays: 1095
+    mountPath: /etc/grpc-tls
+    # Satu identitas = satu Secret `grpc-tls-<nama>` berisi sertifikat+kunci workload
+    # itu SAJA (tak ada workload yang memegang kunci workload lain). `serves` = nama
+    # Service yang sertifikatnya harus sah untuk (SAN); kosong = klien saja.
+    identities:
+      authenc:              { serves: authenc }
+      secreton:             { serves: secreton }
+      layanan-integrasi:    { serves: layanan-integrasi }
+      layanan-perlengkapan: {}
+      gateway:              {}
   authencGrpcUrl: ""                       # default: http://authenc.<ns>.svc.cluster.local:9088
   secretonGrpcUrl: ""                      # default: http://secreton.<ns>.svc.cluster.local:9000
   secretonEndpoint: ""                     # default: http://secreton.<ns>.svc.cluster.local:8200
@@ -316,6 +336,9 @@ redis:
 authenc:
   enabled: true
   component: identity
+  # Berlaku hanya bila backendConfig.grpcTls.enabled. serve = memakai sertifikatnya sebagai
+  # server (GRPC_TLS_*); dial = memakainya sebagai klien (GRPC_CLIENT_*, federasi → integrasi).
+  grpcTls: { identity: authenc, serve: true, dial: true }
   image:
     name: layanan-authenc
     tag: ""                                # fallback ke global.imageTag
@@ -417,6 +440,12 @@ secreton:
   enabled: true
   kind: StatefulSet
   component: secrets
+  # allowedClientCNs → GRPC_ALLOWED_CLIENT_CNS: hanya workload ini yang boleh memanggil,
+  # bukan "siapa pun yang CA-nya tanda tangani".
+  grpcTls:
+    identity: secreton
+    serve: true
+    allowedClientCNs: [gateway, layanan-perlengkapan, authenc]
   image:
     name: layanan-secreton
     tag: ""
@@ -496,6 +525,7 @@ secreton:
 layananIntegrasi:
   enabled: true
   component: backend
+  grpcTls: { identity: layanan-integrasi, serve: true }
   image:
     name: layanan-integrasi
     tag: ""
@@ -541,6 +571,10 @@ layananIntegrasi:
   env:
     - { name: GRPC_HOST, value: "0.0.0.0" }
     - { name: GRPC_PORT, value: "50051" }
+    # Gerbang produksi listener gRPC (server.rs resolve_listener_security): tanpa
+    # APP_ENVIRONMENT=production gerbangnya tak pernah menyala.
+    - name: APP_ENVIRONMENT
+      valueFrom: { configMapKeyRef: { name: simpelv2-config, key: APP_ENVIRONMENT, optional: true } }
     - { name: HTTP_HOST, value: "0.0.0.0" }
     - { name: HTTP_PORT, value: "8080" }
     - { name: STORAGE_TYPE, value: "database" }
@@ -623,6 +657,7 @@ layananIntegrasi:
 layananPerlengkapan:
   enabled: true
   component: backend
+  grpcTls: { identity: layanan-perlengkapan, dial: true }
   image:
     name: layanan-perlengkapan
     tag: ""

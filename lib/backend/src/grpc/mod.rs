@@ -5,7 +5,8 @@
 //! # Modules
 //!
 //! - `interceptors` - Auth, Logging, Metrics, RateLimit interceptors
-//! - `tls` - TLS/mTLS configuration
+//! - `tls` - TLS/mTLS configuration (server side)
+//! - `client` - mTLS for gRPC clients (env-driven, fail-closed)
 //! - `health` - Health check types
 
 #[cfg(feature = "grpc")]
@@ -13,6 +14,9 @@ pub mod interceptors;
 
 #[cfg(feature = "grpc")]
 pub mod tls;
+
+#[cfg(feature = "grpc")]
+pub mod client;
 
 #[cfg(feature = "grpc")]
 pub mod health;
