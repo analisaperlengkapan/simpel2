@@ -161,7 +161,13 @@ layananPerlengkapan:
     enabled: true
     size: 20Gi
 simpelv1:
-  enabled: true
+  # NONAKTIF untuk go-live pertama. SIMPEL v1 butuh database lamanya (dbsimpelv1) terisi data nyata,
+  # dan pod-nya memasang Secret `simpelv1-db-backup` (dump) saat start; keduanya milik operator dan
+  # belum ada. Tanpa data itu pod v1 macet di ContainerCreating dan pengguna melihat aplikasi kosong.
+  # Nyalakan (true) HANYA setelah dump produksi v1 siap dimuat. Rute /perlengkapan/simpel/v1 tetap ada
+  # (parity dengan staging) dan menjawab 503 selama v1 mati. v2 (portal, perlengkapan, authenc,
+  # integrasi) tidak bergantung pada v1.
+  enabled: false
   replicas: 3
   image:
     tag: v0.1.0                            # immutable tag di production
@@ -380,4 +386,7 @@ istio:
 
 monitoring:
   serviceMonitors:
-    enabled: true
+    # FALSE: CRD ServiceMonitor (prometheus-operator) TIDAK terpasang di klaster ini; merender
+    # objeknya membuat `helm install` gagal ("no matches for kind ServiceMonitor"). Nyalakan setelah
+    # prometheus-operator ada. Dulu `true` — tak ketahuan karena produksi tak pernah di-install.
+    enabled: false

@@ -240,6 +240,11 @@ Pemeriksaan pertama menemukan hal-hal yang akan menggagalkan hari pertama:
   Job hook `authenc-bootstrap` (`authenc.bootstrapAdmin.enabled: true` hanya di produksi), yang juga
   membuat administrator pertama. Staging mematikannya karena fixture e2e memakai akun-akun itu.
 - **`app-2026` dihapus** (chart, matrix rilis, CI, `monolith/APP-2026/`) atas perintah pemilik sistem.
+- **SIMPEL v1 NONAKTIF di produksi untuk go-live pertama** (`simpelv1.enabled: false`): v1 butuh dbsimpelv1 berisi
+  data nyata + Secret `simpelv1-db-backup` (dump) yang belum ada; tanpa itu pod macet di ContainerCreating. v2
+  tidak bergantung pada v1. Rute `/perlengkapan/simpel/v1` tetap ada (parity) dan menjawab 503 selama v1 mati.
+- **ServiceMonitor mati** (`monitoring.serviceMonitors.enabled: false`): CRD prometheus-operator tidak terpasang di
+  klaster, dan merender objeknya menggagalkan `helm install` ("no matches for kind ServiceMonitor").
 - **mTLS gRPC** (authenc, secreton, layanan-integrasi) — `backendConfig.grpcTls.enabled: true` di staging DAN
   produksi, `grpcAllowInsecure: "false"`. Dulu staging memakai opt-out `GRPC_ALLOW_INSECURE=true`, jadi jalur
   yang diwajibkan produksi (authenc & secreton MENOLAK start tanpa materi mTLS) tak pernah dijalankan siapa pun.

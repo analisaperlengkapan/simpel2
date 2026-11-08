@@ -250,7 +250,9 @@ backendConfig:
       secreton:             { serves: secreton }
       layanan-integrasi:    { serves: layanan-integrasi }
       layanan-perlengkapan: {}
-      gateway:              {}
+      # `when` = daftar path values yang SEMUA harus true; identitas yang konsumennya
+      # mati tidak diterbitkan (kunci privat tanpa pemakai tidak boleh ada).
+      gateway:              { when: [simpelv1.enabled, simpelv1.gateway.enabled] }
   authencGrpcUrl: ""                       # default: http://authenc.<ns>.svc.cluster.local:9088
   secretonGrpcUrl: ""                      # default: http://secreton.<ns>.svc.cluster.local:9000
   secretonEndpoint: ""                     # default: http://secreton.<ns>.svc.cluster.local:8200
