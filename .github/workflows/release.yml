@@ -256,7 +256,6 @@ jobs:
           - { name: layanan-secreton,          dockerfile: layanan/secreton/Dockerfile,        tier: "Backend (Rust/Axum, separate workspace)" }
           - { name: layanan-gateway,           dockerfile: layanan/gateway/Dockerfile,         tier: "Backend (Rust/Axum) — simpelv1 REST→gRPC sidecar" }
           - { name: simpelv1,                  dockerfile: monolith/simpelv1/Dockerfile,       tier: "Monolith (PHP/Laravel)" }
-          - { name: app-2026,                  dockerfile: monolith/APP-2026/Dockerfile,       tier: "Static Site (Nginx)" }
     outputs:
       digest-portal: ${{ steps.export.outputs.digest-portal }}
     steps:

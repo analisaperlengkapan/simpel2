@@ -108,7 +108,6 @@ serviceAccounts:
     - portal
     - perlengkapan
     - simpelv1
-    - app-2026                               # Static site APP Kejati 2026
     # Nama historis dari era rencana Patroni; postgres yang berjalan = stock
     # `postgres:16-alpine` dan TIDAK memanggil API Kubernetes sama sekali. SA ini
     # sekarang tak terikat Role apa pun (lihat postgres.patroni.enabled) dan
@@ -325,6 +324,14 @@ authenc:
   # never self-migrates → replicas don't race). See backend/authenc-migrate-job.yaml.
   migrationJob:
     enabled: true
+  # Produksi saja: matikan akun seed migrasi (superuser `admin` + NIP
+  # 199203142014031001 yang kata sandinya NIP itu sendiri, terlihat di repo
+  # publik) dan buat administrator pertama dari Secret `authenc-bootstrap-admin`
+  # (diisi lewat secrets.authencBootstrapAdmin). Staging membiarkannya mati:
+  # fixture e2e MEMAKAI akun-akun itu. backend/authenc-bootstrap-job.yaml.
+  bootstrapAdmin:
+    enabled: false
+    secretName: authenc-bootstrap-admin
   service:
     ports:
       - { name: http,    port: 8088 }
@@ -792,70 +799,6 @@ simpelv1:
     allowPrivilegeEscalation: false
     capabilities: { drop: [ALL] }
   istioInjection: false
-  hpa: { enabled: false }
-  pdb: { enabled: false, minAvailable: 0 }
-
-# ─── Static Sites ──────────────────────────────────────────────────────────────
-# APP-2026: Halaman statis permintaan data APP Tahun 2026 (Kejati + Kejagung).
-# Image di-build oleh release.yml/ci.yml dari monolith/APP-2026/Dockerfile →
-# ghcr.io/<owner>/simpelv2-app-2026, mengikuti build-once/promote-digest seperti
-# service lain (BUKAN registry lokal / tag mutable).
-app-2026:
-  enabled: false                             # default OFF; di-enable per-env (staging→production)
-  component: static-site
-  image:
-    name: app-2026                            # → <global.registry>/simpelv2-app-2026
-    tag: ""                                   # fallback ke global.imageTag (SemVer immutable)
-    pullPolicy: IfNotPresent
-  replicas: 1
-  service:
-    ports:
-      - { name: http, port: 8080 }
-  resources:
-    requests: { cpu: 10m,  memory: 32Mi }
-    limits:   { cpu: 100m, memory: 64Mi }
-  # uid/gid NUMERIK wajib. Chart menyetel `runAsNonRoot: true`, dan kubelet
-  # menolak menjalankan container kalau image mendeklarasikan user non-numerik
-  # (`USER nginx`): ia tak bisa membuktikan uid-nya bukan 0, jadi pod berhenti
-  # di `CreateContainerConfigError` — bukan CrashLoop, jadi tak ada log aplikasi
-  # yang menjelaskannya. Terukur 2026-08-25 saat rc25 pertama kali membuat
-  # workload ini. 101 = uid nginx di image resmi, sama dengan portal & FE
-  # perlengkapan di bawah.
-  podSecurityContext:
-    runAsUser: 101
-    runAsGroup: 101
-    fsGroup: 101
-  containerSecurityContext:
-    allowPrivilegeEscalation: false
-    capabilities: { drop: [ALL] }
-  # nginx menulis ke /var/cache/nginx dan /var/run saat start, sementara chart
-  # menyetel `readOnlyRootFilesystem: true`. Tanpa dua emptyDir ini nginx mati
-  # sebelum melayani apa pun:
-  #   [emerg] mkdir() "/var/cache/nginx/client_temp" failed (30: Read-only file system)
-  # Sama persis dengan yang sudah dipunyai portal dan FE perlengkapan; app-2026
-  # satu-satunya yang terlewat karena ia workload paling baru. Anotasi
-  # pengecualian Velero DITURUNKAN dari daftar `volumes` ini oleh
-  # `simpel.veleroExcludedVolumes`, jadi tak ada langkah manual menyusul.
-  volumeMounts:
-    - { name: nginx-cache, mountPath: /var/cache/nginx }
-    - { name: nginx-run,   mountPath: /var/run }
-  volumes:
-    - { name: nginx-cache, emptyDir: {} }
-    - { name: nginx-run,   emptyDir: {} }
-  probes:
-    liveness:
-      type: http
-      path: /health
-      port: 8080
-      initialDelaySeconds: 5
-      periodSeconds: 10
-    readiness:
-      type: http
-      path: /health
-      port: 8080
-      initialDelaySeconds: 3
-      periodSeconds: 5
-  istioInjection: false                      # static site, no sidecar
   hpa: { enabled: false }
   pdb: { enabled: false, minAvailable: 0 }
 

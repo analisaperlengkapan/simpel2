@@ -219,6 +219,30 @@ Prinsip yang ditegakkan (selain "Alur deploy WAJIB" di atas):
 Prasyarat make-or-break: **Velero** (#50) terpasang; **disiplin migrasi expand/contract**
 (#52 ✅) agar `helm rollback` tak butuh restore DB.
 
+#### Produksi: yang berbeda dari staging dan KENAPA (install pertama, 2026-11-08)
+
+Produksi belum pernah punya rilis Helm, jadi selisihnya dengan staging tak pernah diuji siapa pun.
+Pemeriksaan pertama menemukan hal-hal yang akan menggagalkan hari pertama:
+
+- **Gateway sendiri.** `simpelv2-gateway` dimiliki rilis Helm staging; chart produksi yang merender
+  nama sama ditolak ("invalid ownership metadata"). Produksi memakai `simpelv2-prod-gateway`, host
+  dipaku ke `simpel.kejaksaan.go.id`, TLS dari Secret `simpelv2-prod-tls` (DigiCert, dibuat operator —
+  kunci privat tak lewat Helm). `hosts: ["*"]` dilarang.
+- **Tabel rute = tabel staging.** Dulu produksi membawa salinan pra-F5 tanpa satu pun rute authenc
+  (login mustahil). `infra/scripts/check-route-parity.py` (CI) menggagalkan PR bila keduanya menyimpang.
+- **`promote.yml` meng-re-tag SEMUA image yang dibangun `release.yml`** — dulu 7 dari 9; `layanan-gateway`
+  (sidecar simpelv1) dan `app-2026` tak punya tag final ⇒ pod ImagePullBackOff di produksi.
+  `check-chart-release-images.py` kini membandingkan chart ↔ release ↔ promote.
+- **Sisa pra-Helm** di `simpelv2-production` (34 objek bentrok nama dengan chart) dikosongkan oleh
+  `infra/helm/cutover-production.sh` — daftarnya DITURUNKAN dari cluster, default dry-run, menolak
+  bila ada rilis Helm atau PVC Bound. Ini satu-satunya `kubectl delete` yang diizinkan ke produksi.
+- **Akun seed migrasi** (`admin`, NIP `199203142014031001` bersandi NIP itu sendiri) dimatikan oleh
+  Job hook `authenc-bootstrap` (`authenc.bootstrapAdmin.enabled: true` hanya di produksi), yang juga
+  membuat administrator pertama. Staging mematikannya karena fixture e2e memakai akun-akun itu.
+- **`app-2026` dihapus** (chart, matrix rilis, CI, `monolith/APP-2026/`) atas perintah pemilik sistem.
+
+Urutan lengkap: `infra/helm/RUNBOOK.md` §1.
+
 ### 4. Image Registry & Tag
 
 - **Registry resmi**: `ghcr.io/analisaperlengkapan/simpel2/<service>`. Pull dengan k8s Secret `ghcr-pull` (docker-registry type) per namespace; PAT scope `read:packages`.
@@ -244,7 +268,10 @@ apa adanya ⇒ `16-alpine` tetap sah).
 > persis dengan pola terlarang itu** — `localhost:32000/...:prod` + `imagePullPolicy: Never`, warisan
 > era `kubectl apply` pra-Helm (ia **tidak ada** di `helm list -A`). Akibatnya bukan teoretis: 8 dari 10
 > workload di sana nol replica, dan root `simpel.kejaksaan.go.id` sudah **503 sekitar 30 hari**,
-> sementara `/APP-2026` tetap 200 karena pod-nya kebetulan belum pernah kehilangan image-nya.
+> sementara `/APP-2026` tetap 200 karena pod-nya kebetulan belum pernah kehilangan image-nya
+> (Deployment+Service `app-2026` itu dihapus dari produksi pada 2026-11-08 atas perintah pemilik sistem,
+> dan blok `app-2026` di chart, matrix rilis, dan `monolith/APP-2026/` ikut dihapus; kebutuhan pendataannya
+> kini dilayani modul pakaian dinas).
 > `Never` berarti kubelet tak pernah menarik; tag yang bisa bergerak berarti tak ada catatan isi mana
 > yang seharusnya ada. Sekali image hilang dari disk node, pod itu **tak bisa dijadwalkan lagi DAN tak
 > ada yang tahu apa yang harus dibangun ulang**. Pemulihannya = jalur F6 (deploy via Helm dari image

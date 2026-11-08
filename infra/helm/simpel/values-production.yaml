@@ -14,6 +14,10 @@ global:
   domain: simpel.kejaksaan.go.id
 
 namespace:
+  # Namespace sudah ada (dengan label Istio/PSA yang benar) dan dikosongkan oleh
+  # infra/helm/cutover-production.sh; Helm TIDAK boleh memilikinya, sebab `helm
+  # uninstall` akan cascade-menghapus seluruh namespace beserta datanya.
+  create: false
   name: simpelv2-production
   istioInjection: enabled
   podSecurityEnforce: privileged
@@ -87,6 +91,10 @@ redis:
   pdb: { enabled: true, maxUnavailable: 1 }
 authenc:
   replicas: 3
+  # Akun seed migrasi dimatikan dan administrator pertama dibuat (lihat
+  # backend/authenc-bootstrap-job.yaml). WAJIB di produksi.
+  bootstrapAdmin:
+    enabled: true
   resources:
     requests: { cpu: 250m, memory: 512Mi }
     limits:   { cpu: "1",  memory: 1Gi }
@@ -222,53 +230,109 @@ perlengkapan:
     maxReplicas: 10
     cpuUtilization: 70
 
-# ─── Static Sites ──────────────────────────────────────────────────────────────
-app-2026:
-  enabled: true
-
 # ─── Istio routing ─────────────────────────────────────────────────────────────
+# Gateway dan VirtualService produksi berdiri SENDIRI, bukan memakai milik staging:
+#  * `simpelv2-gateway` dimiliki rilis Helm staging (meta.helm.sh/release-namespace
+#    = simpelv2-staging). Chart produksi yang merender objek bernama sama ditolak
+#    helm ("invalid ownership metadata"), dan menimpanya akan merusak staging.
+#  * Gateway staging melayani host "*" dengan sertifikat self-signed
+#    (CN=simpelv2-staging). Domain produksi butuh sertifikat DigiCert-nya sendiri,
+#    disimpan di Secret TLS `simpelv2-prod-tls` (namespace istio-system, dibuat
+#    operator sebelum install — kunci privat tidak boleh lewat Helm/values).
+#  * Host dipaku ke domain produksi. `hosts: ["*"]` sebelumnya membuat tabel rute
+#    produksi menjawab Host apa pun yang sampai ke ingress bersama.
+# Tabel rute di bawah HARUS sama dengan staging (kecuali origin CORS):
+# infra/scripts/check-route-parity.py menggagalkan CI bila keduanya menyimpang.
+# Dulu tabel ini salinan pra-F5 yang tak punya satu pun rute authenc, sehingga
+# login mustahil di produksi — dan tak ada yang menyadarinya karena produksi
+# memang belum pernah di-deploy.
 istio:
   gateway:
-    name: simpelv2-gateway                  # shared gateway untuk staging & production
-    hosts: ["*"]
+    name: simpelv2-prod-gateway
+    hosts: ["simpel.kejaksaan.go.id"]
     httpsRedirect: true
+    tls:
+      enabled: true
+      mode: SIMPLE
+      credentialName: simpelv2-prod-tls
   virtualService:
     name: simpelv2-prod-routes
-    hosts: ["*"]
-    defaultRedirect: ""                     # final route catch-all → portal
+    hosts: ["simpel.kejaksaan.go.id"]
+    defaultRedirect: ""
     routes:
-      - match: { prefix: /api/v1/perlengkapan }
-        destination: { host: layanan-perlengkapan, port: 3020 }
+      - match: { exact: / }
+        destination: { host: portal, port: 8080 }
+      - match: { prefix: /api/captcha/ }
+        destination: { host: authenc, port: 8088 }
         timeout: 30s
-        retries: { attempts: 3, perTryTimeout: 10s }
-      - match: { prefix: /perlengkapan/simpel/v1 }
+        corsPolicy: &cors
+          allowOrigins:
+            - { exact: "https://simpel.kejaksaan.go.id" }
+          allowMethods: [POST, GET, OPTIONS]
+          allowHeaders: [content-type, authorization]
+          maxAge: "86400s"
+      - match: { prefix: /captcha/ }
+        rewrite: /api/captcha/
+        destination: { host: authenc, port: 8088 }
+        timeout: 30s
+      - match: { prefix: /api/auth/captcha/ }
+        rewrite: /api/captcha/
+        destination: { host: authenc, port: 8088 }
+        timeout: 30s
+      - match: { exact: /perlengkapan/simpel/v1 }
+        redirect: { uri: /perlengkapan/simpel/v1/, code: 308 }
+      - match: { prefix: /perlengkapan/simpel/v1/ }
         rewrite: /
         destination: { host: simpelv1, port: 80 }
         timeout: 30s
         retries: { attempts: 3, perTryTimeout: 10s }
-        corsPolicy: &cors-prod
-          allowOrigins:
-            - { exact: "https://simpel.kejaksaan.go.id" }
-          allowMethods: [GET, POST, PUT, DELETE, OPTIONS]
-          allowHeaders: [authorization, content-type]
       - match: { prefix: /perlengkapan/simpel/v2 }
-        rewrite: /
-        destination: { host: layanan-perlengkapan, port: 3020 }
+        destination: { host: perlengkapan, port: 8080 }
         timeout: 30s
-        retries: { attempts: 3, perTryTimeout: 10s }
-        corsPolicy: *cors-prod
+      - match: { prefix: /perlengkapan/simpel }
+        destination: { host: perlengkapan, port: 8080 }
       - match: { prefix: /perlengkapan }
-        rewrite: /
-        destination: { host: layanan-perlengkapan, port: 3020 }
-        timeout: 30s
+        destination: { host: perlengkapan, port: 8080 }
       - match: { prefix: /pembinaan/perlengkapan }
         destination: { host: perlengkapan, port: 8080 }
-      - match: { prefix: /APP-2026 }
+      - match: { prefix: /api/v1/perlengkapan }
+        destination: { host: layanan-perlengkapan, port: 3020 }
+        timeout: 30s
+      - match: { prefix: /api/v1/auth }
+        destination: { host: authenc, port: 8088 }
+        timeout: 30s
+        retries: { attempts: 3, perTryTimeout: 10s }
+        corsPolicy: *cors
+      - match: { prefix: /api/v1/iam }
+        destination: { host: authenc, port: 8088 }
+        timeout: 30s
+        retries: { attempts: 3, perTryTimeout: 10s }
+        corsPolicy: *cors
+      - match: { prefix: /api/v1/oauth2 }
+        destination: { host: authenc, port: 8088 }
+        timeout: 30s
+        corsPolicy: *cors
+      - match: { prefix: /api/v1/captcha }
+        destination: { host: authenc, port: 8088 }
+        timeout: 30s
+      - match: { prefix: /api/v1/clients }
+        destination: { host: authenc, port: 8088 }
+        timeout: 30s
+      - match: { prefix: /api/auth }
+        destination: { host: authenc, port: 8088 }
+        timeout: 30s
+        corsPolicy: *cors
+      - match: { exact: /health }
+        destination: { host: perlengkapan, port: 8080 }
+      - match: { exact: /portal }
+        redirect: { uri: /portal/, code: 308 }
+      - match: { prefix: /portal/ }
         rewrite: /
-        destination: { host: app-2026, port: 8080 }
-      - match: { prefix: /daskrimti }
         destination: { host: portal, port: 8080 }
-      - match: { prefix: / }
+      - match: { exact: /daskrimti }
+        redirect: { uri: /daskrimti/, code: 308 }
+      - match: { prefix: /daskrimti/ }
+        rewrite: /
         destination: { host: portal, port: 8080 }
   destinationRules:
     extra:

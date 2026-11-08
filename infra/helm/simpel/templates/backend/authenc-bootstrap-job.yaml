@@ -1,0 +1,104 @@
+{{- /*
+  authenc production bootstrap — Helm post-install/pre-upgrade hook Job.
+
+  Retires the accounts that migrations/002_seed.sql bakes into EVERY environment
+  (a superuser called `admin`, and NIP 199203142014031001 whose password is its
+  own NIP — visible in the public repo) and creates the first real administrator.
+  Without it a fresh production database either has a publicly known superuser or,
+  once that is removed by hand, has nobody able to log in. See
+  layanan/authenc/crates/api/src/bin/bootstrap_admin.rs for the reasoning and the
+  single-transaction guarantee.
+
+  Off by default (staging keeps its fixture accounts); production turns it on.
+  Idempotent: every `helm upgrade` re-runs it and a rotated password is never reset.
+
+  Phases mirror authenc-migrate (see check-migrate-hook-lifecycle.py): post-install
+  because the database does not exist before then, pre-upgrade so the seeds can
+  never be live while new pods roll. Weight -4 → right AFTER authenc-migrate (-5),
+  which is what creates the tables and the seeded rows this job retires.
+*/ -}}
+{{- if and .Values.authenc.enabled (dig "bootstrapAdmin" "enabled" false .Values.authenc) }}
+{{- $ctx := . -}}
+{{- $values := .Values.authenc -}}
+{{- $secretName := dig "bootstrapAdmin" "secretName" "authenc-bootstrap-admin" .Values.authenc -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "simpel.fullname" . }}-authenc-bootstrap
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" $ctx "name" "authenc-bootstrap" "component" "identity") | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,pre-upgrade
+    "helm.sh/hook-weight": "-4"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        # component=identity: the same label authenc-migrate carries, which is what
+        # lets the allow-backend-to-postgres NetworkPolicy admit this pod.
+        {{- include "simpel.componentLabels" (dict "top" $ctx "name" "authenc-bootstrap" "component" "identity") | nindent 8 }}
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: Never
+      {{- include "simpel.imagePullSecrets" $ctx | nindent 6 }}
+      {{- with (include "simpel.nodeSelector" $ctx) }}
+      {{- . | nindent 6 }}
+      {{- end }}
+      {{- with (include "simpel.tolerations" $ctx) }}
+      {{- . | nindent 6 }}
+      {{- end }}
+      {{- include "simpel.podSecurityContext" $values | nindent 6 }}
+      initContainers:
+        - name: wait-for-postgres
+          image: {{ include "simpel.postgresClientImage" . }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 70
+            capabilities:
+              drop: [ALL]
+          command:
+            - /bin/sh
+            - -c
+            - until pg_isready -h postgres -U {{ .Values.secrets.postgresCredentials.username | quote }} >/dev/null 2>&1; do echo "waiting for postgres"; sleep 2; done
+          resources:
+            requests: { cpu: 50m, memory: 32Mi }
+            limits:   { cpu: 200m, memory: 64Mi }
+      containers:
+        - name: authenc-bootstrap-admin
+          image: {{ include "simpel.image" (dict "top" $ctx "spec" $values.image) }}
+          imagePullPolicy: {{ default (include "simpel.imagePullPolicy" $ctx) $values.image.pullPolicy }}
+          command: ["./authenc-bootstrap-admin"]
+          {{- include "simpel.containerSecurityContext" $values | nindent 10 }}
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: postgres-credentials, key: url }
+            - name: BOOTSTRAP_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef: { name: {{ $secretName }}, key: username }
+            - name: BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: {{ $secretName }}, key: password }
+            - name: BOOTSTRAP_ADMIN_SATKER_CODE
+              valueFrom:
+                secretKeyRef: { name: {{ $secretName }}, key: satkerCode }
+            - name: BOOTSTRAP_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef: { name: {{ $secretName }}, key: email, optional: true }
+            - name: BOOTSTRAP_ADMIN_NAMA
+              valueFrom:
+                secretKeyRef: { name: {{ $secretName }}, key: nama, optional: true }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: "1",  memory: 512Mi }
+{{- end }}

@@ -91,6 +91,7 @@ jobs:
           - layanan-integrasi
           - layanan-perlengkapan
           - layanan-secreton
+          - layanan-gateway
           - simpelv1
     steps:
       - name: Setup Buildx
@@ -195,5 +196,5 @@ jobs:
             echo "- Target: \`$TARGET\`"
             echo "- Commit: \`$COMMIT\`"
             echo
-            echo "Note: GitHub Release untuk \`$TARGET\` akan dibuat oleh \`release.yml\` ketika tag dibuat (sudah ditrigger di atas)."
+            echo "Note: tag dibuat dengan GITHUB_TOKEN, jadi TIDAK memicu \`release.yml\` — dan itu yang diinginkan: tidak ada build ulang, image \`$TARGET\` tetap digest \`$SOURCE\`. GitHub Release (bila perlu) dibuat manual."
           } >> "$GITHUB_STEP_SUMMARY"

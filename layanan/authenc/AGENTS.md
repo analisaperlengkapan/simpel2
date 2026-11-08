@@ -303,6 +303,17 @@ identity info inside JWTs:
 3. If you must invalidate everyone (compromise), rotate then drop the
    sessions table to force re-login.
 
+## 🚀 Bootstrap produksi (`authenc-bootstrap-admin`)
+
+`migrations/002_seed.sql` jalan di SEMUA lingkungan dan membuat `admin` + NIP `199203142014031001`
+(sandinya NIP itu sendiri, terlihat di repo publik; audit A13). Di produksi, Job hook Helm
+`authenc-bootstrap` menjalankan biner `authenc-bootstrap-admin` (`crates/api/src/bin/bootstrap_admin.rs`)
+setelah `authenc-migrate`: dalam SATU transaksi ia mematikan+mengunci akun seed dan membuat administrator
+pertama (peran `admin` saja, `require_password_change=true`). Idempoten — sandi yang sudah dirotasi
+tidak pernah direset; bila NIP seed dipilih sebagai admin awal, sandinya diganti. Staging tidak
+memakainya (fixture e2e bergantung pada akun seed). Jangan menambah akun/sandi bawaan ke migrasi
+baru: migrasi berlaku di semua lingkungan.
+
 ## 📚 Key Files Reference
 
 | Crate | Key File | Purpose |
