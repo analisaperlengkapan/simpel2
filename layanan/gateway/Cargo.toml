@@ -33,6 +33,8 @@ serde_json = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 anyhow = { workspace = true }
+# gRPC client mTLS (grpc::client). Only the `grpc` feature: tonic + rustls, no db/axum.
+lib-backend = { workspace = true, features = ["grpc"] }
 
 [build-dependencies]
 tonic-prost-build = { workspace = true }

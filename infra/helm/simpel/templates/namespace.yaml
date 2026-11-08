@@ -25,7 +25,12 @@ metadata:
     # with Longhorn reclaimPolicy=Delete and no Velero backup. `resource-policy: keep`
     # makes uninstall/prune NEVER delete the namespace, so data survives. Going
     # forward the lifecycle is upgrade-only; teardown must be explicit + backed up.
+    # `namespace.retain: false` exists ONLY for the throwaway production rehearsal
+    # (RUNBOOK §1.9), whose whole point is that `helm uninstall` leaves nothing behind.
+    # CI refuses it in values-staging.yaml / values-production.yaml.
+    {{- if .Values.namespace.retain }}
     "helm.sh/resource-policy": keep
+    {{- end }}
     simpelv2.kejaksaan.go.id/managed: "true"
     simpelv2.kejaksaan.go.id/environment: {{ .Values.global.environment | quote }}
     {{- range $k, $v := .Values.namespace.annotations }}

@@ -714,6 +714,24 @@ jobs:
               < "rendered/${f}.yaml" \
               | python3 ./infra/scripts/check-netpol-service-ports.py "$f"
           done
+      # mTLS gRPC tersebar di lima tempat yang harus sepakat (Secret PKI, env server,
+      # env klien, skema *_GRPC_URL, appProtocol Service). Salah satunya meleset =
+      # `helm lint` dan kube-linter tetap hijau, dan akibatnya: pod production
+      # menolak start, atau setiap panggilan gagal dengan galat transport yang tak
+      # menyebut sebabnya. Daftar server/klien DITURUNKAN dari render, jadi klien
+      # gRPC berikutnya ikut tercakup pada hari ia ditambahkan.
+      - name: mTLS gRPC terpasang ke setiap server dan klien
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
+          for f in staging production; do
+            helm template simpel infra/helm/simpel \
+              -f "infra/helm/simpel/values-${f}.yaml" \
+              --set backendConfig.grpcTls.enabled=true \
+              --set backendConfig.grpcAllowInsecure=false \
+              | docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
+              | python3 ./infra/scripts/check-grpc-tls-wiring.py "$f"
+          done
       - name: Setiap emptyDir dikecualikan dari backup Velero
         if: steps.filter.outputs.helm == 'true'
         run: |

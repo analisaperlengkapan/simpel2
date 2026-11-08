@@ -60,12 +60,15 @@ config:
 
 backendConfig:
   mtlsMode: STRICT
-  # Fail-closed. authenc and secreton refuse to start their gRPC listeners
-  # without mTLS material, so the Secreton PKI must have issued
-  # GRPC_TLS_CERT_PATH / GRPC_TLS_KEY_PATH / GRPC_TLS_CA_PATH first (F6-A).
-  # Istio does not cover these hops — mtls.disableForHosts excludes authenc and
-  # secreton, and both run with istioInjection: false.
+  # Fail-closed. authenc, secreton and layanan-integrasi refuse to start their gRPC
+  # listeners without mTLS material, and every client refuses to dial without its
+  # own certificate. The chart issues the PKI itself (templates/secrets/grpc-pki.yaml,
+  # backendConfig.grpcTls) — the same path staging runs, so what is proven there is
+  # what runs here. Istio does not cover these hops — mtls.disableForHosts excludes
+  # authenc and secreton, and both run with istioInjection: false.
   grpcAllowInsecure: "false"
+  grpcTls:
+    enabled: true
 
 # ─── Workload sizing — HA ──────────────────────────────────────────────────────
 postgres:
@@ -158,7 +161,13 @@ layananPerlengkapan:
     enabled: true
     size: 20Gi
 simpelv1:
-  enabled: true
+  # NONAKTIF untuk go-live pertama. SIMPEL v1 butuh database lamanya (dbsimpelv1) terisi data nyata,
+  # dan pod-nya memasang Secret `simpelv1-db-backup` (dump) saat start; keduanya milik operator dan
+  # belum ada. Tanpa data itu pod v1 macet di ContainerCreating dan pengguna melihat aplikasi kosong.
+  # Nyalakan (true) HANYA setelah dump produksi v1 siap dimuat. Rute /perlengkapan/simpel/v1 tetap ada
+  # (parity dengan staging) dan menjawab 503 selama v1 mati. v2 (portal, perlengkapan, authenc,
+  # integrasi) tidak bergantung pada v1.
+  enabled: false
   replicas: 3
   image:
     tag: v0.1.0                            # immutable tag di production
@@ -377,4 +386,7 @@ istio:
 
 monitoring:
   serviceMonitors:
-    enabled: true
+    # FALSE: CRD ServiceMonitor (prometheus-operator) TIDAK terpasang di klaster ini; merender
+    # objeknya membuat `helm install` gagal ("no matches for kind ServiceMonitor"). Nyalakan setelah
+    # prometheus-operator ada. Dulu `true` — tak ketahuan karena produksi tak pernah di-install.
+    enabled: false

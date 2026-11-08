@@ -383,6 +383,13 @@ config:
 
 backendConfig:
   mtlsMode: PERMISSIVE
+  # Hop gRPC staging memakai mTLS yang SAMA dengan produksi (PKI diterbitkan chart).
+  # Dulu staging jalan lewat opt-out transisional (`grpcAllowInsecure: "true"`), jadi
+  # jalur yang diwajibkan produksi tak pernah dijalankan siapa pun sebelum hari
+  # pertama produksi. Sekarang yang diuji di sini = yang akan berjalan di sana.
+  grpcAllowInsecure: "false"
+  grpcTls:
+    enabled: true
 
 # Workload — staging sengaja minimum (1 replica, HPA 1/2, no PDB).
 postgres:

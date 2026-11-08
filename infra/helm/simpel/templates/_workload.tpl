@@ -27,6 +27,12 @@
 {{- $name := .name -}}
 {{- $values := .values -}}
 {{- $persist := and $values.persistence $values.persistence.enabled -}}
+{{- /* mTLS gRPC: aktif hanya bila backendConfig.grpcTls.enabled DAN workload ini mendeklarasikan
+       `grpcTls` (identity/serve/dial). `dig` agar --reuse-values dari rilis lama tak nil-pointer. */ -}}
+{{- $grpcTlsOn := dig "grpcTls" "enabled" false $ctx.Values.backendConfig -}}
+{{- $gt := dict -}}
+{{- if and $grpcTlsOn $values.grpcTls }}{{- $gt = $values.grpcTls }}{{- end -}}
+{{- $gtMount := dig "grpcTls" "mountPath" "/etc/grpc-tls" $ctx.Values.backendConfig -}}
 {{- if $values.enabled }}
 {{- include "simpel.service" (dict "ctx" $ctx "name" $name "values" $values) }}
 ---
@@ -139,10 +145,25 @@ spec:
           envFrom:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if or $values.env $persist (and $values.secretonAuth $values.secretonAuth.enabled) }}
+          {{- if or $values.env $persist $gt (and $values.secretonAuth $values.secretonAuth.enabled) }}
           env:
             {{- with $values.env }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- if $gt }}
+            {{- if $gt.serve }}
+            - { name: GRPC_TLS_CERT_PATH, value: {{ printf "%s/tls.crt" $gtMount | quote }} }
+            - { name: GRPC_TLS_KEY_PATH,  value: {{ printf "%s/tls.key" $gtMount | quote }} }
+            - { name: GRPC_TLS_CA_PATH,   value: {{ printf "%s/ca.crt" $gtMount | quote }} }
+            {{- with $gt.allowedClientCNs }}
+            - { name: GRPC_ALLOWED_CLIENT_CNS, value: {{ join "," . | quote }} }
+            {{- end }}
+            {{- end }}
+            {{- if $gt.dial }}
+            - { name: GRPC_CLIENT_CERT_PATH, value: {{ printf "%s/tls.crt" $gtMount | quote }} }
+            - { name: GRPC_CLIENT_KEY_PATH,  value: {{ printf "%s/tls.key" $gtMount | quote }} }
+            - { name: GRPC_CLIENT_CA_PATH,   value: {{ printf "%s/ca.crt" $gtMount | quote }} }
+            {{- end }}
             {{- end }}
             {{- if and $persist $values.persistence.envName }}
             - name: {{ $values.persistence.envName }}
@@ -165,10 +186,15 @@ spec:
           {{- end }}
           {{- include "simpel.containerSecurityContext" $values | nindent 10 }}
           {{- include "simpel.probes" (dict "spec" (default (dict) $values.probes)) | nindent 10 }}
-          {{- if or $values.volumeMounts $persist (and $values.secretonAuth $values.secretonAuth.enabled) $values.tmpVolumeSizeLimit }}
+          {{- if or $values.volumeMounts $persist $gt (and $values.secretonAuth $values.secretonAuth.enabled) $values.tmpVolumeSizeLimit }}
           volumeMounts:
             {{- with $values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- if $gt }}
+            - name: grpc-tls
+              mountPath: {{ $gtMount }}
+              readOnly: true
             {{- end }}
             {{- if $persist }}
             - name: data
@@ -191,10 +217,18 @@ spec:
         {{- with $values.sidecars }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-      {{- if or $values.volumes $persist (and $values.secretonAuth $values.secretonAuth.enabled) $values.tmpVolumeSizeLimit }}
+      {{- if or $values.volumes $persist $gt (and $values.secretonAuth $values.secretonAuth.enabled) $values.tmpVolumeSizeLimit }}
       volumes:
         {{- with $values.volumes }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $gt }}
+        # Sertifikat + kunci WORKLOAD INI saja (Secret grpc-tls-<identity>). 288 = 0440:
+        # terbaca grup fsGroup pod, tidak oleh dunia.
+        - name: grpc-tls
+          secret:
+            secretName: {{ printf "grpc-tls-%s" $gt.identity }}
+            defaultMode: 288
         {{- end }}
         {{- if $persist }}
         - name: data
@@ -275,7 +309,10 @@ spec:
       targetPort: {{ default .port .targetPort }}
       protocol: {{ default "TCP" .protocol }}
       {{- with .appProtocol }}
-      appProtocol: {{ . }}
+      {{- /* Dengan mTLS aplikasi, byte di port ini adalah TLS. appProtocol "grpc" membuat Envoy
+             (di sidecar KLIEN, dan di sidecar server bila ada) mencoba mem-parse-nya sebagai
+             HTTP/2 polos dan memutus semua panggilan; "tls" = teruskan apa adanya. */}}
+      appProtocol: {{ if and (eq . "grpc") (dig "grpcTls" "enabled" false $ctx.Values.backendConfig) }}tls{{ else }}{{ . }}{{ end }}
       {{- end }}
     {{- end }}
 {{- if $svc.headlessName }}

@@ -565,6 +565,11 @@ jobs:
       - name: Production routes are the routes staging proved
         shell: bash
         run: python3 ./infra/scripts/check-route-parity.py
+      # `namespace.retain: false` is for the throwaway rehearsal only; a real environment
+      # with it would let `helm uninstall` cascade-delete the namespace and its data.
+      - name: Real environments keep their namespace on uninstall
+        shell: bash
+        run: python3 ./infra/scripts/check-namespace-retained.py
       # Placeholder telanjang di aritmatika tanggal tidak punya tipe, dan
       # Postgres gagal DUA cara berbeda: `CURRENT_DATE + $1` ditolak saat
       # PREPARE ("operator is not unique: date + unknown"), sementara
@@ -1320,12 +1325,17 @@ jobs:
       - name: cargo test
         env:
           RUST_BACKTRACE: 1
-        run: cargo test -p lib-backend --all-targets --no-fail-fast
+        # --all-features, like the clippy step above. Without it every `grpc`,
+        # `db`, `jwt` ... test is compiled out and NEVER RUNS: lib-backend's whole
+        # gRPC TLS surface (including the real-handshake tests for the client
+        # helper) sat behind `#[cfg(feature = "grpc")]` and CI was green on all
+        # of it for the same reason an empty test suite is green.
+        run: cargo test -p lib-backend --all-targets --all-features --no-fail-fast
       # See the note on test-lib-core: --all-targets excludes doctests. (#115)
       - name: cargo test --doc
         env:
           RUST_BACKTRACE: 1
-        run: cargo test -p lib-backend --doc --no-fail-fast
+        run: cargo test -p lib-backend --doc --all-features --no-fail-fast
 
   test-lib-crypto:
     name: Test Rust (lib-crypto)
@@ -1564,7 +1574,11 @@ jobs:
             test_args: ""
           - tier: layanan-integrasi
             packages: "-p layanan-integrasi"
-            test_args: ""
+            # The whole gRPC server (and its tests, including the production mTLS
+            # gate) sits behind `#[cfg(feature = "grpc")]`. Without the feature it
+            # compiles to nothing and every one of those tests is silently absent
+            # from the run — green for the same reason an empty suite is green.
+            test_args: "--features grpc"
           # secreton-auto-unseal / secreton-k8s-operator added here and to the
           # clippy matrix — they were in neither, so 7.4k lines (including a
           # ~700-line integration suite) had never been executed by any gate.

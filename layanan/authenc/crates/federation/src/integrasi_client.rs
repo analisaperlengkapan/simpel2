@@ -111,8 +111,12 @@ impl IntegrasiGrpcClient {
     pub async fn new(config: &IntegrasiConfig) -> Result<Self> {
         info!(url = %config.grpc_url, "Connecting to integrasi gRPC service");
 
-        let channel = Channel::from_shared(config.grpc_url.clone())
-            .map_err(|e| AuthencError::config(format!("Invalid integrasi gRPC URL: {}", e)))?
+        // mTLS from GRPC_CLIENT_{CA,CERT,KEY}_PATH; misconfiguration fails here, at
+        // startup, instead of as an opaque transport error on the first sync.
+        let channel = lib_backend::grpc::client::endpoint_from_env(&config.grpc_url)
+            .map_err(|e| {
+                AuthencError::config(format!("Invalid integrasi gRPC client config: {}", e))
+            })?
             .connect_timeout(Duration::from_secs(config.connection_timeout_secs))
             .timeout(Duration::from_secs(config.request_timeout_secs))
             .connect()
@@ -131,8 +135,10 @@ impl IntegrasiGrpcClient {
     pub fn new_lazy(config: &IntegrasiConfig) -> Result<Self> {
         info!(url = %config.grpc_url, "Creating lazy integrasi gRPC client");
 
-        let channel = Channel::from_shared(config.grpc_url.clone())
-            .map_err(|e| AuthencError::config(format!("Invalid integrasi gRPC URL: {}", e)))?
+        let channel = lib_backend::grpc::client::endpoint_from_env(&config.grpc_url)
+            .map_err(|e| {
+                AuthencError::config(format!("Invalid integrasi gRPC client config: {}", e))
+            })?
             .connect_timeout(Duration::from_secs(config.connection_timeout_secs))
             .timeout(Duration::from_secs(config.request_timeout_secs))
             .connect_lazy();
