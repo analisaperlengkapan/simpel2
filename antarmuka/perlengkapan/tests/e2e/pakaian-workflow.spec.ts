@@ -17,6 +17,7 @@
  *     1004 → 1008, each asserted against backend state,
  *   - the validator-action endpoint is role-gated.
  */
+import { readFileSync } from "node:fs";
 import { test, expect, type APIRequestContext } from "@playwright/test";
 import { tokenFor, storageStatePath, PERLENGKAPAN_API_URL } from "./helpers/real-auth";
 import { reachable } from "./helpers/page-load";
@@ -664,8 +665,17 @@ async function aksiPakaian(
 }
 
 /** A campaign of our own aimed at one satker; returns its id and that satker's row (at 1000). */
+/**
+ * A calendar day, `selisih` days from today, as `YYYY-MM-DD`. Today is Jakarta's
+ * (UTC+7): that is the calendar the server judges a campaign's dates by, so UTC
+ * would be a day behind from 17:00 to midnight.
+ */
+const hari = (selisih: number) =>
+  new Date(Date.now() + 7 * 3_600_000 + selisih * 86_400_000).toISOString().slice(0, 10);
+
 async function kampanyeBaru(
   request: APIRequestContext,
+  periode: { mulai: string; selesai: string } = { mulai: hari(-60), selesai: hari(300) },
 ): Promise<{ pengajuanId: string; rowId: string; pusat: string }> {
   const pusat = await tokenFor(request, "validator_pusat");
   const jenis = await fetchRows<{ id: string; nama: string }>(
@@ -689,8 +699,9 @@ async function kampanyeBaru(
     data: {
       nama: `E2E revisi ${Date.now()}`,
       tahun: 2026,
-      tgl_mulai: "2026-01-01",
-      tgl_selesai: "2026-12-31",
+      // Relative to today: the dates are enforced, so a fixed year would turn this red in January.
+      tgl_mulai: periode.mulai,
+      tgl_selesai: periode.selesai,
       is_reguler: true,
       pilihan_satker: "sebagian",
       jenis_pakaian_dinas_id: pdh!.id,
@@ -821,9 +832,7 @@ test.describe("Pakaian Dinas — a returned satker tells its operator why", () =
 async function kampanyeDuaSatker(
   request: APIRequestContext,
 ): Promise<{ pengajuanId: string; rows: string[] }> {
-  // A window around today: whatever the calendar says when this runs.
-  const tanggal = (selisih: number) =>
-    new Date(Date.now() + selisih * 86_400_000).toISOString().slice(0, 10);
+  // A window around today (Jakarta's calendar, see `hari`): whatever it says when this runs.
   const pusat = await tokenFor(request, "validator_pusat");
   const jenis = await fetchRows<{ id: string; nama: string }>(
     request, `${PD_API}/jenis?page=1&per_page=100`, pusat, "jenis list");
@@ -835,7 +844,7 @@ async function kampanyeDuaSatker(
     headers: { Authorization: `Bearer ${pusat}` },
     data: {
       nama: `E2E massal ${Date.now()}`, tahun: 2026,
-      tgl_mulai: tanggal(-60), tgl_selesai: tanggal(300),
+      tgl_mulai: hari(-60), tgl_selesai: hari(300),
       is_reguler: true, pilihan_satker: "sebagian",
       jenis_pakaian_dinas_id: pdh!.id, spesifikasi_ids: [spesifikasi[0].id],
       satker_ids: ["0200010", "0200020"],
@@ -900,6 +909,134 @@ test.describe("Pakaian Dinas — bulk approval", () => {
   });
 });
 
+// ── Handovers tell the next role ────────────────────────────────────────────
+// A satker moving to the next role used to tell nobody: the work sat in a list
+// until the next role happened to open it, and the dashboard's "Perlu Tindakan"
+// did not count it. The next role is now notified, and the dashboard counts what
+// waits on the caller.
+test.describe("Pakaian Dinas — a handover tells the next role", () => {
+  const NOTIF = `${PD_API.replace("/pakaian-dinas", "")}/notifikasi?page=1&per_page=50`;
+  const inbox = async (request: APIRequestContext, role: Role) => {
+    const token = await tokenFor(request, role);
+    const res = await request.get(NOTIF, { headers: { Authorization: `Bearer ${token}` } });
+    expect(res.ok(), await res.text()).toBeTruthy();
+    return ((await res.json()).data ?? []) as { title: string; message: string }[];
+  };
+  const dikenal = async (request: APIRequestContext, role: Role) => {
+    // Opening the campaign list is how a user becomes reachable.
+    const token = await tokenFor(request, role);
+    const res = await request.get(`${PD_API}/pengajuan?page=1&per_page=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(res.ok(), await res.text()).toBeTruthy();
+  };
+
+  test("wilayah is told when an operator submits, and the operator when it is returned", async ({
+    request,
+  }) => {
+    await dikenal(request, "validator_wilayah");
+    await dikenal(request, "operator_a");
+    const { rowId } = await kampanyeBaru(request);
+    const note = `Ukuran celana tidak sesuai ${Date.now()}`;
+
+    expect((await aksiPakaian(request, "operator_a", rowId, "submit")).aktivitas).toBe(1001);
+    const wilayah = await inbox(request, "validator_wilayah");
+    expect(
+      wilayah.some((n) => n.title === "Pakaian dinas menunggu pemeriksaan Anda"),
+      "wilayah is told something is waiting",
+    ).toBe(true);
+
+    expect(
+      (await aksiPakaian(request, "validator_wilayah", rowId, "reject", note)).aktivitas,
+    ).toBe(1003);
+    const operator = await inbox(request, "operator_a");
+    expect(
+      operator.some((n) => n.title.includes("dikembalikan") && n.message.includes(note)),
+      "the operator is told, with the validator's own words",
+    ).toBe(true);
+  });
+
+  test("the wilayah dashboard counts the satker waiting on it", async ({ browser, request }) => {
+    await dikenal(request, "validator_wilayah");
+    const { rowId } = await kampanyeBaru(request);
+    expect((await aksiPakaian(request, "operator_a", rowId, "submit")).aktivitas).toBe(1001);
+
+    const ctx = await browser.newContext({ storageState: storageStatePath("validator_wilayah") });
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
+    const tile = page.getByTestId("menunggu-pakaian-dinas");
+    await expect(tile).toBeVisible({ timeout: 30000 });
+    await expect(tile).toContainText("Pakaian Dinas Menunggu");
+    await expect(tile).toContainText("menunggu pemeriksaan Anda");
+    await ctx.close();
+
+    // A role with no turn in the flow gets no tile. approver_satker holds that one
+    // role alone; the e2e "admin" is the base seed user in CI and holds every role
+    // (validator_wilayah among them), so it rightly has a turn and a tile.
+    const luar = await browser.newContext({ storageState: storageStatePath("approver_satker") });
+    const pl = await luar.newPage();
+    await pl.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
+    await expect(pl.getByText("Perlu Tindakan")).toBeVisible({ timeout: 30000 });
+    await expect(pl.getByTestId("menunggu-pakaian-dinas")).toHaveCount(0);
+    await luar.close();
+  });
+});
+
+// ── What the system already knows is not retyped ────────────────────────────
+// A pegawai's sizes are on their own profile (the Ukuran page). The operator
+// filling the satker's campaign was shown an empty dialog and typed them again.
+test.describe("Pakaian Dinas — the dialog starts from the sizes already on record", () => {
+  test.use({ storageState: storageStatePath("operator_a") });
+
+  test("a pegawai with a profile is pre-filled, and saving keeps what the operator checked", async ({
+    page,
+    request,
+  }) => {
+    // operator_a is also the employee on the roster of 0200010: set their own profile.
+    const token = await tokenFor(request, "operator_a");
+    const auth = { Authorization: `Bearer ${token}` };
+    const profil = await request.post(`${PD_API}/ukuran-pakaian-pegawai`, {
+      headers: auth,
+      data: { ukuran_baju: "L", ukuran_celana: "32", ukuran_sepatu: "41", with_hijab: false },
+    });
+    expect(profil.ok(), await profil.text()).toBeTruthy();
+
+    const { pengajuanId } = await kampanyeBaru(request);
+    await page.goto(
+      `${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker/${SATKER_REVISI}/isi`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await expect(page.getByTestId("pengisian-tabel")).toBeVisible({ timeout: 20000 });
+    await page.getByRole("button", { name: /^Isi ukuran /i }).first().click();
+
+    const dialog = page.getByTestId("dialog-ukuran");
+    await expect(dialog.getByTestId("ukuran-diisi-otomatis")).toBeVisible();
+    const selects = dialog.locator("select");
+    expect(await selects.count()).toBeGreaterThan(0);
+    for (let i = 0; i < (await selects.count()); i++) {
+      await expect(selects.nth(i), "no column is left for the operator to retype").not.toHaveValue("");
+    }
+
+    // The operator checks and saves; what is stored is what the dialog showed.
+    await page.getByTestId("simpan-ukuran").click();
+    // A size is a cell of its own. Matching the table's flattened text with \b
+    // missed it: "Penata Muda" + "32" run together as "Muda32", which has no boundary.
+    await expect(
+      page.getByTestId("pengisian-tabel").locator("td").filter({ hasText: /^\s*(L|32|41)\s*$/ }).first(),
+    ).toBeVisible({ timeout: 15000 });
+    const pusat = await tokenFor(request, "validator_pusat");
+    const roster = await request.get(
+      `${PD_API}/pengajuan/${pengajuanId}/satker/${SATKER_REVISI}/pegawai`,
+      { headers: { Authorization: `Bearer ${pusat}` } },
+    );
+    const saved = (await roster.json()).data.pegawai.find(
+      (p: { nip: string }) => p.nip === "200000000000000001",
+    );
+    expect(saved.sudah_diisi).toBe(true);
+    expect(["L", "32", "41"]).toContain(saved.ukuran[0].ukuran);
+  });
+});
+
 // ── Failures that used to be silent ─────────────────────────────────────────
 // The two delete handlers and the export download ended their error arm in a
 // console log. The server had answered with the reason (a campaign with work in
@@ -921,6 +1058,10 @@ test.describe("Pakaian Dinas — a refused campaign delete says why", () => {
     const nama = (await detail.json()).data.nama as string;
 
     page.on("dialog", (d) => d.accept());
+    // A short window, so the card's button is a scroll away from the banner above
+    // the list — the case on any long list. The reason must be where the operator is
+    // looking, not only somewhere on the page.
+    await page.setViewportSize({ width: 1280, height: 300 });
     await page.goto(`${BASE}/pakaian-dinas/pengajuan`, { waitUntil: "domcontentloaded" });
     const card = page.locator("div.rounded-2xl", { has: page.locator("h3", { hasText: nama }) });
     await expect(card).toBeVisible({ timeout: 20000 });
@@ -928,6 +1069,7 @@ test.describe("Pakaian Dinas — a refused campaign delete says why", () => {
 
     const banner = page.getByTestId("action-error");
     await expect(banner).toBeVisible({ timeout: 15000 });
+    await expect(banner, "on screen, not above it").toBeInViewport({ ratio: 1 });
     await expect(banner).toContainText("tidak dapat dihapus");
     await expect(banner, "names the cause").toContainText("sudah mengajukan");
 
@@ -951,6 +1093,7 @@ test.describe("Pakaian Dinas — a refused jenis delete says why", () => {
     await kampanyeBaru(request);
 
     page.on("dialog", (d) => d.accept());
+    await page.setViewportSize({ width: 1280, height: 300 });
     await page.goto(`${BASE}/pakaian-dinas/jenis`, { waitUntil: "domcontentloaded" });
     const row = page.locator("tr", { has: page.getByText("PDH", { exact: true }) });
     await expect(row).toBeVisible({ timeout: 20000 });
@@ -958,6 +1101,7 @@ test.describe("Pakaian Dinas — a refused jenis delete says why", () => {
 
     const banner = page.getByTestId("action-error");
     await expect(banner).toBeVisible({ timeout: 15000 });
+    await expect(banner, "on screen, not above it").toBeInViewport({ ratio: 1 });
     await expect(banner, "the reason, not the database's wording").toContainText(
       "masih dipakai oleh pengajuan",
     );
@@ -991,6 +1135,160 @@ test.describe("Pakaian Dinas — a failed export is reported", () => {
     const banner = page.getByTestId("action-error");
     await expect(banner).toBeVisible({ timeout: 15000 });
     await expect(banner).toContainText("Cetak PDF gagal");
+  });
+});
+
+// ── Dates are enforced, and each role sees only its own controls ────────────
+// A campaign outside its dates takes no entry and no decision; the pusat
+// validator extends it. Until now the dates only drove a badge, so an operator
+// could fill and submit a campaign that said "Ditutup". And every role was
+// offered every button (an operator saw Tambah Jenis and the trash can of every
+// campaign), each answering 403.
+test.describe("Pakaian Dinas — pusat extends a closed campaign", () => {
+  test.use({ storageState: storageStatePath("validator_pusat") });
+
+  test("the end date is changed from the card and the campaign opens again", async ({
+    page,
+    request,
+  }) => {
+    const { pengajuanId, pusat } = await kampanyeBaru(request, {
+      mulai: hari(-60),
+      selesai: hari(-1),
+    });
+    const auth = { Authorization: `Bearer ${pusat}` };
+    const nama = (await (await request.get(`${PD_API}/pengajuan/${pengajuanId}`, { headers: auth })).json())
+      .data.nama as string;
+
+    await page.goto(`${BASE}/pakaian-dinas/pengajuan`, { waitUntil: "domcontentloaded" });
+    const card = page.locator("div.rounded-2xl", { has: page.locator("h3", { hasText: nama }) });
+    await expect(card).toBeVisible({ timeout: 20000 });
+    await expect(card, "a campaign past its end date says so").toContainText("Ditutup");
+
+    await card.getByTestId("ubah-kegiatan").click();
+    await card.getByTestId("ubah-selesai").fill(hari(30));
+    await card.getByTestId("simpan-ubah").click();
+
+    await expect(card).toContainText("Dibuka", { timeout: 15000 });
+    await expect(card).toContainText(`Tutup: ${hari(30)}`);
+    const body = (await (await request.get(`${PD_API}/pengajuan/${pengajuanId}`, { headers: auth })).json())
+      .data;
+    expect(body.tgl_selesai).toBe(hari(30));
+    expect(body.is_open).toBe(true);
+  });
+});
+
+test.describe("Pakaian Dinas — a closed campaign tells the operator why", () => {
+  test.use({ storageState: storageStatePath("operator_a") });
+
+  test("saving sizes after the end date shows the reason", async ({ page, request }) => {
+    const { pengajuanId } = await kampanyeBaru(request, { mulai: hari(-60), selesai: hari(-1) });
+    await page.goto(
+      `${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker/${SATKER_REVISI}/isi`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await expect(page.getByTestId("pengisian-tabel")).toBeVisible({ timeout: 20000 });
+    await page.getByRole("button", { name: /^Isi ukuran /i }).first().click();
+    const selects = page.getByTestId("dialog-ukuran").locator("select");
+    for (let i = 0; i < (await selects.count()); i++) await selects.nth(i).selectOption({ index: 1 });
+    await page.getByTestId("simpan-ukuran").click();
+    await expect(page.getByText(/sudah ditutup/i).first()).toBeVisible({ timeout: 15000 });
+  });
+});
+
+type Kontrol = { jenisTambah: number; kegiatanBuat: number; kegiatanUbah: number };
+
+/**
+ * The realm roles the session of `peran` really carries, read from the access
+ * token its login stored. The screen offers a control for a ROLE, not for a
+ * fixture name, and the "admin" session is not the same person everywhere: in CI
+ * it is the base seed user, who holds every role (admin, validator_pusat, …),
+ * while the staging fixture `…005` holds `admin` alone. Hard-coding what "admin"
+ * sees made the spec right in one place and red in the other.
+ */
+function rolesOfSession(peran: string): string[] {
+  const state = JSON.parse(readFileSync(storageStatePath(peran), "utf8")) as {
+    origins: { localStorage: { name: string; value: string }[] }[];
+  };
+  for (const origin of state.origins) {
+    const token = origin.localStorage.find((item) => item.name === "auth_token")?.value;
+    if (!token) continue;
+    const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8")) as {
+      realm_access?: { roles?: string[] };
+    };
+    return payload.realm_access?.roles ?? [];
+  }
+  throw new Error(`no stored access token for "${peran}" in ${storageStatePath(peran)}`);
+}
+
+/** Roles that hold exactly one of the two powers keep a fixed expectation; "admin" is derived from its token. */
+function kontrolDari(peran: string): Kontrol {
+  const roles = rolesOfSession(peran);
+  const pusat = roles.includes("validator_pusat") ? 1 : 0;
+  return { jenisTambah: roles.includes("admin") ? 1 : 0, kegiatanBuat: pusat, kegiatanUbah: pusat };
+}
+
+const KONTROL_PER_PERAN: [Role | "admin", () => Kontrol][] = [
+  ["operator_a", () => ({ jenisTambah: 0, kegiatanBuat: 0, kegiatanUbah: 0 })],
+  ["validator_wilayah", () => ({ jenisTambah: 0, kegiatanBuat: 0, kegiatanUbah: 0 })],
+  ["validator_pusat", () => ({ jenisTambah: 0, kegiatanBuat: 1, kegiatanUbah: 1 })],
+  ["admin", () => kontrolDari("admin")],
+];
+for (const [peran, kontrol] of KONTROL_PER_PERAN) {
+  test.describe(`Pakaian Dinas — ${peran} sees only its own controls`, () => {
+    test.use({ storageState: storageStatePath(peran) });
+
+    test("the master and campaign pages offer what the role may do", async ({ page }) => {
+      const harap = kontrol();
+      await page.goto(`${BASE}/pakaian-dinas/jenis`, { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("table")).toBeVisible({ timeout: 20000 });
+      await expect(page.getByRole("button", { name: "Tambah Jenis", exact: true })).toHaveCount(
+        harap.jenisTambah,
+      );
+      const hapusJenis = page.getByTitle("Hapus");
+      if (harap.jenisTambah) expect(await hapusJenis.count()).toBeGreaterThan(0);
+      else await expect(hapusJenis).toHaveCount(0);
+
+      await page.goto(`${BASE}/pakaian-dinas/pengajuan`, { waitUntil: "domcontentloaded" });
+      await expect(page.locator("div.rounded-2xl h3").first()).toBeVisible({ timeout: 20000 });
+      await expect(page.getByRole("button", { name: "Buat Pengajuan", exact: true })).toHaveCount(
+        harap.kegiatanBuat,
+      );
+      const ubah = page.getByTestId("ubah-kegiatan");
+      if (harap.kegiatanUbah) expect(await ubah.count()).toBeGreaterThan(0);
+      else await expect(ubah).toHaveCount(0);
+      const hapusKegiatan = page.getByLabel("Hapus kegiatan");
+      if (harap.kegiatanUbah) expect(await hapusKegiatan.count()).toBeGreaterThan(0);
+      else await expect(hapusKegiatan).toHaveCount(0);
+    });
+  });
+}
+
+test.describe("Pakaian Dinas — the satker's sizes are filled by its operator and read by the rest", () => {
+  test("the link and the page say which one you are", async ({ browser, request }) => {
+    const { pengajuanId } = await kampanyeBaru(request);
+    const list = `${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker`;
+    const isi = `${list}/${SATKER_REVISI}/isi`;
+
+    const operator = await browser.newContext({ storageState: storageStatePath("operator_a") });
+    const po = await operator.newPage();
+    await po.goto(list, { waitUntil: "domcontentloaded" });
+    await expect(po.getByRole("link", { name: "Isi Ukuran Pegawai" })).toBeVisible({ timeout: 20000 });
+    await po.goto(isi, { waitUntil: "domcontentloaded" });
+    await expect(po.getByTestId("pengisian-tabel")).toBeVisible({ timeout: 20000 });
+    await expect(po.getByTestId("pengisian-pemantau")).toHaveCount(0);
+    await operator.close();
+
+    const wilayah = await browser.newContext({ storageState: storageStatePath("validator_wilayah") });
+    const pw = await wilayah.newPage();
+    await pw.goto(list, { waitUntil: "domcontentloaded" });
+    await expect(pw.getByRole("link", { name: "Lihat Ukuran Pegawai" })).toBeVisible({ timeout: 20000 });
+    await expect(pw.getByRole("link", { name: "Isi Ukuran Pegawai" })).toHaveCount(0);
+    await pw.goto(isi, { waitUntil: "domcontentloaded" });
+    await expect(pw.getByTestId("pengisian-tabel")).toBeVisible({ timeout: 20000 });
+    await expect(pw.getByTestId("pengisian-pemantau")).toBeVisible();
+    await expect(pw.getByTestId("ajukan-pengisian")).toHaveCount(0);
+    await expect(pw.getByRole("button", { name: /^Isi ukuran /i }).first()).toBeDisabled();
+    await wilayah.close();
   });
 });
 

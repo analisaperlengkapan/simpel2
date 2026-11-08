@@ -156,16 +156,21 @@ pub struct PengajuanPakaianDinas {
     /// response carried — so the frontend asked for a field that was never sent
     /// and failed to deserialise the entire list.
     pub is_open: bool,
+    /// Where the campaign stands against its dates today (WIB): `belum_dibuka`,
+    /// `terbuka` or `ditutup`. The badge needs the three-way answer that
+    /// `is_open` cannot give.
+    pub periode: String,
 }
 impl PengajuanPakaianDinas {
     pub fn from_row(row: &Row) -> Self {
         let is_reguler = row.try_get("is_reguler").unwrap_or(true);
+        let tgl_mulai: Option<NaiveDate> = row.try_get("tgl_mulai").ok();
         let tgl_selesai: Option<NaiveDate> = row.try_get("tgl_selesai").ok();
         Self {
             id: row.get("id"),
             nama: row.get("nama"),
             deskripsi: row.try_get("deskripsi").ok(),
-            tgl_mulai: row.try_get("tgl_mulai").ok(),
+            tgl_mulai,
             tgl_selesai,
             is_reguler,
             tahun: row.get("tahun"),
@@ -180,26 +185,81 @@ impl PengajuanPakaianDinas {
             aktivitas_label: row.try_get("aktivitas_label").ok(),
             total_satker: row.try_get("total_satker").ok(),
             satker_selesai: row.try_get("satker_selesai").ok(),
-            is_open: Self::period_is_open(is_reguler, tgl_selesai),
+            is_open: Self::period_is_open(is_reguler, tgl_mulai, tgl_selesai),
+            periode: Self::periode_label(is_reguler, tgl_mulai, tgl_selesai),
         }
     }
 
     /// The period rule, in one place. `from_row` stamps it onto the serialised
     /// field and [`Self::is_open`] reads it for callers holding an entity.
-    fn period_is_open(is_reguler: bool, tgl_selesai: Option<NaiveDate>) -> bool {
-        if !is_reguler {
-            return true; // Non-regular requests are always open
-        }
-        match tgl_selesai {
-            Some(end_date) => chrono::Local::now().date_naive() <= end_date,
-            None => true,
-        }
+    fn period_is_open(
+        is_reguler: bool,
+        tgl_mulai: Option<NaiveDate>,
+        tgl_selesai: Option<NaiveDate>,
+    ) -> bool {
+        status_periode(is_reguler, tgl_mulai, tgl_selesai, hari_ini_wib()) == Periode::Terbuka
     }
 
-    /// Check if the submission period is still open
-    pub fn is_open(&self) -> bool {
-        Self::period_is_open(self.is_reguler, self.tgl_selesai)
+    fn periode_label(
+        is_reguler: bool,
+        tgl_mulai: Option<NaiveDate>,
+        tgl_selesai: Option<NaiveDate>,
+    ) -> String {
+        match status_periode(is_reguler, tgl_mulai, tgl_selesai, hari_ini_wib()) {
+            Periode::BelumDibuka(_) => "belum_dibuka",
+            Periode::Terbuka => "terbuka",
+            Periode::Ditutup(_) => "ditutup",
+        }
+        .to_string()
     }
+
+    /// Check if the submission period is open today (inside its dates).
+    pub fn is_open(&self) -> bool {
+        Self::period_is_open(self.is_reguler, self.tgl_mulai, self.tgl_selesai)
+    }
+}
+
+/// Today in Jakarta (WIB, UTC+7, no daylight saving): the calendar the campaign
+/// dates are written in. The server clock is UTC, so `Local::now()` would call
+/// 05:00 on the 1st "still the 31st".
+pub fn hari_ini_wib() -> NaiveDate {
+    (Utc::now() + chrono::Duration::hours(7)).date_naive()
+}
+
+/// Where a campaign stands against its dates on a given day.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Periode {
+    /// Opens on this date.
+    BelumDibuka(NaiveDate),
+    Terbuka,
+    /// Closed after this date.
+    Ditutup(NaiveDate),
+}
+
+/// The period rule as a pure function of the day. A non-regular (incidental)
+/// campaign has no window and is always open; a regular one is open from
+/// `tgl_mulai` to `tgl_selesai` inclusive, and a missing date leaves that side
+/// unbounded.
+pub fn status_periode(
+    is_reguler: bool,
+    tgl_mulai: Option<NaiveDate>,
+    tgl_selesai: Option<NaiveDate>,
+    hari: NaiveDate,
+) -> Periode {
+    if !is_reguler {
+        return Periode::Terbuka;
+    }
+    if let Some(mulai) = tgl_mulai
+        && hari < mulai
+    {
+        return Periode::BelumDibuka(mulai);
+    }
+    if let Some(selesai) = tgl_selesai
+        && hari > selesai
+    {
+        return Periode::Ditutup(selesai);
+    }
+    Periode::Terbuka
 }
 /// Selected satkers for a pengajuan
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -572,6 +632,12 @@ pub struct RosterPegawai {
     pub with_hijab: bool,
     pub sudah_diisi: bool,
     pub ukuran: Vec<UkuranPegawaiItem>,
+    /// Ukuran yang sudah tercatat untuk pegawai ini di profilnya (halaman
+    /// Ukuran), dipetakan ke kolom kampanye menurut kelompoknya (baju, celana,
+    /// sepatu). Hanya untuk pegawai yang BELUM diisi pada pengajuan ini: operator
+    /// tidak perlu mengetik ulang data yang sudah ada, cukup memeriksa.
+    #[serde(default)]
+    pub saran: Vec<UkuranPegawaiItem>,
 }
 
 /// Isi halaman pengisian: kolomnya, orangnya, dan boleh-tidaknya diubah.
@@ -588,4 +654,56 @@ pub struct RosterPengisian {
     pub dapat_diubah: bool,
     pub pakaian: Vec<PengajuanPakaianItem>,
     pub pegawai: Vec<RosterPegawai>,
+}
+
+#[cfg(test)]
+mod periode_tests {
+    use super::*;
+
+    fn d(m: u32, day: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(2026, m, day).unwrap()
+    }
+
+    #[test]
+    fn the_window_is_inclusive_at_both_ends() {
+        let (mulai, selesai) = (Some(d(11, 1)), Some(d(12, 31)));
+        assert_eq!(
+            status_periode(true, mulai, selesai, d(10, 31)),
+            Periode::BelumDibuka(d(11, 1))
+        );
+        assert_eq!(
+            status_periode(true, mulai, selesai, d(11, 1)),
+            Periode::Terbuka
+        );
+        assert_eq!(
+            status_periode(true, mulai, selesai, d(12, 31)),
+            Periode::Terbuka
+        );
+        let new_year = NaiveDate::from_ymd_opt(2027, 1, 1).unwrap();
+        assert_eq!(
+            status_periode(true, mulai, selesai, new_year),
+            Periode::Ditutup(d(12, 31))
+        );
+    }
+
+    #[test]
+    fn a_missing_date_leaves_that_side_open() {
+        assert_eq!(
+            status_periode(true, None, Some(d(12, 31)), d(1, 1)),
+            Periode::Terbuka
+        );
+        assert_eq!(
+            status_periode(true, Some(d(11, 1)), None, d(12, 31)),
+            Periode::Terbuka
+        );
+        assert_eq!(status_periode(true, None, None, d(6, 1)), Periode::Terbuka);
+    }
+
+    #[test]
+    fn an_incidental_campaign_has_no_window() {
+        assert_eq!(
+            status_periode(false, Some(d(11, 1)), Some(d(11, 2)), d(12, 31)),
+            Periode::Terbuka
+        );
+    }
 }

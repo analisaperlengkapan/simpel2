@@ -23,6 +23,7 @@ pub(crate) mod laporan;
 mod master;
 mod pegawai;
 mod pengajuan;
+mod pengguna;
 mod roster;
 mod satker;
 mod workflow;

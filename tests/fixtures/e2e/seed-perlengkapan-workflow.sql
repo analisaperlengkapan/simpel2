@@ -215,10 +215,14 @@ ON CONFLICT (id) DO UPDATE SET
   deskripsi = EXCLUDED.deskripsi,
   is_active = EXCLUDED.is_active;
 
+-- The campaign window is RELATIVE to the day this runs. Dates are enforced (nothing
+-- is filled or decided outside them), so a fixed 2026 window would turn the whole
+-- workflow suite red on 1 January. Re-running the file moves the window with the
+-- calendar (ON CONFLICT DO UPDATE below).
 INSERT INTO perlengkapan.pengajuan_pakaian_dinas
   (id, nama, tahun, pilihan_satker, scope_satker, jenis_pakaian_dinas_id, aktivitas_id, created_by, tgl_mulai, tgl_selesai)
 VALUES
-  ('d1000000-0000-4d00-8d00-0000000000c1', 'E2E Pengajuan Pakaian Dinas 2026', 2026, 'semua', 'semua', 'd1000000-0000-4d00-8d00-000000000001', 1000, '44444444-4444-4444-8444-444444444444', '2026-01-01', '2026-12-31')
+  ('d1000000-0000-4d00-8d00-0000000000c1', 'E2E Pengajuan Pakaian Dinas 2026', 2026, 'semua', 'semua', 'd1000000-0000-4d00-8d00-000000000001', 1000, '44444444-4444-4444-8444-444444444444', CURRENT_DATE - 60, CURRENT_DATE + 300)
 ON CONFLICT (id) DO UPDATE SET
   nama = EXCLUDED.nama,
   tahun = EXCLUDED.tahun,
@@ -298,7 +302,7 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO perlengkapan.pengajuan_pakaian_dinas
   (id, nama, tahun, pilihan_satker, scope_satker, jenis_pakaian_dinas_id, aktivitas_id, created_by, tgl_mulai, tgl_selesai)
 VALUES
-  ('d1000000-0000-4d00-8d00-0000000000c2', 'E2E Laporan Pakaian Dinas 2026', 2026, 'semua', 'semua', 'd1000000-0000-4d00-8d00-000000000001', 1008, '44444444-4444-4444-8444-444444444444', '2026-01-01', '2026-12-31')
+  ('d1000000-0000-4d00-8d00-0000000000c2', 'E2E Laporan Pakaian Dinas 2026', 2026, 'semua', 'semua', 'd1000000-0000-4d00-8d00-000000000001', 1008, '44444444-4444-4444-8444-444444444444', CURRENT_DATE - 60, CURRENT_DATE + 300)
 ON CONFLICT (id) DO UPDATE SET
   nama = EXCLUDED.nama,
   tahun = EXCLUDED.tahun,

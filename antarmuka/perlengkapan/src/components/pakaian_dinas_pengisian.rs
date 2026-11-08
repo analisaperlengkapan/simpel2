@@ -236,7 +236,14 @@ fn halaman(
     let _ = grup;
     let total = data.pegawai.len();
     let terisi = data.pegawai.iter().filter(|p| p.sudah_diisi).count();
-    let dapat_diubah = data.dapat_diubah;
+    // Only the satker's own operator edits; a validator or administrator who opens
+    // the page is reading it. The server refuses anyone else's write, so the
+    // controls would only ever answer an error.
+    let boleh_isi = crate::features::auth::AuthService::load_session()
+        .map(|s| s.has_role("operator_satker"))
+        .unwrap_or(false);
+    let terkunci = !data.dapat_diubah;
+    let dapat_diubah = data.dapat_diubah && boleh_isi;
     let pengajuan_satker_id = data.pengajuan_satker_id.clone();
     // `view!` memindahkan nilai ke closure tombol sebelum atribut lain dievaluasi.
     let id_catatan_revisi = data.pengajuan_satker_id.clone();
@@ -296,7 +303,17 @@ fn halaman(
             {(data.aktivitas_id == STATUS_REVISI_PELAKSANA)
                 .then(|| view! { <CatatanRevisi pengajuan_satker_id=id_catatan_revisi.clone() /> })}
 
-            <Show when=move || !dapat_diubah>
+            <Show when=move || !boleh_isi>
+                <p
+                    data-testid="pengisian-pemantau"
+                    class="mt-4 flex items-start gap-2 rounded-lg border border-info-500/20 bg-info-500/10 px-3 py-2 text-sm text-info-300"
+                >
+                    <AppIcon icon=WARNING_CIRCLE />
+                    "Anda membuka halaman ini sebagai pemantau. Ukuran pegawai hanya diisi dan diajukan oleh operator satker."
+                </p>
+            </Show>
+
+            <Show when=move || terkunci>
                 <p
                     data-testid="pengisian-terkunci"
                     class="mt-4 flex items-start gap-2 rounded-lg border border-warning-500/20 bg-warning-500/10 px-3 py-2 text-sm text-warning-300"
@@ -505,17 +522,34 @@ fn DialogUkuran(
         .filter(|item| item.berlaku_untuk(&pegawai.jenis_kelamin))
         .collect();
 
-    let pilihan = RwSignal::new(
-        berlaku
-            .iter()
-            .map(|item| {
-                (
-                    item.id.clone(),
-                    pegawai.ukuran_untuk(&item.id).unwrap_or("").to_string(),
-                )
-            })
-            .collect::<HashMap<String, String>>(),
-    );
+    // The employee's own recorded size is the starting point where this pengajuan
+    // has none yet, so the operator checks instead of retyping what the system
+    // already holds. Only a size the column actually offers is taken (a profile
+    // value the master no longer lists is left for the operator to choose).
+    let mut terisi_otomatis = 0usize;
+    let awal: HashMap<String, String> = berlaku
+        .iter()
+        .map(|item| {
+            let tersimpan = pegawai.ukuran_untuk(&item.id).map(str::to_string);
+            let saran = pegawai
+                .saran_untuk(&item.id)
+                .filter(|s| {
+                    grup.get(&item.spesifikasi_ukuran_group)
+                        .is_some_and(|opsi| opsi.iter().any(|o| o == s))
+                })
+                .map(str::to_string);
+            let (nilai, otomatis) = match (tersimpan, saran) {
+                (Some(t), _) => (t, false),
+                (None, Some(s)) => (s, true),
+                (None, None) => (String::new(), false),
+            };
+            if otomatis {
+                terisi_otomatis += 1;
+            }
+            (item.id.clone(), nilai)
+        })
+        .collect();
+    let pilihan = RwSignal::new(awal);
     let hijab = RwSignal::new(pegawai.with_hijab);
     let sibuk = RwSignal::new(false);
     let error = RwSignal::new(Option::<String>::None);
@@ -596,6 +630,15 @@ fn DialogUkuran(
                         <AppIcon icon=X />
                     </button>
                 </div>
+
+                <Show when=move || { terisi_otomatis > 0 }>
+                    <p
+                        data-testid="ukuran-diisi-otomatis"
+                        class="mt-4 rounded-lg border border-info-500/20 bg-info-500/10 px-3 py-2 text-xs text-info-300"
+                    >
+                        "Ukuran terisi dari yang sudah tercatat untuk pegawai ini. Periksa, ubah bila perlu, lalu simpan."
+                    </p>
+                </Show>
 
                 <div class="mt-5 flex flex-col gap-4">
                     {berlaku

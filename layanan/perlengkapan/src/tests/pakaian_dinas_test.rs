@@ -93,6 +93,7 @@ mod pengajuan_tests {
             // Fixtures set this straight; `is_open()` recomputes from
             // `is_reguler`/`tgl_selesai`, which is what these tests assert.
             is_open: true,
+            periode: "terbuka".to_string(),
         }
     }
 

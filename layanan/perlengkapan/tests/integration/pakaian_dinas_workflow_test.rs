@@ -20,6 +20,7 @@
 //! it independent of how that row comes to exist. The creation path itself is
 //! covered in `pakaian_dinas_pengisian_test.rs`.
 
+use super::pakaian_dinas_pengisian_test::periode_berjalan;
 use crate::common::{setup_test_app, teardown_test_db};
 use axum_test::TestServer;
 use serde_json::json;
@@ -178,7 +179,7 @@ async fn test_pakaian_dinas_pengajuan_create() {
         PUSAT,
         json!({
         "nama": "Pengajuan PDH 2026", "tahun": 2026,
-        "tgl_mulai": "2026-01-01", "tgl_selesai": "2026-12-31",
+        "tgl_mulai": periode_berjalan().0, "tgl_selesai": periode_berjalan().1,
         "pilihan_satker": "sebagian", "spesifikasi_ids": [spesifikasi_id],
         "satker_ids": [SATKER]}),
     )
@@ -242,7 +243,7 @@ async fn test_pakaian_dinas_validator_workflow() {
         "validator_pusat",
         PUSAT,
         json!({"nama": "Pengajuan PDH 2026", "tahun": 2026,
-               "tgl_mulai": "2026-01-01", "tgl_selesai": "2026-12-31",
+               "tgl_mulai": periode_berjalan().0, "tgl_selesai": periode_berjalan().1,
                "pilihan_satker": "sebagian", "spesifikasi_ids": [spec_id],
                "satker_ids": [SATKER]}),
     )

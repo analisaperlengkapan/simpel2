@@ -203,6 +203,7 @@ pub fn create_routes(state: AppState) -> Router {
         .route(
             "/pakaian-dinas/pengajuan/{id}",
             get(pakaian_dinas::get_pengajuan_pakaian_by_id)
+                .put(pakaian_dinas::update_pengajuan_pakaian)
                 .delete(pakaian_dinas::delete_pengajuan_pakaian),
         )
         // Pengajuan Satker
@@ -239,6 +240,10 @@ pub fn create_routes(state: AppState) -> Router {
         .route(
             "/pakaian-dinas/validator-action/bulk",
             post(pakaian_dinas::process_validator_action_bulk),
+        )
+        .route(
+            "/pakaian-dinas/menunggu",
+            get(pakaian_dinas::get_menunggu_pakaian_dinas),
         )
         // Personal Uniform Sizes
         .route(

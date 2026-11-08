@@ -20,11 +20,14 @@ mod integration {
     mod pakaian_dinas_hapus_kampanye_test;
     mod pakaian_dinas_laporan_cakupan_test;
     mod pakaian_dinas_laporan_legacy_test;
+    mod pakaian_dinas_notifikasi_test;
     mod pakaian_dinas_pegawai_scope_test;
     mod pakaian_dinas_pengisian_test;
+    mod pakaian_dinas_periode_test;
     mod pakaian_dinas_persetujuan_massal_test;
     mod pakaian_dinas_revisi_test;
     mod pakaian_dinas_spesifikasi_filter_test;
+    mod pakaian_dinas_ukuran_terakhir_test;
     mod pakaian_dinas_ukuran_test;
     mod pakaian_dinas_workflow_test;
     mod pegawai_satker_link_test;
