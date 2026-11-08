@@ -63,6 +63,10 @@ regexes = [
   '''^eyJ[A-Za-z0-9_-]+\.test$''',
   # Demo key di contoh audit authenc (`examples/audit_example.rs`).
   '''^sk_live_abc123$''',
+  # NAMA Secret TLS Kubernetes yang dirujuk Istio Gateway (`credentialName:` di
+  # values-production.yaml) — bukan nilai rahasia; isi Secret-nya dibuat operator
+  # dan tidak pernah masuk repo. Dipaku ke nama persisnya, bukan pola `credentialName`.
+  '''^simpelv2-prod-tls$''',
   # Contoh key-id KANONIK dari dokumentasi AWS KMS sendiri, dikutip di rustdoc
   # `auto-unseal/{aws_kms,config}.rs`. Menulis ulang justru memperburuk dok.
   '''1234abcd-12ab-34cd-56ef-1234567890ab''',
