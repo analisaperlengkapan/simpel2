@@ -318,7 +318,29 @@ global:
   # rc37 sah sebagai pembanding. Upgrade rc37 -> rc38 menambah satu tabel
   # (V017); kembali ke rc37 aman karena skema bersifat aditif, tetapi dump
   # pra-upgrade tetap wajib. Hasil verifikasi rc38 dicatat sesudah rilis.
-  imageTag: v0.1.0-rc38
+  # rc39 = rc38 + jalan menuju produksi (tanpa migrasi skema, tanpa fitur pengguna):
+  #   #1061 chart/CI yang dulu menggagalkan instalasi produksi pertama: promote.yml
+  #         hanya meng-re-tag 7 dari 9 image (kini 8 sesudah app-2026 dihapus,
+  #         dijaga check-chart-release-images.py); tabel rute produksi = staging
+  #         (check-route-parity.py); `/api/secrets` (Secreton ke ingress publik,
+  #         tanpa pemakai) dibuang dari rute; biner `authenc-bootstrap-admin` +
+  #         Job hook (hanya produksi: authenc.bootstrapAdmin.enabled).
+  #   #1062 mTLS di setiap hop gRPC (authenc, secreton, layanan-integrasi; klien:
+  #         gateway, layanan-perlengkapan, federasi authenc). Staging selama ini
+  #         memakai opt-out GRPC_ALLOW_INSECURE=true, jadi jalur yang diwajibkan
+  #         produksi tak pernah dijalankan. Kini grpcAllowInsecure "false" dan
+  #         backendConfig.grpcTls.enabled: PKI diterbitkan chart (Secret
+  #         grpc-pki-ca + grpc-tls-<identitas>), Service port gRPC appProtocol tls.
+  #         Upgrade ini MERESTART authenc, secreton, integrasi, perlengkapan, dan
+  #         simpelv1 (sidecar gateway). Secreton StatefulSet kembali sealed seperti
+  #         tiap restart (state volatile; secretonAuth tetap false).
+  #
+  # Cara memilih antara rc38 dan rc39: rc39 untuk SEMUA yang ingin dipromosikan.
+  # rc38 sah sebagai pembanding. Kembali ke rc38 = `helm rollback` ke revisi
+  # sebelum rc39 (mengembalikan GRPC_ALLOW_INSECURE=true; Secret PKI yang dibuat
+  # rc39 ikut dihapus Helm karena bukan bagian revisi lama). Tanpa migrasi skema,
+  # tetapi dump pra-upgrade tetap wajib. Hasil verifikasi rc39 dicatat sesudah rilis.
+  imageTag: v0.1.0-rc39
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
