@@ -565,6 +565,11 @@ jobs:
       - name: Production routes are the routes staging proved
         shell: bash
         run: python3 ./infra/scripts/check-route-parity.py
+      # `namespace.retain: false` is for the throwaway rehearsal only; a real environment
+      # with it would let `helm uninstall` cascade-delete the namespace and its data.
+      - name: Real environments keep their namespace on uninstall
+        shell: bash
+        run: python3 ./infra/scripts/check-namespace-retained.py
       # Placeholder telanjang di aritmatika tanggal tidak punya tipe, dan
       # Postgres gagal DUA cara berbeda: `CURRENT_DATE + $1` ditolak saat
       # PREPARE ("operator is not unique: date + unknown"), sementara

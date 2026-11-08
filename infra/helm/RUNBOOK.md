@@ -221,10 +221,45 @@ Login dengan administrator pertama, ganti sandi, lalu **cabut sandi awalnya dari
 ### 1.9 Rehearsal produksi di cluster staging (WAJIB sebelum 1.7)
 
 Staging memakai profil lain (1 replika, mTLS PERMISSIVE, fixture). Tiga hal hanya terbukti bila
-profil PRODUKSI dijalankan sungguhan: rute/gateway, HA + NetworkPolicy + kuota, dan Job bootstrap.
-Pasang `values-production.yaml` ke namespace buangan lewat Helm (rilis `simpel-rehearsal`), host uji,
-rahasia tiruan, lalu jalankan suite e2e ke sana dan hapus lewat `helm uninstall` (namespace sekali
-pakai itu dikelola chart, jadi cascade-delete-nya justru diinginkan di sini).
+profil PRODUKSI dijalankan sungguhan: HA + PDB + HPA + kuota + NetworkPolicy, Job bootstrap (akun seed
+mati, administrator pertama bisa login), dan mTLS gRPC pada replika produksi. Rute sudah dijaga
+`check-route-parity.py`; gateway/TLS DigiCert tak bisa dilatih di sini (butuh sertifikat asli).
+
+Pasang `values-production.yaml` ke namespace buangan lewat Helm, rilis `simpel-rehearsal` yang
+DISIMPAN di namespace `default` (rilis tak boleh hidup di namespace yang ia hapus sendiri):
+
+```bash
+helm upgrade --install simpel-rehearsal infra/helm/simpel \
+  -f infra/helm/simpel/values-production.yaml -f <secrets-tiruan.yaml> \
+  -n default --timeout 20m --set secrets.bootstrap=true \
+  --set namespace.create=true --set namespace.name=simpel-rehearsal --set namespace.retain=false \
+  --set istio.gateway.enabled=false --set istio.virtualService.enabled=false \
+  --set priorityClass.name=simpelv2-rehearsal-default
+```
+
+- `istio.gateway/virtualService.enabled=false`: Gateway dan VirtualService hidup di `istio-system` dan
+  dipakai bersama — rehearsal TIDAK boleh menyentuhnya (nama `simpelv2-prod-routes` bahkan masih dimiliki
+  relik produksi). Uji lewat `kubectl port-forward`/`exec`, bukan ingress.
+- `priorityClass.name=…rehearsal…`: PriorityClass bersifat cluster-scoped; nama produksi dibiarkan bebas
+  untuk instalasi sungguhan.
+- `namespace.retain=false`: satu-satunya pemakai opsi ini. Tanpa itu `helm uninstall` meninggalkan
+  Namespace (anotasi `helm.sh/resource-policy: keep`). CI menolaknya di values-staging/production.
+- `<secrets-tiruan.yaml>` = overlay rahasia staging (turunan `helm get values simpel -n simpelv2-staging`,
+  hanya kunci `secrets`, mode 600, di luar repo, `shred` sesudahnya) + `secrets.authencBootstrapAdmin`
+  berisi NIP dan sandi acak sekali pakai. Jangan pernah memakai token asli.
+- `ghcr-pull` harus ada di `simpel-rehearsal` sebelum image bisa ditarik; namespace-nya baru lahir saat
+  `helm` jalan, jadi salin Secret-nya (tanpa menampilkan isinya) begitu namespace muncul.
+- Muat: ±4,5 CPU / 9 GiB request. `kubectl describe node` dulu — saat CI penuh, pod menunggu
+  (PriorityClass `preemptionPolicy: Never` tidak menggusur runner).
+
+Periksa: semua pod Ready; `kubectl -n simpel-rehearsal get hpa,pdb,resourcequota,networkpolicy`;
+log Job `authenc-bootstrap` (akun seed `admin` dan NIP `199203142014031001` nonaktif, administrator
+pertama dibuat); login administrator pertama berhasil dan login akun seed GAGAL; permintaan nyata yang
+menyeberangi tiap hop gRPC (login → authenc, pencarian pegawai/aset → integrasi) tanpa galat TLS di log.
+
+Bersihkan, dan buktikan tak ada sisa: `helm uninstall simpel-rehearsal -n default`, lalu pastikan
+`kubectl get ns simpel-rehearsal` dan `kubectl get priorityclass simpelv2-rehearsal-default` sama-sama
+NotFound sebelum memasang produksi.
 
 ---
 

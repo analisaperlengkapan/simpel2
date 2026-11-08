@@ -240,6 +240,10 @@ Pemeriksaan pertama menemukan hal-hal yang akan menggagalkan hari pertama:
   Job hook `authenc-bootstrap` (`authenc.bootstrapAdmin.enabled: true` hanya di produksi), yang juga
   membuat administrator pertama. Staging mematikannya karena fixture e2e memakai akun-akun itu.
 - **`app-2026` dihapus** (chart, matrix rilis, CI, `monolith/APP-2026/`) atas perintah pemilik sistem.
+- **Rehearsal produksi** (`RUNBOOK.md` §1.9) memasang profil produksi ke namespace buangan lewat Helm dan
+  menghapusnya dengan `helm uninstall`. Itu satu-satunya pemakai `namespace.retain=false`; tanpanya Namespace
+  tak ikut terhapus (`helm.sh/resource-policy: keep`). `check-namespace-retained.py` (CI) menolak opsi itu
+  di `values-staging.yaml`/`values-production.yaml`.
 - **SIMPEL v1 NONAKTIF di produksi untuk go-live pertama** (`simpelv1.enabled: false`): v1 butuh dbsimpelv1 berisi
   data nyata + Secret `simpelv1-db-backup` (dump) yang belum ada; tanpa itu pod macet di ContainerCreating. v2
   tidak bergantung pada v1. Rute `/perlengkapan/simpel/v1` tetap ada (parity) dan menjawab 503 selama v1 mati.

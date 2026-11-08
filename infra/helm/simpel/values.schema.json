@@ -101,6 +101,9 @@
         },
         "annotations": {
           "type": "object"
+        },
+        "retain": {
+          "type": "boolean"
         }
       }
     },

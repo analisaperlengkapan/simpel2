@@ -45,6 +45,9 @@ global:
 
 namespace:
   create: true
+  # true = `helm uninstall` TIDAK menghapus Namespace (dan data di dalamnya). Hanya rehearsal
+  # produksi (RUNBOOK §1.9) yang boleh menyetel false; CI menolaknya di values-staging/production.
+  retain: true
   name: simpelv2-staging
   istioInjection: enabled
   podSecurityEnforce: privileged           # production tetap privileged sesuai kebijakan
