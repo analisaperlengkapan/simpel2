@@ -68,7 +68,7 @@ lib-backend = { workspace = true, features = [
   "telemetry",
   "db",
   "axum",
-  "grpc", # gRPC client mTLS (grpc::client)
+  "grpc",      # gRPC client mTLS (grpc::client)
 ] }
 lib-perlengkapan = { workspace = true }
 
