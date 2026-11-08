@@ -294,7 +294,31 @@ global:
   # Upgrade rc36 → rc37 hanya mengganti tag (tanpa PVC/skema baru), jadi kembali
   # ke rc36 juga aman; dump pra-upgrade tetap wajib. Hasil verifikasi rc37 dicatat
   # sesudah rilis.
-  imageTag: v0.1.0-rc37
+  # rc38 = rc37 + lima keputusan pemilik atas hasil uji alur Pakaian Dinas di
+  # staging rc36/rc37 (satu migrasi skema ADITIF: V017 `pengguna_dikenal`;
+  # expand/contract aman, `set_abort_missing(false)`):
+  #   #1053 PDF dan Excel laporan rincian/rekap sama dengan simpelv1: satu tabel
+  #         per spesifikasi x jenis kelamin, semua ukuran, baris semua satker,
+  #         satu halaman per satker pada rincian.
+  #   #1055 persetujuan massal: validator wilayah/pusat menyetujui banyak satker
+  #         sekaligus (POST /pakaian-dinas/validator-action/bulk, maks. 300,
+  #         per baris, tidak membatalkan seluruhnya bila satu baris gagal).
+  #   #1059 menggabung empat PR yang saling bentrok (#1054 #1056 #1057 #1058):
+  #         - tanggal kegiatan DITEGAKKAN server (isi/ajukan di luar periode
+  #           ditolak; pusat dapat mengubah tanggal kegiatan; kalender WIB);
+  #           tombol hanya tampil untuk peran yang berhak.
+  #         - notifikasi: ubin "Perlu Tindakan" + lonceng saat satker sampai ke
+  #           peran berikutnya (GET /pakaian-dinas/menunggu; V017).
+  #         - dialog Isi Ukuran terisi dari ukuran terakhir pegawai (NIP saja,
+  #           tidak mengetik ulang data yang sudah ada di basis data).
+  #         - banner galat aksi digulirkan ke layar (#1051 ada di DOM tetapi
+  #           642 px di atas viewport pada daftar panjang).
+  #
+  # Cara memilih antara rc37 dan rc38: rc38 untuk SEMUA yang ingin dipromosikan.
+  # rc37 sah sebagai pembanding. Upgrade rc37 -> rc38 menambah satu tabel
+  # (V017); kembali ke rc37 aman karena skema bersifat aditif, tetapi dump
+  # pra-upgrade tetap wajib. Hasil verifikasi rc38 dicatat sesudah rilis.
+  imageTag: v0.1.0-rc38
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
