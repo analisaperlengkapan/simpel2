@@ -70,6 +70,13 @@ path = "src/main.rs"
 name = "authenc-migrate"
 path = "src/bin/migrate.rs"
 
+# One-shot production bootstrap (Helm hook Job, production only): retires the
+# accounts baked into migrations/002_seed.sql and creates the first real admin.
+# See src/bin/bootstrap_admin.rs.
+[[bin]]
+name = "authenc-bootstrap-admin"
+path = "src/bin/bootstrap_admin.rs"
+
 [features]
 captcha-debug = []
 

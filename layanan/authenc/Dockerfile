@@ -44,9 +44,9 @@ ENV RUSTFLAGS="-C target-feature=-crt-static"
 # (`authenc-migrate`). Migrations are applied out-of-band (compose service /
 # Helm hook Job), never on app startup.
 RUN if [ "$CAPTCHA_DEBUG" = "1" ]; then \
-        cargo build --release --bin authenc --bin authenc-migrate --features authenc-api/captcha-debug; \
+        cargo build --release --bin authenc --bin authenc-migrate --bin authenc-bootstrap-admin --features authenc-api/captcha-debug; \
     else \
-        cargo build --release --bin authenc --bin authenc-migrate; \
+        cargo build --release --bin authenc --bin authenc-migrate --bin authenc-bootstrap-admin; \
     fi
 
 # Stage 2: Runtime - Use Ubuntu 24.04 for GLIBC compatibility (aligns with dev environment)
@@ -70,6 +70,7 @@ WORKDIR /app
 # Copy binaries from builder (server + out-of-band migration runner)
 COPY --from=builder /workspace/target/release/authenc /app/authenc
 COPY --from=builder /workspace/target/release/authenc-migrate /app/authenc-migrate
+COPY --from=builder /workspace/target/release/authenc-bootstrap-admin /app/authenc-bootstrap-admin
 
 # Copy configuration files
 COPY layanan/authenc/authenc.toml /app/authenc.toml

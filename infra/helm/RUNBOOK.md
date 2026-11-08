@@ -51,8 +51,8 @@ dan [§4](#4-manual-trigger-sync-integrasi-staging)).
 ### 0.3 Promote rc → final tag (kalau staging hijau)
 
 ```bash
-# Trigger workflow promote-release.yml via gh CLI
-gh workflow run promote-release.yml \
+# Trigger workflow promote.yml via gh CLI
+gh workflow run promote.yml \
   -f source_tag=v0.1.0-rc1 \
   -f target_tag=v0.1.0 \
   -f git_tag=y
@@ -72,13 +72,9 @@ Image `:v0.1.0` sekarang punya digest **identik** dengan `:v0.1.0-rc1`.
 
 ### 0.4 Deploy production dengan tag final
 
-```bash
-helm install simpel infra/helm/simpel \
-  -f infra/helm/simpel/values-production.yaml \
-  --namespace simpelv2-production \
-  --atomic --timeout 15m \
-  --set global.imageTag=v0.1.0
-```
+Install pertama dan upgrade berikutnya memakai perintah di §1.7 — tag final dicatat di
+`values-production.yaml`, bukan lewat `--set` (itulah cara repo dan cluster pernah menggambarkan
+dua sistem berbeda).
 
 Image yang jalan di production **identik** (digest sama) dengan yang sudah lulus
 staging — zero risk regresi karena rebuild.
@@ -99,129 +95,136 @@ Lihat [Lihat lebih jauh §1 untuk first-time production deploy.](#1-fresh-deploy
 
 ## 1. Fresh Deploy ke Production
 
-> Asumsi: cluster production fresh, belum ada release sebelumnya. Image `v0.1.0` sudah ter-push ke ghcr.io.
+> **Install PERTAMA ke namespace yang sudah berpenghuni.** `simpelv2-production`
+> dibuat dengan `kubectl apply` sebelum chart ini ada; ia berisi sisa workload mati,
+> PVC `Lost`, dan satu VirtualService lama. `helm install` biasa gagal ("invalid
+> ownership metadata"). Urutan di bawah sudah memperhitungkannya. Semua langkah
+> sebelum 1.7 TIDAK mengubah apa pun yang melayani pengguna.
+>
+> Prasyarat gerbang rilis (harus hijau SEBELUM mulai): rc terpilih lulus e2e di
+> staging **dan** di rehearsal produksi (§1.9), dan sudah di-`promote` ke tag final.
 
-### 1.1 Pre-flight
+### 1.0 Daftar bahan (milik operator, TIDAK ada di repo)
+
+| Bahan | Dipakai untuk | Cara membuat |
+|---|---|---|
+| Sertifikat + kunci DigiCert `simpel.kejaksaan.go.id` | TLS gateway produksi | §1.3 |
+| PAT GitHub `read:packages` | `ghcr-pull` | §1.2 |
+| `values-secrets.yaml` (di LUAR repo, mode 600) | Secret aplikasi | §1.4 |
+| Token MySIMKARI / SIMAN / MonSAKTI **asli** | sinkron data induk | pemilik tiap API |
+| NIP + sandi awal administrator pertama | `secrets.authencBootstrapAdmin` | §1.4 |
+
+### 1.1 Prasyarat klaster (sekali per klaster)
 
 ```bash
-kubectl config use-context <production-context>
-kubectl get nodes -o wide
-```
-
-**Prasyarat klaster (sekali per klaster, bukan per-environment).** StorageClass
-`longhorn-retain` harus ada SEBELUM `helm install`, karena `volumeClaimTemplates`
-StatefulSet immutable — kalau PVC production lahir di kelas yang salah,
-memperbaikinya berarti membongkar volume, bukan `helm upgrade`.
-
-```bash
-./infra/helm/deploy.sh production storage-install
+./infra/helm/deploy.sh production storage-install     # StorageClass longhorn-retain
 kubectl get sc longhorn-retain \
   -o custom-columns='NAME:.metadata.name,RECLAIM:.reclaimPolicy,REPL:.parameters.numberOfReplicas'
 # harapan: longhorn-retain   Retain   2
 ```
 
-Sekalian rapikan setelan replika global Longhorn agar `degraded` kembali bermakna
-di klaster 2-node (lihat `infra/AGENTS.md` → "Ketersediaan database di klaster
-2-node"). Tanpa ini setiap volume permanen `degraded` dan status itu berhenti
-membedakan sehat vs rusak:
+`volumeClaimTemplates` StatefulSet immutable — kelas yang salah berarti membongkar
+volume. Replika Longhorn global (klaster 2-node) sudah dirapikan sejak 2026-08-18;
+bila ragu, periksa `kubectl -n longhorn-system get volumes.longhorn.io` (semua `healthy`, REPL=2).
+
+### 1.2 Kosongkan sisa pra-Helm, lalu siapkan `ghcr-pull`
 
 ```bash
-# Default untuk volume baru yang kelasnya TIDAK memaksakan angka sendiri.
-kubectl -n longhorn-system patch setting default-replica-count \
-  --type=merge -p '{"value":"{\"v1\":\"2\",\"v2\":\"2\"}"}'
-
-# volume yang SUDAH ada (aman: tiap volume sudah punya 2 replika sehat,
-# satu per node; yang dilepas hanya replika ketiga yang tak pernah terjadwal)
-for v in $(kubectl -n longhorn-system get volumes.longhorn.io -o name); do
-  kubectl -n longhorn-system patch "$v" --type=merge -p '{"spec":{"numberOfReplicas":2}}'
-done
-
-kubectl -n longhorn-system get volumes.longhorn.io \
-  -o custom-columns='NAME:.metadata.name,ROBUST:.status.robustness,REPL:.spec.numberOfReplicas'
-# harapan: semua `healthy`, REPL=2
+# 1) DRY-RUN dulu: cetak daftar yang akan dihapus (diturunkan dari cluster, bukan hafalan).
+./infra/helm/cutover-production.sh
+# 2) Baca daftarnya. Skrip menolak jalan bila sudah ada rilis Helm `simpel`, atau bila ada
+#    PVC Bound (itu data). Lalu:
+SIMPEL_CONFIRM_CUTOVER=yes ./infra/helm/cutover-production.sh --apply
 ```
 
-> ⚠️ **Setelan global itu TIDAK menjangkau StorageClass `longhorn` bawaan.** Kelas
-> itu menuliskan `parameters.numberOfReplicas: "3"` pada dirinya sendiri, dan
-> parameter kelas selalu menang atas `default-replica-count`. Jadi volume baru
-> yang lahir di kelas default tetap meminta 3 dan tetap lahir `degraded` di
-> klaster 2-node. Kelas itu milik rilis Helm `longhorn` — mengeditnya di sini
-> akan tertimpa saat Longhorn di-upgrade. Perbaikannya bukan menambal kelas
-> bawaan, melainkan **memakai `longhorn-retain`** (yang menuliskan 2 pada dirinya
-> sendiri) untuk semua volume SIMPel.
->
-> Terverifikasi di klaster 2026-08-18: setelah kedua perintah di atas, ketiga
-> volume staging jadi `healthy` dengan 2 replika, tetap tersebar satu per node.
-
-### 1.2 Buat namespace & ghcr-pull secret
+Ini satu-satunya tempat `kubectl delete` menyentuh produksi, karena objeknya bukan milik
+rilis Helm mana pun. Namespace-nya sendiri dan Secret `ghcr-pull` tidak disentuh.
 
 ```bash
-kubectl create namespace simpelv2-production
 kubectl -n simpelv2-production create secret docker-registry ghcr-pull \
-  --docker-server=ghcr.io \
-  --docker-username=<github-user> \
-  --docker-password=<PAT-with-read:packages> \
-  --docker-email=<email>
+  --docker-server=ghcr.io --docker-username=<github-user> \
+  --docker-password=<PAT-read:packages> --docker-email=<email>
 ```
 
-### 1.3 Apply DigiCert TLS
+### 1.3 Sertifikat TLS (gateway produksi memakai Secret-nya SENDIRI)
+
+Gateway produksi (`simpelv2-prod-gateway`) terpisah dari gateway staging dan memakai Secret
+`simpelv2-prod-tls`. Kunci privat tidak boleh lewat Helm/values:
 
 ```bash
-openssl x509 -in /path/to/digicert-fullchain.pem -noout -subject -issuer -dates
-# Verify: subject CN matches simpel.kejaksaan.go.id, NotAfter > 30 days
-
-kubectl -n istio-system create secret tls simpelv2-tls-secret \
-  --cert=/path/to/digicert-fullchain.pem \
-  --key=/path/to/private-key.pem \
-  --dry-run=client -o yaml | kubectl apply -f -
+openssl x509 -in fullchain.pem -noout -subject -issuer -dates   # CN/SAN = simpel.kejaksaan.go.id, sisa > 30 hari
+kubectl -n istio-system create secret tls simpelv2-prod-tls --cert=fullchain.pem --key=private-key.pem
 ```
 
-### 1.4 Pre-render & validate
+Tanpa Secret ini listener HTTPS produksi tidak naik. (`simpelv2-tls-secret` milik staging
+sengaja tidak dipakai: ia self-signed.)
+
+### 1.4 Rahasia aplikasi
 
 ```bash
+cp infra/helm/simpel/values-secrets.example.yaml ~/values-secrets-production.yaml && chmod 600 ~/values-secrets-production.yaml
+$EDITOR ~/values-secrets-production.yaml     # isi SEMUA REPLACE_ME; password postgres: openssl rand -hex 24
+```
+
+`secrets.authencBootstrapAdmin` = administrator pertama. Job `authenc-bootstrap`
+mematikan akun seed migrasi (superuser `admin` dan NIP `199203142014031001` yang sandinya
+NIP itu sendiri — terlihat di repo publik) lalu membuat akun ini dengan peran `admin` dan
+**wajib ganti sandi di login pertama**. Berikan sandi awalnya lewat saluran terpisah.
+
+### 1.5 Pre-render & validasi
+
+```bash
+helm lint infra/helm/simpel -f infra/helm/simpel/values-production.yaml -f ~/values-secrets-production.yaml
 ./infra/helm/deploy.sh production template > /tmp/prod-rendered.yaml
-helm lint infra/helm/simpel -f infra/helm/simpel/values-production.yaml
-# Optional: kubeconform -strict -summary /tmp/prod-rendered.yaml
+python3 infra/scripts/check-route-parity.py && python3 infra/scripts/check-chart-release-images.py
 ```
 
-### 1.5 Helm install (atomic)
+### 1.6 Image final harus ada
 
 ```bash
-helm install simpel infra/helm/simpel \
-  -f infra/helm/simpel/values-production.yaml \
-  --namespace simpelv2-production \
-  --atomic --timeout 15m
+gh workflow run promote.yml -f source_tag=v0.1.0-rcN -f target_tag=v0.1.0
+# lalu per image (8): digest :v0.1.0-rcN == :v0.1.0
 ```
 
-### 1.6 Verifikasi rollout
+Tag final dibuat dengan `GITHUB_TOKEN`, jadi TIDAK memicu `release.yml` (tak ada build ulang).
+Verifikasi digest identik sebelum lanjut.
+
+### 1.7 Helm install (tanpa `--wait`, tanpa `--atomic`)
 
 ```bash
-kubectl -n simpelv2-production rollout status deploy --timeout=15m
-kubectl -n simpelv2-production rollout status statefulset --timeout=15m
-kubectl -n simpelv2-production get pods,svc,vs,gw,dr,pdb,hpa,networkpolicy
+helm upgrade --install simpel infra/helm/simpel \
+  -f infra/helm/simpel/values-production.yaml -f ~/values-secrets-production.yaml \
+  --set secrets.bootstrap=true \
+  --namespace simpelv2-production --timeout 20m
 ```
 
-### 1.7 Bootstrap Secreton
-
-Lihat [§7 Bootstrap Secreton](#7-bootstrap-secreton-one-shot).
-
-### 1.8 Flip secretonAuth ON
+Tanpa `--set` untuk tag/namespace: keduanya dicatat di `values-production.yaml`. `--atomic`
+pada install pertama berarti uninstall otomatis bila gagal — dan uninstall chart ini adalah
+operasi berbahaya. Hook berurutan: `db-create` → `integrasi-migrate` → `authenc-migrate` →
+`authenc-bootstrap`. perlengkapan migrasi sendiri saat boot dan boleh crashloop singkat.
 
 ```bash
-helm upgrade simpel infra/helm/simpel \
-  -f infra/helm/simpel/values-production.yaml \
-  --namespace simpelv2-production \
-  --set secretonAuth.enabled=true \
-  --atomic --timeout 10m
+kubectl -n simpelv2-production get pods,jobs
+kubectl -n simpelv2-production logs job/simpel-authenc-bootstrap   # "seeded accounts disabled ... done"
 ```
 
-### 1.9 Smoke test
+### 1.8 Verifikasi
 
 ```bash
-curl -sf https://simpel.kejaksaan.go.id/api/v1/auth/health
-curl -sf https://simpel.kejaksaan.go.id/api/v1/perlengkapan/health
-curl -sf https://simpel.kejaksaan.go.id/portal/ | grep -q '<title>'
+curl -sI https://simpel.kejaksaan.go.id/ | head -3                    # 200/30x, sertifikat DigiCert
+curl -s -o /dev/null -w '%{http_code}\n' http://simpel.kejaksaan.go.id/   # 301 -> https
 ```
+
+Login dengan administrator pertama, ganti sandi, lalu **cabut sandi awalnya dari values-secrets**.
+`secretonAuth.enabled` tetap `false` (blocker F6-A: Secreton belum menyimpan state; lihat §7).
+
+### 1.9 Rehearsal produksi di cluster staging (WAJIB sebelum 1.7)
+
+Staging memakai profil lain (1 replika, mTLS PERMISSIVE, fixture). Tiga hal hanya terbukti bila
+profil PRODUKSI dijalankan sungguhan: rute/gateway, HA + NetworkPolicy + kuota, dan Job bootstrap.
+Pasang `values-production.yaml` ke namespace buangan lewat Helm (rilis `simpel-rehearsal`), host uji,
+rahasia tiruan, lalu jalankan suite e2e ke sana dan hapus lewat `helm uninstall` (namespace sekali
+pakai itu dikelola chart, jadi cascade-delete-nya justru diinginkan di sini).
 
 ---
 

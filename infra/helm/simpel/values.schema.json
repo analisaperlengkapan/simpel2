@@ -185,9 +185,6 @@
     "perlengkapan": {
       "$ref": "#/definitions/workload"
     },
-    "app-2026": {
-      "$ref": "#/definitions/workload"
-    },
     "postgres": {
       "$ref": "#/definitions/workload"
     },

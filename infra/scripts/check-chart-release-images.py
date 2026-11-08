@@ -34,6 +34,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parents[2]
 VALUES = ROOT_DIR / "infra" / "helm" / "simpel" / "values.yaml"
 RELEASE = ROOT_DIR / ".github" / "workflows" / "release.yml"
+PROMOTE = ROOT_DIR / ".github" / "workflows" / "promote.yml"
 
 # `image:` followed by `name: <x>` — first-party images only. Third-party pins
 # (postgres:16-alpine, redis:7-alpine, alpine:3.20) are written as literal
@@ -46,6 +47,12 @@ CHART_IMAGE_RE = re.compile(
 )
 # `- { name: layanan-authenc, dockerfile: ... }` in the build-docker matrix.
 MATRIX_NAME_RE = re.compile(r"^\s*-\s*\{\s*name:\s*([A-Za-z0-9._-]+)\s*,", re.M)
+
+# `matrix:\n  image:\n    - antarmuka-portal\n    - ...` in promote.yml: plain names, one per
+# line (release.yml writes flow mappings instead, hence a second pattern).
+PROMOTE_MATRIX_RE = re.compile(
+    r"matrix:[ \t]*\n[ \t]*image:[ \t]*\n((?:[ \t]*-[ \t]*[A-Za-z0-9._-]+[ \t]*\n)+)"
+)
 
 # Images built but deliberately not referenced by the chart, each with a reason.
 # Empty today: chart and release are an exact bijection, and keeping it that way
@@ -67,6 +74,13 @@ def main() -> int:
               "matrix changed shape and this guard was measuring nothing.")
         return 1
 
+    m = PROMOTE_MATRIX_RE.search(PROMOTE.read_text(encoding="utf-8"))
+    if not m:
+        print(f"FAIL: parsed no image matrix from {PROMOTE.name} — the matrix "
+              "changed shape and this guard was measuring nothing.")
+        return 1
+    promote = set(re.findall(r"-[ \t]*([A-Za-z0-9._-]+)", m.group(1)))
+
     missing = sorted(chart - release)
     unused = sorted(release - chart - set(RELEASE_ONLY))
 
@@ -85,13 +99,36 @@ def main() -> int:
             print(f"  - simpelv2-{n}  (release.yml matrix name: {n})")
         rc = 1
 
+    # promote.yml re-tags rc -> final WITHOUT rebuilding, so an image missing from
+    # its matrix has no final tag at all: production's `helm install` pulls
+    # `<image>:vX.Y.Z` and gets ImagePullBackOff (layanan-gateway is a SIDECAR in
+    # the simpelv1 pod, so that pod would never become Ready). Found 2026-11-08:
+    # promote.yml listed 7 of the 9 images release.yml builds, and the first
+    # production deploy would have been the first time anyone noticed.
+    not_promoted = sorted(release - promote)
+    stale_promote = sorted(promote - release)
+    if not_promoted:
+        print(f"FAIL: release.yml builds {len(not_promoted)} image(s) that "
+              "promote.yml never re-tags — production would ImagePullBackOff "
+              "on the final tag:")
+        for n in not_promoted:
+            print(f"  - simpelv2-{n}  (missing from promote.yml matrix)")
+        rc = 1
+    if stale_promote:
+        print(f"FAIL: promote.yml re-tags {len(stale_promote)} image(s) "
+              "release.yml no longer builds — `docker manifest inspect` fails:")
+        for n in stale_promote:
+            print(f"  - simpelv2-{n}  (in promote.yml matrix only)")
+        rc = 1
+
     if rc:
         print("\nMake the two agree, or — for an image intentionally built "
               "without a chart consumer — add it to RELEASE_ONLY in this "
               "script, WITH the reason.")
     else:
         print(f"OK: {len(chart)} chart image name(s) match release.yml's build "
-              f"matrix exactly, {len(RELEASE_ONLY)} excluded with a reason.")
+              f"matrix exactly, {len(RELEASE_ONLY)} excluded with a reason; "
+              f"promote.yml re-tags all {len(promote)} of them.")
     return rc
 
 
