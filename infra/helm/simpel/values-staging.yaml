@@ -340,7 +340,21 @@ global:
   # sebelum rc39 (mengembalikan GRPC_ALLOW_INSECURE=true; Secret PKI yang dibuat
   # rc39 ikut dihapus Helm karena bukan bagian revisi lama). Tanpa migrasi skema,
   # tetapi dump pra-upgrade tetap wajib. Hasil verifikasi rc39 dicatat sesudah rilis.
-  imageTag: v0.1.0-rc39
+  #
+  # rc40 = rc39 + #1074. rc39 SEMPAT dipasang di staging dan GAGAL: authenc dan
+  # layanan-perlengkapan crash-loop saat start dengan
+  #   "Could not automatically determine the process-level CryptoProvider"
+  # (rustls 0.23 hanya memilih penyedia kripto otomatis bila TEPAT SATU dari
+  # aws_lc_rs/ring ada di graf biner; keduanya menautkan lettre -> ring DAN
+  # aws_lc_rs, jadi keduanya bimbang). Staging dikembalikan ke rc38 lewat
+  # `helm rollback` (revisi 24) dan diverifikasi sama dengan baseline. Tes
+  # mTLS CI lolos karena bentuk graf-nya beda dari biner yang dikirim.
+  # #1074: `lib_backend::grpc::ensure_crypto_provider()` dipasang eksplisit
+  # sebelum konfigurasi TLS pertama (authenc, integrasi, klien lib-backend) +
+  # tes yang mereproduksi graf dua-penyedia. Selebihnya sama dengan rc39
+  # (#1061 + #1062, komentar di atas). rc39 TIDAK pernah terverifikasi;
+  # jangan dipromosikan.
+  imageTag: v0.1.0-rc40
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
