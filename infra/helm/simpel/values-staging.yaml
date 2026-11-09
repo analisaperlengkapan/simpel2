@@ -367,7 +367,15 @@ global:
   # klien integrasi seumur hidup karena integrasi sedang restart saat boot) dan
   # holdApplicationUntilProxyStarts (layanan-integrasi crash 2x per upgrade pada sambungan
   # Postgres pertamanya). rc40 TIDAK lolos e2e: jangan dipromosikan.
-  imageTag: v0.1.0-rc41
+  #
+  # rc42 = rc41 + perbaikan dari rehearsal produksi (`helm install` bersih profil produksi di
+  # namespace buangan). rc41 lolos e2e 218/218 di staging TETAPI TIDAK boleh dipromosikan: di
+  # bentuk produksi `helm install` gagal di hook db-create (NetworkPolicy), admin pertama tak
+  # bisa login (realm_id NULL), authenc tak bisa menjangkau layanan-integrasi di namespace
+  # STRICT (UnknownIssuer), dan CronJob integrasi gagal (race sidecar + tanpa egress/ingress).
+  # Staging tak melihat satu pun karena PERMISSIVE, db-create dimatikan, cron di-suspend.
+  # Daftar lengkap + bukti: PR #1077. rc39, rc40, dan rc41 jangan dipromosikan.
+  imageTag: v0.1.0-rc42
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
