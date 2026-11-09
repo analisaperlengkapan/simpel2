@@ -440,7 +440,7 @@ backendConfig:
   grpcTls:
     enabled: true
 
-# Workload — staging sengaja minimum (1 replica, HPA 1/2, no PDB).
+# Workload — staging sengaja minimum (1 replica, HPA 1/2, no PDB), KECUALI authenc.
 postgres:
   replicas: 1
   storage: { size: 20Gi }
@@ -450,11 +450,16 @@ postgres:
   dbCreateJob: { enabled: false }
 redis: {}
 authenc:
-  replicas: 1
+  # 2 replika, bukan 1: produksi menjalankan authenc 3-6 replika, dan satu-satunya replika
+  # staging menyembunyikan bug "tiap replika mengundi kunci JWT sendiri" berbulan-bulan —
+  # setiap token selalu divalidasi oleh pod yang menerbitkannya. HPA yang kebetulan naik ke
+  # dua di tengah e2e rc40 yang membukanya (20 dari 218 gagal). Dengan 2 replika tetap,
+  # setiap suite menguji bentuk yang dipakai produksi.
+  replicas: 2
   resources:
     requests: { cpu: 250m, memory: 256Mi }
     limits:   { cpu: "1",  memory: 512Mi }
-  hpa: { enabled: true, minReplicas: 1, maxReplicas: 2, cpuUtilization: 75, memoryUtilization: 80 }
+  hpa: { enabled: true, minReplicas: 2, maxReplicas: 3, cpuUtilization: 75, memoryUtilization: 80 }
 secreton:
   replicas: 1
 layananIntegrasi:
