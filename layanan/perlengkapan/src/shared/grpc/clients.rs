@@ -295,11 +295,24 @@ pub struct IntegrasiClient {
 }
 
 impl IntegrasiClient {
-    /// Connect to the integrasi gRPC service
-    pub async fn connect(addr: String) -> Result<Self> {
-        let channel = lib_backend::grpc::client::endpoint_from_env(&addr)?
-            .connect()
-            .await?;
+    /// Build the integrasi client WITHOUT dialling.
+    ///
+    /// The previous eager `connect()` tried three times in ~7 s at boot and, when
+    /// integrasi was not answering yet, left the pod with NO client for the rest of
+    /// its life ("MySIMKARI rekap will be disabled"). rc40 hit exactly that on
+    /// staging: a rolling upgrade restarts integrasi and perlengkapan together, one
+    /// replica gave up and kept serving without MySIMKARI/SIMAN while its sibling
+    /// had them, so the answer depended on which pod the request landed on, and
+    /// nothing ever restored it short of deleting the pod.
+    ///
+    /// `connect_lazy` never fails on a slow upstream and reconnects transparently: an
+    /// unreachable integrasi becomes a failed *call* (which the circuit breakers and
+    /// the "unknown freshness" paths already handle) instead of a permanently
+    /// degraded *client*. Same pattern as [`AuthencClient::connect_lazy`] and
+    /// `layanan/gateway`. An invalid URL or unreadable mTLS material still fails here,
+    /// at startup, where it should.
+    pub fn connect_lazy(addr: String) -> Result<Self> {
+        let channel = lib_backend::grpc::client::endpoint_from_env(&addr)?.connect_lazy();
         let client = IntegrasiServiceClient::new(channel);
         Ok(Self {
             client,
@@ -568,6 +581,24 @@ mod health_check_tests {
         assert!(
             client.health_check().await.is_err(),
             "an unreachable authenc must report an error, not health"
+        );
+    }
+
+    /// rc40 on staging: a rolling upgrade restarted integrasi and perlengkapan
+    /// together; one perlengkapan replica's three eager connects all failed, it
+    /// logged "MySIMKARI rekap will be disabled" and served without an integrasi
+    /// client until it was deleted by hand, while its sibling had one. An
+    /// unreachable integrasi at construction time must therefore still yield a
+    /// client, and the failure must land on the CALL (where the breakers and the
+    /// "unknown freshness" paths absorb it), not on the client's existence.
+    #[tokio::test]
+    async fn integrasi_down_at_startup_still_yields_a_client() {
+        // Port 1 is reserved and nothing listens on it.
+        let client = IntegrasiClient::connect_lazy("http://127.0.0.1:1".to_string())
+            .expect("connect_lazy does not dial, so a down integrasi cannot fail construction");
+        assert!(
+            client.get_sync_status(DataSource::Mysimkari).await.is_err(),
+            "the call to an unreachable integrasi must fail, not pretend to succeed"
         );
     }
 

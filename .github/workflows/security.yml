@@ -732,6 +732,23 @@ jobs:
               | docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
               | python3 ./infra/scripts/check-grpc-tls-wiring.py "$f"
           done
+      # authenc menandatangani dan memverifikasi token dengan SATU kunci. Tanpa
+      # JWT_SECRET tiap replika mengundi kuncinya sendiri: token satu replika
+      # ditolak yang lain dan tiap restart mengakhiri semua sesi. Chart tak pernah
+      # menyetelnya, dan tak ada yang merah — lint/template/kube-linter hijau, suite
+      # staging lulus berbulan-bulan karena HPA bertahan di SATU replika, sampai
+      # rc40 naik ke dua dan 20 dari 218 e2e gagal. Pagar ini membaca render,
+      # bukan daftar, dan self-test-nya memastikan ia MENOLAK render yang rusak.
+      - name: authenc memakai satu kunci JWT bersama dari Secret yang bertahan
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
+          python3 ./infra/scripts/check-authenc-jwt-wiring.py --self-test
+          for f in staging production; do
+            docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
+              < "rendered/${f}.yaml" \
+              | python3 ./infra/scripts/check-authenc-jwt-wiring.py "$f"
+          done
       - name: Setiap emptyDir dikecualikan dari backup Velero
         if: steps.filter.outputs.helm == 'true'
         run: |
