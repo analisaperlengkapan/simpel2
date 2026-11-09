@@ -274,6 +274,13 @@ Pemeriksaan pertama menemukan hal-hal yang akan menggagalkan hari pertama:
   (`lastSuccessfulTime` kosong). Pod/Job/CronJob baru yang memakai `DATABASE_URL`/`PG*`/`postgres-credentials`/`pg_isready`
   wajib dicakup salah satu peer `from` — `check-netpol-postgres-reach.py` (CI) menurunkannya dari render.
   Jalur yang MATI di staging (`dbCreateJob.enabled: false`) hanya teruji lewat rehearsal produksi (RUNBOOK §1.9).
+- **Bentuk produksi ≠ bentuk staging di tiga tempat, dan e2e tak melihat satu pun** (ditemukan rehearsal produksi
+  2026-11-09): (1) namespace **STRICT** vs PERMISSIVE — klien tanpa sidecar (authenc) ke server di mesh
+  (layanan-integrasi:50051) melihat `UnknownIssuer` karena Envoy menjawab dengan CA Istio; pengecualian per-port di
+  `mtls.portExceptions`. (2) **Job/CronJob wajib menyatakan `sidecar.istio.io/inject`** (cron default `false`): tanpa
+  itu percobaan pertama bertabrakan dengan Envoy dan `backoffLimit: 1` menandai Job GAGAL walau selesai. (3) pod
+  `component=scheduler` butuh egress 443 sendiri (`layanan-integrasi-scheduler-egress`); policy lama hanya memilih
+  Deployment. `check-mesh-strict-reach.py` (CI) menurunkan (1) dan (2) dari render.
 
 Urutan lengkap: `infra/helm/RUNBOOK.md` §1.
 

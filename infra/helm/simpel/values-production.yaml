@@ -30,6 +30,10 @@ namespace:
 
 mtls:
   mode: STRICT
+  # authenc (di luar mesh) -> layanan-integrasi:50051: provisioning login pertama + /auth/me.
+  # Tanpa ini STRICT menjawab dengan sertifikat Envoy: `invalid peer certificate: UnknownIssuer`.
+  portExceptions:
+    - { workload: layanan-integrasi, port: 50051 }
 
 resourceQuota:
   enabled: true

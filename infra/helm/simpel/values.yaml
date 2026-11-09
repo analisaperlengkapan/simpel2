@@ -59,6 +59,9 @@ namespace:
 # Default mTLS — dipakai PeerAuthentication & DestinationRule.
 mtls:
   mode: PERMISSIVE                         # production: STRICT
+  # Port yang dilonggarkan ke PERMISSIVE pada SATU workload bila mode STRICT, untuk klien di
+  # luar mesh (lihat templates/istio/peer-authentication.yaml). Bentuk: { workload: <label name>, port: <containerPort> }.
+  portExceptions: []
   destinationRules:
     enabled: true
     # Workload tanpa Istio sidecar harus DISABLE mTLS Istio agar plaintext masuk.

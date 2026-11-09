@@ -15,6 +15,14 @@
 {{- $name := .name -}}
 {{- $values := .values -}}
 {{- $defaults := default (dict) .defaults -}}
+{{- /* Pod Job TIDAK boleh membawa sidecar Istio kecuali diminta eksplisit (istioInjection: true).
+       Terukur di rehearsal produksi: tanpa anotasi, percobaan PERTAMA keluar dengan kode 1 dalam 3 ms
+       (`Failed to connect to database: error connecting to server`, Envoy belum mendengar); restart
+       OnFailure berikutnya berhasil tetapi `backoffLimit: 1` sudah habis, jadi Job tercatat GAGAL
+       walau pekerjaannya selesai — `lastSuccessfulTime` di staging kosong sejak awal. Sidecar juga
+       membuat pod Job tak pernah selesai setelah aplikasinya keluar. Job lain di chart ini
+       (db-create, *-migrate, authenc-bootstrap) sudah `sidecar.istio.io/inject: "false"`. */ -}}
+{{- $podValues := mergeOverwrite (deepCopy $values) (dict "istioInjection" (ternary $values.istioInjection false (hasKey $values "istioInjection"))) -}}
 {{- if $values.enabled }}
 apiVersion: batch/v1
 kind: CronJob
@@ -47,7 +55,7 @@ spec:
             {{- include "simpel.selectorLabels" (dict "top" $ctx "name" $name) | nindent 12 }}
             app.kubernetes.io/component: {{ default $name $values.component }}
           annotations:
-            {{- include "simpel.istioPodAnnotations" $values | nindent 12 }}
+            {{- include "simpel.istioPodAnnotations" $podValues | nindent 12 }}
         spec:
           serviceAccountName: {{ default $name $values.serviceAccountName }}
           automountServiceAccountToken: {{ default false $values.automountServiceAccountToken }}

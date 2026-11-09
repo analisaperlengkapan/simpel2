@@ -378,5 +378,37 @@ spec:
         - podSelector: { matchLabels: { app.kubernetes.io/name: redis } }
       ports:
         - { protocol: TCP, port: 6379 }
+---
+# CronJob layanan-integrasi (component scheduler: siman, mysimkari, monsakti, snapshot-refresh)
+# menarik data dari API eksternal (HTTPS) dan menulis ke postgres. Policy di atas hanya memilih
+# pod `name=layanan-integrasi` (Deployment), jadi pod CronJob hanya terkena allow-incluster-egress
+# — dalam-klaster saja — dan penarikan produksi tak bisa menjangkau MySIMKARI/SIMAN/MonSAKTI.
+# Staging tak melihatnya karena ketiga cron itu di-suspend di sana (rehearsal produksi, 2026-11-09).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: layanan-integrasi-scheduler-egress
+  namespace: {{ $ns }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: scheduler
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - { protocol: TCP, port: 443 }
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: postgres } }
+      ports:
+        - { protocol: TCP, port: 5432 }
 {{- end }}
 {{- end }}

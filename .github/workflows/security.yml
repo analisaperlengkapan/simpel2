@@ -729,6 +729,22 @@ jobs:
               < "rendered/${f}.yaml" \
               | python3 ./infra/scripts/check-netpol-postgres-reach.py "$f"
           done
+      # Dua kelas cacat yang HANYA muncul di bentuk produksi (namespace STRICT, cron aktif):
+      # (A) klien tanpa sidecar -> server di mesh: STRICT menjawab dengan sertifikat Envoy,
+      #     klien melihat `invalid peer certificate: UnknownIssuer` (login pertama setiap
+      #     pegawai gagal: authenc -> layanan-integrasi). Staging PERMISSIVE, jadi tak melihatnya.
+      # (B) Job/CronJob tanpa anotasi inject: percobaan pertama bertabrakan dengan Envoy yang
+      #     belum siap, backoffLimit 1 habis, Job tercatat GAGAL walau pekerjaannya selesai.
+      # Keanggotaan mesh, server, dan klien DITURUNKAN dari render.
+      - name: Hop mesh STRICT berpengecualian port dan Job tanpa sidecar tak terduga
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
+          for f in staging production; do
+            docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
+              < "rendered/${f}.yaml" \
+              | python3 ./infra/scripts/check-mesh-strict-reach.py "$f"
+          done
       # mTLS gRPC tersebar di lima tempat yang harus sepakat (Secret PKI, env server,
       # env klien, skema *_GRPC_URL, appProtocol Service). Salah satunya meleset =
       # `helm lint` dan kube-linter tetap hijau, dan akibatnya: pod production
