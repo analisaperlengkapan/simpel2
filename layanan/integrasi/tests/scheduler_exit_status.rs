@@ -10,10 +10,15 @@ use std::process::{Command, Output};
 fn run_scheduler(args: &[&str], envs: &[(&str, &str)]) -> Output {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_scheduler"));
     cmd.args(args)
-        // Nothing from the developer's/CI shell may leak in: no DATABASE_URL (no DB is touched),
-        // no real tokens, no real API hosts.
+        // Nothing from the developer's/CI shell may leak in: no real tokens, no real API hosts.
         .env_clear()
-        .env("RUST_LOG", "info");
+        .env("RUST_LOG", "info")
+        // EMPTY, not absent: `load_base_config` falls back to
+        // `postgres://postgres:postgres@localhost:5432/perlengkapan` when the variable is unset.
+        // A developer box with a local Postgres connected and these tests passed; the CI job has
+        // none and the binary died on "Connection refused" before reaching the code under test
+        // (first CI run of this file). Empty = no database, which is all these tests need.
+        .env("DATABASE_URL", "");
     for (k, v) in envs {
         cmd.env(k, v);
     }
