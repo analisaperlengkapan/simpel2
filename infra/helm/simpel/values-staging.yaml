@@ -381,7 +381,15 @@ global:
   # tanpa sidecar) TETAPI rehearsal juga memperlihatkan `ERROR ❌ Manual sync failed` bersama
   # Job `Succeeded`: kegagalan ditelan, jadi di produksi `lastSuccessfulTime` akan maju untuk
   # sinkronisasi yang tak pernah berhasil. rc42 jangan dipromosikan.
-  imageTag: v0.1.0-rc43
+  #
+  # rc44 = rc43 + dua perbaikan yang ditemukan SAAT menguji rc43. rc43 lolos e2e 218/218 dan
+  # membuktikan `mysimkari`/`monsakti` kini `Failed` terhadap URL `.invalid`, TETAPI (1) cron
+  # `siman` tetap `Complete` dengan 10 dari 10 kategori gagal (warn lalu `Ok(())`; PR #1080), dan
+  # (2) notifikasi transisi penghapusan BMN tak pernah terkirim: query memilih kolom `satker_id`
+  # yang sudah dihapus dari `penghapusan_bmn`, galatnya ditelan sebagai "non-blocking", dan
+  # harness tes tak memasang notifier seperti main.rs sehingga jalur itu tak pernah berjalan.
+  # rc43 jangan dipromosikan.
+  imageTag: v0.1.0-rc44
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`

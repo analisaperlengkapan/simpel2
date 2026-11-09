@@ -488,6 +488,16 @@ that pattern lives in authenc, not here). End-to-end:
    hanya `warn!`) atau kodenya tak pernah dipanggil. Kalau test ini merah,
    perbaiki query/tambah migrasi — **jangan** tambahkan pengecualian.
 
+   **Penjaga itu memeriksa relasi, bukan kolom.** Query notifikasi `penghapusan_bmn`
+   memilih `satker_id`, kolom yang sudah dihapus dari tabelnya: tiap transisi di
+   staging mencatat `column "satker_id" does not exist` sebagai galat "non-blocking",
+   tak seorang operator pun diberi tahu, dan e2e hijau. Akarnya kedua: harness
+   (`tests/common.rs`) membangun `WorkflowEngine` TANPA notifier, sehingga jalur itu
+   tak pernah berjalan di tes mana pun. **Harness WAJIB memasang engine persis seperti
+   `main.rs`** (`with_notification_sender`, dst.). Fitur yang gagalnya ditelan harus
+   diuji dengan membaca HASILNYA (kotak masuk, baris audit), bukan status HTTP 200:
+   lihat `a_transition_tells_the_operator_who_filed_the_usulan`.
+
 5. **Test** — unit tests next to the service; cross-module flows go in
    `tests/`. Backend lib tests must run serial (`--test-threads=1`)
    because they share a Docker Postgres.
