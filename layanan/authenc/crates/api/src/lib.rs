@@ -69,6 +69,8 @@ pub use routes::{create_router, create_router_with_middleware};
 
 pub use state::ApiState;
 
+pub mod signing_key;
+
 #[cfg(test)]
 mod tests {
     #[test]

@@ -257,6 +257,16 @@ Pemeriksaan pertama menemukan hal-hal yang akan menggagalkan hari pertama:
   (fail-closed: konfigurasi setengah-jadi atau `http://` dengan materi TLS ditolak saat start). Service port gRPC
   jadi `appProtocol: tls` (Envoy tak boleh mem-parse TLS sebagai HTTP/2). `check-grpc-tls-wiring.py` (CI) memeriksa
   lima titik itu dari hasil render. Rotasi: `RUNBOOK.md` §5.x.
+- **Kunci JWT authenc = SATU untuk semua replika** (`templates/secrets/authenc-jwt.yaml`, Secret `authenc-jwt`, env
+  `JWT_SECRET`). Tanpa itu tiap replika mengundi kuncinya sendiri: token satu replika ditolak yang lain
+  (`Token validation failed` muncul-hilang) dan tiap restart mengakhiri semua sesi. Tak ada yang merah karena HPA
+  staging bertahan di SATU replika — rc40 naik ke dua dan 20 dari 218 e2e gagal. authenc kini menolak start di
+  `APP_ENVIRONMENT=staging|production` tanpa kunci; Secret ber-`resource-policy: keep` + `lookup` (upgrade tak merotasi).
+  `check-authenc-jwt-wiring.py` (CI) memeriksanya dari render. Rotasi: `RUNBOOK.md` §5.y.
+- **Aplikasi menunggu sidecar** (`proxy.istio.io/config: holdApplicationUntilProxyStarts`, `_helpers.tpl`): tanpa
+  itu sambungan keluar pertama aplikasi ditolak (iptables sudah mengalihkan ke Envoy yang belum mendengar).
+  Klien gRPC ke layanan lain dibangun **lazy** (`connect_lazy`), bukan `connect()` sekali-jadi: klien eager yang
+  gagal saat boot membuat pod melayani tanpa klien seumur hidupnya.
 
 Urutan lengkap: `infra/helm/RUNBOOK.md` §1.
 

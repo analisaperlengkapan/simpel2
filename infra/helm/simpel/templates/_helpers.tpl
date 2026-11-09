@@ -199,6 +199,14 @@ failureThreshold: {{ .failureThreshold }}
 {{- if hasKey $cfg "istioInjection" }}
 sidecar.istio.io/inject: {{ ternary "\"true\"" "\"false\"" $cfg.istioInjection }}
 {{- end -}}
+{{- if and (hasKey $cfg "istioInjection") $cfg.istioInjection }}
+{{- /* Tahan kontainer aplikasi sampai Envoy siap. Tanpa ini aplikasi dan sidecar start
+       bersamaan, dan koneksi keluar aplikasi dalam detik pertama ditolak ("connection
+       refused") karena iptables sudah mengalihkan lalu-lintas ke Envoy yang belum
+       mendengar. Terlihat di staging: layanan-integrasi crash dua kali tiap upgrade pada
+       sambungan Postgres pertamanya (restartCount=2). */}}
+proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
+{{- end -}}
 {{- if and (hasKey $cfg "istioInjection") $cfg.istioInjection (hasKey $cfg "istioProxyResources") }}
 {{- with $cfg.istioProxyResources }}
 sidecar.istio.io/proxyCPU: {{ (default (dict) .cpu).request | default "" | quote }}

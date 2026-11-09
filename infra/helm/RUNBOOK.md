@@ -171,6 +171,13 @@ mematikan akun seed migrasi (superuser `admin` dan NIP `199203142014031001` yang
 NIP itu sendiri — terlihat di repo publik) lalu membuat akun ini dengan peran `admin` dan
 **wajib ganti sandi di login pertama**. Berikan sandi awalnya lewat saluran terpisah.
 
+**Kunci JWT authenc** (`secrets.authencJwtSecret`, opsional): kunci yang menandatangani SEMUA sesi pengguna.
+Dibiarkan kosong, chart menerbitkannya sendiri pada instalasi pertama (Secret `authenc-jwt`, 256-bit,
+`helm.sh/resource-policy: keep`) dan memakainya ulang di setiap `helm upgrade`. Isi sendiri (64 hex,
+`openssl rand -hex 32`) bila kuncinya harus dipegang operator. Semua replika authenc WAJIB berbagi satu
+kunci — tanpa itu token satu replika ditolak yang lain dan authenc menolak start di staging/produksi.
+Rotasi: lihat §5.y.
+
 ### 1.5 Pre-render & validasi
 
 ```bash
@@ -391,6 +398,26 @@ Multi-step (butuh koordinasi):
 3. Rolling restart consumer service: `kubectl rollout restart deploy/<service>`.
 
 ---
+
+### 5.y Kunci JWT authenc (`authenc-jwt`)
+
+authenc menandatangani dan memverifikasi token dengan SATU kunci dari Secret `authenc-jwt` (key `JWT_SECRET`,
+64 hex; `templates/secrets/authenc-jwt.yaml`). `helm upgrade` biasa memakai ulang Secret yang ada, jadi sesi
+bertahan melewati rilis dan restart. Secret ini ber-`resource-policy: keep`: rollback dan uninstall tidak
+menghapusnya. Masukkan ke cakupan backup Velero namespace.
+
+```bash
+# Rotasi (semua sesi aktif berakhir; pengguna login ulang). Pilih satu:
+#  a) biarkan chart menerbitkan yang baru:
+kubectl -n simpelv2-<env> delete secret authenc-jwt && helm upgrade simpel ...   # perintah §1.7 / §2
+#  b) tetapkan sendiri: isi secrets.authencJwtSecret di berkas values-secrets, lalu helm upgrade.
+kubectl -n simpelv2-<env> rollout restart deploy/authenc    # kunci dibaca saat start
+```
+
+Gejala kunci yang TIDAK dibagi: `Token validation failed` / HTTP 401 yang muncul-hilang pada token yang baru
+diterbitkan, hanya saat authenc punya >1 replika; log authenc memuat `Signature verification failed`. Periksa
+`kubectl logs deploy/authenc | grep -c 'JWT_SECRET not set'` — harus 0 (authenc kini menolak start tanpa kunci
+di staging/produksi, tetapi cek ini menangkap lingkungan lain).
 
 ### 5.x Rotasi PKI gRPC (mTLS antar-layanan)
 

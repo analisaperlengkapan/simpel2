@@ -354,7 +354,20 @@ global:
   # tes yang mereproduksi graf dua-penyedia. Selebihnya sama dengan rc39
   # (#1061 + #1062, komentar di atas). rc39 TIDAK pernah terverifikasi;
   # jangan dipromosikan.
-  imageTag: v0.1.0-rc40
+  #
+  # rc41 = rc40 + kunci JWT authenc bersama + klien integrasi lazy. rc40 jalan (crash-loop rc39 hilang, mTLS terpasang di semua hop
+  # gRPC) tetapi e2e penuh GAGAL 20 dari 218 (rc38: 218/218), semuanya `Token validation
+  # failed`. Akar: authenc TIDAK PERNAH diberi JWT_SECRET oleh chart, jadi tiap replika
+  # mengundi kunci penanda-tangan sendiri. Selama HPA di SATU replika (berbulan-bulan)
+  # tak ada yang terlihat; saat HPA naik ke dua di tengah suite, token satu replika
+  # ditolak yang lain. Produksi (replika >1) akan terkena terus-menerus.
+  # Perbaikan: Secret `authenc-jwt` terbitan chart (lookup + keep) + env JWT_SECRET;
+  # authenc menolak start di staging/produksi tanpa kunci; pagar CI membaca render.
+  # Sekaligus: klien integrasi layanan-perlengkapan jadi lazy (satu replika rc40 kehilangan
+  # klien integrasi seumur hidup karena integrasi sedang restart saat boot) dan
+  # holdApplicationUntilProxyStarts (layanan-integrasi crash 2x per upgrade pada sambungan
+  # Postgres pertamanya). rc40 TIDAK lolos e2e: jangan dipromosikan.
+  imageTag: v0.1.0-rc41
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
@@ -427,7 +440,7 @@ backendConfig:
   grpcTls:
     enabled: true
 
-# Workload — staging sengaja minimum (1 replica, HPA 1/2, no PDB).
+# Workload — staging sengaja minimum (1 replica, HPA 1/2, no PDB), KECUALI authenc.
 postgres:
   replicas: 1
   storage: { size: 20Gi }
@@ -437,11 +450,20 @@ postgres:
   dbCreateJob: { enabled: false }
 redis: {}
 authenc:
-  replicas: 1
+  # 2 replika, bukan 1: produksi menjalankan authenc 3-6 replika, dan satu-satunya replika
+  # staging menyembunyikan bug "tiap replika mengundi kunci JWT sendiri" berbulan-bulan —
+  # setiap token selalu divalidasi oleh pod yang menerbitkannya. HPA yang kebetulan naik ke
+  # dua di tengah e2e rc40 yang membukanya (20 dari 218 gagal). Dengan 2 replika tetap,
+  # setiap suite menguji bentuk yang dipakai produksi.
+  replicas: 2
   resources:
     requests: { cpu: 250m, memory: 256Mi }
     limits:   { cpu: "1",  memory: 512Mi }
-  hpa: { enabled: true, minReplicas: 1, maxReplicas: 2, cpuUtilization: 75, memoryUtilization: 80 }
+  hpa: { enabled: true, minReplicas: 2, maxReplicas: 3, cpuUtilization: 75, memoryUtilization: 80 }
+  # Dua replika wajib terpisah bila bisa — kalau tidak, satu node mati = authenc mati (kube-linter
+  # `no-anti-affinity` menolak chart ini tanpa ini). `preferred`, bukan `required`: dengan 2 node,
+  # `required` + surge RollingUpdate membuat pod ke-3 tak punya tempat dan rollout macet.
+  podAntiAffinity: { type: preferred }
 secreton:
   replicas: 1
 layananIntegrasi:

@@ -204,6 +204,9 @@ secrets:
       simpelv2: dbsimpelv2
       simpelv1: dbsimpelv1                 # Laravel monolith DB (legacy simpelv1) — ISOLATED
       secreton: secreton                   # secret manager — ISOLATED
+  # Kunci JWT authenc, 64 hex (`openssl rand -hex 32`). KOSONG = chart menerbitkan
+  # sendiri dan mempertahankannya antar upgrade (templates/secrets/authenc-jwt.yaml).
+  authencJwtSecret: ""
   integration: {}                          # MONSAKTI_*, MYSIMKARI_*, SIMAN_* sebagai key→value
   simpelv1: {}                             # DB_USERNAME / DB_PASSWORD / APP_KEY
 
@@ -419,6 +422,11 @@ authenc:
     # cross-schema (JOINs + an FK) which only resolves within one database.
     - name: DATABASE_URL
       valueFrom: { secretKeyRef: { name: postgres-credentials, key: url } }
+    # Kunci penanda-tangan JWT: SATU kunci untuk semua replika (templates/secrets/
+    # authenc-jwt.yaml menerbitkannya). Tanpa ini tiap pod mengundi kuncinya sendiri
+    # dan token satu replika ditolak yang lain; authenc menolak start di staging/produksi.
+    - name: JWT_SECRET
+      valueFrom: { secretKeyRef: { name: authenc-jwt, key: JWT_SECRET } }
   istioInjection: false                    # authenc tidak pakai sidecar; DR DISABLE
   topologySpreadConstraints:
     enabled: false                         # production override true
