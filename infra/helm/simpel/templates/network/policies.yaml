@@ -72,6 +72,16 @@ spec:
         # label) tidak match `app.kubernetes.io/component=backend`, jadi
         # whitelist eksplisit di sini.
         - podSelector: { matchLabels: { app: simpelv1 } }
+        # Job hook `db-create` (component database): membuat database SEBELUM apa pun
+        # lain. Tanpa baris ini `pg_isready` menunggu sampai activeDeadlineSeconds (600s)
+        # lalu `helm install` gagal di hook post-install — dan staging tak pernah
+        # melihatnya karena `dbCreateJob` mati di sana (rehearsal production, 2026-11-09).
+        - podSelector: { matchLabels: { app.kubernetes.io/name: db-create } }
+        # CronJob layanan-integrasi (component scheduler): tiga penarikan sumber +
+        # snapshot-refresh menulis ke skema integrasi lewat DATABASE_URL. Mereka bukan
+        # `backend`, jadi default-deny-ingress memutus mereka senyap: Job gagal dalam ~10
+        # detik dan `lastSuccessfulTime` tetap kosong.
+        - podSelector: { matchLabels: { app.kubernetes.io/component: scheduler } }
       ports:
         - { protocol: TCP, port: 5432 }
 ---

@@ -714,6 +714,21 @@ jobs:
               < "rendered/${f}.yaml" \
               | python3 ./infra/scripts/check-netpol-service-ports.py "$f"
           done
+      # Pod klien postgres yang labelnya terlewat dari `allow-backend-to-postgres` tidak
+      # gagal dengan galat: koneksinya hanya menunggu (default-deny-ingress). Hook
+      # `db-create` membuat `helm install` produksi habis waktu 600s, dan empat CronJob
+      # integrasi gagal ~10 detik tiap jadwal di staging tanpa satu pun sinyal merah.
+      # Klien DITURUNKAN dari render (DATABASE_URL/PG*/postgres-credentials/pg_isready),
+      # jadi klien baru ikut tercakup pada hari ia ditambahkan.
+      - name: Setiap klien postgres diizinkan NetworkPolicy
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
+          for f in staging production; do
+            docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
+              < "rendered/${f}.yaml" \
+              | python3 ./infra/scripts/check-netpol-postgres-reach.py "$f"
+          done
       # mTLS gRPC tersebar di lima tempat yang harus sepakat (Secret PKI, env server,
       # env klien, skema *_GRPC_URL, appProtocol Service). Salah satunya meleset =
       # `helm lint` dan kube-linter tetap hijau, dan akibatnya: pod production

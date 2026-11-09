@@ -267,6 +267,13 @@ Pemeriksaan pertama menemukan hal-hal yang akan menggagalkan hari pertama:
   itu sambungan keluar pertama aplikasi ditolak (iptables sudah mengalihkan ke Envoy yang belum mendengar).
   Klien gRPC ke layanan lain dibangun **lazy** (`connect_lazy`), bukan `connect()` sekali-jadi: klien eager yang
   gagal saat boot membuat pod melayani tanpa klien seumur hidupnya.
+- **Setiap pod klien postgres harus dicakup `allow-backend-to-postgres`** (`templates/network/policies.yaml`).
+  `default-deny-ingress` menutup semua pod; yang terlewat tidak gagal dengan galat, koneksinya hanya MENUNGGU.
+  Terjadi dua kali dari satu sebab: hook `db-create` (`component=database`) membuat `helm install` produksi habis
+  waktu 600s, dan CronJob integrasi (`component=scheduler`) gagal ~10 detik tiap jadwal di staging tanpa sinyal merah
+  (`lastSuccessfulTime` kosong). Pod/Job/CronJob baru yang memakai `DATABASE_URL`/`PG*`/`postgres-credentials`/`pg_isready`
+  wajib dicakup salah satu peer `from` — `check-netpol-postgres-reach.py` (CI) menurunkannya dari render.
+  Jalur yang MATI di staging (`dbCreateJob.enabled: false`) hanya teruji lewat rehearsal produksi (RUNBOOK §1.9).
 
 Urutan lengkap: `infra/helm/RUNBOOK.md` §1.
 
