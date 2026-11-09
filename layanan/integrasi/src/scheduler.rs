@@ -222,6 +222,43 @@ fn fold_source_results(results: Vec<(&'static str, Result<()>)>) -> Result<()> {
     }
 }
 
+/// Ends a loop that keeps going after each failure.
+///
+/// The loops below carry on so that one bad item does not hide the others, but the RUN must still
+/// fail if any item did: logging `Failed to fetch …` and returning `Ok(())` is how the rehearsal's
+/// `siman` Job ended `Complete` with 10 of its 10 categories failed.
+fn fail_if_any(what: &str, failures: Vec<String>) -> Result<()> {
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        anyhow::bail!(
+            "{} {} gagal — {}",
+            failures.len(),
+            what,
+            failures.join("; ")
+        )
+    }
+}
+
+/// How a SIMAN category went wrong, or `None` when it was taken in whole.
+///
+/// `fetch_all_assets_with_pagination` reports two different kinds of trouble. `Err` means the
+/// category could not be asked for at all (expired client secret, API down, wrong URL).
+/// `Ok((_, failed))` with `failed > 0` means some 1000-row chunks were not fetched or not stored.
+/// Both leave the local copy of that category incomplete, so neither may end in a green Job.
+fn siman_category_failure<E: std::fmt::Display>(
+    category: &str,
+    outcome: &std::result::Result<(usize, usize), E>,
+) -> Option<String> {
+    match outcome {
+        Ok((_, 0)) => None,
+        Ok((ok, failed)) => Some(format!(
+            "{category}: {failed} potongan data gagal ({ok} berhasil)"
+        )),
+        Err(e) => Some(format!("{category}: {e}")),
+    }
+}
+
 /// Fetch all MonSAKTI data
 async fn fetch_monsakti_data(config: Config, db_client: Option<Arc<Client>>) -> Result<()> {
     let mut client = if let Some(db) = db_client {
@@ -283,6 +320,7 @@ async fn fetch_mysimkari_data(config: Config, db_client: Option<Arc<Client>>) ->
 
         // Fetch pegawai data for first 5 satker as sample
         info!("  → Fetching pegawai data for sample satker...");
+        let mut pegawai_failures: Vec<String> = Vec::new();
         for satker in satker_array.iter().take(5) {
             if let Some(id) = satker.get("id").and_then(|v| v.as_str()) {
                 match mysimkari::api::pegawai_satker(&mut client, id, &circuit_breaker).await {
@@ -306,10 +344,13 @@ async fn fetch_mysimkari_data(config: Config, db_client: Option<Arc<Client>>) ->
                     }
                     Err(e) => {
                         warn!("    ⚠ Failed to fetch pegawai for satker {}: {}", id, e);
+                        pegawai_failures.push(format!("satker {id}: {e}"));
                     }
                 }
             }
         }
+        // The satker list above is already saved; the run still reports the pegawai it missed.
+        fail_if_any("pengambilan pegawai", pegawai_failures)?;
     } else {
         info!("  ✓ Satker: 1 record");
         if let Some(db) = client.get_db_client_arc() {
@@ -351,9 +392,13 @@ async fn fetch_siman_data(config: Config, db_client: Option<Arc<Client>>) -> Res
     info!("  → Fetching data from {} categories...", categories.len());
     let storage = storage_from_env();
 
+    // Every category is attempted even after one fails, so a single bad category does not hide
+    // the rest — but the run as a whole fails if any category did (see `fail_if_any`).
+    let mut failures: Vec<String> = Vec::new();
     for category in categories {
         info!("  → Process category: {}", category.description());
-        match fetch_all_assets_with_pagination(&mut client, &storage, category).await {
+        let outcome = fetch_all_assets_with_pagination(&mut client, &storage, category).await;
+        match &outcome {
             Ok((success, failed)) => {
                 info!(
                     "    ✓ {}: {} success, {} failed",
@@ -366,9 +411,10 @@ async fn fetch_siman_data(config: Config, db_client: Option<Arc<Client>>) -> Res
                 warn!("    ⚠ Failed to fetch {:?}: {}", category, e);
             }
         }
+        failures.extend(siman_category_failure(category.description(), &outcome));
     }
 
-    Ok(())
+    fail_if_any("kategori SIMAN", failures)
 }
 
 /// Save data to database or file based on configuration
@@ -460,5 +506,45 @@ mod tests {
         for n in ["MonSAKTI: a", "MySIMKARI: b", "SIMAN: c"] {
             assert!(err.contains(n), "{err}");
         }
+    }
+
+    #[test]
+    fn a_category_taken_in_whole_is_not_a_failure() {
+        let ok: std::result::Result<(usize, usize), String> = Ok((12_000, 0));
+        assert_eq!(siman_category_failure("Tanah", &ok), None);
+        // Nothing to fetch is not a failure either: the API answered, the category is empty.
+        let empty: std::result::Result<(usize, usize), String> = Ok((0, 0));
+        assert_eq!(siman_category_failure("KDP", &empty), None);
+    }
+
+    #[test]
+    fn a_category_that_could_not_be_asked_for_is_a_failure_naming_why() {
+        let err: std::result::Result<(usize, usize), String> =
+            Err("Request HTTP gagal: token".to_string());
+        let msg = siman_category_failure("Tanah", &err).expect("an Err is a failure");
+        assert!(
+            msg.contains("Tanah") && msg.contains("Request HTTP gagal"),
+            "{msg}"
+        );
+    }
+
+    #[test]
+    fn a_category_with_failed_chunks_is_a_failure_even_though_the_call_returned_ok() {
+        // `Ok((3, 2))`: two of five 1000-row chunks never arrived. The local copy is incomplete.
+        let partial: std::result::Result<(usize, usize), String> = Ok((3, 2));
+        let msg = siman_category_failure("Gedung dan Bangunan", &partial)
+            .expect("failed chunks are a failure");
+        assert!(msg.contains("Gedung dan Bangunan"), "{msg}");
+        assert!(msg.contains("2 potongan data gagal"), "{msg}");
+    }
+
+    #[test]
+    fn a_loop_that_carried_on_still_fails_the_run_and_names_every_item() {
+        assert!(fail_if_any("kategori SIMAN", vec![]).is_ok());
+        let err = fail_if_any("kategori SIMAN", vec!["Tanah: a".into(), "KDP: b".into()])
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("2 kategori SIMAN gagal"), "{err}");
+        assert!(err.contains("Tanah: a") && err.contains("KDP: b"), "{err}");
     }
 }

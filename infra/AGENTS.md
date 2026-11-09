@@ -550,6 +550,13 @@ keluar non-nol saat kerjanya gagal; `layanan/integrasi/tests/scheduler_exit_stat
 Akibatnya `backoffLimit: 1` mengulang SATU kali: gagal = paling banyak dua panggilan API per jadwal (lihat RUNBOOK §9.4
 bila rate-limit).
 
+Loop yang **melanjutkan** setelah satu item gagal (10 kategori SIMAN, sampel pegawai MySIMKARI) tetap menyelesaikan
+semua item supaya satu yang buruk tak menyembunyikan sisanya, tetapi RUN gagal bila ada satu item pun yang gagal
+(`fail_if_any` di `layanan/integrasi/src/scheduler.rs`). Cukup `warn!` lalu `Ok(())` pernah membuat Job `siman` berakhir
+`Complete` dengan 10 dari 10 kategori gagal (rehearsal rc43). Perilaku ini belum diuji terhadap API asli: bila satu
+kategori SIMAN sah mengembalikan galat tiap run, cron akan merah terus, dan itu harus diputuskan (tangani kategorinya,
+jangan kembalikan `Ok(())` secara buta).
+
 Override schedule per-env di `values-staging.yaml` / `values-production.yaml`:
 
 ```yaml
