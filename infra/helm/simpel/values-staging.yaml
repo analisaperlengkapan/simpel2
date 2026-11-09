@@ -460,6 +460,10 @@ authenc:
     requests: { cpu: 250m, memory: 256Mi }
     limits:   { cpu: "1",  memory: 512Mi }
   hpa: { enabled: true, minReplicas: 2, maxReplicas: 3, cpuUtilization: 75, memoryUtilization: 80 }
+  # Dua replika wajib terpisah bila bisa — kalau tidak, satu node mati = authenc mati (kube-linter
+  # `no-anti-affinity` menolak chart ini tanpa ini). `preferred`, bukan `required`: dengan 2 node,
+  # `required` + surge RollingUpdate membuat pod ke-3 tak punya tempat dan rollout macet.
+  podAntiAffinity: { type: preferred }
 secreton:
   replicas: 1
 layananIntegrasi:
