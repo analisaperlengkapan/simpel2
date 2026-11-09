@@ -64,3 +64,51 @@ fn a_sync_that_could_not_reach_its_api_is_a_failed_run() {
         "a sync that fetched NOTHING exited 0, so the Job would be marked Complete:\n{log}"
     );
 }
+
+#[test]
+fn a_siman_sync_whose_every_category_failed_is_a_failed_run() {
+    // SIMAN fetches ten categories one after another. Each category that cannot be fetched used
+    // to be logged as `Failed to fetch …` and skipped, then the run returned Ok: the rehearsal's
+    // `siman` Job ended `Complete` with 10 of 10 categories failed. SIMAN is the asset source of
+    // record, so an expired client secret must turn the CronJob red, not green.
+    let out = run_scheduler(
+        &["--source", "siman"],
+        &[
+            ("SIMAN_BASE_URL", "http://127.0.0.1:9"),
+            ("SIMAN_TOKEN_URL", "http://127.0.0.1:9/connect/token"),
+            ("SIMAN_CLIENT_ID", "bukan-client"),
+            ("SIMAN_CLIENT_SECRET", "bukan-rahasia-sungguhan"),
+            ("SIMAN_BA_KEY", "bukan-kunci"),
+        ],
+    );
+    let log = text(&out);
+    assert!(
+        log.contains("Failed to fetch"),
+        "the per-category failure must still be logged for whoever reads the pod log:\n{log}"
+    );
+    assert!(
+        !out.status.success(),
+        "a SIMAN sync in which EVERY category failed exited 0, so the Job would be Complete:\n{log}"
+    );
+}
+
+#[test]
+fn a_monsakti_sync_that_could_not_reach_its_api_is_a_failed_run() {
+    // The third CronJob. It already propagated before the SIMAN fix; this keeps it that way.
+    let out = run_scheduler(
+        &["--source", "monsakti"],
+        &[
+            ("MONSAKTI_BASE_URL", "http://127.0.0.1:9"),
+            ("MONSAKTI_TOKEN_ADM", "bukan-token-sungguhan"),
+        ],
+    );
+    let log = text(&out);
+    assert!(
+        log.contains("Manual sync failed"),
+        "the failure must still be logged for whoever reads the pod log:\n{log}"
+    );
+    assert!(
+        !out.status.success(),
+        "a MonSAKTI sync that fetched NOTHING exited 0:\n{log}"
+    );
+}
