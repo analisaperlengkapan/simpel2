@@ -180,6 +180,10 @@ fn load_grpc_tls() -> std::result::Result<Option<authenc_grpc::TlsConfig>, Strin
     };
     let ca = std::env::var("GRPC_TLS_CA_PATH").ok();
     let mutual = ca.is_some();
+    // This binary links both rustls providers (lettre enables `ring`, tonic/reqwest use
+    // `aws_lc_rs`), so rustls cannot pick one by itself and the first TLS config panics —
+    // it crash-looped authenc in staging rc39. Install it before the listener builds one.
+    lib_backend::grpc::ensure_crypto_provider();
     match authenc_grpc::TlsConfig::from_files(&cert, &key, ca) {
         Ok(cfg) => {
             info!("gRPC mTLS enabled (mutual_auth={})", mutual);

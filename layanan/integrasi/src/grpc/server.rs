@@ -176,6 +176,9 @@ pub async fn start_grpc_server(
             let read = |p: &PathBuf| {
                 std::fs::read(p).map_err(|e| format!("cannot read {}: {e}", p.display()))
             };
+            // Not ambiguous today (this binary links aws_lc_rs only), but one new dependency
+            // that enables `ring` would make the first TLS config panic, as authenc's did.
+            lib_backend::grpc::ensure_crypto_provider();
             let tls = ServerTlsConfig::new()
                 .identity(Identity::from_pem(read(&cert)?, read(&key)?))
                 .client_ca_root(Certificate::from_pem(read(&ca)?));

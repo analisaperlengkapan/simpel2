@@ -166,6 +166,8 @@ pub fn endpoint(url: &str, tls: &ClientTls) -> Result<Endpoint, ClientTlsError> 
             Err(ClientTlsError::PlaintextUrlWithTls(url.to_string()))
         }
         (ClientTls::Enabled { ca, cert, key }, true) => {
+            // Before the first rustls config in the process — see the function's docs.
+            super::ensure_crypto_provider();
             let cfg = ClientTlsConfig::new()
                 .ca_certificate(Certificate::from_pem(read_pem(ca)?))
                 .identity(Identity::from_pem(read_pem(cert)?, read_pem(key)?));

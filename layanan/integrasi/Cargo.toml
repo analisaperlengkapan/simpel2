@@ -13,7 +13,7 @@ categories = ["api-bindings", "web-programming::http-client"]
 [features]
 integration-tests = []
 default = []
-grpc = ["dep:tonic", "dep:prost", "dep:tonic-prost"]
+grpc = ["dep:tonic", "dep:prost", "dep:tonic-prost", "lib-backend/grpc"]
 
 [dependencies]
 reqwest = { workspace = true, features = [
