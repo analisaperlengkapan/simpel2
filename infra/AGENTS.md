@@ -542,6 +542,14 @@ kubectl -n simpelv2-staging create job --from=cronjob/layanan-integrasi-mysimkar
 kubectl -n simpelv2-staging logs job/manual-XXXX --tail=200
 ```
 
+**Status keluar proses = satu-satunya sinyal CronJob.** Job controller hanya melihat kode keluar binary: `Complete`
+→ `lastSuccessfulTime` maju, `Failed` → terlihat. `scheduler --source X` dulu mencatat `❌ Manual sync failed` lalu
+`return Ok(())`, jadi sinkronisasi yang tak pernah berhasil (token kedaluwarsa, API mati, URL salah) tetap `Complete`
+tanpa satu pun sinyal merah (ditemukan 2026-11-09 di rehearsal produksi). Binary apa pun yang dijalankan CronJob WAJIB
+keluar non-nol saat kerjanya gagal; `layanan/integrasi/tests/scheduler_exit_status.rs` menjalankan binary sungguhan.
+Akibatnya `backoffLimit: 1` mengulang SATU kali: gagal = paling banyak dua panggilan API per jadwal (lihat RUNBOOK §9.4
+bila rate-limit).
+
 Override schedule per-env di `values-staging.yaml` / `values-production.yaml`:
 
 ```yaml

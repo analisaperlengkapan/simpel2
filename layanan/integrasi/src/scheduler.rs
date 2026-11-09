@@ -175,21 +175,50 @@ impl IntegrationScheduler {
                 let c2 = config.clone();
                 let c3 = config.clone();
 
-                // Run sequentially to avoid overwhelming the database or network
-                if let Err(e) = fetch_monsakti_data(c1, self.db_client.clone()).await {
-                    error!("❌ MonSAKTI manual fetch failed: {}", e);
+                // Run sequentially to avoid overwhelming the database or network. One source
+                // failing must not stop the others, but it MUST still fail the run: see
+                // `fold_source_results`.
+                let results = vec![
+                    (
+                        "MonSAKTI",
+                        fetch_monsakti_data(c1, self.db_client.clone()).await,
+                    ),
+                    (
+                        "MySIMKARI",
+                        fetch_mysimkari_data(c2, self.db_client.clone()).await,
+                    ),
+                    ("SIMAN", fetch_siman_data(c3, self.db_client.clone()).await),
+                ];
+                for (name, result) in &results {
+                    if let Err(e) = result {
+                        error!("❌ {} manual fetch failed: {}", name, e);
+                    }
                 }
-                if let Err(e) = fetch_mysimkari_data(c2, self.db_client.clone()).await {
-                    error!("❌ MySIMKARI manual fetch failed: {}", e);
-                }
-                if let Err(e) = fetch_siman_data(c3, self.db_client.clone()).await {
-                    error!("❌ SIMAN manual fetch failed: {}", e);
-                }
+                fold_source_results(results)?;
             }
         }
 
         info!("✅ Manual data fetch completed for {:?}", source);
         Ok(())
+    }
+}
+
+/// Folds the per-source results of an `All` run into ONE result: the run succeeded only if
+/// EVERY source did.
+///
+/// This used to log each failure and return `Ok(())`. The Kubernetes CronJobs run this as a
+/// process, and the process exit status is the ONLY thing the Job controller sees: a run in which
+/// every source failed (expired token, API down, wrong base URL) still ended `Complete`, so
+/// `lastSuccessfulTime` advanced and nothing anywhere turned red while no data arrived.
+fn fold_source_results(results: Vec<(&'static str, Result<()>)>) -> Result<()> {
+    let failed: Vec<String> = results
+        .into_iter()
+        .filter_map(|(name, r)| r.err().map(|e| format!("{name}: {e}")))
+        .collect();
+    if failed.is_empty() {
+        Ok(())
+    } else {
+        anyhow::bail!("{} sumber gagal — {}", failed.len(), failed.join("; "))
     }
 }
 
@@ -391,5 +420,45 @@ mod tests {
         let config = Config::default();
         let scheduler = IntegrationScheduler::new(config).await;
         assert!(scheduler.is_ok());
+    }
+
+    #[test]
+    fn a_run_succeeds_only_when_every_source_did() {
+        let ok = vec![
+            ("MonSAKTI", Ok(())),
+            ("MySIMKARI", Ok(())),
+            ("SIMAN", Ok(())),
+        ];
+        assert!(fold_source_results(ok).is_ok());
+    }
+
+    #[test]
+    fn one_failed_source_fails_the_run_and_names_it() {
+        let results = vec![
+            ("MonSAKTI", Ok(())),
+            ("MySIMKARI", Err(anyhow::anyhow!("token kedaluwarsa"))),
+            ("SIMAN", Ok(())),
+        ];
+        let err = fold_source_results(results).unwrap_err().to_string();
+        assert!(err.contains("1 sumber gagal"), "{err}");
+        assert!(err.contains("MySIMKARI: token kedaluwarsa"), "{err}");
+        assert!(
+            !err.contains("MonSAKTI"),
+            "a source that worked must not be blamed: {err}"
+        );
+    }
+
+    #[test]
+    fn every_failed_source_is_reported_not_just_the_first() {
+        let results = vec![
+            ("MonSAKTI", Err(anyhow::anyhow!("a"))),
+            ("MySIMKARI", Err(anyhow::anyhow!("b"))),
+            ("SIMAN", Err(anyhow::anyhow!("c"))),
+        ];
+        let err = fold_source_results(results).unwrap_err().to_string();
+        assert!(err.contains("3 sumber gagal"), "{err}");
+        for n in ["MonSAKTI: a", "MySIMKARI: b", "SIMAN: c"] {
+            assert!(err.contains(n), "{err}");
+        }
     }
 }

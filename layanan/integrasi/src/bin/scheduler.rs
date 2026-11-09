@@ -100,19 +100,23 @@ async fn main() -> Result<()> {
             "mysimkari" => layanan_integrasi::scheduler::DataSource::Mysimkari,
             "siman" => layanan_integrasi::scheduler::DataSource::Siman,
             _ => {
-                error!(
+                // A typo in a CronJob's `--source` is a broken deployment, not a run to shrug at.
+                anyhow::bail!(
                     "Invalid source: {}. Use 'all', 'monsakti', 'mysimkari', or 'siman'.",
                     source
                 );
-                return Ok(());
             }
         };
 
-        if let Err(e) = scheduler.run_manual_sync(source_enum).await {
+        // The exit status is the ONLY thing a Kubernetes CronJob sees. A failed sync used to be
+        // logged and followed by `return Ok(())`, so every run ended `Complete` — with
+        // `lastSuccessfulTime` advancing — while not one row had been fetched (found 2026-11-09
+        // in the production rehearsal: `ERROR ❌ Manual sync failed` and `Succeeded` together).
+        scheduler.run_manual_sync(source_enum).await.map_err(|e| {
             error!("❌ Manual sync failed: {}", e);
-        } else {
-            info!("✅ Manual sync completed successfully");
-        }
+            e
+        })?;
+        info!("✅ Manual sync completed successfully");
         return Ok(());
     }
 
