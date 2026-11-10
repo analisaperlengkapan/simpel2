@@ -282,6 +282,15 @@ Pemeriksaan pertama menemukan hal-hal yang akan menggagalkan hari pertama:
   `component=scheduler` butuh egress 443 sendiri (`layanan-integrasi-scheduler-egress`); policy lama hanya memilih
   Deployment. `check-mesh-strict-reach.py` (CI) menurunkan (1) dan (2) dari render.
 
+Dua kelas cacat lagi yang HANYA tampak di profil produksi, keduanya ditemukan saat SIMPEL v1 pertama kali
+dinyalakan di rehearsal (2026-11-10), karena v1 tak pernah berjalan di profil itu: (a) **LimitRange menolak POD,
+bukan Deployment** — init container `nginx-dirs` meminta 16Mi, minimum produksi 32Mi, jadi `simpelv1` hidup 0/3 tanpa
+satu pun pod dan tanpa galat selain event `FailedCreate` pada ReplicaSet; staging tak punya LimitRange.
+`check-limitrange-bounds.py` (CI) membaca batasnya dari render. (b) **Klaster produksi hanya DUA node**:
+`podAntiAffinity: required` per host dengan 3 replika membuat pod ke-3 `Pending` selamanya, PDB `minAvailable: 2`
+menutup semua gangguan, dan rolling update macet (maxUnavailable 25% dari 3 = 0). Pakai `preferred`; `required`
+hanya bila replika ≤ jumlah node.
+
 Urutan lengkap: `infra/helm/RUNBOOK.md` §1.
 
 ### 4. Image Registry & Tag

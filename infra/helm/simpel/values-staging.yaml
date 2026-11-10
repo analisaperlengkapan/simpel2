@@ -398,7 +398,15 @@ global:
   # (SIMAN mingguan). Biner `scheduler` juga menggerbangi jalur `--source` dengan flag yang sama,
   # jadi default mati saja akan membuat semua CronJob keluar 0 tanpa sinkronisasi; flag kini
   # hanya menggerbangi daemon. rc44 jangan dipromosikan.
-  imageTag: v0.1.0-rc45
+  #
+  # rc46 = rc45 + dua perbaikan chart yang HANYA tampak setelah SIMPEL v1 dinyalakan di profil
+  # produksi (rehearsal rc45). rc45 lolos e2e 218/218 dan membuktikan daemon scheduler mati, TETAPI:
+  # (1) init container `nginx-dirs` v1 meminta 16Mi sedangkan LimitRange produksi mensyaratkan 32Mi
+  # ⇒ pod ditolak, Deployment `simpelv1` 0/3 tanpa pod; staging tak punya LimitRange. (2) v1 memakai
+  # podAntiAffinity `required` per host dengan 3 replika di klaster DUA node ⇒ pod ke-3 Pending
+  # selamanya, PDB minAvailable 2 menutup semua gangguan, rolling update macet. Gambar identik secara
+  # kode dengan rc45; tag baru hanya agar yang diuji = yang dipromosikan. rc45 jangan dipromosikan.
+  imageTag: v0.1.0-rc46
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`

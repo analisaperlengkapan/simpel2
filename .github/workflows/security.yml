@@ -745,6 +745,19 @@ jobs:
               < "rendered/${f}.yaml" \
               | python3 ./infra/scripts/check-mesh-strict-reach.py "$f"
           done
+      # LimitRange menolak POD, bukan Deployment: container di bawah `min`/di atas `max` membuat
+      # ReplicaSet gagal FailedCreate dan Deployment hidup dengan 0/N pod tanpa galat lain. Staging
+      # tak punya LimitRange, jadi hanya production yang melihatnya (init container v1 16Mi < 32Mi,
+      # rehearsal 2026-11-10). Batasnya dibaca dari render, bukan dari daftar.
+      - name: Setiap container muat di LimitRange namespace-nya
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
+          for f in staging production; do
+            docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
+              < "rendered/${f}.yaml" \
+              | python3 ./infra/scripts/check-limitrange-bounds.py "$f"
+          done
       # mTLS gRPC tersebar di lima tempat yang harus sepakat (Secret PKI, env server,
       # env klien, skema *_GRPC_URL, appProtocol Service). Salah satunya meleset =
       # `helm lint` dan kube-linter tetap hijau, dan akibatnya: pod production
