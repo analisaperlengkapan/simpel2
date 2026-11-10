@@ -192,8 +192,12 @@ simpelv1:
     # rusak (`http://portal:3000/portal`) — alamat in-cluster yang dikirim ke
     # browser pengguna.
     PORTAL_URL: "https://simpel.kejaksaan.go.id/portal"
+  # `preferred`, BUKAN `required`: klaster production hanya punya DUA node. `required` per host dengan
+  # 3 replika membuat pod ke-3 `Pending` selamanya ("2 node(s) didn't match pod anti-affinity rules"),
+  # lalu PDB `minAvailable: 2` tak menyisakan satu pun gangguan dan rolling update (maxUnavailable 25% dari 3
+  # = 0, surge tak punya tempat) macet. Ditemukan di rehearsal rc45; semua workload lain sudah `preferred`.
   podAntiAffinity:
-    type: required
+    type: preferred
   # `none`: tak ada init container restore. `secret` TIDAK BISA dipakai — Secret maksimum 1 MiB,
   # dump produksi ±182 MB. Data dimuat lewat `kubectl exec ... psql` (RUNBOOK §1.7a).
   dbBackup:
