@@ -128,13 +128,19 @@ layananIntegrasi:
     enabled: true
     maxSkew: 1
     whenUnsatisfiable: ScheduleAnyway
-  # CronJob AKTIF di production (override staging suspend=true).
+  # CronJob AKTIF di production (override staging suspend=true), KECUALI monsakti.
   # Schedule warisi dari values.yaml:
-  #   SIMAN Minggu 04:00 WIB, MySIMKARI tiap 6 jam, MonSAKTI tiap hari 03:00 WIB.
+  #   SIMAN Minggu 04:00 WIB, MySIMKARI tiap 6 jam.
+  # monsakti DI-SUSPEND (operator, 2026-11-10): MonSAKTI sudah tidak aktif; penggantinya MyIntress
+  # (API + dokumentasinya masih diminta, belum ada klien di layanan-integrasi). Dibiarkan jalan, Job
+  # harian ini gagal tiap malam (exit non-nol sejak rc43) terhadap layanan yang sudah mati. Tak ada
+  # fitur v2 yang membaca data MonSAKTI (klien gRPC `get_monsakti_persediaan` tak dipanggil siapa pun).
+  # Kunci `MONSAKTI_*` boleh dihilangkan dari `secrets.integration` (pod memakai envFrom: kunci yang
+  # tak ada tidak jadi masalah). Nyalakan lagi atau ganti dengan MyIntress bila API-nya sudah ada.
   cronjobs:
     siman:      { suspend: false }
     mysimkari:  { suspend: false }
-    monsakti:   { suspend: false }
+    monsakti:   { suspend: true }
 layananPerlengkapan:
   replicas: 3
   resources:
@@ -165,13 +171,13 @@ layananPerlengkapan:
     enabled: true
     size: 20Gi
 simpelv1:
-  # NONAKTIF untuk go-live pertama. SIMPEL v1 butuh database lamanya (dbsimpelv1) terisi data nyata,
-  # dan pod-nya memasang Secret `simpelv1-db-backup` (dump) saat start; keduanya milik operator dan
-  # belum ada. Tanpa data itu pod v1 macet di ContainerCreating dan pengguna melihat aplikasi kosong.
-  # Nyalakan (true) HANYA setelah dump produksi v1 siap dimuat. Rute /perlengkapan/simpel/v1 tetap ada
-  # (parity dengan staging) dan menjawab 503 selama v1 mati. v2 (portal, perlengkapan, authenc,
-  # integrasi) tidak bergantung pada v1.
-  enabled: false
+  # AKTIF untuk go-live pertama (keputusan operator 2026-11-10): SIMPEL v1 tetap berjalan berdampingan
+  # dengan v2. v2 (portal, perlengkapan, authenc, integrasi) TIDAK bergantung pada v1, jadi v1 yang
+  # gagal tidak boleh menahan v2. Datanya dimuat SETELAH install langsung ke `dbsimpelv1`
+  # (RUNBOOK §1.7a), bukan lewat Secret: dump produksi ±182 MB, batas Secret/ConfigMap 1 MiB.
+  # Sebelum data dimuat, pod v1 berjalan di atas database kosong (aplikasi kosong) — wajar, dan
+  # tak ada pengguna yang diarahkan ke sana sampai pemuatan selesai.
+  enabled: true
   replicas: 3
   image:
     tag: v0.1.0                            # immutable tag di production
@@ -188,8 +194,10 @@ simpelv1:
     PORTAL_URL: "https://simpel.kejaksaan.go.id/portal"
   podAntiAffinity:
     type: required
+  # `none`: tak ada init container restore. `secret` TIDAK BISA dipakai — Secret maksimum 1 MiB,
+  # dump produksi ±182 MB. Data dimuat lewat `kubectl exec ... psql` (RUNBOOK §1.7a).
   dbBackup:
-    source: secret
+    source: none
     name: simpelv1-db-backup
   hpa:
     enabled: true

@@ -842,7 +842,9 @@ simpelv1:
       seccompProfile: { type: RuntimeDefault }
   dbBackup:
     # source: configMap | secret | none
-    # Staging pakai configMap (small dump checked-in), production pakai secret (gitignored).
+    # configMap/secret dibatasi 1 MiB oleh Kubernetes: hanya untuk dump kecil. Dump produksi
+    # (±182 MB) tidak muat, jadi staging DAN production memakai `none` dan data dimuat lewat
+    # `kubectl exec ... psql` (RUNBOOK §1.7a).
     source: none
     name: simpelv1-db-backup
   podAntiAffinity:
