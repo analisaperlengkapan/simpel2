@@ -150,15 +150,48 @@ fn a_cronjob_run_does_not_depend_on_the_daemon_flag() {
 fn the_daemon_does_not_start_unless_asked_to() {
     // No `--source`, nothing in the environment: this is the shape of `server`'s own decision
     // too, since both read the same default. It must stand down at once. Before, the default was
-    // ON, so the process went on to start a cron that never exits.
-    let out = run_scheduler(&[], &[]);
-    let log = text(&out);
+    // ON, so the process went on to start a cron that never exits — which is why this test gives
+    // the child a deadline and kills it: a regression must FAIL, not hang the CI job.
+    use std::io::Read;
+    use std::process::Stdio;
+    use std::time::{Duration, Instant};
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_scheduler"))
+        .env_clear()
+        .env("RUST_LOG", "info")
+        .env("DATABASE_URL", "")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("the scheduler binary must start");
+
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let status = loop {
+        if let Some(st) = child.try_wait().expect("try_wait") {
+            break Some(st);
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            break None;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    };
+
+    let mut log = String::new();
+    if let Some(mut o) = child.stdout.take() {
+        let _ = o.read_to_string(&mut log);
+    }
+    if let Some(mut e) = child.stderr.take() {
+        let _ = e.read_to_string(&mut log);
+    }
+
+    let status = status.unwrap_or_else(|| {
+        panic!("the daemon was still running after 30 s: it starts by default again:\n{log}")
+    });
     assert!(
         log.contains("daemon is disabled"),
         "the daemon must stand down by default:\n{log}"
     );
-    assert!(
-        out.status.success(),
-        "standing down is not a failure:\n{log}"
-    );
+    assert!(status.success(), "standing down is not a failure:\n{log}");
 }
