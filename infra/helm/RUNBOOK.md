@@ -267,8 +267,12 @@ echo "ANALYZE" | kubectl -n $NS exec -i postgres-0 -c postgres -- sh -c 'psql -U
 kubectl -n $NS delete pod -l app=simpelv1       # pod v1 membaca database yang kini terisi
 ```
 
-Muat ULANG hanya pada database kosong: perintah ini menggandakan data bila tabel sudah ada (dan `-1` +
-`ON_ERROR_STOP` membuatnya gagal di `CREATE TABLE` pertama sebelum mengubah apa pun).
+Muat ULANG hanya pada database kosong. Pada database yang sudah terisi perintah ini gagal di pernyataan
+pertama (`ERROR:  schema "mon_sakti" already exists`) dan, karena `-1` + `ON_ERROR_STOP`, tak mengubah apa pun
+(diuji di rehearsal: tabel tetap 259). TETAPI `kubectl exec -i` TIDAK kembali sendiri setelah `psql` di pod
+keluar karena galat — layar berhenti setelah pesan galat. Tekan Ctrl-C; jangan menganggapnya masih memuat. Bila
+ingin kode keluar yang tegas, jadikan hasil `gunzip | sed` sebuah berkas dan pakai `timeout 300 kubectl exec -i … <
+berkas` (kode 124 = menggantung setelah galat; periksa jumlah tabel).
 
 ### 1.8 Verifikasi
 
