@@ -389,7 +389,16 @@ global:
   # yang sudah dihapus dari `penghapusan_bmn`, galatnya ditelan sebagai "non-blocking", dan
   # harness tes tak memasang notifier seperti main.rs sehingga jalur itu tak pernah berjalan.
   # rc43 jangan dipromosikan.
-  imageTag: v0.1.0-rc44
+  #
+  # rc45 = rc44 + daemon scheduler dalam-proses dimatikan. rc44 lolos e2e 218/218 TETAPI
+  # pemindaian log pasca-e2e (dan rehearsal profil produksi, 2 replika) memperlihatkan pod server
+  # `layanan-integrasi` menjalankan sinkronisasi MySIMKARI, SIMAN (10 kategori), dan MonSAKTI
+  # tiap 15 menit: `SCHEDULER_ENABLED` default true, chart tak pernah mengisinya, dan jadwal chart
+  # `0 */15 * * * *`. Di produksi itu API pemerintah asli, per replika, di luar jadwal CronJob
+  # (SIMAN mingguan). Biner `scheduler` juga menggerbangi jalur `--source` dengan flag yang sama,
+  # jadi default mati saja akan membuat semua CronJob keluar 0 tanpa sinkronisasi; flag kini
+  # hanya menggerbangi daemon. rc44 jangan dipromosikan.
+  imageTag: v0.1.0-rc45
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`

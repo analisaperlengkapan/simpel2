@@ -109,8 +109,17 @@ fn default_concurrency_limit() -> usize {
     5
 }
 
+/// The in-process scheduler daemon is OFF unless someone asks for it.
+///
+/// Syncs are run by the Kubernetes CronJobs (`./scheduler --source <p>`, one per provider, each
+/// with its own schedule). `server` also owns a daemon, and it defaulted to ON: every replica of
+/// the gRPC Deployment then ran MySIMKARI, SIMAN (ten categories) and MonSAKTI on its own cron —
+/// in the chart that was `0 */15 * * * *` — next to the CronJobs. Found in the production
+/// rehearsal on 2026-11-10: both replicas started a SIMAN sync every 15 minutes, which in
+/// production is the real Kemenkeu API, twice as often per replica as the CronJob design says
+/// once a week. A replicated server must never schedule work by default.
 fn default_scheduler_enabled() -> bool {
-    true
+    false
 }
 
 fn default_monsakti_schedule() -> String {
@@ -258,5 +267,20 @@ impl Default for Config {
             siman_schedule: default_siman_schedule(),
             scheduler_timezone: default_scheduler_timezone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `server` starts a scheduler daemon when this is true. It is the replicated gRPC Deployment,
+    /// so "true by default" meant N copies of every sync next to the CronJobs (see
+    /// `default_scheduler_enabled`). Nothing in the chart sets `SCHEDULER_ENABLED`, so this default
+    /// IS the production behaviour.
+    #[test]
+    fn the_server_does_not_schedule_syncs_unless_asked_to() {
+        assert!(!default_scheduler_enabled());
+        assert!(!Config::default().scheduler_enabled);
     }
 }
