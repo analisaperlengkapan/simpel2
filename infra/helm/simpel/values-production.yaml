@@ -40,7 +40,12 @@ resourceQuota:
   hard:
     requests.cpu: "20"
     requests.memory: 40Gi
-    limits.cpu: "40"
+    # Kuota `limits` menghitung SIDECAR yang disuntik Istio: tiap pod bermesh membawa 2 CPU limit
+    # (istio-proxy), jadi satu pod v1 = 3,1 CPU dan satu pod portal = 2,25. Dengan v1 menyala, keadaan TENANG
+    # sudah memakai 37,8 dari 40 (rehearsal rc45): surge rolling update v1 (3,1) tak muat, ReplicaSet baru
+    # FailedCreate "exceeded quota", rollout macet, HPA tak bisa menambah replika. 80 < alokasi dua node
+    # (2 x 48 CPU) dan hanya batas atas, bukan reservasi (reservasi = requests: 4,5 dari 20).
+    limits.cpu: "80"
     limits.memory: 80Gi
     persistentvolumeclaims: "20"
     pods: "100"
