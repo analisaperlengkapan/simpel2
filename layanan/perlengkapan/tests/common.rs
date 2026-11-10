@@ -595,7 +595,13 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
         PakaianDinasService::new(pakaian_dinas_repo).with_notifier(notifier.clone());
 
     let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());
-    let kebutuhan_bmn_workflow = WorkflowEngine::for_kebutuhan_bmn(db.pool().clone());
+    // The three workflow engines carry the notifier here exactly as `main.rs` gives it to them.
+    // They did not: `transition()` only builds notifications when a notifier is present, and it
+    // swallows a failure there as "non-blocking", so for as long as this harness left it off,
+    // no test ever ran the notification SQL. The penghapusan branch selected a column that does
+    // not exist, failed on every transition in staging, and nothing here could have said so.
+    let kebutuhan_bmn_workflow = WorkflowEngine::for_kebutuhan_bmn(db.pool().clone())
+        .with_notification_sender(notifier.clone());
     // Wired like `main.rs`: the satker-level transitions audit themselves, and a
     // harness that omits the sink would let that emission rot unseen.
     let kebutuhan_bmn_service = KebutuhanBmnService::new(
@@ -612,13 +618,15 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
     let roadmap_service = RoadmapService::new(roadmap_repo);
 
     let pemakaian_bmn_repo = PemakaianBmnRepository::new(db.pool().clone());
-    let pemakaian_bmn_workflow = WorkflowEngine::for_pemakaian_bmn(db.pool().clone());
+    let pemakaian_bmn_workflow = WorkflowEngine::for_pemakaian_bmn(db.pool().clone())
+        .with_notification_sender(notifier.clone());
     let pemakaian_bmn_service =
         PemakaianBmnService::new(pemakaian_bmn_repo, pemakaian_bmn_workflow)
             .with_document_generator(docs.clone());
 
     let penghapusan_bmn_workflow = WorkflowEngine::for_penghapusan_bmn(db.pool().clone())
-        .with_document_generator(docs.clone());
+        .with_document_generator(docs.clone())
+        .with_notification_sender(notifier.clone());
     let penghapusan_bmn_service = Arc::new(
         PenghapusanBmnService::new(db.pool().clone(), Arc::new(penghapusan_bmn_workflow))
             .with_document_generator(docs.clone()),
