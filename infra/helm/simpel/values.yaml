@@ -266,10 +266,16 @@ backendConfig:
   secretonGrpcUrl: ""                      # default: http://secreton.<ns>.svc.cluster.local:9000
   secretonEndpoint: ""                     # default: http://secreton.<ns>.svc.cluster.local:8200
   integrasiGrpcUrl: ""                     # default: http://layanan-integrasi.<ns>.svc.cluster.local:50051
+  # Jadwal untuk daemon scheduler DALAM-PROSES (6 field, tokio-cron). Daemon itu MATI secara
+  # default (`SCHEDULER_ENABLED` tak pernah diisi chart; default kode = false), jadi nilai di sini
+  # tidak dipakai: yang menjadwalkan sinkronisasi adalah CronJob `layananIntegrasi.cronjobs`.
+  # Disamakan dengan CronJob agar daemon yang dinyalakan tak sengaja tak menembak API pemerintah.
+  # Sebelumnya `0 */15 * * * *` untuk ketiganya DAN daemon menyala: tiap replika server menarik
+  # SIMAN (10 kategori) tiap 15 menit (rehearsal produksi 2026-11-10).
   schedules:
-    mysimkari: "0 */15 * * * *"
-    siman: "0 */15 * * * *"
-    monsakti: "0 */15 * * * *"
+    mysimkari: "0 0 */6 * * *"             # = cronjob mysimkari (tiap 6 jam)
+    siman: "0 0 4 * * 0"                   # = cronjob siman (Minggu 04:00)
+    monsakti: "0 0 3 * * *"                # = cronjob monsakti (tiap hari 03:00)
 
 # ─── Infrastructure ────────────────────────────────────────────────────────────
 postgres:

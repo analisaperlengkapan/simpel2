@@ -67,9 +67,17 @@ async fn main() -> Result<()> {
     // Load configuration
     let config = Config::from_env()?;
 
-    if !config.scheduler_enabled {
-        error!("❌ Scheduler is disabled (SCHEDULER_ENABLED=false)");
-        info!("Set SCHEDULER_ENABLED=true in .env to enable scheduling");
+    // Parse CLI args first: whether the daemon flag applies depends on them.
+    let cli = Cli::parse();
+
+    // `SCHEDULER_ENABLED` switches the long-running DAEMON (no `--source`) on or off. It must not
+    // gate `--source <p>`: that is an explicit request for one run, and it is what every
+    // Kubernetes CronJob executes. With the flag off by default (the server must not schedule
+    // work on its own), gating `--source` here would make every CronJob log an error and exit 0
+    // having synced nothing — the silent success this binary's exit status exists to prevent.
+    if cli.source.is_none() && !config.scheduler_enabled {
+        error!("❌ Scheduler daemon is disabled (SCHEDULER_ENABLED=false)");
+        info!("Set SCHEDULER_ENABLED=true to run the daemon, or pass --source <p> for one run");
         return Ok(());
     }
 
@@ -84,9 +92,6 @@ async fn main() -> Result<()> {
         std::env::var("STORAGE_TYPE").unwrap_or_else(|_| "json".to_string())
     );
     info!("  • Output Directory: {}", config.output_dir);
-
-    // Parse CLI args
-    let cli = Cli::parse();
 
     // Create scheduler
     let mut scheduler = IntegrationScheduler::new(config).await?;

@@ -319,6 +319,19 @@ Aturan turunannya:
 
 **IMPORTANT:** Scheduler is **DISABLED** by default. Use K8s CronJob for scheduling.
 
+`SCHEDULER_ENABLED` hanya menggerbangi **daemon** (proses `server`, dan `scheduler` tanpa `--source`).
+`scheduler --source <p>` — yang dijalankan tiap CronJob — adalah permintaan satu kali jalan yang
+eksplisit dan TIDAK bergantung pada flag itu. Jangan menggerbangi `--source` dengan flag ini: CronJob
+akan keluar 0 tanpa menarik apa pun (kegagalan senyap yang sama dengan sinkronisasi gagal berstatus
+`Complete`).
+
+Default kode dulu `true` padahal dokumen ini menulis "disabled", dan chart tak pernah mengisinya:
+setiap replika `server` menjalankan scheduler sendiri dengan jadwal chart `0 */15 * * * *`
+(SIMAN 10 kategori tiap 15 menit, per replika, ke API asli) di samping CronJob. Ditemukan dari
+pemindaian log pasca-e2e dan rehearsal produksi 2026-11-10. Tes yang menjaganya:
+`config::tests::the_server_does_not_schedule_syncs_unless_asked_to`,
+`tests/scheduler_exit_status.rs::{a_cronjob_run_does_not_depend_on_the_daemon_flag,the_daemon_does_not_start_unless_asked_to}`.
+
 ```bash
 # .env
 SCHEDULER_ENABLED=false  # Use K8s CronJob instead
