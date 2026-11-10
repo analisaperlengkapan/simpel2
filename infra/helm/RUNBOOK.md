@@ -173,11 +173,20 @@ mematikan akun seed migrasi (superuser `admin` dan NIP `199203142014031001` yang
 NIP itu sendiri — terlihat di repo publik) lalu membuat akun ini dengan peran `admin` dan
 **wajib ganti sandi di login pertama**. Berikan sandi awalnya lewat saluran terpisah.
 
+Aturan sandi awal (ditegakkan job, `bootstrap_admin.rs::validate_initial_password`): minimal 12
+karakter, TIDAK boleh sama dengan atau memuat NIP-nya, bukan satu karakter berulang. Pelanggarannya
+membuat hook `post-install` gagal, jadi `helm install` produksi gagal. NIP `199203142014031001` (akun
+seed) BOLEH dipilih sebagai administrator pertama — akunnya direklamasi dengan sandi baru — tetapi
+sandinya tidak boleh `199203142014031001` (itu kredensial publik yang justru dipensiunkan job ini).
+Acak saja: `head -c 24 /dev/urandom | base64 | tr -d '/+=\n' | cut -c1-24`.
+
 **SIMPEL v1** (`secrets.simpelv1`): `DB_USERNAME` HARUS sama dengan `secrets.postgresCredentials.username`
 (dump dimuat sebagai role itu; objeknya dimiliki role itu, jadi v1 yang memakai role yang sama bisa
-mengaksesnya). `APP_KEY` v1: bila data lama memuat nilai yang dienkripsi Laravel (kolom terenkripsi,
-sesi), pakai `APP_KEY` ASLI dari `.env` v1 lama — kunci baru membuat nilai itu tak terbaca. Bila tak
-ada yang terenkripsi, kunci baru (`php artisan key:generate --show`) cukup. `JWT_SECRET`: acak 32+ byte.
+mengaksesnya). `APP_KEY`: kunci BARU (`base64:` + 32 byte acak; keputusan operator 2026-11-10). Aman karena
+dump `dbsimpelv1.sql.gz` diperiksa dan berisi 0 payload terenkripsi Laravel (`eyJpdiI6…`) dan 0 nilai
+`base64:` — tak ada data yang jadi tak terbaca; akibatnya hanya cookie sesi lama tak berlaku (pengguna login
+ulang). Periksa ulang bila dump diganti (`zcat dump | grep -c eyJpdiI6` harus 0); bila tak nol, pakai
+`APP_KEY` ASLI dari `.env` v1 lama. `JWT_SECRET`: acak 32+ byte.
 
 **Kunci JWT authenc** (`secrets.authencJwtSecret`, opsional): kunci yang menandatangani SEMUA sesi pengguna.
 Dibiarkan kosong, chart menerbitkannya sendiri pada instalasi pertama (Secret `authenc-jwt`, 256-bit,
@@ -273,46 +282,73 @@ Login dengan administrator pertama, ganti sandi, lalu **cabut sandi awalnya dari
 
 ### 1.9 Rehearsal produksi di cluster staging (WAJIB sebelum 1.7)
 
-Staging memakai profil lain (1 replika, mTLS PERMISSIVE, fixture). Tiga hal hanya terbukti bila
-profil PRODUKSI dijalankan sungguhan: HA + PDB + HPA + kuota + NetworkPolicy, Job bootstrap (akun seed
-mati, administrator pertama bisa login), dan mTLS gRPC pada replika produksi. Rute sudah dijaga
-`check-route-parity.py`; gateway/TLS DigiCert tak bisa dilatih di sini (butuh sertifikat asli).
+Staging memakai profil lain (1 replika, mTLS PERMISSIVE, fixture, cron di-suspend). Yang hanya terbukti
+bila profil PRODUKSI dijalankan sungguhan: HA + PDB + HPA + kuota + NetworkPolicy, Job bootstrap (akun seed
+mati, administrator pertama bisa login), mTLS gRPC STRICT pada replika produksi, dan CronJob integrasi.
+Bukti nilainya: rehearsal + pemindaian log 2026-11-09/10 menemukan 10 cacat (rc41 → rc45) yang e2e 218/218 di staging tidak
+lihat. Gateway/TLS DigiCert tak bisa dilatih di sini (butuh sertifikat asli).
 
-Pasang `values-production.yaml` ke namespace buangan lewat Helm, rilis `simpel-rehearsal` yang
-DISIMPAN di namespace `default` (rilis tak boleh hidup di namespace yang ia hapus sendiri):
+Pasang `values-production.yaml` ke namespace buangan lewat Helm, rilis `simpel-rehearsal` yang DISIMPAN di
+namespace `default` (rilis tak boleh hidup di namespace yang ia hapus sendiri). Chart-nya dari
+`git archive <tag> infra/helm` (rilis persis yang akan dipromosikan), bukan checkout kerja:
 
 ```bash
-helm upgrade --install simpel-rehearsal infra/helm/simpel \
-  -f infra/helm/simpel/values-production.yaml -f <secrets-tiruan.yaml> \
-  -n default --timeout 20m --set secrets.bootstrap=true \
+helm upgrade --install simpel-rehearsal <chart>/simpel \
+  -f <chart>/simpel/values-production.yaml -f <secrets-tiruan.json> \
+  -n default --timeout 20m --set global.imageTag=<tag> --set secrets.bootstrap=true \
   --set namespace.create=true --set namespace.name=simpel-rehearsal --set namespace.retain=false \
-  --set istio.gateway.enabled=false --set istio.virtualService.enabled=false \
-  --set priorityClass.name=simpelv2-rehearsal-default
+  --set istio.gateway.name=simpelv2-rehearsal-gateway --set 'istio.gateway.hosts={rehearsal.simpel.invalid}' \
+  --set istio.gateway.tls.enabled=false --set istio.gateway.httpsRedirect=false \
+  --set istio.virtualService.name=simpelv2-rehearsal-routes \
+  --set 'istio.virtualService.hosts={rehearsal.simpel.invalid}' \
+  --set priorityClass.name=simpelv2-rehearsal-default --set global.storageClass=longhorn
 ```
 
-- `istio.gateway/virtualService.enabled=false`: Gateway dan VirtualService hidup di `istio-system` dan
-  dipakai bersama — rehearsal TIDAK boleh menyentuhnya (nama `simpelv2-prod-routes` bahkan masih dimiliki
-  relik produksi). Uji lewat `kubectl port-forward`/`exec`, bukan ingress.
+- Gateway/VirtualService TETAP dirender, tetapi dengan nama dan host SENDIRI (`simpelv2-rehearsal-*`,
+  `rehearsal.simpel.invalid`, tanpa TLS): keduanya hidup di `istio-system` dan dipakai bersama, jadi memakai
+  nama produksi (`simpelv2-prod-routes` masih dimiliki relik produksi) akan menimpa milik orang lain.
+  Menonaktifkannya (`enabled=false`) menghapus Gateway dari uji. Uji lewat `kubectl exec`/`port-forward`.
 - `priorityClass.name=…rehearsal…`: PriorityClass bersifat cluster-scoped; nama produksi dibiarkan bebas
   untuk instalasi sungguhan.
+- `global.storageClass=longhorn`: kelas `longhorn-retain` milik produksi MENAHAN volume, jadi uninstall
+  meninggalkan PV yatim. Rehearsal harus bersih tanpa sisa.
 - `namespace.retain=false`: satu-satunya pemakai opsi ini. Tanpa itu `helm uninstall` meninggalkan
   Namespace (anotasi `helm.sh/resource-policy: keep`). CI menolaknya di values-staging/production.
-- `<secrets-tiruan.yaml>` = overlay rahasia staging (turunan `helm get values simpel -n simpelv2-staging`,
-  hanya kunci `secrets`, mode 600, di luar repo, `shred` sesudahnya) + `secrets.authencBootstrapAdmin`
-  berisi NIP dan sandi acak sekali pakai. Jangan pernah memakai token asli.
-- `ghcr-pull` harus ada di `simpel-rehearsal` sebelum image bisa ditarik; namespace-nya baru lahir saat
-  `helm` jalan, jadi salin Secret-nya (tanpa menampilkan isinya) begitu namespace muncul.
+- `<secrets-tiruan.json>` = overlay rahasia staging (`helm get values simpel -n simpelv2-staging -o json | jq
+  '{secrets: (.secrets + {authencBootstrapAdmin: {…}})}'`, mode 600 di `/run/user/<uid>`, di luar repo,
+  `shred -u` sesudahnya) + `secrets.authencBootstrapAdmin` berisi NIP dan sandi ACAK sekali pakai (aturan di
+  §1.4). Jangan pernah memakai token asli. SELALU saring `helm get values` (`jq 'del(.secrets)'`/`keys`):
+  keluaran mentahnya memuat sandi.
+- `ghcr-pull` harus ada di `simpel-rehearsal` sebelum image bisa ditarik, dan salin dari `simpelv2-staging`
+  (namespace yang sungguh menarik image ini), BUKAN dari `arc-runners`: itu kredensial lain yang lebih tua dan
+  ghcr.io menjawab 403 untuk paket-paket ini. Namespace baru lahir saat `helm` jalan, jadi salin begitu muncul
+  (`kubectl create`, tanpa menampilkan isinya), lalu hapus pod yang terjebak `ImagePullBackOff`.
 - Muat: ±4,5 CPU / 9 GiB request. `kubectl describe node` dulu — saat CI penuh, pod menunggu
   (PriorityClass `preemptionPolicy: Never` tidak menggusur runner).
 
-Periksa: semua pod Ready; `kubectl -n simpel-rehearsal get hpa,pdb,resourcequota,networkpolicy`;
-log Job `authenc-bootstrap` (akun seed `admin` dan NIP `199203142014031001` nonaktif, administrator
-pertama dibuat); login administrator pertama berhasil dan login akun seed GAGAL; permintaan nyata yang
-menyeberangi tiap hop gRPC (login → authenc, pencarian pegawai/aset → integrasi) tanpa galat TLS di log.
+**Langkah WAJIB — semuanya, bukan sebagian** (tiap butir pernah menangkap cacat nyata):
 
-Bersihkan, dan buktikan tak ada sisa: `helm uninstall simpel-rehearsal -n default`, lalu pastikan
-`kubectl get ns simpel-rehearsal` dan `kubectl get priorityclass simpelv2-rehearsal-default` sama-sama
-NotFound sebelum memasang produksi.
+1. `helm install` BERSIH (bukan upgrade). Semua pod Ready; `kubectl -n simpel-rehearsal get
+   hpa,pdb,resourcequota,networkpolicy`; hook `db-create` → `integrasi-migrate` → `authenc-migrate` →
+   `authenc-bootstrap` berhasil.
+2. Administrator pertama: log Job `authenc-bootstrap` (akun seed `admin` dan NIP `199203142014031001`
+   nonaktif); login berhasil; sandi awal WAJIB diganti; sandi lama ditolak; login akun seed GAGAL.
+3. Matriks token 3×3: token yang diterbitkan tiap replika authenc diterima tiap replika lain dan tiap
+   konsumen (200); token dirusak → 401.
+4. Hop gRPC pada namespace STRICT: permintaan nyata yang menyeberangi tiap hop (login → authenc;
+   pencarian pegawai/aset → integrasi; authenc → integrasi) tanpa galat TLS di log.
+5. CronJob integrasi dijalankan manual (`kubectl create job --from=cronjob/<nama>`), satu per satu.
+   Terhadap URL `.invalid`: `mysimkari`, `monsakti`, `siman` HARUS berakhir `Failed` (exit non-nol) dan
+   `snapshot-refresh` `Complete`. Job yang `Complete` padahal sinkronisasinya gagal = cacat (rc43/rc44).
+6. Pemindaian log SEMUA pod setelah beban: kelompokkan baris ERROR per pesan (angka dinormalkan, jangan
+   dibuang hitungannya) dan jelaskan tiap kelompok. Periksa juga bahwa pod server `layanan-integrasi` TIDAK
+   mencetak `scheduled data fetch` sepanjang ≥ 2 kelipatan 15 menit (daemon scheduler dalam-proses harus
+   mati; CronJob satu-satunya penjadwal — cacat rc44).
+7. Bersihkan, dan buktikan tak ada sisa: `helm uninstall simpel-rehearsal -n default`, lalu pastikan
+   `kubectl get ns simpel-rehearsal`, `kubectl get priorityclass simpelv2-rehearsal-default`,
+   `kubectl -n istio-system get gateway simpelv2-rehearsal-gateway`, `… virtualservice
+   simpelv2-rehearsal-routes` sama-sama NotFound, dan tak ada PV yatim (`kubectl get pv | grep
+   simpel-rehearsal`). Lalu `shred -u` berkas overlay dan sandi administrator rehearsal.
 
 ---
 
