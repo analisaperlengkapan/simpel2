@@ -1624,8 +1624,12 @@ jobs:
       # than silently skipping the suite (a gate that can disable itself is not a
       # gate). The harness hardcodes the password `simpel`, so the service must
       # use it.
-      - name: Start Postgres (perlengkapan integration suite)
-        if: matrix.tier == 'layanan-perlengkapan'
+      # layanan-integrasi needs it too: tests/db_reconnect.rs terminates a live backend and checks that
+      # the server's DbHandle reconnects (a bare client stayed dead after an idle hour on staging).
+      # That test REQUIRES DATABASE_URL and fails without it. Only perlengkapan clears TEST_ARGS:
+      # integrasi's `--features grpc` must survive, or its whole gRPC suite compiles to nothing.
+      - name: Start Postgres (perlengkapan integration suite, integrasi reconnect test)
+        if: matrix.tier == 'layanan-perlengkapan' || matrix.tier == 'layanan-integrasi'
         shell: bash
         run: |
           docker rm -f ci-test-pg >/dev/null 2>&1 || true
@@ -1648,7 +1652,9 @@ jobs:
           # Can THIS runner reach the dind-published port? (proven yes; fail hard if not)
           if timeout 5 bash -c 'exec 3<>/dev/tcp/localhost/5433' 2>/dev/null; then
             echo "DATABASE_URL=postgres://simpel:simpel@localhost:5433/postgres" >> "$GITHUB_ENV"
-            echo "TEST_ARGS=" >> "$GITHUB_ENV"
+            if [ "${{ matrix.tier }}" = "layanan-perlengkapan" ]; then
+              echo "TEST_ARGS=" >> "$GITHUB_ENV"
+            fi
             echo "Postgres reachable on localhost:5433 — integration suite ENABLED"
           else
             echo "::error::dind Postgres unreachable from runner over localhost:5433 — integration suite cannot run"

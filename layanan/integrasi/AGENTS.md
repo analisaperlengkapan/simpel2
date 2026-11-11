@@ -332,6 +332,20 @@ pemindaian log pasca-e2e dan rehearsal produksi 2026-11-10. Tes yang menjaganya:
 `config::tests::the_server_does_not_schedule_syncs_unless_asked_to`,
 `tests/scheduler_exit_status.rs::{a_cronjob_run_does_not_depend_on_the_daemon_flag,the_daemon_does_not_start_unless_asked_to}`.
 
+### Koneksi database server: `DbHandle`, bukan `Client` telanjang
+
+`tokio_postgres::Client` mati selamanya begitu `Connection`-nya berakhir. Server (`bin/server.rs`,
+`bin/grpc_server.rs`) dulu memegang SATU `Client` seumur proses. Di staging (rc46) koneksinya putus tepat 1 jam
+setelah pod start tanpa lalu lintas apa pun; sejak itu semua kueri pegawai/satker/foto menjawab
+`connection closed` dan `/api/monitoring/health` 503 sampai pod di-restart — pod tetap `Ready` (probe TCP) dan
+218 e2e hijau karena tak ada yang berjalan setelah satu jam diam. Produksi mengalaminya di jam sepi pertama dan di
+setiap restart Postgres (upgrade, drain node). `crate::db_handle::DbHandle` menyimpan URL, menyambung ulang saat
+koneksi tertutup atau galat menyatakan koneksi hilang (SQLSTATE `57P01/02/03`, kelas `08`, `is_closed`), dan
+mengulang BACAAN sekali pada koneksi baru. Ia sengaja tak punya `execute`: tulisan yang balasannya hilang tak boleh
+diulang. Jangan memegang `Client` telanjang di proses yang hidup lama. Galat server yang BARU memutus sesi datang
+sebagai `57P01` ketika `is_closed()` masih `false`, jadi mengandalkan `is_closed()` saja meloloskan kasus restart.
+Tes: `tests/db_reconnect.rs` (butuh `DATABASE_URL`; gagal bila tak ada — jangan dijadikan skip).
+
 ```bash
 # .env
 SCHEDULER_ENABLED=false  # Use K8s CronJob instead
