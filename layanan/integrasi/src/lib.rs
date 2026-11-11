@@ -3,6 +3,7 @@ pub mod audit;
 pub mod client;
 pub mod config;
 pub mod db;
+pub mod db_handle;
 pub mod error;
 pub mod response;
 pub mod storage;

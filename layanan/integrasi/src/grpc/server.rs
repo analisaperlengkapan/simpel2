@@ -9,10 +9,10 @@ use std::sync::Arc;
 use std::path::PathBuf;
 
 use tokio::signal;
-use tokio_postgres::Client;
 use tonic::transport::{Certificate, Identity, Server, ServerTlsConfig};
 use tracing::{info, warn};
 
+use crate::db_handle::DbHandle;
 use crate::grpc::proto::integrasi_service_server::IntegrasiServiceServer;
 use crate::grpc::service::IntegrasiServiceImpl;
 
@@ -156,7 +156,7 @@ impl GrpcServerConfig {
 
 /// Start the gRPC server with the given database client
 pub async fn start_grpc_server(
-    db_client: Arc<Client>,
+    db_client: Arc<DbHandle>,
     config: GrpcServerConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let addr = config.socket_addr();
@@ -206,7 +206,7 @@ pub async fn start_grpc_server(
 
 /// Start the gRPC server with default configuration
 pub async fn start_grpc_server_default(
-    db_client: Arc<Client>,
+    db_client: Arc<DbHandle>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let config = GrpcServerConfig::from_env();
     start_grpc_server(db_client, config).await
