@@ -3,6 +3,7 @@
 //! Provides REST API endpoints for monitoring sync status, viewing sync history,
 //! and alerting on sync failures.
 
+use crate::db_handle::DbHandle;
 use axum::{
     Router,
     extract::{Query, State},
@@ -13,7 +14,6 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio_postgres::Client;
 use tracing::{error, info};
 
 // Note: These functions are available but not currently used in the monitoring endpoints
@@ -22,7 +22,7 @@ use tracing::{error, info};
 /// Shared state for monitoring endpoints
 #[derive(Clone)]
 pub struct MonitoringState {
-    pub db_client: Arc<Client>,
+    pub db_client: Arc<DbHandle>,
 }
 
 /// Query parameters for sync status endpoint

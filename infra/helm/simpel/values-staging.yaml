@@ -406,7 +406,15 @@ global:
   # podAntiAffinity `required` per host dengan 3 replika di klaster DUA node ⇒ pod ke-3 Pending
   # selamanya, PDB minAvailable 2 menutup semua gangguan, rolling update macet. Gambar identik secara
   # kode dengan rc45; tag baru hanya agar yang diuji = yang dipromosikan. rc45 jangan dipromosikan.
-  imageTag: v0.1.0-rc46
+  #
+  # rc47 = rc46 + koneksi database server integrasi yang bisa menyambung ulang. rc46 lolos e2e 218/218
+  # (setelah staging dibersihkan dari 101 kampanye buatan tes yang menyingkirkan fixture dari dropdown
+  # laporan yang hanya memuat 100) TETAPI pemindaian log pod yang sudah hidup 10 jam menunjukkan server
+  # integrasi memegang SATU `tokio_postgres::Client`: tepat 1 jam setelah start koneksinya putus tanpa lalu
+  # lintas apa pun, lalu semua kueri pegawai/satker/foto menjawab `connection closed` dan
+  # `/api/monitoring/health` 503 sampai pod di-restart (pod tetap Ready: probe TCP). Produksi mengalaminya di
+  # jam sepi pertama dan di setiap restart Postgres. rc46 jangan dipromosikan.
+  imageTag: v0.1.0-rc47
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
