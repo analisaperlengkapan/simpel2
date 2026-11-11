@@ -344,6 +344,9 @@ helm upgrade --install simpel-rehearsal <chart>/simpel \
 5. CronJob integrasi dijalankan manual (`kubectl create job --from=cronjob/<nama>`), satu per satu.
    Terhadap URL `.invalid`: `mysimkari`, `monsakti`, `siman` HARUS berakhir `Failed` (exit non-nol) dan
    `snapshot-refresh` `Complete`. Job yang `Complete` padahal sinkronisasinya gagal = cacat (rc43/rc44).
+   Setelah tiap Job `Failed`, `kubectl -n simpel-rehearsal logs -l job-name=<job> --prefix` HARUS masih
+   menampilkan alasannya (dua pod: `backoffLimit: 1` = dua percobaan). "No resources found" = cacat
+   (rc47): di produksi pukul 02.00 tak ada yang mengikuti log saat Job berjalan.
 6. Pemindaian log SEMUA pod setelah beban: kelompokkan baris ERROR per pesan (angka dinormalkan, jangan
    dibuang hitungannya) dan jelaskan tiap kelompok. Periksa juga bahwa pod server `layanan-integrasi` TIDAK
    mencetak `scheduled data fetch` sepanjang ≥ 2 kelipatan 15 menit (daemon scheduler dalam-proses harus
@@ -412,6 +415,12 @@ kubectl -n simpelv2-staging wait \
 kubectl -n simpelv2-staging logs \
   -l job-name=manual-mysimkari-XXXXX --tail=200
 ```
+
+Bila Job **gagal**, `wait --for=condition=complete` hanya akan habis waktu — periksa `kubectl -n
+simpelv2-staging get job manual-mysimkari-XXXXX`. Pod-nya TETAP ADA (fase `Error`, satu pod per
+percobaan) dan perintah `logs` di atas tetap menjawab; itulah satu-satunya catatan alasan kegagalan,
+karena sinkronisasi yang gagal belum menulis apa pun ke `integrasi.sync_status`/`api_log`. Hapus Job
+manual itu sendiri setelah dibaca (`kubectl delete job`).
 
 Verifikasi data masuk DB:
 
@@ -762,8 +771,14 @@ Common causes:
 
 ```bash
 helm history simpel -n simpelv2-<env>
-helm get values simpel -n simpelv2-<env>
+# JANGAN `helm get values` mentah: keluarannya memuat seluruh `secrets.*` (sandi, token).
+helm get values simpel -n simpelv2-<env> -o json | jq 'del(.secrets)'
 helm get manifest simpel -n simpelv2-<env> | head -100
+# Hook yang gagal (db-create, integrasi-migrate, authenc-migrate, authenc-bootstrap): Job dan pod-nya
+# disimpan 24 jam, jadi alasannya masih terbaca setelah `helm` keluar. Baca SEBELUM mengulang
+# `helm upgrade`: percobaan berikutnya menghapus Job hook yang lama (`before-hook-creation`).
+kubectl -n simpelv2-<env> get jobs
+kubectl -n simpelv2-<env> logs -l job-name=simpel-authenc-migrate --prefix --tail=200
 ```
 
 Jika `--atomic` rollback otomatis: cek `kubectl events` untuk root cause.

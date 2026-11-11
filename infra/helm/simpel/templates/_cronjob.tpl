@@ -60,7 +60,16 @@ spec:
           serviceAccountName: {{ default $name $values.serviceAccountName }}
           automountServiceAccountToken: {{ default false $values.automountServiceAccountToken }}
           {{- include "simpel.imagePullSecrets" $ctx | nindent 10 }}
-          restartPolicy: {{ default "OnFailure" (default $defaults.restartPolicy $values.restartPolicy) }}
+          {{- /* `Never`, dan sengaja BUKAN nilai yang bisa diatur. Dengan `OnFailure` container diulang
+                 di dalam pod yang sama; begitu `backoffLimit` habis, Job controller MENGHAPUS pod itu
+                 (perilaku terdokumentasi Kubernetes) dan log-nya ikut hilang. Terukur di rehearsal
+                 produksi rc47 (2026-11-11): tiga sinkronisasi gagal berturut-turut, lalu `kubectl logs`
+                 menjawab "No resources found" — satu-satunya jejak adalah `BackoffLimitExceeded` pada
+                 Job; klaster ini tak punya pengumpul log. Dengan `Never` tiap percobaan adalah pod
+                 sendiri yang tetap ada (fase Failed, tak memakai kuota) selama Job-nya disimpan
+                 `failedJobsHistoryLimit`. Jumlah percobaan tak berubah: backoffLimit + 1.
+                 Dijaga `infra/scripts/check-failed-job-keeps-its-log.py`. */}}
+          restartPolicy: Never
           {{- with default $ctx.Values.global.priorityClassName $values.priorityClassName }}
           priorityClassName: {{ . }}
           {{- end }}

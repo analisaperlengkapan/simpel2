@@ -758,6 +758,34 @@ jobs:
               < "rendered/${f}.yaml" \
               | python3 ./infra/scripts/check-limitrange-bounds.py "$f"
           done
+      # Klaster ini tak punya pengumpul log: pod Job yang gagal ADALAH log-nya. `restartPolicy:
+      # OnFailure` membuat Job controller menghapus pod itu saat backoffLimit habis, dan
+      # `ttlSecondsAfterFinished` yang pendek menghapus Job gagal beserta pod-nya. Terukur di rehearsal
+      # produksi rc47: tiga sinkronisasi gagal, `kubectl logs -l job-name=…` menjawab "No resources
+      # found". Cakupan DITURUNKAN: setiap render chart, plus setiap manifest mentah di infra/helm yang
+      # memuat Job/CronJob (bukan daftar nama berkas). `--must-find` pada staging/production: render
+      # tanpa satu pun Job berarti penjaganya buta, bukan bersih.
+      - name: Job yang gagal meninggalkan pod dan log-nya
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
+          python3 ./infra/scripts/check-failed-job-keeps-its-log.py --self-test
+          for f in rendered/*.yaml; do
+            name="$(basename "$f" .yaml)"
+            args=("$name")
+            case "$name" in staging|production) args+=(--must-find) ;; esac
+            docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' < "$f" \
+              | python3 ./infra/scripts/check-failed-job-keeps-its-log.py "${args[@]}"
+          done
+          # Manifest mentah (di luar templates/, jadi tak ikut di-render): dicari, bukan didaftar.
+          mapfile -t raw < <(grep -rlE '^kind: (Job|CronJob)[[:space:]]*$' infra/helm \
+            --include='*.yaml' --include='*.yml' | grep -v '/templates/' | sort)
+          echo "manifest mentah ber-Job/CronJob di infra/helm: ${#raw[@]}"
+          for f in "${raw[@]}"; do
+            label="mentah:${f#infra/helm/}"
+            docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' < "$f" \
+              | python3 ./infra/scripts/check-failed-job-keeps-its-log.py "$label" --must-find
+          done
       # mTLS gRPC tersebar di lima tempat yang harus sepakat (Secret PKI, env server,
       # env klien, skema *_GRPC_URL, appProtocol Service). Salah satunya meleset =
       # `helm lint` dan kube-linter tetap hijau, dan akibatnya: pod production

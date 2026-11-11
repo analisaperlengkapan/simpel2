@@ -291,6 +291,15 @@ satu pun pod dan tanpa galat selain event `FailedCreate` pada ReplicaSet; stagin
 menutup semua gangguan, dan rolling update macet (maxUnavailable 25% dari 3 = 0). Pakai `preferred`; `required`
 hanya bila replika ≤ jumlah node.
 
+**Job yang gagal harus meninggalkan pod-nya — pod itulah log-nya** (rehearsal produksi rc47, 2026-11-11). Klaster
+ini tak punya pengumpul log. `restartPolicy: OnFailure` membuat Job controller MENGHAPUS pod saat `backoffLimit`
+habis (perilaku terdokumentasi, bukan bug): tiga sinkronisasi gagal, lalu `kubectl logs -l job-name=…` menjawab
+"No resources found", `integrasi.api_log` 0 baris, `sync_status` tetap `pending`. `ttlSecondsAfterFinished` pendek
+dan `failedJobsHistoryLimit: 0` berakibat sama. Wajib untuk SETIAP Job/CronJob: `restartPolicy: Never` (tiap
+percobaan = pod sendiri yang tetap ada, fase Failed), riwayat gagal ≥ 1, TTL ≥ 86400 atau tak ditulis.
+`check-failed-job-keeps-its-log.py` (CI) memeriksa setiap Job/CronJob di tiap render chart dan tiap manifest mentah
+di `infra/helm/`.
+
 Urutan lengkap: `infra/helm/RUNBOOK.md` §1.
 
 ### 4. Image Registry & Tag

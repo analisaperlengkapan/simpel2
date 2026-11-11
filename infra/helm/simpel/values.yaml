@@ -670,11 +670,13 @@ layananIntegrasi:
       activeDeadlineSeconds: 600
   cronjobDefaults:
     successfulJobsHistoryLimit: 3
+    # >= 1 WAJIB: Job gagal terakhir (dan pod + log-nya) adalah satu-satunya bukti mengapa sebuah
+    # sinkronisasi gagal. restartPolicy pod-nya `Never` dan TIDAK bisa diatur di sini — lihat
+    # templates/_cronjob.tpl dan infra/scripts/check-failed-job-keeps-its-log.py.
     failedJobsHistoryLimit: 1
     concurrencyPolicy: Forbid
-    restartPolicy: OnFailure
     activeDeadlineSeconds: 3600            # max 1 jam per run
-    backoffLimit: 1
+    backoffLimit: 1                        # 2 percobaan; tiap percobaan = pod sendiri
 
 layananPerlengkapan:
   enabled: true
