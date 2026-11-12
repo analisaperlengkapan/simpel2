@@ -673,17 +673,27 @@ pub async fn get_pegawai_usage_history(
     )))
 }
 
+/// Query of `GET /pemakaian-bmn/expiring`.
+///
+/// A typed struct, not `HashMap<String, String>`: `infra/scripts/check-fe-query-params-reach-backend.py`
+/// can only see parameters a `Query<...>` struct names, and with the map `days` (which the frontend
+/// sends) passed that check only because an unrelated integrasi endpoint happened to have a field of
+/// the same name. A non-numeric `days` is now a 400 instead of a silent 30.
+#[derive(Debug, serde::Deserialize)]
+pub struct ExpiringQuery {
+    /// Look-ahead window in days; 30 when absent.
+    #[serde(default)]
+    pub days: Option<i32>,
+}
+
 /// GET /pemakaian-bmn/expiring
 /// Get permits expiring soon (for notifications)
 pub async fn get_expiring_permits(
     State(service): State<PemakaianBmnService>,
-    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+    axum::extract::Query(query): axum::extract::Query<ExpiringQuery>,
     claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<IzinPemakaianBmn>>>, AppError> {
-    let days_threshold = params
-        .get("days")
-        .and_then(|d| d.parse::<i32>().ok())
-        .unwrap_or(30);
+    let days_threshold = query.days.unwrap_or(30);
 
     let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
     let permits = service.get_expiring_permits(days_threshold, &scope).await?;
