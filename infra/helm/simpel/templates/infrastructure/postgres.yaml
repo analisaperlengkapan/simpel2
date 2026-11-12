@@ -198,14 +198,20 @@ spec:
             {{- end }}
           resources:
             {{- toYaml $cfg.resources | nindent 12 }}
+          # `-d "$POSTGRES_DB"` is not decoration. Without it pg_isready asks for a database
+          # named after the USER, which does not exist. It still reports "accepting
+          # connections", but the server logs `FATAL: database "…" does not exist` for every
+          # probe: 18 a minute, 1080 an hour on staging (measured 2026-11-12), and every one of
+          # them was this line. That buries a real FATAL in the one log nobody can afford to
+          # misread.
           livenessProbe:
             exec:
-              command: [/bin/sh, -c, pg_isready -U "$POSTGRES_USER"]
+              command: [/bin/sh, -c, pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"]
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             exec:
-              command: [/bin/sh, -c, pg_isready -U "$POSTGRES_USER"]
+              command: [/bin/sh, -c, pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"]
             initialDelaySeconds: 5
             periodSeconds: 5
       volumes:
