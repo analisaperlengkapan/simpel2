@@ -488,13 +488,20 @@ pub async fn fetch_glp(
     Ok(())
 }
 
-/// Fetch data MySIMKARI (satker dan pegawai)
+/// Fetch MySIMKARI (satker and employees) into `integrasi.mysimkari_satker` and
+/// `integrasi.mysimkari_pegawai`, the tables every reader of satker and employee data uses.
 ///
-/// Strategy: UPSERT + mark inactive employees
-/// - Satker: UPSERT berdasarkan kode_satker (UNIQUE constraint)
-/// - Pegawai: UPSERT berdasarkan nip (UNIQUE constraint)
-/// - Setelah semua pegawai diproses, NIP yang TIDAK ada di data tarikan baru
-///   ditandai status_pegawai = 'nonaktif' (bukan dihapus, untuk audit trail)
+/// - Satker: UPSERT on `kode_satker` (UNIQUE).
+/// - Employees: the roster of EVERY satker, UPSERT on `nip` (UNIQUE). The roster reply does not
+///   say which satker it belongs to, so `satker_id` is set to the id it was fetched for.
+/// - Once every roster has been read, an NIP absent from all of them is marked
+///   `status_pegawai = 'nonaktif'` (not deleted, for the audit trail). An NIP that comes back is
+///   marked `aktif` again by the UPSERT.
+///
+/// Every satker is attempted even after one fails, so one bad satker does not hide the others.
+/// But any failure fails the run, and it does so BEFORE anybody is retired. A roster that could
+/// not be read says nothing about who left; treating it as empty would mark everyone in that
+/// satker `nonaktif`, and every form that looks up an NIP would then reject them.
 pub async fn fetch_mysimkari(
     client: &mut MonsaktiClient,
     storage: &StorageStrategy,
@@ -502,116 +509,148 @@ pub async fn fetch_mysimkari(
     info!("Fetching MySIMKARI data...");
     let circuit_breaker = api::MySIMKARICircuitBreaker::new();
 
-    // Collect all NIPs from fresh pull for comparison later
-    let mut all_fresh_nips: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let satker = api::get_satker(client, &circuit_breaker).await?;
+    let satker_count = match satker.as_array() {
+        Some(list) if !list.is_empty() => list.len(),
+        Some(_) => {
+            return Err(MonsaktiError::Incomplete(
+                "MySIMKARI get-satker mengembalikan 0 satker".to_string(),
+            ));
+        }
+        None => {
+            return Err(MonsaktiError::Incomplete(
+                "MySIMKARI get-satker: `data` bukan daftar".to_string(),
+            ));
+        }
+    };
+    info!("📊 MySIMKARI: {} satker dari API", satker_count);
 
-    // Get Satker
-    if let Ok(data) = api::get_satker(client, &circuit_breaker).await {
-        let satker_count = data.as_array().map(|a| a.len()).unwrap_or(0);
-        info!("📊 MySIMKARI: {} satker dari API", satker_count);
+    storage
+        .save_with_table(client, "mysimkari_satker", &satker, "global")
+        .await?;
 
-        storage
-            .save_with_table(client, "mysimkari_satker", &data, "global")
-            .await?;
+    let mut fresh_nips: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut failures: Vec<String> = Vec::new();
 
-        // Fetch pegawai untuk setiap satker
-        if let Some(array) = data.as_array() {
-            for (idx, item) in array.iter().enumerate() {
-                let Some(obj) = item.as_object() else {
-                    continue;
-                };
-                let Some(id) = obj.get("id") else { continue };
-                let Some(id_str) = id.as_str() else { continue };
-
-                match api::pegawai_satker(client, id_str, &circuit_breaker).await {
-                    Ok(mut pegawai_data) => {
-                        // Collect NIPs from this batch
-                        if let Some(pegawai_array) = pegawai_data.as_array_mut() {
-                            for pegawai in pegawai_array.iter_mut() {
-                                if let Some(pegawai_obj) = pegawai.as_object_mut() {
-                                    // Add satker_id if not exists
-                                    if !pegawai_obj.contains_key("satker_id") {
-                                        pegawai_obj.insert("satker_id".to_string(), id.clone());
-                                    }
-                                    // Ensure status_pegawai = 'aktif' for fresh data
-                                    pegawai_obj.insert(
-                                        "status_pegawai".to_string(),
-                                        serde_json::Value::String("aktif".to_string()),
-                                    );
-                                    // Collect NIP
-                                    if let Some(nip) =
-                                        pegawai_obj.get("nip").and_then(|v| v.as_str())
-                                        && !nip.is_empty()
-                                    {
-                                        all_fresh_nips.insert(nip.to_string());
-                                    }
-                                }
-                            }
-                        }
-
-                        storage
-                            .save_with_table(client, "mysimkari_pegawai", &pegawai_data, "global")
-                            .await?;
-                    }
-                    Err(e) => {
-                        warn!("MySIMKARI pegawai_satker failed for {}: {}", id_str, e)
-                    }
-                }
-
-                // Rate limiting
-                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-
-                // Progress log every 50 satker
-                if (idx + 1) % 50 == 0 {
-                    info!(
-                        "📈 Progress: {}/{} satker processed, {} unique NIPs collected",
-                        idx + 1,
-                        array.len(),
-                        all_fresh_nips.len()
-                    );
-                }
+    for (idx, item) in satker.as_array().into_iter().flatten().enumerate() {
+        let id = match item.get("id") {
+            Some(serde_json::Value::String(s)) if !s.is_empty() => s.clone(),
+            Some(serde_json::Value::Number(n)) => n.to_string(),
+            _ => {
+                failures.push(format!("satker ke-{} tanpa id", idx + 1));
+                continue;
             }
+        };
+
+        match api::pegawai_satker(client, &id, &circuit_breaker).await {
+            Ok(mut roster) => match roster.as_array_mut() {
+                Some(list) => {
+                    for pegawai in list.iter_mut() {
+                        let Some(obj) = pegawai.as_object_mut() else {
+                            continue;
+                        };
+                        obj.entry("satker_id")
+                            .or_insert_with(|| serde_json::Value::String(id.clone()));
+                        obj.insert(
+                            "status_pegawai".to_string(),
+                            serde_json::Value::String("aktif".to_string()),
+                        );
+                        if let Some(nip) = obj.get("nip").and_then(|v| v.as_str())
+                            && !nip.is_empty()
+                        {
+                            fresh_nips.insert(nip.to_string());
+                        }
+                    }
+                    let empty = list.is_empty();
+                    if !empty
+                        && let Err(e) = storage
+                            .save_with_table(client, "mysimkari_pegawai", &roster, "global")
+                            .await
+                    {
+                        failures.push(format!("satker {id}: pegawai tidak tersimpan: {e}"));
+                    }
+                }
+                None => failures.push(format!("satker {id}: daftar pegawai bukan daftar")),
+            },
+            Err(e) => {
+                warn!("MySIMKARI pegawai_satker failed for {}: {}", id, e);
+                failures.push(format!("satker {id}: {e}"));
+            }
+        }
+
+        // Rate limiting
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+        if (idx + 1) % 50 == 0 {
+            info!(
+                "📈 Progress: {}/{} satker processed, {} unique NIPs collected",
+                idx + 1,
+                satker_count,
+                fresh_nips.len()
+            );
         }
     }
 
+    if !failures.is_empty() {
+        return Err(MonsaktiError::Incomplete(format!(
+            "MySIMKARI: {} dari {} satker gagal, status pegawai TIDAK diubah — {}",
+            failures.len(),
+            satker_count,
+            preview(&failures)
+        )));
+    }
+    if fresh_nips.is_empty() {
+        return Err(MonsaktiError::Incomplete(format!(
+            "MySIMKARI: {satker_count} satker terbaca tetapi tidak satu pun pegawai, \
+             status pegawai TIDAK diubah"
+        )));
+    }
     info!(
         "📊 MySIMKARI: {} unique NIPs collected from fresh pull",
-        all_fresh_nips.len()
+        fresh_nips.len()
     );
 
-    // Mark employees NOT in fresh pull as nonaktif
-    if !all_fresh_nips.is_empty()
-        && let Some(db) = client.get_db_client()
-    {
-        // Use parameterized IN clause for safety
-        // Build a single UPDATE with array comparison for efficiency
-        let nip_array: Vec<&str> = all_fresh_nips.iter().map(|s| s.as_str()).collect();
-        let result = db
-                .execute(
-                    "UPDATE mysimkari_pegawai SET status_pegawai = 'nonaktif', updated_at = CURRENT_TIMESTAMP WHERE status_pegawai = 'aktif' AND nip != ALL($1::text[])",
-                    &[&nip_array],
-                )
-                .await;
-
-        match result {
-            Ok(count) => {
-                if count > 0 {
-                    info!(
-                        "📋 MySIMKARI: {} pegawai ditandai nonaktif (tidak ada di data tarikan baru)",
-                        count
-                    );
-                } else {
-                    info!("✅ MySIMKARI: Semua pegawai eksisting masih aktif");
-                }
-            }
-            Err(e) => {
-                error!("❌ MySIMKARI: Gagal update status nonaktif: {}", e);
-            }
+    if storage.writes_database() {
+        let db = client.get_db_client().ok_or_else(|| {
+            MonsaktiError::ConfigError("Database tidak dikonfigurasi".to_string())
+        })?;
+        let nips: Vec<&str> = fresh_nips.iter().map(String::as_str).collect();
+        let retired = db
+            .execute(
+                "UPDATE integrasi.mysimkari_pegawai \
+                 SET status_pegawai = 'nonaktif', updated_at = CURRENT_TIMESTAMP \
+                 WHERE status_pegawai = 'aktif' AND nip <> ALL($1::text[])",
+                &[&nips],
+            )
+            .await?;
+        if retired > 0 {
+            info!(
+                "📋 MySIMKARI: {} pegawai ditandai nonaktif (tidak ada di data tarikan baru)",
+                retired
+            );
+        } else {
+            info!("✅ MySIMKARI: Semua pegawai eksisting masih aktif");
         }
     }
 
     info!("✓ MySIMKARI data fetch completed");
     Ok(())
+}
+
+/// The first ten failures, and how many more there were: a MySIMKARI outage fails every one of
+/// several hundred satker, and the Job's termination message has room for a few lines.
+fn preview(failures: &[String]) -> String {
+    const SHOWN: usize = 10;
+    let mut s = failures
+        .iter()
+        .take(SHOWN)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join("; ");
+    if failures.len() > SHOWN {
+        s.push_str(&format!("; … dan {} lainnya", failures.len() - SHOWN));
+    }
+    s
 }
 
 /// Fetch global reference data (tidak spesifik per satker)

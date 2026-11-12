@@ -733,9 +733,23 @@ pub async fn fetch_all_assets_with_pagination(
     );
 
     if total_count == 0 {
+        // Nothing is replaced: a category that suddenly reports zero assets is far more likely
+        // an upstream fault than the disposal of every asset in it.
         warn!("⚠️  No data available for {}", category.description());
         return Ok((0, 0));
     }
+
+    // Each COMPLETE run replaces the local copy of this category; see `settle_category`.
+    // `siman_aset` has no key an insert could conflict on (an asset's identity is satker + kode
+    // barang + NUP, and SIMAN does not guarantee all three), so the insert below is a plain
+    // append: before this, every weekly run added the whole register again. The rows this run
+    // writes are the ones stamped at or after `run_started`, by the database's own clock.
+    let run_started: Option<std::time::SystemTime> = match client.get_db_client() {
+        Some(db) if storage.writes_database() => {
+            Some(db.query_one("SELECT now()", &[]).await?.get(0))
+        }
+        _ => None,
+    };
 
     let mut success_count = 0usize;
     let mut failed_count = 0usize;
@@ -840,17 +854,23 @@ pub async fn fetch_all_assets_with_pagination(
                         {
                             Ok(saved_count) => {
                                 success_count += saved_count;
-                                if saved_count > 0 {
+                                // Counted per row: a block stored 999 of 1000 used to count as
+                                // fully stored, because only a block of ZERO was a failure.
+                                let short = records.len().saturating_sub(saved_count);
+                                if short == 0 {
                                     info!(
                                         "💾 Saved {} records ({}-{})",
                                         saved_count, current_id, end_id
                                     );
                                 } else {
                                     warn!(
-                                        "⚠️  0 records inserted ({}-{}) - check for errors above",
-                                        current_id, end_id
+                                        "⚠️  {} of {} records not stored ({}-{})",
+                                        short,
+                                        records.len(),
+                                        current_id,
+                                        end_id
                                     );
-                                    failed_count += records.len();
+                                    failed_count += short;
                                 }
                             }
                             Err(e) => {
@@ -864,6 +884,9 @@ pub async fn fetch_all_assets_with_pagination(
                             }
                         }
                     }
+                } else {
+                    warn!("⚠️  Reply without data for {}-{}", current_id, end_id);
+                    failed_count += (end_id - current_id + 1) as usize;
                 }
             }
             Err(e) => {
@@ -873,5 +896,58 @@ pub async fn fetch_all_assets_with_pagination(
         }
     }
 
+    if let Some(started) = run_started {
+        settle_category(client, category, started, failed_count).await?;
+    }
+
     Ok((success_count, failed_count))
+}
+
+/// After a category's run: keep exactly ONE complete copy of it in `integrasi.siman_aset`.
+///
+/// * Complete (`failed == 0`): delete the rows older than this run. Assets SIMAN no longer
+///   lists (disposed of) leave the local copy with them.
+/// * Incomplete: delete the rows THIS run wrote, and keep the last complete copy. Before, a run
+///   cut short added its half on top of the full copy. The run still fails (the caller sees
+///   `failed > 0`), so the CronJob turns red.
+///
+/// Readers see the old and the new rows of a category side by side while it is being fetched,
+/// which is at most one run per week at 04:00 on Sunday. `siman_aset.id` changes with every
+/// complete run. Nothing stores that id: usulan reference an asset by satker + kode barang + NUP
+/// (perlengkapan V010), and only the bank-aset detail URL carries it.
+async fn settle_category(
+    client: &MonsaktiClient,
+    category: SimanAssetCategory,
+    run_started: std::time::SystemTime,
+    failed: usize,
+) -> Result<(), MonsaktiError> {
+    let db = client
+        .get_db_client()
+        .ok_or_else(|| MonsaktiError::ConfigError("Database tidak dikonfigurasi".to_string()))?;
+    let jenis = category.description();
+    if failed == 0 {
+        let replaced = db
+            .execute(
+                "DELETE FROM integrasi.siman_aset \
+                 WHERE jenis_aset = $1 AND (synced_at < $2 OR synced_at IS NULL)",
+                &[&jenis, &run_started],
+            )
+            .await?;
+        info!(
+            "🔁 {}: copy replaced, {} older row(s) removed",
+            jenis, replaced
+        );
+    } else {
+        let discarded = db
+            .execute(
+                "DELETE FROM integrasi.siman_aset WHERE jenis_aset = $1 AND synced_at >= $2",
+                &[&jenis, &run_started],
+            )
+            .await?;
+        warn!(
+            "↩️  {}: run incomplete ({} failed), its {} new row(s) discarded; the last complete copy is kept",
+            jenis, failed, discarded
+        );
+    }
+    Ok(())
 }

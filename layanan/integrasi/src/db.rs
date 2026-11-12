@@ -156,6 +156,28 @@ async fn get_unique_columns(db: &Client, table_name: &str) -> Vec<String> {
     Vec::new()
 }
 
+/// Whether a JSON key from an upstream reply may become a column name: lower-case ASCII letters,
+/// digits and `_`, not starting with a digit, at most 63 bytes (Postgres truncates longer names
+/// silently, so two long keys could land in one column).
+///
+/// The keys are chosen by MySIMKARI, SIMAN and MonSAKTI, not by this service. A key that is not
+/// a plain identifier used to go into `ALTER TABLE` / `INSERT` as written. The `ALTER` failed with
+/// a warning, and then EVERY row of that reply failed to insert, because the column list named a
+/// column that did not exist.
+fn is_plain_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    matches!(chars.next(), Some(c) if c.is_ascii_lowercase() || c == '_')
+        && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+        && name.len() <= 63
+}
+
+/// A column name as SQL text. Quoted, so a key that happens to be a reserved word (`order`,
+/// `user`, `desc`) is still a column and not a syntax error. Only plain identifiers reach this
+/// (see [`is_plain_identifier`]); the quote doubling is for completeness.
+fn quote_ident(name: &str) -> String {
+    format!("\"{}\"", name.replace('"', "\"\""))
+}
+
 /// Auto-create table if it doesn't exist, inferring column types from data
 async fn ensure_table_exists(
     db: &Client,
@@ -198,7 +220,9 @@ async fn ensure_table_exists(
                 };
                 let alter_sql = format!(
                     "ALTER TABLE integrasi.{} ADD COLUMN IF NOT EXISTS {} {}",
-                    table_name, col_lower, col_type
+                    table_name,
+                    quote_ident(&col_lower),
+                    col_type
                 );
                 match db.execute(&alter_sql, &[]).await {
                     Ok(_) => {
@@ -235,7 +259,7 @@ async fn ensure_table_exists(
     let col_defs: Vec<String> = std::iter::once("id BIGSERIAL PRIMARY KEY".to_string())
         .chain(columns.iter().map(|col| {
             // All columns are TEXT for simplicity and compatibility
-            format!("{} TEXT", col)
+            format!("{} TEXT", quote_ident(col))
         }))
         .chain(std::iter::once(
             "synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP".to_string(),
@@ -320,6 +344,7 @@ pub async fn bulk_insert_postgres(
 
     // Rename 'id' ke 'api_id' jika ada (untuk menyimpan ID dari API eksternal)
     // KECUALI untuk tabel SIMAN yang tidak punya kolom api_id
+    let mut unusable_keys: Vec<&str> = Vec::new();
     let columns: Vec<String> = first_obj
         .keys()
         .filter_map(|k| {
@@ -337,11 +362,24 @@ pub async fn bulk_insert_postgres(
                 } else {
                     None // Skip if all ids are null
                 }
-            } else {
+            } else if is_plain_identifier(&lower) {
                 Some(lower)
+            } else {
+                unusable_keys.push(k.as_str());
+                None
             }
         })
         .collect();
+
+    if !unusable_keys.is_empty() {
+        // `{:?}`: the key is upstream text and may hold anything, line breaks included.
+        warn!(
+            "⚠️  [BULK INSERT] {}: {} key(s) are not usable as a column name and are not stored: {:?}",
+            table_name,
+            unusable_keys.len(),
+            unusable_keys
+        );
+    }
 
     if columns.is_empty() {
         error!("❌ [BULK INSERT] No columns to insert");
@@ -356,7 +394,8 @@ pub async fn bulk_insert_postgres(
     ensure_table_exists(db, table_name, &columns).await?;
 
     let mut count = 0;
-    let mut failed = 0;
+    let mut failed = 0usize;
+    let mut first_error: Option<String> = None;
 
     // Batch insert untuk performa lebih baik (100 rows per batch)
     info!(
@@ -369,12 +408,17 @@ pub async fn bulk_insert_postgres(
 
     // Auto-detect unique constraint columns to build proper UPSERT query
     let unique_cols = get_unique_columns(db, table_name).await;
+    let column_list = columns
+        .iter()
+        .map(|c| quote_ident(c))
+        .collect::<Vec<_>>()
+        .join(", ");
     let query = if !unique_cols.is_empty() {
         // Build ON CONFLICT (unique_col) DO UPDATE SET ... for all non-key columns
         let update_cols: Vec<String> = columns
             .iter()
             .filter(|c| !unique_cols.contains(c))
-            .map(|c| format!("{} = EXCLUDED.{}", c, c))
+            .map(|c| format!("{0} = EXCLUDED.{0}", quote_ident(c)))
             .collect();
         let update_clause = if update_cols.is_empty() {
             "DO NOTHING".to_string()
@@ -392,16 +436,20 @@ pub async fn bulk_insert_postgres(
         format!(
             "INSERT INTO integrasi.{} ({}) VALUES ({}) ON CONFLICT ({}) {}",
             table_name,
-            columns.join(", "),
+            column_list,
             placeholders.join(", "),
-            unique_cols.join(", "),
+            unique_cols
+                .iter()
+                .map(|c| quote_ident(c))
+                .collect::<Vec<_>>()
+                .join(", "),
             update_clause
         )
     } else {
         format!(
             "INSERT INTO integrasi.{} ({}) VALUES ({}) ON CONFLICT DO NOTHING",
             table_name,
-            columns.join(", "),
+            column_list,
             placeholders.join(", ")
         )
     };
@@ -449,46 +497,38 @@ pub async fn bulk_insert_postgres(
                         }
                     }
                     Err(e) => {
-                        // Log more details for debugging
-                        error!(
-                            "❌ [BULK INSERT] Insert error for table {}: {:?} | Columns: {:?}",
-                            table_name, e, columns
-                        );
-                        error!("❌ [BULK INSERT] Failed query: {}", query);
-
-                        // Print the actual data values to debug type issues
-                        for (i, col) in columns.iter().enumerate() {
-                            let value = obj
-                                .get(col)
-                                .or_else(|| obj.get(&col.to_uppercase()))
-                                .unwrap_or(&Value::Null);
-                            let type_str = if value.is_string() {
-                                "string"
-                            } else if value.is_number() {
-                                "number"
-                            } else if value.is_boolean() {
-                                "bool"
-                            } else if value.is_null() {
-                                "null"
-                            } else if value.is_array() {
-                                "array"
-                            } else {
-                                "object"
-                            };
-                            error!("  Column[{}] {}: {:?} (type: {})", i, col, value, type_str);
-                        }
                         failed += 1;
+                        // Diagnose the FIRST failure only; one bad reply can fail thousands of
+                        // rows the same way. The column names and JSON types say what went wrong.
+                        // The VALUES are an employee's NIP, phone number and e-mail, or an asset's
+                        // value, and stay out of the log, and so do the parts of the error that
+                        // quote them (see `describe_insert_error`).
+                        if first_error.is_none() {
+                            let shape: Vec<String> = columns
+                                .iter()
+                                .map(|col| {
+                                    let json_key =
+                                        if col == "api_id" { "id" } else { col.as_str() };
+                                    let value = obj
+                                        .get(json_key)
+                                        .or_else(|| obj.get(&json_key.to_uppercase()))
+                                        .unwrap_or(&Value::Null);
+                                    format!("{col}:{}", json_type(value))
+                                })
+                                .collect();
+                            let reason = describe_insert_error(&e);
+                            error!(
+                                "❌ [BULK INSERT] Insert into {} failed: {} | columns: {}",
+                                table_name,
+                                reason,
+                                shape.join(", ")
+                            );
+                            first_error = Some(reason);
+                        }
                     }
                 }
             }
         }
-    }
-
-    if failed > 0 {
-        warn!(
-            "⚠️  [BULK INSERT] {} baris gagal diinsert ke tabel {}",
-            failed, table_name
-        );
     }
 
     info!(
@@ -496,7 +536,50 @@ pub async fn bulk_insert_postgres(
         count, failed, table_name
     );
 
+    // A row that was not stored is a record the local copy does not have. Reporting `Ok(count)`
+    // here made every caller treat a half-stored reply as a stored one: the sync ended green.
+    if let Some(reason) = first_error {
+        return Err(MonsaktiError::Incomplete(format!(
+            "{failed} dari {} baris gagal disimpan ke {table_name} (pertama: {reason})",
+            data.len()
+        )));
+    }
+
     Ok(count)
+}
+
+fn json_type(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "null",
+        Value::Bool(_) => "bool",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
+    }
+}
+
+/// Why an insert failed, without the record itself.
+///
+/// A database error's `message()` and `detail()` can quote the row: `Failing row contains (…)`,
+/// `Key (nip)=(…) already exists`, `invalid input syntax for type bigint: "…"`. The SQLSTATE,
+/// the column and the constraint name say what went wrong without saying whose record it was.
+fn describe_insert_error(e: &tokio_postgres::Error) -> String {
+    match e.as_db_error() {
+        Some(db) => {
+            let mut s = format!("SQLSTATE {}", db.code().code());
+            if let Some(column) = db.column() {
+                s.push_str(&format!(", kolom {column}"));
+            }
+            if let Some(constraint) = db.constraint() {
+                s.push_str(&format!(", constraint {constraint}"));
+            }
+            s
+        }
+        // Client-side: a parameter that could not be encoded. The message names the parameter,
+        // not its value.
+        None => e.to_string(),
+    }
 }
 
 /// Simpan data ke database dengan mapping tabel otomatis

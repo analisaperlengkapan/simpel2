@@ -7,7 +7,6 @@
 
 use crate::client::MonsaktiClient;
 use crate::config::Config;
-use crate::mysimkari;
 // use crate::siman;
 use crate::siman::endpoints::fetch_all_assets_with_pagination;
 use crate::storage_from_env;
@@ -295,70 +294,24 @@ async fn fetch_monsakti_data(config: Config, db_client: Option<Arc<Client>>) -> 
     Ok(())
 }
 
-/// Fetch all MySIMKARI data
+/// Fetch all MySIMKARI data: every satker and every satker's employees, into
+/// `integrasi.mysimkari_satker` / `integrasi.mysimkari_pegawai`.
+///
+/// This is what `./scheduler --source mysimkari` (the CronJob) runs. It used to save into
+/// `mysimkari_satker_satker` and `mysimkari_pegawai_pegawai`, tables `db::save_to_database`
+/// derived from a module/endpoint pair and created on the fly that nothing reads, and it fetched
+/// the employees of the first five satker only ("as sample"). The complete implementation,
+/// `batch::fetchers::fetch_mysimkari`, was reachable only from a CLI the image does not ship.
+/// There is one implementation now (see `tests/sync_lands_in_source_tables.rs`).
 async fn fetch_mysimkari_data(config: Config, db_client: Option<Arc<Client>>) -> Result<()> {
     let mut client = if let Some(db) = db_client {
         MonsaktiClient::new_with_db(config.clone(), db).await?
     } else {
         MonsaktiClient::new(config.clone()).await?
     };
-    let circuit_breaker = mysimkari::api::MySIMKARICircuitBreaker::new();
 
     info!("📊 Fetching MySIMKARI data...");
-
-    // Fetch satker data
-    info!("  → Fetching satker data...");
-    let satker_response = mysimkari::api::get_satker(&mut client, &circuit_breaker).await?;
-
-    // Handle response - could be array or single object
-    if let Some(satker_array) = satker_response.as_array() {
-        info!("  ✓ Satker: {} records", satker_array.len());
-        if let Some(db) = client.get_db_client_arc() {
-            crate::db::save_to_database(&db, "mysimkari_satker", "satker", &satker_response)
-                .await?;
-        }
-
-        // Fetch pegawai data for first 5 satker as sample
-        info!("  → Fetching pegawai data for sample satker...");
-        let mut pegawai_failures: Vec<String> = Vec::new();
-        for satker in satker_array.iter().take(5) {
-            if let Some(id) = satker.get("id").and_then(|v| v.as_str()) {
-                match mysimkari::api::pegawai_satker(&mut client, id, &circuit_breaker).await {
-                    Ok(pegawai_response) => {
-                        if let Some(pegawai_array) = pegawai_response.as_array() {
-                            info!(
-                                "    ✓ Pegawai for satker {}: {} records",
-                                id,
-                                pegawai_array.len()
-                            );
-                            if let Some(db) = client.get_db_client_arc() {
-                                crate::db::save_to_database(
-                                    &db,
-                                    "mysimkari_pegawai",
-                                    "pegawai",
-                                    &pegawai_response,
-                                )
-                                .await?;
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        warn!("    ⚠ Failed to fetch pegawai for satker {}: {}", id, e);
-                        pegawai_failures.push(format!("satker {id}: {e}"));
-                    }
-                }
-            }
-        }
-        // The satker list above is already saved; the run still reports the pegawai it missed.
-        fail_if_any("pengambilan pegawai", pegawai_failures)?;
-    } else {
-        info!("  ✓ Satker: 1 record");
-        if let Some(db) = client.get_db_client_arc() {
-            crate::db::save_to_database(&db, "mysimkari_satker", "satker", &satker_response)
-                .await?;
-        }
-    }
-
+    crate::batch::fetchers::fetch_mysimkari(&mut client, &storage_from_env()).await?;
     Ok(())
 }
 
