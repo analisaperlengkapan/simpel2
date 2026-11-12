@@ -111,7 +111,7 @@ Lihat [Lihat lebih jauh §1 untuk first-time production deploy.](#1-fresh-deploy
 | Sertifikat + kunci DigiCert `simpel.kejaksaan.go.id` | TLS gateway produksi | §1.3 |
 | PAT GitHub `read:packages` | `ghcr-pull` | §1.2 |
 | `values-secrets.yaml` (di LUAR repo, mode 600) | Secret aplikasi | §1.4 |
-| Token MySIMKARI / SIMAN / MonSAKTI **asli** | sinkron data induk | pemilik tiap API |
+| Token MySIMKARI / SIMAN / MonSAKTI **asli** | sinkron data induk (§1.7b); tanpa MySIMKARI tak ada NIP yang ditemukan | pemilik tiap API |
 | NIP + sandi awal administrator pertama | `secrets.authencBootstrapAdmin` | §1.4 |
 | Dump database SIMPEL v1 (`dbsimpelv1.sql.gz`, ±182 MB, data ASLI) | dimuat ke `dbsimpelv1` | §1.7a |
 | `APP_KEY` + `JWT_SECRET` v1 | `secrets.simpelv1` | §1.4 |
@@ -274,6 +274,52 @@ keluar karena galat — layar berhenti setelah pesan galat. Tekan Ctrl-C; jangan
 ingin kode keluar yang tegas, jadikan hasil `gunzip | sed` sebuah berkas dan pakai `timeout 300 kubectl exec -i … <
 berkas` (kode 124 = menggantung setelah galat; periksa jumlah tabel).
 
+### 1.7b Sinkron pertama data induk (setelah 1.7, sebelum pengguna diarahkan)
+
+Form v2 tidak meminta data pegawai atau aset diketik: pegawai dicari dari NIP di
+`integrasi.mysimkari_pegawai`/`mysimkari_satker`, aset dari `integrasi.siman_aset`. Pada instalasi baru
+ketiga tabel itu KOSONG, jadi tak satu NIP pun ditemukan sampai sinkron pertama selesai. Menunggu jadwal
+(`mysimkari` tiap 6 jam, `siman` Minggu 04.00 WIB) bisa berarti berhari-hari. Jalankan sekali dengan
+tangan, MySIMKARI dulu (tanpa satker dan pegawai, aset pun tak bisa dikaitkan ke siapa pun). Syaratnya
+token asli sudah ada di `secrets.integration` (§1.4). `monsakti` tetap di-suspend karena API-nya tidak
+aktif.
+
+```bash
+NS=simpelv2-production
+J=first-mysimkari-$(date +%s)
+kubectl -n $NS create job --from=cronjob/layanan-integrasi-mysimkari $J
+# `wait --for=condition=complete` menunggu sampai habis waktu bila Job GAGAL; tunggu salah satunya:
+until kubectl -n $NS get job $J -o jsonpath='{.status.conditions[?(@.status=="True")].type}' \
+      | grep -qwE 'Complete|Failed'; do sleep 15; done
+kubectl -n $NS get job $J -o jsonpath='{.status.conditions[?(@.status=="True")].type}{"\n"}'
+kubectl -n $NS logs -l job-name=$J --prefix --tail=40    # pod tetap ada setelah Failed (§1.9 butir 5)
+```
+
+Ulangi dengan `layanan-integrasi-siman` (register ratusan ribu baris, jauh lebih lama). Hasil yang
+dihitung adalah BARIS DI TABEL yang dibaca perlengkapan, bukan exit code (perintahnya sama dengan
+[§4](#4-manual-trigger-sync-integrasi-staging)):
+
+```bash
+kubectl -n $NS exec -i postgres-0 -c postgres -- sh -c 'psql -U "$POSTGRES_USER" -d dbsimpelv2' <<'SQL'
+SELECT 'mysimkari_satker' AS tabel, count(*) AS baris, max(updated_at) AS terakhir FROM integrasi.mysimkari_satker
+UNION ALL
+SELECT 'mysimkari_pegawai ' || coalesce(status_pegawai, '(null)'), count(*), max(updated_at)
+  FROM integrasi.mysimkari_pegawai GROUP BY status_pegawai
+UNION ALL
+SELECT 'siman_aset ' || coalesce(jenis_aset, '(null)'), count(*), max(synced_at)
+  FROM integrasi.siman_aset GROUP BY jenis_aset
+ORDER BY 1;
+SQL
+```
+
+Sebagai pembanding, staging (data mock) berisi `mysimkari_satker` 545 dan `mysimkari_pegawai aktif`
+21.328. Lalu ketik satu NIP nyata di form pemakaian BMN: identitas pegawai harus terisi sendiri.
+
+`Failed` aman diulang. Run MySIMKARI yang tidak lengkap (daftar satker gagal atau kosong, roster satu
+satker gagal, satu baris gagal disimpan) berhenti SEBELUM menonaktifkan pegawai mana pun. Run SIMAN yang
+terputus membuang baris barunya sendiri, dan salinan lama kategori itu tetap utuh. Jangan "membereskan"
+hasilnya dengan SQL: baca alasannya di log, perbaiki penyebabnya (token, egress, API), lalu jalankan lagi.
+
 ### 1.8 Verifikasi
 
 ```bash
@@ -422,13 +468,27 @@ percobaan) dan perintah `logs` di atas tetap menjawab; itulah satu-satunya catat
 karena sinkronisasi yang gagal belum menulis apa pun ke `integrasi.sync_status`/`api_log`. Hapus Job
 manual itu sendiri setelah dibaca (`kubectl delete job`).
 
-Verifikasi data masuk DB:
+Verifikasi data masuk DB: hitung baris di tabel yang dibaca perlengkapan (`shared/pegawai_ref.rs`
+membaca `mysimkari_pegawai`/`mysimkari_satker`; bank aset dan pemilihan aset membaca `siman_aset`).
 
 ```bash
-kubectl -n simpelv2-staging exec postgres-0 -- \
-  psql -U postgres -d integrasi -c \
-  "SELECT module, endpoint, last_success_at, row_count FROM v_recent_successful_calls ORDER BY last_success_at DESC LIMIT 5;"
+kubectl -n simpelv2-staging exec -i postgres-0 -c postgres -- sh -c 'psql -U "$POSTGRES_USER" -d dbsimpelv2' <<'SQL'
+SELECT 'mysimkari_satker' AS tabel, count(*) AS baris, max(updated_at) AS terakhir FROM integrasi.mysimkari_satker
+UNION ALL
+SELECT 'mysimkari_pegawai ' || coalesce(status_pegawai, '(null)'), count(*), max(updated_at)
+  FROM integrasi.mysimkari_pegawai GROUP BY status_pegawai
+UNION ALL
+SELECT 'siman_aset ' || coalesce(jenis_aset, '(null)'), count(*), max(synced_at)
+  FROM integrasi.siman_aset GROUP BY jenis_aset
+ORDER BY 1;
+SQL
 ```
+
+Perintah yang dulu tertulis di sini (`psql -U postgres -d integrasi … v_recent_successful_calls`) tak
+pernah bisa jalan: di chart ini tidak ada database `integrasi` (skema `integrasi` ada di `dbsimpelv2`),
+tidak ada role `postgres`, dan view itu tidak didefinisikan di mana pun. Exit code Job juga bukan bukti:
+sampai #1092, CronJob MySIMKARI berakhir `Complete` sambil mengisi tabel `mysimkari_*_satker`/`*_pegawai`
+yang tak dibaca siapa pun.
 
 ---
 
