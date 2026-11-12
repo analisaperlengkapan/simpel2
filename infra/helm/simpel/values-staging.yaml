@@ -414,7 +414,14 @@ global:
   # lintas apa pun, lalu semua kueri pegawai/satker/foto menjawab `connection closed` dan
   # `/api/monitoring/health` 503 sampai pod di-restart (pod tetap Ready: probe TCP). Produksi mengalaminya di
   # jam sepi pertama dan di setiap restart Postgres. rc46 jangan dipromosikan.
-  imageTag: v0.1.0-rc47
+  #
+  # rc48 = rc47 + empat cacat dari rehearsal rc47 dan pembacaan kode sebelum instal pertama. rc47 lolos
+  # staging dan e2e 218/218, TETAPI: klien MonSAKTI menulis token utuh ke log pod (#1089); Job sinkron yang
+  # gagal menghapus log-nya sendiri (#1090); endpoint monitoring tanpa autentikasi menyisipkan `?source=` ke
+  # SQL dan UNION membaca `monsakti_tokens` (#1091); CronJob MySIMKARI menulis ke tabel yang tak dibaca siapa
+  # pun (5 satker saja) dan SIMAN menambahkan seluruh register tiap run (#1092); probe postgres mencatat
+  # 1080 FATAL/jam (#1093). rc47 jangan dipromosikan.
+  imageTag: v0.1.0-rc48
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
