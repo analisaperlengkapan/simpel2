@@ -690,7 +690,11 @@ pub async fn fetch_all_assets_with_pagination(
     // Get row count
     let response = client.fetch_siman_row_count(category).await?;
 
-    info!("Raw getRowCount response data: {:?}", response.data);
+    // The reply is printed whole; SIMAN may echo the BA key it was asked with.
+    info!(
+        "Raw getRowCount response data: {}",
+        client.redact_siman(&format!("{:?}", response.data))
+    );
 
     let total_count = if let Some(data) = response.data {
         let array = if let Some(arr) = data.as_array() {

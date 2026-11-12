@@ -909,6 +909,21 @@ impl MonsaktiClient {
 
     // === SIMAN API Methods ===
 
+    /// `text` with the SIMAN BA key replaced by a placeholder.
+    ///
+    /// The key is a credential (operator decision 2026-11-12), and SIMAN puts it where credentials
+    /// do not usually go: in the PATH of `getRowCount/<BA_KEY>/<table>` and in the form body of the
+    /// data calls. So it reached the pod log through the "Fetching" line, `integrasi.api_log.url`
+    /// through every logged call, the log again through reqwest's errors (they quote the whole URL),
+    /// and any reply that echoes the request. Everything SIMAN-related that is printed, stored or
+    /// returned as an error goes through here, or through `reqwest::Error::without_url`.
+    pub(crate) fn redact_siman(&self, text: &str) -> String {
+        match self.config.siman_ba_key.as_deref() {
+            Some(key) if !key.is_empty() => text.replace(key, "<SIMAN_BA_KEY>"),
+            _ => text.to_string(),
+        }
+    }
+
     /// Mendapatkan OAuth2 token dari SSO Kemenkeu untuk SIMAN API
     /// Token akan di-cache dan di-refresh otomatis saat expired
     async fn get_siman_token(&mut self) -> Result<String, MonsaktiError> {
@@ -998,8 +1013,10 @@ impl MonsaktiClient {
             ba_key,
             category.table_name()
         );
+        // What may be printed or stored. `url` itself goes on the wire and nowhere else.
+        let shown = self.redact_siman(&url);
 
-        info!("Fetching SIMAN row count: {}", url);
+        info!("Fetching SIMAN row count: {}", shown);
 
         let started = Instant::now();
 
@@ -1008,20 +1025,21 @@ impl MonsaktiClient {
             .get(&url)
             .header("Authorization", format!("Bearer {}", token))
             .send()
-            .await?;
+            .await
+            .map_err(reqwest::Error::without_url)?;
 
         let elapsed_ms = started.elapsed().as_millis() as i32;
         let endpoint_name = format!("getRowCount/{}", category.table_name());
 
         if !response.status().is_success() {
             let status = response.status();
-            let body = response.text().await.unwrap_or_default();
+            let body = self.redact_siman(&response.text().await.unwrap_or_default());
             error!("SIMAN getRowCount request failed: {} - {}", status, body);
 
             self.log_api_call(
                 "SIMAN",
                 &endpoint_name,
-                &url,
+                &shown,
                 "GET",
                 Some(status.as_u16() as i32),
                 elapsed_ms,
@@ -1039,12 +1057,12 @@ impl MonsaktiClient {
         }
 
         // SIMAN mengembalikan structure yang berbeda, wrap dalam MonsaktiResponse
-        let data: serde_json::Value = response.json().await?;
+        let data: serde_json::Value = response.json().await.map_err(reqwest::Error::without_url)?;
 
         self.log_api_call(
             "SIMAN",
             &endpoint_name,
-            &url,
+            &shown,
             "GET",
             Some(200),
             elapsed_ms,
@@ -1103,14 +1121,17 @@ impl MonsaktiClient {
             .header("Authorization", format!("Bearer {}", token))
             .form(&params)
             .send()
-            .await?;
+            .await
+            .map_err(reqwest::Error::without_url)?;
 
         let elapsed_ms = started.elapsed().as_millis() as i32;
         let endpoint_name = category.endpoint().to_string();
 
         if !response.status().is_success() {
             let status = response.status();
-            let body = response.text().await.unwrap_or_default();
+            // The key travels in this request's form body; a reply that echoes the request
+            // carries it back.
+            let body = self.redact_siman(&response.text().await.unwrap_or_default());
             error!(
                 "SIMAN {} request failed: {} - {}",
                 category.endpoint(),
@@ -1139,10 +1160,11 @@ impl MonsaktiClient {
         }
 
         // Parse response
-        let data: serde_json::Value = response.json().await?;
+        let data: serde_json::Value = response.json().await.map_err(reqwest::Error::without_url)?;
 
         // Cek apakah ada error dalam response
         if let Some(error_msg) = data.get("error").and_then(|e| e.as_str()) {
+            let error_msg = self.redact_siman(error_msg);
             self.log_api_call(
                 "SIMAN",
                 &endpoint_name,
@@ -1152,11 +1174,11 @@ impl MonsaktiClient {
                 elapsed_ms,
                 None,
                 false,
-                Some(error_msg),
+                Some(&error_msg),
                 1,
             )
             .await;
-            return Err(MonsaktiError::ApiError(error_msg.to_string()));
+            return Err(MonsaktiError::ApiError(error_msg));
         }
 
         let record_count = if let Some(a) = data.as_array() {
