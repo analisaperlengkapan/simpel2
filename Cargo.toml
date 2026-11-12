@@ -116,7 +116,7 @@ croner = "3.0.1"
 chrono-tz = "0.10.4"
 anyhow = "1.0.102"
 thiserror = "2.0.18"
-dotenvy = "0.15.7"                                              # Maintained fork of dotenv
+dotenvy = "0.15.7"   # Maintained fork of dotenv
 
 # PostgreSQL Database Dependencies (Optimized for security & performance)
 tokio-postgres = { version = "0.7.17", features = [
