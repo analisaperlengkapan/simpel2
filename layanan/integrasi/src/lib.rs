@@ -19,6 +19,9 @@ pub mod batch;
 // Scheduler for automated data fetching
 pub mod scheduler;
 
+// Outcome of every sync run, in integrasi.sync_status
+pub mod sync_run;
+
 // gRPC module (feature-gated)
 #[cfg(feature = "grpc")]
 pub mod grpc;

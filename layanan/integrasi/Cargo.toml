@@ -36,6 +36,8 @@ uuid = { workspace = true }
 clap = { workspace = true }
 sha2 = { workspace = true }
 tokio-cron-scheduler = { workspace = true }
+croner = { workspace = true }
+chrono-tz = { workspace = true }
 futures = { workspace = true }
 bytes = { workspace = true }
 rand = { workspace = true }
@@ -49,9 +51,8 @@ tonic = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 tonic-prost = { workspace = true, optional = true }
 
-# HTTP server dependencies (for monitoring dashboard)
+# HTTP server of the health endpoint (src/monitoring.rs)
 axum = { workspace = true }
-tower-http = { workspace = true, features = ["cors"] }
 
 [dev-dependencies]
 wiremock = { workspace = true }

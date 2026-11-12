@@ -98,8 +98,15 @@ spec:
               envFrom:
                 {{- toYaml . | nindent 16 }}
               {{- end }}
-              {{- if or $values.env (and $values.secretonAuth $values.secretonAuth.enabled) }}
               env:
+                {{- /* The run records its CronJob's schedule and the next time it should fire in
+                       integrasi.sync_status (layanan/integrasi/src/sync_run.rs), so "this source
+                       is overdue" is judged against the schedule that actually runs. Derived here
+                       from the same values as `spec.schedule`/`spec.timeZone`, never restated. */}}
+                - name: SYNC_SCHEDULE
+                  value: {{ $values.schedule | quote }}
+                - name: SYNC_TIMEZONE
+                  value: {{ default "UTC" $values.timeZone | quote }}
                 {{- with $values.env }}
                 {{- toYaml . | nindent 16 }}
                 {{- end }}
@@ -113,7 +120,6 @@ spec:
                 - name: SECRETON_K8S_TOKEN_PATH
                   value: {{ default "/var/run/secrets/tokens/secreton-token" $values.secretonAuth.tokenPath | quote }}
                 {{- end }}
-              {{- end }}
               {{- with $values.resources }}
               resources:
                 {{- toYaml . | nindent 16 }}

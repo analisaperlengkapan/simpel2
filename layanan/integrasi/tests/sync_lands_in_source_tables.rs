@@ -683,3 +683,187 @@ async fn a_siman_category_cut_short_keeps_the_last_complete_copy() {
         1500
     );
 }
+
+// ---------------------------------------------------------------------------------------------
+// Every run leaves its outcome in integrasi.sync_status
+//
+// The table existed since migration 002 and nothing wrote it: on staging its six rows still said
+// `pending` after months of runs. A failed run left a pod log (one day, cluster access only), and
+// `api_log` only holds calls that got an HTTP answer.
+// ---------------------------------------------------------------------------------------------
+
+/// One `sync_status` row, as the administrator's page reads it. Timestamps are compared in SQL.
+#[derive(Debug)]
+struct Status {
+    status: String,
+    records: i32,
+    error: Option<String>,
+    completed: i32,
+    failed: i32,
+    frequency: Option<String>,
+    /// `next_sync_scheduled_at`, in Jakarta time, `HH24:MI` and ISO day of week.
+    next_wib: Option<String>,
+    next_in_future: bool,
+    started: bool,
+    finished: bool,
+    /// `last_success_at` as epoch microseconds, so two reads can be compared exactly.
+    success_at: Option<i64>,
+}
+
+async fn status(db: &Db, module: &str, endpoint: &str) -> Status {
+    let r = db
+        .client
+        .query_one(
+            "SELECT last_sync_status, last_sync_records_count, last_sync_error, \
+                    total_syncs_completed, total_syncs_failed, sync_frequency, \
+                    to_char(next_sync_scheduled_at AT TIME ZONE 'Asia/Jakarta', 'HH24:MI ID'), \
+                    coalesce(next_sync_scheduled_at > now(), false), \
+                    last_sync_started_at IS NOT NULL, last_sync_completed_at IS NOT NULL, \
+                    (extract(epoch FROM last_success_at) * 1000000)::bigint \
+               FROM integrasi.sync_status WHERE module = $1 AND endpoint = $2",
+            &[&module, &endpoint],
+        )
+        .await
+        .unwrap_or_else(|e| panic!("sync_status {module}/{endpoint}: {e:?}"));
+    Status {
+        status: r.get(0),
+        records: r.get(1),
+        error: r.get(2),
+        completed: r.get(3),
+        failed: r.get(4),
+        frequency: r.get(5),
+        next_wib: r.get(6),
+        next_in_future: r.get(7),
+        started: r.get(8),
+        finished: r.get(9),
+        success_at: r.get(10),
+    }
+}
+
+/// The CronJob's schedule as the chart passes it (`_cronjob.tpl`).
+fn with_schedule(
+    mut env: Vec<(&'static str, String)>,
+    schedule: &str,
+) -> Vec<(&'static str, String)> {
+    env.push(("SYNC_SCHEDULE", schedule.to_string()));
+    env.push(("SYNC_TIMEZONE", "Asia/Jakarta".to_string()));
+    env
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_mysimkari_run_records_its_outcome_and_a_failed_one_keeps_the_last_success() {
+    let db = Db::new().await;
+    let fresh = status(&db, "MySIMKARI", "satker").await;
+    assert_eq!(
+        fresh.status, "pending",
+        "migration 002 seeds the row: {fresh:?}"
+    );
+
+    let server = MockServer::start().await;
+    mount_mysimkari(&server, &full_plan()).await;
+    let env = with_schedule(mysimkari_env(&server), "0 */6 * * *");
+    let (ok, log) = scheduler(&db, "mysimkari", env.clone()).await;
+    assert!(ok, "the run failed:\n{log}");
+
+    let satker = status(&db, "MySIMKARI", "satker").await;
+    let pegawai = status(&db, "MySIMKARI", "pegawai").await;
+    for (what, s) in [("satker", &satker), ("pegawai", &pegawai)] {
+        assert_eq!(s.status, "completed", "{what}: {s:?}\n{log}");
+        assert!(
+            s.started && s.finished && s.success_at.is_some(),
+            "{what}: {s:?}"
+        );
+        assert_eq!(s.error, None, "{what}: {s:?}");
+        assert_eq!((s.completed, s.failed), (1, 0), "{what}: {s:?}");
+        assert_eq!(
+            s.frequency.as_deref(),
+            Some("0 */6 * * * Asia/Jakarta"),
+            "{what}"
+        );
+        // The next run is a six-hour mark in Jakarta time, and in the future.
+        let next = s.next_wib.clone().unwrap_or_default();
+        assert!(
+            s.next_in_future
+                && ["00:00", "06:00", "12:00", "18:00"]
+                    .iter()
+                    .any(|t| next.starts_with(t)),
+            "{what}: next run {next:?} is not the next six-hour mark: {s:?}"
+        );
+    }
+    // Rows in the tables the application reads: 7 satker, 14 active employees.
+    assert_eq!(satker.records, 7, "{satker:?}");
+    assert_eq!(pegawai.records, 14, "{pegawai:?}");
+    // Another source's row is not touched by this run.
+    assert_eq!(status(&db, "SIMAN", "aset").await.status, "pending");
+
+    // The next run cannot read the roster of satker 9003.
+    let mut plan = full_plan();
+    plan[2].1 = None;
+    mount_mysimkari(&server, &plan).await;
+    let (ok, log) = scheduler(&db, "mysimkari", env).await;
+    assert!(!ok, "a run with an unreadable roster exited 0:\n{log}");
+
+    let after = status(&db, "MySIMKARI", "pegawai").await;
+    assert_eq!(after.status, "failed", "{after:?}\n{log}");
+    let reason = after.error.clone().unwrap_or_default();
+    assert!(
+        reason.contains("9003"),
+        "the reason must name what failed, it says: {reason:?}"
+    );
+    assert_eq!((after.completed, after.failed), (1, 1), "{after:?}");
+    // How old the data is that the application reads is still known.
+    assert_eq!(after.success_at, pegawai.success_at, "{after:?}");
+    assert_eq!(
+        after.records, 14,
+        "nobody was retired, so 14 remain: {after:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_siman_run_that_never_got_an_answer_is_recorded_too() {
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    mount_siman(&server, 3, None).await;
+    let env = with_schedule(siman_env(&server), "0 4 * * 0");
+    let (ok, log) = scheduler(&db, "siman", env.clone()).await;
+    assert!(ok, "the run failed:\n{log}");
+    let done = status(&db, "SIMAN", "aset").await;
+    assert_eq!(done.status, "completed", "{done:?}\n{log}");
+    assert_eq!(done.records, 3, "{done:?}");
+    assert_eq!(
+        done.next_wib.as_deref(),
+        Some("04:00 7"),
+        "SIMAN runs Sunday 04:00 Jakarta time: {done:?}"
+    );
+
+    // The token service cannot be reached: no HTTP answer, so api_log gets nothing.
+    let api_log_before = db.count("SELECT count(*) FROM integrasi.api_log").await;
+    let mut env = env;
+    for (k, v) in env.iter_mut() {
+        if *k == "SIMAN_TOKEN_URL" {
+            *v = "http://127.0.0.1:9/connect/token".to_string();
+        }
+    }
+    let (ok, log) = scheduler(&db, "siman", env).await;
+    assert!(!ok, "a run that reached no token service exited 0:\n{log}");
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.api_log").await,
+        api_log_before,
+        "this failure is the kind api_log never saw"
+    );
+
+    let failed = status(&db, "SIMAN", "aset").await;
+    assert_eq!(failed.status, "failed", "{failed:?}\n{log}");
+    assert!(
+        failed
+            .error
+            .as_deref()
+            .is_some_and(|e| e.contains("error sending request")),
+        "the reason must say the request could not be sent: {failed:?}"
+    );
+    assert_eq!(failed.success_at, done.success_at);
+    assert_eq!(
+        failed.records, 3,
+        "the last complete copy is still there: {failed:?}"
+    );
+}

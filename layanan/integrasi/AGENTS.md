@@ -176,7 +176,8 @@ This service has **two workload types**:
 ### 1. gRPC Server Deployment
 
 - **Replicas:** 1 (staging) / 2 (production HA)
-- **Port:** 50051 (gRPC), 8080 (HTTP monitoring)
+- **Port:** 50051 (gRPC), 8080 (HTTP: hanya `GET /api/monitoring/health`; empat endpoint monitoring tanpa login dihapus 2026-11-12, lihat `src/monitoring.rs`)
+- **Status sinkron:** setiap run CronJob menulis hasilnya ke `integrasi.sync_status` (`src/sync_run.rs`: `running` → `completed`/`failed`, alasan, jumlah baris di tabel yang dibaca perlengkapan, jadwal berikutnya dari `SYNC_SCHEDULE`/`SYNC_TIMEZONE` yang diturunkan chart dari spec CronJob). Admin membacanya lewat perlengkapan, bukan lewat port ini
 - **Purpose:** Serve data to other backend services + admin manual trigger
 - **Image:** `ghcr.io/analisaperlengkapan/simpel2/layanan-integrasi:v0.1.0` (semver immutable)
 
