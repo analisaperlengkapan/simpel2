@@ -32,4 +32,9 @@ pub enum MonsaktiError {
     /// Error CSV
     #[error("Error CSV: {0}")]
     CsvError(#[from] csv::Error),
+
+    /// Sebagian data tidak terambil atau tidak tersimpan. Sinkronisasi yang hanya sebagian
+    /// berhasil adalah sinkronisasi yang GAGAL: salinan lokal tidak lengkap.
+    #[error("Sinkronisasi tidak lengkap: {0}")]
+    Incomplete(String),
 }
