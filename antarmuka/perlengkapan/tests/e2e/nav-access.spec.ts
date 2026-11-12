@@ -38,6 +38,7 @@ const ADMIN_ROUTES = [
   `${BASE}/admin/audit`,
   `${BASE}/admin/master`,
   `${BASE}/admin/templates`,
+  `${BASE}/admin/status-sinkronisasi`,
 ];
 
 const LOGIN = /login/i;

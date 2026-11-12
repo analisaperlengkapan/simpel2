@@ -179,11 +179,18 @@ export default defineConfig({
     // guards-rbac only proves who may open it; the page was empty by construction
     // (it read two tables nothing writes) and stayed green until its content was
     // asserted.
+    //
+    // And the admin "Status Sinkronisasi" page (admin-sync-status.spec.ts): every row agrees with
+    // what integrasi's scheduler recorded, and non-admins cannot reach it.
     {
       name: 'perlengkapan-admin-bantuan',
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
-      testMatch: ['**/admin-bantuan-workflow.spec.ts', '**/admin-audit-log.spec.ts'],
+      testMatch: [
+        '**/admin-bantuan-workflow.spec.ts',
+        '**/admin-audit-log.spec.ts',
+        '**/admin-sync-status.spec.ts',
+      ],
     },
   ],
 

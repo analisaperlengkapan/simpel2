@@ -15,6 +15,7 @@ pub mod break_glass;
 pub mod handlers;
 pub mod models;
 pub mod repository;
+pub mod sync_status;
 pub mod templates;
 // NOTE: no `users` module. `/admin/users` read `v_user_role_summary`,
 // `perlengkapan_users` and `perlengkapan_user_roles` — none of which any
@@ -33,4 +34,5 @@ pub use handlers::{
     create_master_record, delete_master_record, list_master_records, list_master_sources,
     update_master_record,
 };
+pub use sync_status::list_sync_status;
 pub use templates::{get_template, list_templates, preview_template};

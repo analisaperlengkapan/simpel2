@@ -27,7 +27,7 @@ use components::guards::{AdminLayout, AuthenticatedLayout};
 use components::sidebar::Sidebar;
 use features::auth::AuthService;
 use lib_ui::components::app_shell::AppShell;
-use pages::admin::{AdminAuditPage, AdminMasterDataPage, AdminTemplatesPage};
+use pages::admin::{AdminAuditPage, AdminMasterDataPage, AdminSyncStatusPage, AdminTemplatesPage};
 use pages::bank_aset::{
     BankAsetDashboardPage, BankAsetDetailPage, BankAsetListPage, BankAsetQrCodePage,
     BankAsetSebaranPage,
@@ -390,6 +390,10 @@ pub fn App() -> impl IntoView {
                                             <Route path=path!("/audit") view=AdminAuditPage />
                                             <Route path=path!("/master") view=AdminMasterDataPage />
                                             <Route path=path!("/templates") view=AdminTemplatesPage />
+                                            <Route
+                                                path=path!("/status-sinkronisasi")
+                                                view=AdminSyncStatusPage
+                                            />
                                             <Route
                                                 path=path!("/workflow")
                                                 view=WorkflowConfigManagement

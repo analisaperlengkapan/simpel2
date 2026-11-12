@@ -183,6 +183,11 @@ const ADMINISTRASI_GROUPS: &[NavGroup] = &[
                 icon: "fas fa-wave-square",
                 label: "Monitoring Workflow",
             },
+            NavItem {
+                href: routes::path::ADMIN_SYNC_STATUS,
+                icon: "fas fa-sync-alt",
+                label: "Status Sinkronisasi",
+            },
         ],
     },
     NavGroup {
