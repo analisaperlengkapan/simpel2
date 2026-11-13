@@ -29,7 +29,12 @@ pub enum DataSource {
 pub struct IntegrationScheduler {
     config: Config,
     db_client: Option<Arc<Client>>,
-    scheduler: JobScheduler,
+    /// The cron engine of the long-running DAEMON, created by `start`. A one-shot
+    /// `--source <x>` run (what every CronJob executes) never needs it, and creating it anyway
+    /// left background tasks whose channels closed when the process exited: they logged
+    /// `ERROR Error receiving Closed` into roughly a third of the sync jobs' logs (measured
+    /// 2026-11-13), an ERROR line about nothing that an operator reading the log has to rule out.
+    scheduler: Option<JobScheduler>,
 }
 
 impl IntegrationScheduler {
@@ -37,12 +42,11 @@ impl IntegrationScheduler {
     pub async fn new(config: Config) -> Result<Self> {
         let client = MonsaktiClient::new(config.clone()).await?;
         let db_client = client.get_db_client_arc();
-        let scheduler = JobScheduler::new().await?;
 
         Ok(Self {
             config,
             db_client,
-            scheduler,
+            scheduler: None,
         })
     }
 
@@ -55,6 +59,7 @@ impl IntegrationScheduler {
 
         info!("Starting Integration Scheduler...");
         info!("Timezone: {}", self.config.scheduler_timezone);
+        self.scheduler = Some(JobScheduler::new().await?);
 
         // Add MonSAKTI job
         self.add_monsakti_job().await?;
@@ -66,7 +71,7 @@ impl IntegrationScheduler {
         self.add_siman_job().await?;
 
         // Start the scheduler
-        self.scheduler.start().await?;
+        self.jobs()?.start().await?;
 
         info!("✅ Scheduler started successfully");
         Ok(())
@@ -92,7 +97,7 @@ impl IntegrationScheduler {
             })
         })?;
 
-        self.scheduler.add(job).await?;
+        self.jobs()?.add(job).await?;
         Ok(())
     }
 
@@ -116,7 +121,7 @@ impl IntegrationScheduler {
             })
         })?;
 
-        self.scheduler.add(job).await?;
+        self.jobs()?.add(job).await?;
         Ok(())
     }
 
@@ -140,14 +145,23 @@ impl IntegrationScheduler {
             })
         })?;
 
-        self.scheduler.add(job).await?;
+        self.jobs()?.add(job).await?;
         Ok(())
+    }
+
+    /// The daemon's cron engine; an error before `start` created it.
+    fn jobs(&self) -> Result<&JobScheduler> {
+        self.scheduler
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("the scheduler daemon has not been started"))
     }
 
     /// Shutdown the scheduler gracefully
     pub async fn shutdown(mut self) -> Result<()> {
         info!("Shutting down scheduler...");
-        self.scheduler.shutdown().await?;
+        if let Some(mut jobs) = self.scheduler.take() {
+            jobs.shutdown().await?;
+        }
         info!("✅ Scheduler shutdown complete");
         Ok(())
     }
