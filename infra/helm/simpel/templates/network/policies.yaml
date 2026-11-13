@@ -285,7 +285,7 @@ spec:
       ports:
         - { protocol: TCP, port: 8088 }
         - { protocol: TCP, port: 9088 }
-    # 50051 = gRPC (semua konsumen), 8080 = HTTP monitoring. Port 50053 dulu
+    # 50051 = gRPC (semua konsumen), 8080 = HTTP health. Port 50053 dulu
     # ditulis di sini dan TIDAK ADA yang mendengarkannya — `layanan-integrasi`
     # mengekspos 50051/8080. Karena `podSelector: {}` membuat SETIAP pod
     # egress-restricted, satu digit itu memutus integrasi untuk seluruh

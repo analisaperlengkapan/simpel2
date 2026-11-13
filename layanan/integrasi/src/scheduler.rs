@@ -29,7 +29,12 @@ pub enum DataSource {
 pub struct IntegrationScheduler {
     config: Config,
     db_client: Option<Arc<Client>>,
-    scheduler: JobScheduler,
+    /// The cron engine of the long-running DAEMON, created by `start`. A one-shot
+    /// `--source <x>` run (what every CronJob executes) never needs it, and creating it anyway
+    /// left background tasks whose channels closed when the process exited: they logged
+    /// `ERROR Error receiving Closed` into roughly a third of the sync jobs' logs (measured
+    /// 2026-11-13), an ERROR line about nothing that an operator reading the log has to rule out.
+    scheduler: Option<JobScheduler>,
 }
 
 impl IntegrationScheduler {
@@ -37,12 +42,11 @@ impl IntegrationScheduler {
     pub async fn new(config: Config) -> Result<Self> {
         let client = MonsaktiClient::new(config.clone()).await?;
         let db_client = client.get_db_client_arc();
-        let scheduler = JobScheduler::new().await?;
 
         Ok(Self {
             config,
             db_client,
-            scheduler,
+            scheduler: None,
         })
     }
 
@@ -55,6 +59,7 @@ impl IntegrationScheduler {
 
         info!("Starting Integration Scheduler...");
         info!("Timezone: {}", self.config.scheduler_timezone);
+        self.scheduler = Some(JobScheduler::new().await?);
 
         // Add MonSAKTI job
         self.add_monsakti_job().await?;
@@ -66,7 +71,7 @@ impl IntegrationScheduler {
         self.add_siman_job().await?;
 
         // Start the scheduler
-        self.scheduler.start().await?;
+        self.jobs()?.start().await?;
 
         info!("✅ Scheduler started successfully");
         Ok(())
@@ -92,7 +97,7 @@ impl IntegrationScheduler {
             })
         })?;
 
-        self.scheduler.add(job).await?;
+        self.jobs()?.add(job).await?;
         Ok(())
     }
 
@@ -116,7 +121,7 @@ impl IntegrationScheduler {
             })
         })?;
 
-        self.scheduler.add(job).await?;
+        self.jobs()?.add(job).await?;
         Ok(())
     }
 
@@ -140,14 +145,23 @@ impl IntegrationScheduler {
             })
         })?;
 
-        self.scheduler.add(job).await?;
+        self.jobs()?.add(job).await?;
         Ok(())
+    }
+
+    /// The daemon's cron engine; an error before `start` created it.
+    fn jobs(&self) -> Result<&JobScheduler> {
+        self.scheduler
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("the scheduler daemon has not been started"))
     }
 
     /// Shutdown the scheduler gracefully
     pub async fn shutdown(mut self) -> Result<()> {
         info!("Shutting down scheduler...");
-        self.scheduler.shutdown().await?;
+        if let Some(mut jobs) = self.scheduler.take() {
+            jobs.shutdown().await?;
+        }
         info!("✅ Scheduler shutdown complete");
         Ok(())
     }
@@ -159,13 +173,16 @@ impl IntegrationScheduler {
 
         match source {
             DataSource::Monsakti => {
-                fetch_monsakti_data(config, self.db_client.clone()).await?;
+                self.recorded(source, fetch_monsakti_data(config, self.db_client.clone()))
+                    .await?;
             }
             DataSource::Mysimkari => {
-                fetch_mysimkari_data(config, self.db_client.clone()).await?;
+                self.recorded(source, fetch_mysimkari_data(config, self.db_client.clone()))
+                    .await?;
             }
             DataSource::Siman => {
-                fetch_siman_data(config, self.db_client.clone()).await?;
+                self.recorded(source, fetch_siman_data(config, self.db_client.clone()))
+                    .await?;
             }
             DataSource::All => {
                 info!("Executing full synchronization across all modules...");
@@ -180,13 +197,28 @@ impl IntegrationScheduler {
                 let results = vec![
                     (
                         "MonSAKTI",
-                        fetch_monsakti_data(c1, self.db_client.clone()).await,
+                        self.recorded(
+                            DataSource::Monsakti,
+                            fetch_monsakti_data(c1, self.db_client.clone()),
+                        )
+                        .await,
                     ),
                     (
                         "MySIMKARI",
-                        fetch_mysimkari_data(c2, self.db_client.clone()).await,
+                        self.recorded(
+                            DataSource::Mysimkari,
+                            fetch_mysimkari_data(c2, self.db_client.clone()),
+                        )
+                        .await,
                     ),
-                    ("SIMAN", fetch_siman_data(c3, self.db_client.clone()).await),
+                    (
+                        "SIMAN",
+                        self.recorded(
+                            DataSource::Siman,
+                            fetch_siman_data(c3, self.db_client.clone()),
+                        )
+                        .await,
+                    ),
                 ];
                 for (name, result) in &results {
                     if let Err(e) = result {
@@ -199,6 +231,40 @@ impl IntegrationScheduler {
 
         info!("✅ Manual data fetch completed for {:?}", source);
         Ok(())
+    }
+
+    /// Runs one source's sync and records how it went in `integrasi.sync_status`
+    /// (see `crate::sync_run`).
+    ///
+    /// Recording never changes the run's own result: a sync that succeeded is not failed because
+    /// its bookkeeping could not be written, and vice versa. A recording that could not be written
+    /// is logged at ERROR, and the row is left as it was, so the next expected run time passes
+    /// without a newer start. That is visible to whoever reads the row.
+    async fn recorded<F>(&self, source: DataSource, run: F) -> Result<()>
+    where
+        F: std::future::Future<Output = Result<()>>,
+    {
+        let module = crate::sync_run::module_of(source);
+        let db = self.db_client.as_deref();
+        if let (Some(db), Some(module)) = (db, module) {
+            let schedule = crate::sync_run::Schedule::from_env();
+            match crate::sync_run::mark_started(db, module, schedule.as_ref()).await {
+                Ok(0) => error!("sync_status has no row for {module}: this run is not recorded"),
+                Ok(_) => {}
+                Err(e) => error!("could not record the start of the {module} run: {e}"),
+            }
+        }
+
+        let result = run.await;
+
+        if let (Some(db), Some(module)) = (db, module) {
+            // `{:#}`: the whole chain of the error, on one line.
+            let outcome = result.as_ref().map(|_| ()).map_err(|e| format!("{e:#}"));
+            if let Err(e) = crate::sync_run::mark_finished(db, module, outcome).await {
+                error!("could not record the end of the {module} run: {e}");
+            }
+        }
+        result
     }
 }
 
