@@ -251,10 +251,12 @@ jobs:
   # `infra/scripts/**`, tempat KEENAM penjaga job ini tinggal. Tanpa itu,
   # mengedit salah satu check-*.py tidak menjalankan ulang penjaga yang baru
   # saja diubah — gate-nya benar tapi tak pernah menguji dirinya sendiri.
+  # `image-monolith` (monolith/simpelv1/** + the root .gitignore): the simpelv1
+  # asset guard below must run when a view names a new file or .gitignore changes.
   enforce-versioning:
     name: Enforce Repo Invariants
     needs: detect
-    if: needs.detect.outputs.cargo-manifests == 'true' || needs.detect.outputs.workflows == 'true' || needs.detect.outputs.rust-any == 'true' || needs.detect.outputs.helm == 'true' || needs.detect.outputs.sql == 'true' || needs.detect.outputs.shell == 'true'
+    if: needs.detect.outputs.cargo-manifests == 'true' || needs.detect.outputs.workflows == 'true' || needs.detect.outputs.rust-any == 'true' || needs.detect.outputs.helm == 'true' || needs.detect.outputs.sql == 'true' || needs.detect.outputs.shell == 'true' || needs.detect.outputs.image-monolith == 'true'
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
@@ -332,6 +334,27 @@ jobs:
       - name: simpelv1 APP_KEY literals decode to a usable AES key
         shell: bash
         run: python3 ./infra/scripts/check-simpelv1-app-key.py
+
+      # The simpelv1 image is built from a checkout, so a file v1 names but git does not
+      # track exists on a developer's disk and nowhere else. The root .gitignore's
+      # `**/*.js` (meant for wasm-bindgen output) hid all 1458 of v1's template scripts
+      # that way: jQuery, Bootstrap, ApexCharts. The dashboard still rendered its HTML,
+      # so every check passed while 224 views that call jQuery were dead in the browser.
+      - name: Every asset SIMPEL v1 names is tracked by git
+        shell: bash
+        run: |
+          python3 ./infra/scripts/check-simpelv1-assets-tracked.py --self-test
+          python3 ./infra/scripts/check-simpelv1-assets-tracked.py
+
+      # v1's nginx CSP allowed scripts from 'self' only, so the CDN libraries its views
+      # load (DataTables in 144 views, select2, SweetAlert, pdfmake, CKEditor 4, Maps)
+      # were refused in the browser without a trace on the server. The hosts are derived
+      # from the views and plugins.js, not listed by hand.
+      - name: SIMPEL v1's CSP allows every CDN its pages load from
+        shell: bash
+        run: |
+          python3 ./infra/scripts/check-simpelv1-csp-allows-cdn.py --self-test
+          python3 ./infra/scripts/check-simpelv1-csp-allows-cdn.py
 
       # Tailwind emits NOTHING for a shade its config does not define — no
       # warning, no build error. `success/warning/danger/info` jumped 100 → 400
@@ -1805,6 +1828,8 @@ jobs:
   e2e-build-images:
     name: Build e2e images (once, shared)
     needs: [detect]
+    # image-monolith: the cross-app SSO job boots simpelv1 and is the only check that
+    # loads a v1 page in a browser, so a change to v1 alone must build its images too.
     if: |
       !cancelled() &&
       (
@@ -1815,7 +1840,8 @@ jobs:
            vars.E2E_INTEGRATION_ENABLED == 'true') &&
           (needs.detect.outputs.rust-frontend == 'true' ||
            needs.detect.outputs.rust-backend == 'true' ||
-           needs.detect.outputs.e2e == 'true')
+           needs.detect.outputs.e2e == 'true' ||
+           needs.detect.outputs.image-monolith == 'true')
         )
       )
     runs-on: arc-simpel
@@ -2364,8 +2390,9 @@ jobs:
   # portal writes localStorage["auth_token"] then redirects to /perlengkapan/…,
   # which reads the SAME-ORIGIN token. The compose stack has two origins, so this
   # job adds `cross-app-ingress` (nginx mirroring the VS) and points Playwright's
-  # `portal-cross-app` project at it. Opt-in (run_e2e / E2E_INTEGRATION_ENABLED),
-  # NOT in ci-summary.needs. Needs BOTH FE builds + the backend.
+  # `portal-cross-app` project at it. Opt-in (run_e2e / E2E_INTEGRATION_ENABLED);
+  # in ci-summary.needs, so a failure blocks the merge. Needs BOTH FE builds + the
+  # backend.
   e2e-portal-cross-app:
     name: E2E Cross-app SSO (portal ↔ perlengkapan v2 + SIMPEL v1, single-origin)
     # build-monolith-assets (Vite) is a fail-fast gate: this job now brings up
@@ -2380,6 +2407,8 @@ jobs:
         build-backend,
         build-monolith-assets,
       ]
+    # image-monolith: a change to v1 alone (a view, an asset, a composer bump) is
+    # loaded in a browser nowhere else.
     if: |
       !cancelled() &&
       (
@@ -2387,7 +2416,8 @@ jobs:
         (vars.E2E_INTEGRATION_ENABLED == 'true' &&
          (needs.detect.outputs.rust-frontend == 'true' ||
           needs.detect.outputs.rust-backend == 'true' ||
-          needs.detect.outputs.e2e == 'true'))
+          needs.detect.outputs.e2e == 'true' ||
+          needs.detect.outputs.image-monolith == 'true'))
       ) &&
       needs.build-antarmuka-portal.result != 'failure' &&
       needs.build-antarmuka-perlengkapan.result != 'failure' &&

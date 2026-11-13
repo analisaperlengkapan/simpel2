@@ -89,6 +89,10 @@ regexes = [
   # Secreton saat boot, bukan nilainya (nilai di-interpolasi dari env,
   # mis. `jwt_secret = "${JWT_SECRET}"`).
   '''ed25519_private_key''',
+  # Quill v1.3.7 (`monolith/simpelv1/public/assets/libs/quill/quill.min.js`, pustaka
+  # template SIMPEL v1): `e.SHORTKEY=e.default=void 0` adalah konstanta tombol pintasan
+  # keyboard. generic-api-key menangkap `e.default=void` sebagai "nilai kunci".
+  '''^e\.default=void$''',
 ]
 
 # ─── Allowlist commit historis ─────────────────────────────────────
