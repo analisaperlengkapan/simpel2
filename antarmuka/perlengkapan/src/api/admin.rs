@@ -348,3 +348,48 @@ pub async fn delete_master_record(source: &str, id: &str) -> AppResult<()> {
 // endpoints it called have been removed: they queried relations no migration
 // creates, and user + role administration belongs to authenc (SSoT). See
 // `layanan/perlengkapan/src/admin/mod.rs`.
+
+// ═════════════════════════════════════════════════════════════════════════
+// Status sinkronisasi data induk
+// ═════════════════════════════════════════════════════════════════════════
+//
+// `GET /admin/status-sinkronisasi` reads `integrasi.sync_status`, which every
+// run of integrasi's scheduler writes. Mirrors
+// `layanan_perlengkapan::admin::sync_status::SyncStatusEntry` field for field
+// (`infra/scripts/check-fe-be-dto-drift.py` pairs them by name).
+
+/// One source and part of the master-data sync.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SyncStatusEntry {
+    /// `MySIMKARI`, `SIMAN`, `MonSAKTI_ADM`.
+    pub sumber: String,
+    /// `satker`, `pegawai`, `aset`, ...
+    pub bagian: String,
+    /// `BELUM_PERNAH` | `BERJALAN` | `BERHASIL` | `GAGAL` | `TERLAMBAT`, judged by the server.
+    pub keadaan: String,
+    pub status_terakhir: String,
+    #[serde(default)]
+    pub mulai_terakhir: Option<String>,
+    #[serde(default)]
+    pub selesai_terakhir: Option<String>,
+    #[serde(default)]
+    pub berhasil_terakhir: Option<String>,
+    #[serde(default)]
+    pub jadwal: Option<String>,
+    #[serde(default)]
+    pub jadwal_berikutnya: Option<String>,
+    pub jumlah_data: i32,
+    #[serde(default)]
+    pub galat: Option<String>,
+    pub total_berhasil: i32,
+    pub total_gagal: i32,
+}
+
+pub async fn fetch_sync_status() -> AppResult<Vec<SyncStatusEntry>> {
+    let url = format!("{API_BASE}/admin/status-sinkronisasi");
+    let resp: Wrap<Vec<SyncStatusEntry>> = api_get(&url).await?;
+    if !resp.success {
+        return Err(AppError::server(resp.message));
+    }
+    Ok(resp.data)
+}

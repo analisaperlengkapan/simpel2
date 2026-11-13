@@ -38,6 +38,7 @@ pub mod path {
     pub const ADMIN_AUDIT: &str = "/perlengkapan/simpel/v2/admin/audit";
     pub const ADMIN_MASTER: &str = "/perlengkapan/simpel/v2/admin/master";
     pub const ADMIN_TEMPLATES: &str = "/perlengkapan/simpel/v2/admin/templates";
+    pub const ADMIN_SYNC_STATUS: &str = "/perlengkapan/simpel/v2/admin/status-sinkronisasi";
     pub const NOTIFIKASI: &str = "/perlengkapan/simpel/v2/notifikasi";
     pub const ADMIN_WORKFLOW: &str = "/perlengkapan/simpel/v2/admin/workflow";
     pub const ADMIN_WORKFLOW_MONITORING: &str = "/perlengkapan/simpel/v2/admin/workflow-monitoring";

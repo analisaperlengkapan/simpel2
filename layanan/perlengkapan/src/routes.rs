@@ -620,6 +620,12 @@ pub fn create_routes(state: AppState) -> Router {
             "/admin/break-glass/{module}/{id}/transition",
             post(crate::admin::break_glass_transition),
         )
+        // Outcome of every master-data sync run (`integrasi.sync_status`, written by
+        // integrasi's scheduler) — see `admin::sync_status`.
+        .route(
+            "/admin/status-sinkronisasi",
+            get(crate::admin::list_sync_status),
+        )
         .route("/admin/master", get(crate::admin::list_master_sources))
         .route(
             "/admin/master/{source}",

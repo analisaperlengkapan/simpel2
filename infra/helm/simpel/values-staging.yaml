@@ -421,7 +421,14 @@ global:
   # SQL dan UNION membaca `monsakti_tokens` (#1091); CronJob MySIMKARI menulis ke tabel yang tak dibaca siapa
   # pun (5 satker saja) dan SIMAN menambahkan seluruh register tiap run (#1092); probe postgres mencatat
   # 1080 FATAL/jam (#1093). rc47 jangan dipromosikan.
-  imageTag: v0.1.0-rc48
+  #
+  # rc49 = rc48 + halaman admin "Status Sinkronisasi". rc48 lolos staging (e2e 218/218) dan rehearsal bersih,
+  # TETAPI: kunci SIMAN_BA_KEY tercetak di log pod dan `integrasi.api_log` (#1095); tak satu pun run sinkron
+  # mencatat hasilnya, jadi admin tak bisa tahu sinkron MySIMKARI/SIMAN (sumber isian NIP dan pilihan aset)
+  # berhenti; empat endpoint monitoring integrasi tanpa autentikasi dihapus (#1096); halaman admin membaca
+  # `integrasi.sync_status` (#1099). Ikut pula bump dependensi simpelv1 (Laravel #1097, phpspreadsheet #1098).
+  # rc48 jangan dipromosikan.
+  imageTag: v0.1.0-rc49
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
