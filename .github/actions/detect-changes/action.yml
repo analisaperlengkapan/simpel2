@@ -231,6 +231,9 @@ runs:
             - 'layanan/secreton/**'
           image-monolith:
             - 'monolith/simpelv1/**'
+            # The root .gitignore decides which v1 files exist in a checkout, and so in
+            # the image: its `**/*.js` once kept all 1458 of v1's template scripts out.
+            - '.gitignore'
           # The gateway compiles the authenc/secreton/integrasi protos, so a
           # proto change must rebuild it too (keeps wire types in lockstep).
           image-gateway:

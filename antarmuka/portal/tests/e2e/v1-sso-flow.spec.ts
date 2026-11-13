@@ -100,6 +100,55 @@ test.describe('Cross-app SSO — SIMPEL v1 (real, single-origin ingress)', () =>
     await expect(page.locator('a[href$="/dashboard"]').first()).toBeVisible();
   });
 
+  test('the v1 dashboard gets every script and stylesheet it asks for, and jQuery runs', async ({
+    page,
+  }) => {
+    await skipUnlessCaptchaDebug(page.request, '');
+    // v1 serves its template's JavaScript (jQuery, Bootstrap, ApexCharts, ...) as static files
+    // under public/assets. Until 2026-11-13 the root .gitignore's `**/*.js`, written for
+    // wasm-bindgen output, kept all of them out of git, so the image CI builds from a checkout
+    // had none. The dashboard still rendered its server-side HTML, so the test above passed,
+    // while every one of the 224 views that call jQuery was dead in the browser.
+    const prefix = `${V1_PREFIX}/assets/`;
+    const failed: string[] = [];
+    const errors: string[] = [];
+    page.on('response', (r) => {
+      const path = new URL(r.url()).pathname;
+      if (path.startsWith(prefix) && r.status() >= 400) failed.push(`${r.status()} ${path}`);
+    });
+    page.on('requestfailed', (r) => {
+      const path = new URL(r.url()).pathname;
+      if (path.startsWith(prefix)) failed.push(`${r.failure()?.errorText ?? 'failed'} ${path}`);
+    });
+    page.on('pageerror', (e) => errors.push(e.message));
+
+    const getCaptchaAnswer = trackCaptchaChallenges(page);
+    await page.goto(`${V1_PREFIX}/dashboard`, { waitUntil: 'domcontentloaded' });
+    await page.waitForURL(/\/portal\/login\?/, { timeout: 30000 });
+    await loginViaSameOriginUi(page, USER, getCaptchaAnswer);
+    await page.waitForURL(new RegExp(`${V1_PREFIX}/dashboard`), { timeout: 30000 });
+    await page.waitForLoadState('load');
+    await expect(page.locator('#navbar-nav')).toBeVisible({ timeout: 15000 });
+
+    // The layout names its own scripts; an empty list would make the checks below vacuous.
+    const named = await page.evaluate(
+      (p) =>
+        Array.from(document.querySelectorAll('script[src], link[rel="stylesheet"][href]'))
+          .map((e) => new URL((e as HTMLScriptElement).src || (e as HTMLLinkElement).href).pathname)
+          .filter((path) => path.startsWith(p)),
+      prefix,
+    );
+    expect(named.filter((p) => p.endsWith('.js')).length, named.join('\n')).toBeGreaterThan(5);
+
+    expect(failed, 'v1 assets the dashboard asked for and did not get').toEqual([]);
+    expect(await page.evaluate(() => typeof (window as unknown as { jQuery?: unknown }).jQuery)).toBe(
+      'function',
+    );
+    // Libraries v1 serves itself. A CDN script that fails to load is not this test's subject.
+    const local = /\b(\$|jQuery|bootstrap|feather|SimpleBar|Waves|ApexCharts|numeral|AutoNumeric) is not defined/;
+    expect(errors.filter((m) => local.test(m)), errors.join('\n')).toEqual([]);
+  });
+
   test('launching SIMPEL v1 from the portal apps page lands on the v1 dashboard', async ({
     page,
   }) => {
