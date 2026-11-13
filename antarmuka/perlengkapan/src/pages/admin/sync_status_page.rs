@@ -51,12 +51,17 @@ pub fn AdminSyncStatusPage() -> impl IntoView {
         PageBreadcrumb::leaf("Status Sinkronisasi"),
     ];
 
-    // Rows an administrator has to act on.
+    // Sources (not rows: MySIMKARI has two) an administrator has to act on.
     let attention = move || {
         entries.with(|rows| {
-            rows.iter()
+            let mut sources: Vec<&str> = rows
+                .iter()
                 .filter(|r| matches!(r.keadaan.as_str(), "GAGAL" | "TERLAMBAT"))
-                .count()
+                .map(|r| r.sumber.as_str())
+                .collect();
+            sources.sort_unstable();
+            sources.dedup();
+            sources.len()
         })
     };
 
@@ -215,6 +220,9 @@ fn sumber_label(sumber: &str, bagian: &str) -> (String, String) {
     (source.to_string(), part.to_string())
 }
 
+/// Longer reasons are clamped to three lines with a "Selengkapnya" toggle.
+const LONG_REASON_CHARS: usize = 160;
+
 const TH: &str = "border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400";
 
 #[component]
@@ -259,6 +267,15 @@ fn SyncTable(rows: ReadSignal<Vec<SyncStatusEntry>>) -> impl IntoView {
                                     .clone()
                                     .filter(|g| !g.trim().is_empty())
                                     .unwrap_or_else(|| "—".to_string());
+                                // A SIMAN failure names all ten categories; clamped, it does not
+                                // push the other rows off the screen. The full text stays in the
+                                // element (and in `title`), the clamp is only visual.
+                                let long = note.chars().count() > LONG_REASON_CHARS;
+                                let (expanded, set_expanded) = signal(false);
+                                let note_title = note.clone();
+                                // Before the first run, `sync_frequency` holds migration 002's
+                                // guess ("daily"/"weekly"), not the CronJob's schedule.
+                                let schedule = ran.then(|| r.jadwal.clone().unwrap_or_default());
                                 let counts = format!(
                                     "{} berhasil · {} gagal",
                                     r.total_berhasil,
@@ -305,7 +322,7 @@ fn SyncTable(rows: ReadSignal<Vec<SyncStatusEntry>>) -> impl IntoView {
                                                 )}
                                             </div>
                                             <div class="text-[0.65rem] text-slate-500 font-mono">
-                                                {r.jadwal.clone().unwrap_or_default()}
+                                                {schedule}
                                             </div>
                                         </td>
                                         <td
@@ -314,11 +331,35 @@ fn SyncTable(rows: ReadSignal<Vec<SyncStatusEntry>>) -> impl IntoView {
                                         >
                                             {r.jumlah_data.to_string()}
                                         </td>
-                                        <td
-                                            class="px-3 py-2 text-slate-300 break-words max-w-md"
-                                            data-testid="sync-galat"
-                                        >
-                                            {note}
+                                        <td class="px-3 py-2 text-slate-300 max-w-md">
+                                            <div
+                                                data-testid="sync-galat"
+                                                title=note_title
+                                                class=move || {
+                                                    if long && !expanded.get() {
+                                                        "break-words line-clamp-3"
+                                                    } else {
+                                                        "break-words"
+                                                    }
+                                                }
+                                            >
+                                                {note}
+                                            </div>
+                                            {long
+                                                .then(|| {
+                                                    view! {
+                                                        <button
+                                                            type="button"
+                                                            data-testid="sync-galat-toggle"
+                                                            class="mt-1 text-[0.65rem] font-semibold text-gold-300 hover:underline"
+                                                            on:click=move |_| set_expanded.update(|e| *e = !*e)
+                                                        >
+                                                            {move || {
+                                                                if expanded.get() { "Ringkas" } else { "Selengkapnya" }
+                                                            }}
+                                                        </button>
+                                                    }
+                                                })}
                                         </td>
                                     </tr>
                                 }

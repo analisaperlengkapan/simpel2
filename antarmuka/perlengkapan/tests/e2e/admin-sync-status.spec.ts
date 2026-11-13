@@ -65,10 +65,24 @@ test.describe('Admin sees the sync status the scheduler recorded', () => {
       await expect(row.getByTestId('sync-jumlah')).toHaveText(String(r.jumlah_data));
       const reason = r.galat && r.galat.trim() ? r.galat : '—';
       await expect(row.getByTestId('sync-galat')).toHaveText(reason);
+      // A long reason is clamped behind a toggle; the text itself is complete either way.
+      const toggle = row.getByTestId('sync-galat-toggle');
+      if ([...reason].length > 160) {
+        await expect(toggle).toHaveText('Selengkapnya');
+        await expect(row.getByTestId('sync-galat')).toHaveClass(/line-clamp-3/);
+        await toggle.click();
+        await expect(toggle).toHaveText('Ringkas');
+        await expect(row.getByTestId('sync-galat')).not.toHaveClass(/line-clamp-3/);
+      } else {
+        await expect(toggle).toHaveCount(0);
+      }
     }
 
-    // The banner appears exactly when something needs an administrator.
-    const needs = api.filter((r) => r.keadaan === 'GAGAL' || r.keadaan === 'TERLAMBAT').length;
+    // The banner appears exactly when something needs an administrator, and counts SOURCES
+    // (MySIMKARI has two rows).
+    const needs = new Set(
+      api.filter((r) => r.keadaan === 'GAGAL' || r.keadaan === 'TERLAMBAT').map((r) => r.sumber),
+    ).size;
     const banner = page.getByTestId('sync-attention');
     await expect(banner).toHaveCount(needs ? 1 : 0);
     if (needs) {
