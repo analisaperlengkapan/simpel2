@@ -867,3 +867,31 @@ async fn a_siman_run_that_never_got_an_answer_is_recorded_too() {
         "the last complete copy is still there: {failed:?}"
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_one_shot_run_logs_no_error_about_a_scheduler_it_never_used() {
+    // `--source <x>` used to build the daemon's cron engine anyway. Its notification tasks then
+    // logged `ERROR Error receiving Closed` when the process exited, in 10 of 15 failed runs
+    // measured on 2026-11-13: an ERROR line about nothing, in the one log an operator reads when a
+    // sync fails. Ten runs: on the old code the chance that none of them shows it is about
+    // (1/3)^10.
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    let mut env = siman_env(&server);
+    for (k, v) in env.iter_mut() {
+        if *k == "SIMAN_TOKEN_URL" {
+            *v = "http://127.0.0.1:9/connect/token".to_string();
+        }
+    }
+    for run in 1..=10 {
+        let (ok, log) = scheduler(&db, "siman", env.clone()).await;
+        assert!(
+            !ok,
+            "run {run}: a run that reached no token service exited 0:\n{log}"
+        );
+        assert!(
+            !log.contains("Error receiving"),
+            "run {run} logged an error from the unused cron engine:\n{log}"
+        );
+    }
+}
