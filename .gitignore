@@ -176,6 +176,12 @@ lerna-debug.log*
 # a re-derivation got the route nesting wrong and photographed the 404 page 24
 # times while reporting full coverage.
 !antarmuka/*/tests/e2e/_*.js
+# …and not about SIMPEL v1 either. v1 serves its template's JavaScript (jQuery, Bootstrap,
+# ApexCharts, ...) as static files from public/assets. Until 2026-11-13 the rule above kept
+# every one of them out of git, so the image CI builds from a checkout had none and each v1
+# page that calls jQuery was dead in the browser. `.d.ts` stays ignored: browsers never load
+# it. infra/scripts/check-simpelv1-assets-tracked.py fails when a file v1 names is untracked.
+!monolith/simpelv1/public/assets/**/*.js
 # Cargo.lock policy:
 # - Binary / application crate (workspace ini): WAJIB tracked untuk reproducible build.
 # - Library-only crate: skip (tapi tidak applicable di sini, semua workspace member jadi binary).
