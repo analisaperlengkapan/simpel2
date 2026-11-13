@@ -100,7 +100,7 @@ test.describe('Cross-app SSO — SIMPEL v1 (real, single-origin ingress)', () =>
     await expect(page.locator('a[href$="/dashboard"]').first()).toBeVisible();
   });
 
-  test('the v1 dashboard gets every script and stylesheet it asks for, and jQuery runs', async ({
+  test('the v1 dashboard gets every script and stylesheet it asks for, unrefused, and jQuery runs', async ({
     page,
   }) => {
     await skipUnlessCaptchaDebug(page.request, '');
@@ -121,6 +121,14 @@ test.describe('Cross-app SSO — SIMPEL v1 (real, single-origin ingress)', () =>
       if (path.startsWith(prefix)) failed.push(`${r.failure()?.errorText ?? 'failed'} ${path}`);
     });
     page.on('pageerror', (e) => errors.push(e.message));
+    // v1's own CSP once allowed scripts from 'self' only, so DataTables, select2, SweetAlert,
+    // pdfmake and jszip were refused before any request left the browser: 19 refusals on this
+    // page. Chrome reports each refusal on the console. Asserting on the refusal, not on the
+    // CDN answering, keeps the test independent of the CDN being reachable from CI.
+    const refused: string[] = [];
+    page.on('console', (m) => {
+      if (/Content Security Policy/i.test(m.text())) refused.push(m.text().slice(0, 200));
+    });
 
     const getCaptchaAnswer = trackCaptchaChallenges(page);
     await page.goto(`${V1_PREFIX}/dashboard`, { waitUntil: 'domcontentloaded' });
@@ -141,6 +149,7 @@ test.describe('Cross-app SSO — SIMPEL v1 (real, single-origin ingress)', () =>
     expect(named.filter((p) => p.endsWith('.js')).length, named.join('\n')).toBeGreaterThan(5);
 
     expect(failed, 'v1 assets the dashboard asked for and did not get').toEqual([]);
+    expect(refused, 'scripts or stylesheets v1 asks for and its own CSP refuses').toEqual([]);
     expect(await page.evaluate(() => typeof (window as unknown as { jQuery?: unknown }).jQuery)).toBe(
       'function',
     );

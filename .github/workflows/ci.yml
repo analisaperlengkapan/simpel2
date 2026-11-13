@@ -346,6 +346,16 @@ jobs:
           python3 ./infra/scripts/check-simpelv1-assets-tracked.py --self-test
           python3 ./infra/scripts/check-simpelv1-assets-tracked.py
 
+      # v1's nginx CSP allowed scripts from 'self' only, so the CDN libraries its views
+      # load (DataTables in 144 views, select2, SweetAlert, pdfmake, CKEditor 4, Maps)
+      # were refused in the browser without a trace on the server. The hosts are derived
+      # from the views and plugins.js, not listed by hand.
+      - name: SIMPEL v1's CSP allows every CDN its pages load from
+        shell: bash
+        run: |
+          python3 ./infra/scripts/check-simpelv1-csp-allows-cdn.py --self-test
+          python3 ./infra/scripts/check-simpelv1-csp-allows-cdn.py
+
       # Tailwind emits NOTHING for a shade its config does not define — no
       # warning, no build error. `success/warning/danger/info` jumped 100 → 400
       # while 115 classes asked for `-200`/`-300`, so every status message in
