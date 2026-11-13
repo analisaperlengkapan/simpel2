@@ -18,6 +18,11 @@
 //! * SIMAN has no key the insert can conflict on, so every weekly run appended the whole asset
 //!   register again. A run cut short added its half on top of the last complete copy.
 //!
+//! The same run is also where `SIMAN_BA_KEY`, a credential, got out: in the path of
+//! `getRowCount/<BA_KEY>/<table>`, it was printed at INFO, stored in `integrasi.api_log.url`, and
+//! quoted again by every reqwest error about that URL. The BA-key tests read the run's whole
+//! output and `api_log` for any 8 characters of it.
+//!
 //! The upstream records below are made up. Their SHAPE follows `dokumentasi_mysimkari.md`: a
 //! `{status, message, data}` envelope, satker `id` as a string, and the employee key `GOL_KD` in
 //! upper case.
@@ -35,7 +40,9 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const SATKER_TOKEN: &str = "uji-token-satker";
 const PEGAWAI_TOKEN: &str = "uji-token-pegawai";
-const BA_KEY: &str = "BA-UJI";
+/// A credential (operator decision 2026-11-12). Long and distinctive so that any 8 characters of
+/// it can be searched for in what a run printed or stored.
+const BA_KEY: &str = "BAKEY-q7Rm2XvL9tWc4H";
 const SIMAN: &str = "/gateway/SLDKSimanKL/2.0";
 
 // ---------------------------------------------------------------------------------------------
@@ -650,6 +657,155 @@ async fn siman_keeps_one_row_per_asset_however_often_it_runs() {
         2,
         "after run 3: SIMAN lists 2 assets\n{log}"
     );
+}
+
+/// Fail if `text` holds any 8 consecutive characters of the BA key.
+fn assert_no_ba_key(what: &str, text: &str) {
+    let chars: Vec<char> = BA_KEY.chars().collect();
+    for window in chars.windows(8) {
+        let fragment: String = window.iter().collect();
+        assert!(
+            !text.contains(&fragment),
+            "{what} contains `{fragment}`, a fragment of SIMAN_BA_KEY.\n--- {what} ---\n{text}"
+        );
+    }
+}
+
+/// Everything a run left in `integrasi.api_log` that a person or a monitoring endpoint can read.
+async fn api_log_text(db: &Db) -> (i64, String) {
+    let rows = db
+        .client
+        .query(
+            "SELECT concat_ws(' | ', endpoint, kode_kl, kdsatker, full_url, error_message) \
+             FROM integrasi.api_log WHERE module = 'SIMAN' ORDER BY id",
+            &[],
+        )
+        .await
+        .expect("read api_log");
+    let text = rows
+        .iter()
+        .map(|r| r.get::<_, String>(0))
+        .collect::<Vec<_>>()
+        .join("\n");
+    (rows.len() as i64, text)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_siman_run_keeps_the_ba_key_out_of_its_log_and_out_of_api_log() {
+    // SIMAN asks for the key in the PATH of getRowCount, so the URL of that call is a credential.
+    // The old code printed it at INFO ("Fetching SIMAN row count: …") and stored it in
+    // `integrasi.api_log.url`, a table four unauthenticated HTTP endpoints served.
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    mount_siman(&server, 3, None).await;
+
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(ok, "the run failed:\n{log}");
+    // The run really used the key: the only getRowCount the mock answers with rows is the one
+    // whose path carries it, and the assets landed.
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_aset").await,
+        3
+    );
+    let (rows, stored) = api_log_text(&db).await;
+    assert!(rows > 0, "the run logged no SIMAN call in api_log:\n{log}");
+
+    assert_no_ba_key("the run's log", &log);
+    assert_no_ba_key("integrasi.api_log", &stored);
+
+    // Hidden, not lost: both still say which call was made.
+    assert!(
+        log.contains("Fetching SIMAN row count") && log.contains("<SIMAN_BA_KEY>"),
+        "the log must show the row-count call, with the key replaced:\n{log}"
+    );
+    assert!(
+        stored.contains("getRowCount/<SIMAN_BA_KEY>/SIMAN2_M_ASET_TANAH"),
+        "api_log must still say which call was made:\n{stored}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_siman_failure_does_not_carry_the_ba_key_into_the_log() {
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    let token = || {
+        Mock::given(method("POST"))
+            .and(path("/connect/token"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "access_token": "uji-akses",
+                "token_type": "Bearer",
+                "expires_in": 3600
+            })))
+    };
+
+    // 1. The row count is refused, and the refusal quotes the request.
+    server.reset().await;
+    token().mount(&server).await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/gateway/SLDKSimanKL/2\.0/getRowCount/"))
+        .respond_with(ResponseTemplate::new(500).set_body_string(format!(
+            "getRowCount/{BA_KEY}: BA_KEY {BA_KEY} tidak dikenal"
+        )))
+        .mount(&server)
+        .await;
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(!ok, "a run whose every row count failed exited 0:\n{log}");
+    assert!(log.contains("500"), "the log must say what failed:\n{log}");
+    assert_no_ba_key("the log of a refused row count", &log);
+
+    // 2. The data call is refused, and the refusal echoes its form body (`BA_KEY=…&ID_1=…`).
+    server.reset().await;
+    token().mount(&server).await;
+    Mock::given(method("GET"))
+        .and(path(format!(
+            "{SIMAN}/getRowCount/{BA_KEY}/SIMAN2_M_ASET_TANAH"
+        )))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([{ "row_count": 1 }])))
+        .with_priority(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/gateway/SLDKSimanKL/2\.0/getRowCount/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([{ "row_count": 0 }])))
+        .with_priority(5)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path(format!("{SIMAN}/getAsetTanah")))
+        .respond_with(
+            ResponseTemplate::new(500)
+                .set_body_string(format!("permintaan ditolak: BA_KEY={BA_KEY}&ID_1=1&ID_2=1")),
+        )
+        .mount(&server)
+        .await;
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(!ok, "a run whose data call failed exited 0:\n{log}");
+    assert!(
+        log.contains("getAsetTanah"),
+        "the log must say which call failed:\n{log}"
+    );
+    assert_no_ba_key("the log of a refused data call", &log);
+
+    // 3. Nothing listens where the API should be. reqwest's error quotes the whole URL, and the
+    //    URL of the row count holds the key.
+    server.reset().await;
+    token().mount(&server).await;
+    let mut env = siman_env(&server);
+    for (k, v) in env.iter_mut() {
+        if *k == "SIMAN_BASE_URL" {
+            *v = "http://127.0.0.1:9".to_string();
+        }
+    }
+    let (ok, log) = scheduler(&db, "siman", env).await;
+    assert!(!ok, "a run that reached no API exited 0:\n{log}");
+    assert!(
+        log.contains("error sending request"),
+        "the log must say the request could not be sent:\n{log}"
+    );
+    assert_no_ba_key("the log of an unreachable API", &log);
+
+    let (_, stored) = api_log_text(&db).await;
+    assert_no_ba_key("integrasi.api_log", &stored);
 }
 
 #[tokio::test(flavor = "multi_thread")]
