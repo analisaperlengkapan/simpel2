@@ -24,8 +24,7 @@ pub mod path {
 
     pub const PENGELOLAAN_PEMAKAIAN: &str = "/perlengkapan/simpel/pengelolaan/pemakaian";
     pub const PENGELOLAAN_PENGHAPUSAN: &str = "/perlengkapan/simpel/pengelolaan/penghapusan";
-    pub const PENGELOLAAN_PEMAKAIAN_BUAT: &str =
-        "/perlengkapan/simpel/pengelolaan/pemakaian/buat";
+    pub const PENGELOLAAN_PEMAKAIAN_BUAT: &str = "/perlengkapan/simpel/pengelolaan/pemakaian/buat";
     pub const PENGELOLAAN_PENGHAPUSAN_BUAT: &str =
         "/perlengkapan/simpel/pengelolaan/penghapusan/buat";
 
@@ -87,16 +86,10 @@ pub mod url {
     }
 
     pub fn pemakaian_detail(id: impl std::fmt::Display) -> String {
-        format!(
-            "/perlengkapan/simpel/pengelolaan/pemakaian/detail/{}",
-            id
-        )
+        format!("/perlengkapan/simpel/pengelolaan/pemakaian/detail/{}", id)
     }
 
     pub fn penghapusan_detail(id: impl std::fmt::Display) -> String {
-        format!(
-            "/perlengkapan/simpel/pengelolaan/penghapusan/detail/{}",
-            id
-        )
+        format!("/perlengkapan/simpel/pengelolaan/penghapusan/detail/{}", id)
     }
 }
