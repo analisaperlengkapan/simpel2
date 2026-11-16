@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ci-cache-config
+  labels:
+    app.kubernetes.io/name: ci-cache
+    app.kubernetes.io/part-of: simpel-ci
+data:
+  config.yml: |
+    # No `users`: the server is unauthenticated on purpose (see README, "Trust model").
+    address: 0.0.0.0
+    port: 6060
+    directory: /data
+    permissions: CRUD
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ci-cache
+  labels:
+    app.kubernetes.io/name: ci-cache
+    app.kubernetes.io/part-of: simpel-ci
+automountServiceAccountToken: false
