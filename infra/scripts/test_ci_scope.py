@@ -147,6 +147,30 @@ class Synthetic(unittest.TestCase):
         self.assertEqual(r["units"], ["svc-b"])
         self.assertIn("whole unit", r["why"]["svc-b"])
 
+    def test_a_build_script_that_reads_another_crates_directory_is_a_dependency(self):
+        # svc/a's build.rs compiles a file that lives in tool/t, with no Cargo edge.
+        write(self.root / "tool/t/proto/x.proto", "syntax = \"proto3\";\n")
+        write(self.root / "svc/a/build.rs", 'fn main() { let _ = "../../tool/t/proto"; }\n')
+        # the reader, and what depends on the reader (b depends on a), run with it
+        self.assertEqual(self.units("tool/t/proto/x.proto"), ["svc-a", "svc-b", "tool"])
+        # and only for that path: the rest of tool does not drag the reader in
+        self.assertEqual(self.units("tool/t/src/main.rs"), ["tool"])
+
+    def test_a_read_counts_even_for_a_path_class_that_skips_everything(self):
+        write(self.root / "docs/spec.md", "# spec\n")
+        write(self.root / "svc/a/build.rs", 'fn main() { let _ = "../../docs"; }\n')
+        self.assertEqual(self.units("docs/spec.md"), ["svc-a", "svc-b"])
+
+    def test_build_script_reads_that_are_not_reads_are_ignored(self):
+        write(self.root / "tool/t/proto/x.proto", "x\n")
+        write(self.root / "svc/a/src/lib.rs", "")
+        write(
+            self.root / "svc/a/build.rs",
+            "// compiles ../../tool/t/proto when it exists\n"          # a comment
+            'fn main() { let _ = ["../../nowhere/at/all", "../a/src"]; }\n',  # missing / inside itself
+        )
+        self.assertEqual(self.units("tool/t/proto/x.proto"), ["tool"])
+
     def test_crate_inside_a_unit_is_precise(self):
         # b-extra only depends on base; changing it must not drag svc-a in.
         self.assertEqual(self.units("svc/b/extra/src/lib.rs"), ["svc-b"])
@@ -280,6 +304,23 @@ class RealRepository(unittest.TestCase):
         r = self.run_scope("lib/core/src/lib.rs")
         self.assertIn("layanan-integrasi", r["units"])
         self.assertIn("antarmuka-portal", r["units"])
+
+    def test_a_shared_proto_reaches_the_crate_whose_build_script_reads_it(self):
+        # layanan/perlengkapan/build.rs compiles layanan/authenc/proto/*.proto into
+        # its gRPC clients without depending on an authenc crate. Cargo's graph
+        # alone ran only authenc for a change to that contract.
+        r = self.run_scope("layanan/authenc/proto/authenc.proto")
+        self.assertEqual(sorted(r["units"]), ["layanan-authenc", "layanan-perlengkapan"])
+
+    def test_every_directory_a_build_script_reads_runs_the_reader(self):
+        found = 0
+        for pkg, info in self.graph.items():
+            for read in info["reads"]:
+                found += 1
+                r = self.run_scope(f"{read}/anything.proto")
+                unit = next(u for u, s in self.cfg["units"].items() if pkg in s["packages"])
+                self.assertIn(unit, r["units"], f"{read} is read by {pkg}'s build.rs, so {unit} must run")
+        self.assertGreater(found, 0, "no build.rs read found at all: the derivation measures nothing")
 
     def test_every_workspace_crate_change_scopes_in_its_own_unit(self):
         for pkg, info in self.graph.items():

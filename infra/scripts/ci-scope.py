@@ -57,6 +57,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import posixpath
 import re
 import sys
 from pathlib import Path
@@ -157,7 +158,45 @@ def load_workspace(root: Path) -> dict[str, dict]:
                             deps.add(wreal)
         deps.discard(name)
         graph[name] = {"dir": member, "deps": deps}
+    add_build_script_reads(root, graph)
     return graph
+
+
+# A string literal that climbs out of the crate: "../../layanan/authenc/proto", "../proto".
+_CLIMBING_LITERAL = re.compile(r'"((?:\.\./)+[^"\n]*|\.\.)"')
+
+
+def add_build_script_reads(root: Path, graph: dict[str, dict]) -> None:
+    """Record, per crate, the directories its build.rs reads from OUTSIDE the crate.
+
+    Cargo's graph cannot see these. perlengkapan's build.rs compiles
+    `../../layanan/authenc/proto/*.proto` into its gRPC clients without depending
+    on any authenc crate, so a change to that proto reached perlengkapan through no
+    edge and its tests were skipped. The reads are derived from the script itself:
+    every string literal that climbs out of the crate and names a path that exists.
+    A change under such a path seeds the crate that reads it (see `compute`).
+    The directory is the grain, not the file the script happens to join onto it:
+    the direction of doubt is "run more". The read is NOT turned into a dependency
+    edge on a crate, because the directory need not belong to any one crate
+    (`layanan/authenc` is not itself a workspace member).
+    """
+    for info in graph.values():
+        info["reads"] = set()
+        script = root / info["dir"] / "build.rs"
+        if not script.is_file():
+            continue
+        code = "\n".join(
+            line for line in script.read_text(encoding="utf-8").splitlines()
+            if not line.lstrip().startswith("//")
+        )
+        own = info["dir"]
+        for literal in _CLIMBING_LITERAL.findall(code):
+            target = posixpath.normpath(posixpath.join(own, literal))
+            if target.startswith("..") or target == "." or not (root / target).exists():
+                continue
+            if target == own or target.startswith(own + "/"):
+                continue
+            info["reads"].add(target)
 
 
 def dependents_closure(graph: dict[str, dict], seeds: set[str]) -> set[str]:
@@ -288,7 +327,14 @@ def compute(
     pkg_seeds: set[str] = set()
     unit_wide: set[str] = set()
     ignored = 0
+    owner = {p: u for u, s in cfg["units"].items() for p in s["packages"]}
     for path in changed or []:
+        # What a build script reads from another crate's directory (a shared .proto)
+        # affects the reader whatever class the path is in.
+        for pkg, info in graph.items():
+            if any(path == r or path.startswith(r + "/") for r in info.get("reads", ())):
+                pkg_seeds.add(pkg)
+                why.setdefault(owner[pkg], f"{path} (read by the build script of {pkg})")
         kind, detail = classify(path, cfg, graph)
         if kind == "everything":
             everything = e2e_global = True
@@ -314,7 +360,6 @@ def compute(
         affected_pkgs = set(graph)
     else:
         affected_pkgs = dependents_closure(graph, pkg_seeds)
-    owner = {p: u for u, s in cfg["units"].items() for p in s["packages"]}
     affected_units = [u for u in all_units if everything or any(owner[p] == u for p in affected_pkgs)]
     for unit in affected_units:
         if unit not in why and not everything:

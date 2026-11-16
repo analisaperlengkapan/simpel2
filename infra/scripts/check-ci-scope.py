@@ -35,6 +35,23 @@ COMPOSE = ROOT / "docker-compose.yml"
 spec = importlib.util.spec_from_file_location("ci_scope", ROOT / "infra" / "scripts" / "ci-scope.py")
 ci_scope = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ci_scope)  # type: ignore[union-attr]
+# The path-filter parser lives in the sibling guard (same text format, one reader).
+_bs = importlib.util.spec_from_file_location(
+    "check_image_build_scope", ROOT / "infra" / "scripts" / "check-image-build-scope.py"
+)
+check_image_build_scope = importlib.util.module_from_spec(_bs)
+_bs.loader.exec_module(check_image_build_scope)  # type: ignore[union-attr]
+FILTERS = ROOT / ".github" / "actions" / "detect-changes" / "action.yml"
+
+# What the guards in the `enforce-versioning` job guard. A change to any of these must
+# run that job, or the guard that would have noticed the mistake never looks.
+GUARDED_PATHS = (
+    ".github/ci-scope.json",
+    ".github/workflows/ci.yml",
+    "infra/scripts/ci-scope.py",
+    "infra/scripts/check-ci-scope.py",
+    "infra/scripts/test_ci_scope.py",
+)
 
 JOB_RE = re.compile(r"^ {2}([A-Za-z0-9_-]+):\s*$", re.M)
 
@@ -78,7 +95,9 @@ def job_if(body: str) -> str:
     return ""
 
 
-def check(workflow_text: str, cfg: dict, graph: dict, build_script: str, compose: str) -> list[str]:
+def check(
+    workflow_text: str, cfg: dict, graph: dict, build_script: str, compose: str, filters_text: str = ""
+) -> list[str]:
     problems: list[str] = []
     err = lambda msg: problems.append(f"::error file=.github/workflows/ci.yml::{msg}")  # noqa: E731
 
@@ -142,19 +161,42 @@ def check(workflow_text: str, cfg: dict, graph: dict, build_script: str, compose
     for image in sorted(set(images) - in_compose):
         problems.append(f"::error file=.github/ci-scope.json::images lists `{image}`, which docker-compose.yml does not build")
 
+    # 5. The job that runs these guards runs when what they guard changes. Found in
+    # review: a PR that only edited ci-scope.json (dropping a unit from the clippy
+    # matrix) matched none of enforce-versioning's path filters, so the coverage
+    # check that would have rejected it never ran. The gate is read from the job.
+    if filters_text:
+        gate = job_if(bodies.get("enforce-versioning", ""))
+        names = tuple(dict.fromkeys(re.findall(r"needs\.detect\.outputs\.([A-Za-z0-9_-]+)", gate)))
+        if not names:
+            err("job `enforce-versioning` has no readable `needs.detect.outputs.*` gate: this guard cannot tell when it runs")
+        else:
+            patterns = check_image_build_scope.filter_patterns(filters_text, names)
+            compiled = [ci_scope.glob_to_regex(p) for ps in patterns.values() for p in ps]
+            for path in GUARDED_PATHS:
+                if not any(rx.match(path) for rx in compiled):
+                    problems.append(
+                        f"::error file=.github/actions/detect-changes/action.yml::a change to `{path}` matches none of "
+                        f"the path filters that gate `enforce-versioning` ({', '.join(names)}): the guards that check it "
+                        "would not run. Add it to the `workflows` filter."
+                    )
+
     return problems
 
 
-def self_test(workflow_text: str, cfg: dict, graph: dict, build_script: str, compose: str) -> int:
+def self_test(
+    workflow_text: str, cfg: dict, graph: dict, build_script: str, compose: str, filters_text: str = ""
+) -> int:
     """Each mutation below is a mistake this guard exists to catch."""
     failures = 0
 
     def expect(description: str, mutated_text: str | None = None, mutated_cfg: dict | None = None,
-               mutated_script: str | None = None, needle: str = "") -> None:
+               mutated_script: str | None = None, mutated_filters: str | None = None, needle: str = "") -> None:
         nonlocal failures
         found = check(mutated_text if mutated_text is not None else workflow_text,
                       mutated_cfg if mutated_cfg is not None else cfg, graph,
-                      mutated_script if mutated_script is not None else build_script, compose)
+                      mutated_script if mutated_script is not None else build_script, compose,
+                      mutated_filters if mutated_filters is not None else filters_text)
         if any(needle in p for p in found):
             print(f"  ok   detects: {description}")
         else:
@@ -189,6 +231,14 @@ def self_test(workflow_text: str, cfg: dict, graph: dict, build_script: str, com
     unknown_image["images"].pop("simpel2-portal")
     expect("an e2e suite pulls an image the table does not know", mutated_cfg=unknown_image, needle="simpel2-portal")
 
+    config_line = "            - '.github/ci-scope.json'\n"
+    if config_line in filters_text:
+        expect("a change to ci-scope.json alone would not run the guards that check it",
+               mutated_filters=filters_text.replace(config_line, "", 1), needle="ci-scope.json")
+    else:
+        print("::error::self-test is stale: ci-scope.json is not in the workflows filter in the expected form")
+        failures += 1
+
     expect("the build script spells a cache name differently",
            mutated_script=build_script.replace("[portal]=antarmuka-portal", "[portal]=portal", 1),
            needle="CACHE_NAME")
@@ -202,9 +252,11 @@ def main() -> int:
     build_script = BUILD_SCRIPT.read_text(encoding="utf-8")
     compose = COMPOSE.read_text(encoding="utf-8")
 
-    if self_test(workflow_text, cfg, graph, build_script, compose):
+    filters_text = FILTERS.read_text(encoding="utf-8")
+
+    if self_test(workflow_text, cfg, graph, build_script, compose, filters_text):
         return 1
-    problems = check(workflow_text, cfg, graph, build_script, compose)
+    problems = check(workflow_text, cfg, graph, build_script, compose, filters_text)
     for problem in problems:
         print(problem)
     if problems:

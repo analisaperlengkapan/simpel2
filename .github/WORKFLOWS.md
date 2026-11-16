@@ -69,6 +69,11 @@ affect, and nothing else. The decision is made once, in the `detect` job, by
   everything that depends on it, transitively: `lib/core` reaches nearly everything;
   `antarmuka/portal` reaches only the portal; `layanan/integrasi` reaches itself and
   `layanan/perlengkapan`, because that crate imports it.
+- **What a `build.rs` reads from another crate's directory** is part of the graph too,
+  although Cargo does not know it: `layanan/perlengkapan/build.rs` compiles
+  `layanan/authenc/proto/*.proto` into its gRPC clients without depending on an authenc
+  crate. The script is scanned for string literals that climb out of the crate and name
+  a path that exists; a change under such a path runs the crate that reads it.
 - **`.github/ci-scope.json`** says which crates form a *unit* (the granularity of the
   clippy/test/build jobs), holds those matrices as data, and classifies paths that are
   not inside a crate: `everything` (lockfile, toolchain, `ci.yml`), `e2e_only`
@@ -88,7 +93,9 @@ affect, and nothing else. The decision is made once, in the `detect` job, by
   to the decision (it would run on every PR again) or if `ci-scope.json` stops matching
   the workspace; `test_ci_scope.py` proves the derivation. A new crate must be added to
   a unit; a new `test-<unit>` job needs the `contains(fromJson(needs.detect.outputs.units), ...)`
-  condition; both are enforced.
+  condition; both are enforced. The guard also fails if a change to `ci-scope.json`, the
+  scope scripts or `ci.yml` would not run the `enforce-versioning` job that hosts these
+  guards (the gate is read from that job's own `if:`).
 - **Reading a run:** the `detect` job's summary lists every unit and suite with why it
   ran or was skipped.
 

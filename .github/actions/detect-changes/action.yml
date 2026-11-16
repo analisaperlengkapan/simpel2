@@ -140,6 +140,9 @@ runs:
           workflows:
             - '.github/workflows/**'
             - '.github/actions/**'
+            # The data that decides which jobs run: dropping a unit from a matrix here
+            # must run the guards that notice (enforce-versioning), not only be accepted.
+            - '.github/ci-scope.json'
           helm:
             - 'infra/helm/**'
           # Changes that should re-run the Playwright e2e stack even without a
