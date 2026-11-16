@@ -3965,8 +3965,8 @@ dependencies = [
  "gloo-net 0.7.0",
  "gloo-render",
  "gloo-storage",
- "gloo-timers 0.4.0",
- "gloo-utils 0.3.0",
+ "gloo-timers 0.4.1",
+ "gloo-utils 0.3.1",
  "gloo-worker",
 ]
 
@@ -3976,7 +3976,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f1d5cec0b97edb53f21221f799c659cef3764ad5a00eca52950eb9b902028ba"
 dependencies = [
- "gloo-utils 0.3.0",
+ "gloo-utils 0.3.1",
  "js-sys",
  "serde",
  "wasm-bindgen",
@@ -4024,7 +4024,7 @@ checksum = "f07f3d446931414cc92f4a1b6e631dfa233db2f96c887d5f72beeecd1b5db39c"
 dependencies = [
  "getrandom 0.2.17",
  "gloo-events",
- "gloo-utils 0.3.0",
+ "gloo-utils 0.3.1",
  "serde",
  "serde-wasm-bindgen",
  "serde_urlencoded",
@@ -4063,7 +4063,7 @@ dependencies = [
  "futures-channel",
  "futures-core",
  "futures-sink",
- "gloo-utils 0.3.0",
+ "gloo-utils 0.3.1",
  "http",
  "js-sys",
  "pin-project",
@@ -4087,11 +4087,11 @@ dependencies = [
 
 [[package]]
 name = "gloo-storage"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e82ce7d41c6d821640a43726f6ff33c924795cc151b62e5a84d0c988c151c980"
+checksum = "e3b37ab45f56a81fcddd15c80727dc95bdacae7efbb9221598c26604a405158e"
 dependencies = [
- "gloo-utils 0.3.0",
+ "gloo-utils 0.3.1",
  "js-sys",
  "serde",
  "serde_json",
@@ -4114,9 +4114,9 @@ dependencies = [
 
 [[package]]
 name = "gloo-timers"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "482ce8a491a501da4cd806bd190275363d674f2845005c6ddbd5d3e1dd54495d"
+checksum = "a4460540da666acdb5722b2a62ac47d18f627fcfc0c728d04dc7226b3f6d40a7"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -4139,9 +4139,9 @@ dependencies = [
 
 [[package]]
 name = "gloo-utils"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4202275d95a142fa209a1e35e91c250a710c5600731372cd3464a39ed01573d6"
+checksum = "b49e445aecd7ad851e4a3704f370f53ae7b267ace62d17be3ec4fac5024eec0e"
 dependencies = [
  "js-sys",
  "serde",
@@ -5796,7 +5796,7 @@ dependencies = [
  "getrandom 0.4.2",
  "gloo",
  "gloo-storage",
- "gloo-timers 0.4.0",
+ "gloo-timers 0.4.1",
  "js-sys",
  "leptos",
  "leptos-chartistry",
@@ -6923,8 +6923,8 @@ dependencies = [
  "getrandom 0.4.2",
  "gloo",
  "gloo-net 0.7.0",
- "gloo-timers 0.4.0",
- "gloo-utils 0.3.0",
+ "gloo-timers 0.4.1",
+ "gloo-utils 0.3.1",
  "js-sys",
  "leptos",
  "leptos-fetch",
@@ -7218,8 +7218,8 @@ dependencies = [
  "getrandom 0.4.2",
  "gloo",
  "gloo-net 0.7.0",
- "gloo-timers 0.4.0",
- "gloo-utils 0.3.0",
+ "gloo-timers 0.4.1",
+ "gloo-utils 0.3.1",
  "js-sys",
  "leptos",
  "leptos-fetch",
