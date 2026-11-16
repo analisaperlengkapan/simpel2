@@ -1,0 +1,274 @@
+{
+  "_about": "Single source for WHAT each CI job covers. infra/scripts/ci-scope.py reads this, the crates' own Cargo.toml (the dependency graph is derived, never listed here) and the e2e jobs' image pulls in ci.yml, and decides which jobs a change needs. infra/scripts/check-ci-scope.py keeps it honest. Rule of thumb: a path nobody classified runs EVERYTHING, so a stale entry costs time, never coverage.",
+  "units": {
+    "lib-core": {
+      "root": "lib/core",
+      "packages": [
+        "lib-core"
+      ]
+    },
+    "lib-backend": {
+      "root": "lib/backend",
+      "packages": [
+        "lib-backend"
+      ]
+    },
+    "lib-crypto": {
+      "root": "lib/crypto",
+      "packages": [
+        "lib-crypto"
+      ]
+    },
+    "lib-perlengkapan": {
+      "root": "lib/perlengkapan",
+      "packages": [
+        "lib-perlengkapan"
+      ]
+    },
+    "lib-ui": {
+      "root": "lib/ui",
+      "packages": [
+        "lib-ui"
+      ]
+    },
+    "antarmuka-portal": {
+      "root": "antarmuka/portal",
+      "packages": [
+        "portal-microfrontend"
+      ]
+    },
+    "antarmuka-perlengkapan": {
+      "root": "antarmuka/perlengkapan",
+      "packages": [
+        "perlengkapan-microfrontend"
+      ]
+    },
+    "layanan-authenc": {
+      "root": "layanan/authenc",
+      "packages": [
+        "authenc-types",
+        "authenc-core",
+        "authenc-crypto",
+        "authenc-storage",
+        "authenc-api",
+        "authenc-iam-api",
+        "authenc-grpc",
+        "authenc-mfa",
+        "authenc-federation",
+        "authenc-webauthn"
+      ]
+    },
+    "layanan-perlengkapan": {
+      "root": "layanan/perlengkapan",
+      "packages": [
+        "layanan-perlengkapan"
+      ]
+    },
+    "layanan-integrasi": {
+      "root": "layanan/integrasi",
+      "packages": [
+        "layanan-integrasi"
+      ]
+    },
+    "layanan-secreton": {
+      "root": "layanan/secreton",
+      "packages": [
+        "secreton",
+        "secreton-types",
+        "secreton-core",
+        "secreton-crypto",
+        "secreton-storage",
+        "secreton-api",
+        "secreton-grpc",
+        "secreton-agent",
+        "secreton-cli",
+        "secreton-backup",
+        "secreton-health",
+        "secreton-hsm",
+        "secreton-replication",
+        "secreton-auto-unseal",
+        "secreton-k8s-operator"
+      ]
+    }
+  },
+  "matrices": {
+    "clippy": {
+      "_why": "`scope` controls the lint surface per crate. Backend crates lint the full graph (--all-targets --all-features). The wasm CSR frontends lint only the shipped target (--lib --bins, default = csr feature): --all-targets would compile their test/dev targets for wasm32 (which pull native tokio -> mio, which does not build on wasm) and --all-features would turn on server-side features (ssr/hydrate) that are never shipped.",
+      "units": {
+        "lib-core": {
+          "scope": "--all-targets --all-features"
+        },
+        "lib-backend": {
+          "scope": "--all-targets --all-features"
+        },
+        "lib-crypto": {
+          "scope": "--all-targets --all-features"
+        },
+        "lib-perlengkapan": {
+          "scope": "--all-targets --all-features"
+        },
+        "lib-ui": {
+          "scope": "--all-targets --all-features"
+        },
+        "antarmuka-portal": {
+          "targets": "wasm32-unknown-unknown",
+          "extra_args": "--target wasm32-unknown-unknown",
+          "scope": "--lib --bins"
+        },
+        "antarmuka-perlengkapan": {
+          "targets": "wasm32-unknown-unknown",
+          "extra_args": "--target wasm32-unknown-unknown",
+          "scope": "--lib --bins"
+        },
+        "layanan-authenc": {
+          "scope": "--all-targets --all-features"
+        },
+        "layanan-perlengkapan": {
+          "scope": "--all-targets --all-features"
+        },
+        "layanan-integrasi": {
+          "scope": "--all-targets --all-features"
+        },
+        "layanan-secreton": {
+          "scope": "--all-targets --all-features"
+        }
+      }
+    },
+    "test-services": {
+      "_why": "layanan-integrasi: the whole gRPC server (and its tests, including the production mTLS gate) sits behind #[cfg(feature = \"grpc\")]; without the feature it compiles to nothing and every test is silently absent. layanan-secreton: heaviest tier (PG property tests); test binaries default --test-threads to ncpus, which resource-kills the runner, so intra-binary parallelism is capped; target_args excludes the criterion benches (harness = false), which reject the forwarded --test-threads. layanan-perlengkapan: the integration:: DB suite is a HARD gate, its Postgres is started by the job.",
+      "units": {
+        "layanan-authenc": {
+          "test_args": ""
+        },
+        "layanan-perlengkapan": {
+          "test_args": ""
+        },
+        "layanan-integrasi": {
+          "test_args": "--features grpc"
+        },
+        "layanan-secreton": {
+          "target_args": "--lib --bins --tests",
+          "test_args": "-- --test-threads=4"
+        }
+      }
+    },
+    "build-backend": {
+      "_why": "The authenc package (layanan/authenc) is legacy/out-of-workspace; the deployable binary lives in authenc-api. The top-level `secreton` package is target-less, so `cargo build -p secreton` compiled nothing (false green); the deployable binary is secreton-api::api_server, mirroring layanan/secreton/Dockerfile.",
+      "units": {
+        "layanan-authenc": {
+          "package": "authenc-api"
+        },
+        "layanan-perlengkapan": {
+          "package": "layanan-perlengkapan"
+        },
+        "layanan-integrasi": {
+          "package": "layanan-integrasi"
+        },
+        "layanan-secreton": {
+          "package": "secreton-api",
+          "extra_args": "--bin api_server --features raft-consensus"
+        }
+      }
+    }
+  },
+  "images": {
+    "_why": "The e2e image each unit ships (docker-compose service + the tag e2e-build-images pushes). Which images an e2e job needs is read from the job's own `for img in ...; docker pull` loop in ci.yml, so this table never has to repeat that.",
+    "simpel2-authenc": {
+      "unit": "layanan-authenc",
+      "service": "authenc"
+    },
+    "simpel2-secreton": {
+      "unit": "layanan-secreton",
+      "service": "secreton"
+    },
+    "simpel2-integrasi": {
+      "unit": "layanan-integrasi",
+      "service": "layanan-integrasi"
+    },
+    "simpel2-layanan-perlengkapan": {
+      "unit": "layanan-perlengkapan",
+      "service": "layanan-perlengkapan"
+    },
+    "simpel2-perlengkapan": {
+      "unit": "antarmuka-perlengkapan",
+      "service": "perlengkapan"
+    },
+    "simpel2-portal": {
+      "unit": "antarmuka-portal",
+      "service": "portal"
+    }
+  },
+  "paths": {
+    "_why": "Classification of paths that are NOT inside a unit's crate. Checked in this order: everything, e2e_only, no_effect; then unit ownership; anything left over is treated as `everything`.",
+    "everything": [
+      "Cargo.toml",
+      "Cargo.lock",
+      ".cargo/**",
+      "rust-toolchain",
+      "rust-toolchain.toml",
+      ".github/actions/setup-rust/**",
+      ".github/actions/detect-changes/**",
+      ".github/workflows/ci.yml",
+      ".github/ci-scope.json",
+      "infra/scripts/ci-scope.py"
+    ],
+    "e2e_only": [
+      "antarmuka/*/tests/e2e/**",
+      "tests/e2e/**",
+      "tests/fixtures/e2e/**",
+      "docker-compose.yml",
+      "docker-compose.e2e.yml",
+      ".dockerignore",
+      ".github/buildkitd.toml",
+      "infra/nginx/**",
+      "infra/scripts/ci-build-e2e-images.sh",
+      "infra/scripts/secreton-ci-bootstrap.sh",
+      "infra/scripts/run-e2e.sh",
+      "infra/scripts/docker-build-with-retry.sh",
+      "infra/scripts/init-postgres-databases.sh",
+      "infra/scripts/preseed-trunk-tools.sh",
+      "infra/scripts/csp-script-hashes.py"
+    ],
+    "no_effect": [
+      "**/*.md",
+      "docs/**",
+      "LICENSE*",
+      ".gitignore",
+      ".gitattributes",
+      ".editorconfig",
+      ".claude/**",
+      ".jules/**",
+      ".openhands/**",
+      ".vscode/**",
+      "*.code-workspace",
+      ".gitlab-ci.yml",
+      ".gitleaks.toml",
+      "cliff.toml",
+      "deny.toml",
+      ".leptosfmt.toml",
+      "docker-compose.build.yml",
+      "docker-compose.screenshots.yml",
+      ".github/workflows/*.yml",
+      ".github/*.md",
+      ".github/ISSUE_TEMPLATE/**",
+      ".github/actions/docker-build/**",
+      "infra/helm/**",
+      "infra/lint/**",
+      "infra/monitoring/**",
+      "infra/velero/**",
+      "infra/scripts/check-*",
+      "tests/load/**",
+      "tests/verification/**",
+      "tests/performance_test_runner.rs",
+      "tests/test_oidc_flow.py",
+      ".github/*.yml",
+      ".github/*.yaml",
+      ".github/CODEOWNERS",
+      ".github/agents/**",
+      "infra/scripts/test_*.py",
+      "infra/scripts/install-cargo-audit.sh",
+      "infra/scripts/precommit-secret-scan.sh",
+      "infra/scripts/retry-dependency-check.py"
+    ]
+  }
+}

@@ -50,6 +50,8 @@ workflow is scanned as TEXT; `actionlint` already proves it is valid YAML.
 
 from __future__ import annotations
 
+import copy
+import json
 import re
 import sys
 from pathlib import Path
@@ -62,6 +64,18 @@ except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
 ROOT_DIR = Path(__file__).resolve().parents[2]
 ROOT_MANIFEST = ROOT_DIR / "Cargo.toml"
 WORKFLOW = ROOT_DIR / ".github" / "workflows" / "ci.yml"
+# The per-crate matrices (clippy, services tests, backend builds) live in this
+# file, not in ci.yml: the detect job filters them down to what a change can
+# affect and hands the result to the matrix jobs. ci.yml therefore no longer
+# spells out `-p <crate>` for those jobs, and this guard reads them from here.
+SCOPE_CONFIG = ROOT_DIR / ".github" / "ci-scope.json"
+
+# job id in ci.yml -> (matrix block in ci-scope.json, field holding the packages)
+MATRIX_JOBS = {
+    "clippy-rust": ("clippy", "packages"),
+    "test-services": ("test-services", "packages"),
+    "build-backend": ("build-backend", "package"),
+}
 
 # Crates that cannot run host `cargo test`, with the reason. They must still be
 # compiled by SOME job — `cargo check`/`cargo build` counts for these and only
@@ -218,7 +232,19 @@ def workspace_members() -> dict[str, Path]:
     return members
 
 
-def coverage_from_workflow(workflow_text: str) -> dict[str, set[str]]:
+def matrix_packages(cfg: dict, job: str) -> set[str]:
+    """Crates a matrix job runs, read from ci-scope.json (the matrix is data)."""
+    kind, field = MATRIX_JOBS[job]
+    packages: set[str] = set()
+    for unit, extra in cfg["matrices"][kind]["units"].items():
+        if field == "package":
+            packages.add(extra["package"])
+        else:
+            packages.update(cfg["units"][unit]["packages"])
+    return packages
+
+
+def coverage_from_workflow(workflow_text: str, cfg: dict) -> dict[str, set[str]]:
     """Map cargo subcommand -> crate names named by a job that runs it.
 
     Attribution is per JOB, not per line: the matrices hold the crate names in
@@ -231,15 +257,20 @@ def coverage_from_workflow(workflow_text: str) -> dict[str, set[str]]:
     coverage: dict[str, set[str]] = {}
     subcommands: set[str] = set()
     packages: set[str] = set()
+    current = ""
 
     def flush() -> None:
+        # A matrix job names its crates through `${{ matrix.* }}`; the crates
+        # themselves are in ci-scope.json.
+        named = packages | (matrix_packages(cfg, current) if current in MATRIX_JOBS else set())
         for sub in subcommands:
-            coverage.setdefault(sub, set()).update(packages)
+            coverage.setdefault(sub, set()).update(named)
 
     for line in workflow_text.splitlines():
         job = JOB_RE.match(line)
         if job:
             flush()
+            current = job.group(1)
             subcommands, packages = set(), set()
             continue
         # A comment can mention `cargo test -p foo` while describing why a crate
@@ -264,10 +295,10 @@ def coverage_from_workflow(workflow_text: str) -> dict[str, set[str]]:
 
 
 def check(
-    workflow_text: str, members: dict[str, Path], doctest_crates: set[str]
+    workflow_text: str, members: dict[str, Path], doctest_crates: set[str], cfg: dict
 ) -> list[str]:
     """Return one message per coverage problem; empty means fully gated."""
-    coverage = coverage_from_workflow(workflow_text)
+    coverage = coverage_from_workflow(workflow_text, cfg)
 
     linted = coverage.get("clippy", set())
     tested = coverage.get("test", set())
@@ -279,7 +310,7 @@ def check(
         if name not in linted:
             problems.append(
                 f"::error file=.github/workflows/ci.yml::crate '{name}' is in no "
-                f"`cargo clippy` job — add it to the clippy-rust matrix"
+                f"`cargo clippy` job — add its unit to matrices.clippy in .github/ci-scope.json"
             )
         if name in COMPILE_ONLY:
             if name not in compiled:
@@ -373,8 +404,10 @@ def self_test_indented_blocks() -> int:
     return failures
 
 
-def self_test(workflow_text: str, members: dict[str, Path], doctest_crates: set[str]) -> int:
-    """Mutate the workflow in memory and assert each mutation is detected.
+def self_test(
+    workflow_text: str, members: dict[str, Path], doctest_crates: set[str], cfg: dict
+) -> int:
+    """Mutate the workflow / config in memory and assert each mutation is detected.
 
     A guard is only worth its runtime if it fails when it should. The `name:`
     exclusion in coverage_from_workflow exists solely because this test caught
@@ -382,14 +415,19 @@ def self_test(workflow_text: str, members: dict[str, Path], doctest_crates: set[
     deleted — the step's DISPLAY NAME still contained the command, so it looked
     covered. Nothing but a mutation would have surfaced that.
     """
-    mutations: list[tuple[str, str, str]] = [
-        (
-            "drop a crate from the clippy matrix",
-            '"-p layanan-integrasi"',
-            "layanan-integrasi",
-        ),
-    ]
-    # Find a real `cargo test --doc` command that names its crate literally
+    failures = 0
+
+    # 1. Drop a crate's unit from the clippy matrix (now data in ci-scope.json).
+    dropped = copy.deepcopy(cfg)
+    dropped["matrices"]["clippy"]["units"].pop("layanan-integrasi")
+    found = [p for p in check(workflow_text, members, doctest_crates, dropped) if "layanan-integrasi" in p]
+    if found:
+        print("  ok   detects: drop a crate from the clippy matrix")
+    else:
+        print("::error::self-test FAILED — guard did not detect: drop a crate from the clippy matrix")
+        failures += 1
+
+    # 2. Delete a real `cargo test --doc` command that names its crate literally
     # (the matrix jobs pass `${{ matrix.packages }}`, so they cannot be used to
     # target one crate). Derived from the file so the mutation cannot go stale.
     for line in workflow_text.splitlines():
@@ -397,28 +435,14 @@ def self_test(workflow_text: str, members: dict[str, Path], doctest_crates: set[
             continue
         named = [pkg for pkg in PKG_RE.findall(line) if pkg in doctest_crates]
         if named:
-            mutations.append(
-                (
-                    "delete a `cargo test --doc` command, keeping the step name",
-                    line,
-                    named[0],
-                )
-            )
+            mutated = workflow_text.replace(line, "", 1)
+            hit = [p for p in check(mutated, members, doctest_crates, cfg) if named[0] in p]
+            if hit:
+                print("  ok   detects: delete a `cargo test --doc` command, keeping the step name")
+            else:
+                print("::error::self-test FAILED — guard did not detect: delete a `cargo test --doc` command, keeping the step name")
+                failures += 1
             break
-
-    failures = 0
-    for description, needle, expect_crate in mutations:
-        if needle not in workflow_text:
-            print(f"::error::self-test is stale: {needle!r} no longer in ci.yml")
-            failures += 1
-            continue
-        mutated = workflow_text.replace(needle, "", 1)
-        found = [p for p in check(mutated, members, doctest_crates) if expect_crate in p]
-        if found:
-            print(f"  ok   detects: {description}")
-        else:
-            print(f"::error::self-test FAILED — guard did not detect: {description}")
-            failures += 1
     return failures
 
 
@@ -428,11 +452,12 @@ def main() -> int:
     doctest_crates = {
         name for name, manifest in members.items() if has_runnable_doctest(manifest)
     }
+    cfg = json.loads(SCOPE_CONFIG.read_text(encoding="utf-8"))
 
-    if self_test(workflow_text, members, doctest_crates) or self_test_indented_blocks():
+    if self_test(workflow_text, members, doctest_crates, cfg) or self_test_indented_blocks():
         return 1
 
-    problems = check(workflow_text, members, doctest_crates)
+    problems = check(workflow_text, members, doctest_crates, cfg)
     for problem in problems:
         print(problem)
     if problems:
