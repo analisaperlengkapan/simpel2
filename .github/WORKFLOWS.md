@@ -62,12 +62,22 @@ stay out of the catch-all group so a minor bump there is always reviewed by a pe
 
 - **Pull requests** build the six images once, in `e2e-build-images`
   (`infra/scripts/ci-build-e2e-images.sh`), because the e2e jobs need them. The
-  separate `Build Docker` matrix does **not** run on PRs; it runs on pushes to
-  `main`/`staging` (when code, a manifest or a Dockerfile changed) and on
-  `workflow_dispatch`, and `release.yml` builds them again before anything is promoted.
+  separate `Build Docker` matrix does **not** run on PRs; it runs on every push to
+  `main`/`staging` and on `workflow_dispatch` (every push, not only code changes: the
+  portal and perlengkapan images `COPY . .` and run `infra/scripts/*` inside the build),
+  and `release.yml` builds them again before anything is promoted.
+- **What reaches an image build on a PR:** `e2e-build-images` runs when the
+  `rust-frontend`, `rust-backend` or `e2e` filter fires. Files an image reads from outside
+  its own directory (root `.dockerignore`, the `infra/scripts/*` the Dockerfiles run) are in
+  the `e2e` filter, and `infra/scripts/check-image-build-scope.py` derives that list from
+  the Dockerfiles and fails when one is missing.
 - **Cache:** BuildKit's registry cache in the in-cluster registry
   (`172.15.10.252:32000`, `cache/<image>:main`; builders trust it through
-  `.github/buildkitd.toml`). Every build reads it; a miss only means a cold build.
+  `.github/buildkitd.toml`). `ci.yml`'s builds read it; a miss only means a cold build.
+  **`release.yml` never uses it**: the registry is plain HTTP without authentication, so
+  anyone on the runner network could replace a cached layer and have it end up in an image
+  that gets promoted. Release images are built from source only; the same guard fails if
+  `release.yml` ever imports the cache.
   Only a push to `main` that changed a Cargo manifest, a Dockerfile or a workflow
   writes it (or `workflow_dispatch` with `run_e2e` and `refresh_cache` on `main`).
 - **Why not write on every push:** `mode=max` also exports the `cargo build` layer,

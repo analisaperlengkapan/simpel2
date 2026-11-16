@@ -151,6 +151,15 @@ runs:
             - 'infra/scripts/secreton-ci-bootstrap.sh'
             - '.github/workflows/ci.yml'
             - '.github/actions/detect-changes/**'
+            # What the image builds read from OUTSIDE their own directory. The
+            # portal/perlengkapan Dockerfiles `COPY . .` and run these inside the
+            # build, and the root .dockerignore decides what every context holds, so
+            # a change here can break an image without touching any Rust. Not listed
+            # by hand: check-image-build-scope.py derives them from the Dockerfiles
+            # and fails when one is missing from this filter.
+            - '.dockerignore'
+            - 'infra/scripts/preseed-trunk-tools.sh'
+            - 'infra/scripts/csp-script-hashes.py'
           docs:
             - '**/*.md'
             - 'docs/**'

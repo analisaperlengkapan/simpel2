@@ -488,6 +488,12 @@ jobs:
       - name: Chart image names match what release.yml builds and promote.yml re-tags
         shell: bash
         run: python3 ./infra/scripts/check-chart-release-images.py
+      # Two promises the image builds depend on and nothing else checks: a change
+      # to anything a Dockerfile reads reaches an image build on a PR, and a release
+      # image never imports the shared, unauthenticated build cache.
+      - name: Image builds are reachable from a PR, and releases use no shared cache
+        shell: bash
+        run: python3 ./infra/scripts/check-image-build-scope.py
       # Staging proves a route table; production serves a different one. Production's
       # was a pre-F5 copy with no authenc route at all, so login was impossible on
       # day one and nothing could have noticed before the first real deploy.
@@ -1043,14 +1049,16 @@ jobs:
     # the e2e image build) and is built again here on main and in release.yml
     # before anything is promoted. The job is in ci-summary.needs, where a
     # skipped job counts as passed, so a PR is not blocked by its absence.
-    # On main it also skips a push that touched no code, manifest or Dockerfile
-    # (docs, chart values, workflows only): the images would be identical.
+    #
+    # On main/staging it runs on EVERY push, as it always did. Do not narrow it
+    # to "code, manifest or Dockerfile changed": the portal and perlengkapan
+    # Dockerfiles `COPY . .` and then run infra/scripts/* inside the build, so the
+    # image depends on files no path filter here lists, and a push that touched
+    # only one of them would skip the one build that exists to catch it.
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging') &&
-       (needs.detect.outputs.rust-backend == 'true' ||
-        needs.detect.outputs.rust-frontend == 'true' ||
-        needs.detect.outputs.docker == 'true'))
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/staging'
     runs-on: arc-simpel
     timeout-minutes: 120
     permissions:

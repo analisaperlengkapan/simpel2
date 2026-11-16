@@ -26,10 +26,6 @@ env:
   TRUNK_VERSION: "0.21.4"
   REGISTRY: ghcr.io
   IMAGE_PREFIX: simpelv2
-  # In-cluster registry holding the BuildKit cache (`cache/<image>:main`),
-  # written by ci.yml on main. Addressed by NODE IP: ARC runner pods cannot
-  # resolve cluster DNS names. Release builds only READ it.
-  CACHE_REGISTRY: "172.15.10.252:32000"
 
 jobs:
   validate:
@@ -280,8 +276,6 @@ jobs:
           driver-opts: |
             image=moby/buildkit:latest
             network=host
-          # The cache registry is plain HTTP; this builder must be told to trust it.
-          buildkitd-config: .github/buildkitd.toml
 
       - name: Login to GHCR
         uses: docker/login-action@v4
@@ -316,13 +310,16 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Import only. The cache is keyed on content (manifests, Dockerfile, the
-          # sources COPYed in), so a hit can only reproduce what a build from
-          # scratch would; it never changes WHICH digest gets promoted, it only
-          # skips recompiling dependencies. `type=gha` was dropped: its export
-          # counted against the shared Actions storage quota and aborted builds
-          # when that ran out.
-          cache-from: type=registry,ref=${{ env.CACHE_REGISTRY }}/cache/${{ matrix.image.name }}:main
+          # NO build cache, on purpose. These are the images that get promoted and
+          # deployed, so they are built from source and nothing else. The only cache
+          # we have lives in the in-cluster registry, which speaks plain HTTP and has
+          # no authentication: anyone on the runner network could replace a cached
+          # layer and have it end up inside a release image (cache poisoning). A
+          # release is rare and its six builds run in parallel, so the extra
+          # minutes cost less than that trust. `type=gha` was dropped earlier: its
+          # export counted against the shared Actions storage quota and aborted
+          # builds when that ran out. ci.yml's builds may use the registry cache;
+          # check-image-build-scope.py fails if this workflow ever does.
           provenance: true
           sbom: true
 
