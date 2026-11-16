@@ -1,5 +1,5 @@
 name: 'Docker Build'
-description: 'Buildx-based Docker build with GHA cache, optional push, optional Trivy scan'
+description: 'Buildx-based Docker build with a read-only registry cache, optional push, optional Trivy scan'
 
 inputs:
   image:
@@ -51,6 +51,13 @@ inputs:
     description: 'Load image ke daemon (untuk scan/test lokal)'
     required: false
     default: 'true'
+  cache-registry:
+    description: >-
+      host:port of the in-cluster registry that holds the BuildKit cache
+      (`cache/<image>:main`). Read-only here: the cache is written by
+      infra/scripts/ci-build-e2e-images.sh on main. Empty = no cache.
+    required: false
+    default: ''
 
 outputs:
   digest:
@@ -78,6 +85,8 @@ runs:
         driver-opts: |
           image=moby/buildkit:latest
           network=host
+        # The registry is plain HTTP; this builder must be told to trust it.
+        buildkitd-config: .github/buildkitd.toml
 
     - name: Login to registry
       if: inputs.push == 'true' && inputs.registry-username != '' && inputs.registry-password != ''
@@ -98,20 +107,14 @@ runs:
         load: ${{ inputs.push == 'false' && inputs.load == 'true' }}
         platforms: ${{ inputs.platforms }}
         build-args: ${{ inputs.build-args }}
-        # `ignore-error=true` on the EXPORT: the gha cache backend is billed
-        # against the same Actions storage quota as artifacts, and when that
-        # quota is exhausted the export fails and buildx aborts the whole build
-        # with `failed to solve: not_found` — even though the image compiled
-        # cleanly. Observed on PR #685 (job 89870932217): 30+ minutes of
-        # successful compilation thrown away, immediately followed by
-        # "Artifact storage quota has been hit".
-        #
-        # A cache write is an optimisation. It must never be able to fail a
-        # build whose content is correct, especially when the trigger is an
-        # account-wide quota this repo cannot control (this repo holds only
-        # ~0.2 GB of artifacts). The import side already tolerates a miss.
-        cache-from: type=gha,scope=${{ inputs.image }}
-        cache-to: type=gha,mode=max,scope=${{ inputs.image }},ignore-error=true
+        # IMPORT only. The previous `type=gha` cache cost more than it saved: the
+        # export (`mode=max`, billed against the Actions storage quota shared with
+        # artifacts) was the slowest part of a 71-80 minute job, and when that
+        # quota ran out the export aborted the whole build with
+        # `failed to solve: not_found` after 30+ minutes of good compilation
+        # (PR #685). A registry cache lives on this cluster, has no quota, and a
+        # miss is harmless: BuildKit logs "not found" and builds from scratch.
+        cache-from: ${{ inputs.cache-registry != '' && format('type=registry,ref={0}/cache/{1}:main', inputs.cache-registry, inputs.image) || '' }}
         provenance: ${{ inputs.push }}
         sbom: ${{ inputs.push }}
 
