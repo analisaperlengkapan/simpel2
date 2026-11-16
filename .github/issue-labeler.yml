@@ -17,9 +17,6 @@
 "comp:portal":
   - '(?i)\b(portal|landing|gateway|sso login)\b'
 
-"comp:monolith":
-  - '(?i)\b(simpelv1|monolith|laravel|blade|legacy)\b'
-
 # ─── Area lintas-komponen ───────────────────
 "area:security":
   - '(?i)\b(cve[- ]?\d+|vulnerability|exploit|cwe|security|attack|injection|xss|csrf)\b'

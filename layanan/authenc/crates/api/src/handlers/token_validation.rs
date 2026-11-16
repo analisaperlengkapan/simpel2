@@ -45,8 +45,8 @@ pub struct ValidateTokenResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     /// Whether the user must change their password before using the system.
-    /// Downstream callers (simpelv1) enforce this; the portal reads the same
-    /// flag off the JWT.
+    /// Downstream callers enforce this; the portal reads the same flag off the
+    /// JWT.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub require_password_change: Option<bool>,
     /// Whether the user must still enrol a second factor.

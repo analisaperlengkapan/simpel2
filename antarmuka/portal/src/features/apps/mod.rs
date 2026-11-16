@@ -1,11 +1,5 @@
-//! Applications page — microfrontend launcher.
-//!
-//! Every entry is a first-class card. SIMPEL v1 (legacy Laravel) and SIMPEL v2
-//! (Rust/WASM) are listed as two separate applications rather than one entry
-//! with a version dropdown: the user picks a system to open, they do not
-//! configure a setting inside one. See `features/microfrontends.rs` for the
-//! registry and `monolith/simpelv1/AGENTS.md` → "v1 ↔ v2 Boundary" for why both
-//! are live at once.
+//! Applications page — microfrontend launcher. Every entry is a first-class
+//! card; the registry is `features/microfrontends.rs`.
 
 use crate::components::layout::MainLayout;
 use crate::features::microfrontends::{AppCategory, MicrofrontendRegistry};

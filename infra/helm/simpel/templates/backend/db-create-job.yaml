@@ -4,12 +4,12 @@
   WHY (fresh-bootstrap gap #4, 2026-06-17; alasan diperbaiki 2026-08-14):
 
   `/docker-entrypoint-initdb.d` — tempat ConfigMap `postgres-init-scripts` yang
-  meng-CREATE dbsimpelv1 + secreton di samping POSTGRES_DB dbsimpelv2 — hanya
+  meng-CREATE secreton di samping POSTGRES_DB dbsimpelv2 — hanya
   dijalankan image postgres saat inisialisasi PERTAMA, yaitu ketika PGDATA masih
   kosong. Volume yang sudah pernah melewati itu tidak pernah menjalankannya lagi:
   setiap environment yang sudah hidup, dan setiap restore dari backup. Database
   yang baru ditambahkan ke ConfigMap karena itu diam-diam tak akan pernah ada →
-  simpelv1 + secreton gagal connect.
+  secreton gagal connect.
 
   Job ini membuat database tambahan secara idempotent, lepas dari mekanisme init
   image.

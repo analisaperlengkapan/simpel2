@@ -870,7 +870,7 @@ pub trait PolicyRuleSource: Send + Sync {
 
 /// The single authorization decision, shared by the REST and gRPC boundaries.
 ///
-/// `resource` must already be a resource path (`secret/data/simpelv1/app`), not
+/// `resource` must already be a resource path (`secret/data/perlengkapan/app`), not
 /// an HTTP URI — see `secreton_api::middleware::resource_path`. Handing this an
 /// URI is the defect proven in `tests/policy_path_vocabulary.rs`: the glob
 /// matcher has no normalisation, so `/v1/...` matches nothing and the engine

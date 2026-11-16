@@ -10,7 +10,6 @@ Jika Anda bekerja di subdirektori spesifik, baca aturan detailnya di sini:
 - 🔗 **Integrasi**: Baca `layanan/integrasi/AGENTS.md` (MonSAKTI, MySIMKARI, SIMAN).
 - 🔐 **Authenc**: Baca `layanan/authenc/AGENTS.md` (OAuth2, OIDC, MFA, Identity).
 - 🔒 **Secreton**: Baca `layanan/secreton/AGENTS.md` (Secrets Vault, Transit, PKI).
-- 🚪 **Gateway**: Baca `layanan/gateway/AGENTS.md` (sidecar REST→gRPC utk **simpelv1**; menerjemahkan ke authenc/secreton/integrasi).
 
 ## 📑 Daftar Isi (Table of Contents)
 
@@ -47,8 +46,7 @@ Backend SIMPEL terbagi menjadi dua jenis layanan:
 
 > **Topologi (keputusan F5-B 2026-06-10):** **shared database `dbsimpelv2`,
 > schema-per-service** untuk trio yang **saling-kopel** (authenc + integrasi +
-> perlengkapan); `secreton` & `simpelv1` (legacy) **tetap di database sendiri yang
-> terisolasi.** Alasan: perlengkapan membaca `integrasi.*` & `authenc.*`
+> perlengkapan); `secreton` **tetap di database sendiri yang terisolasi.** Alasan: perlengkapan membaca `integrasi.*` & `authenc.*`
 > **cross-schema** (JOIN di export/dashboard/mapping + FK nyata
 > `batch_operation_log.user_id → authenc.users`); PostgreSQL **tak bisa** JOIN/FK
 > lintas-database → co-location dalam satu DB WAJIB. Schema terpisah memberi
@@ -61,7 +59,6 @@ Backend SIMPEL terbagi menjadi dua jenis layanan:
 | `dbsimpelv2` | `perlengkapan` | `layanan/perlengkapan/*` | Core BMN & equipment |
 | `dbsimpelv2` | `dokumen`,`notifikasi`,`cache` | perlengkapan (sub-domain) | Dibuat oleh migrasi perlengkapan |
 | `dbsecretion` | `public` | `layanan/secreton/*` | Secrets, transit, PKI — **terisolasi** |
-| `dbsimpelv1` | — | `monolith/simpelv1` (Laravel legacy) | **terisolasi** |
 
 - **Extension WAJIB di `public`** (`CREATE EXTENSION ... WITH SCHEMA public` untuk
   `uuid-ossp`, `pg_trgm`) + fungsi trigger bersama (`update_updated_at_column`) →

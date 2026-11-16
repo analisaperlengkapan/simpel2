@@ -33,9 +33,6 @@ ignore: |
   target/
   dist/
   .git/
-  monolith/simpelv1/vendor/
-  monolith/simpelv1/node_modules/
-  monolith/simpelv1/public/assets/
   infra/helm/*/charts/
   # Helm chart templates pakai sintaks `{{ .Values.foo }}` yang bukan
   # YAML valid sebelum di-render oleh Helm. yamllint melempar "syntax

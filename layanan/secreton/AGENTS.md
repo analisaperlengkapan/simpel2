@@ -674,7 +674,7 @@ Test suites in `tests/`:
   reads that handle directly after an HTTP write and fails if a route ever
   answers out of memory again.
 - Hand the policy engine an HTTP URI. Policies name **resources**
-  (`sys/capabilities-self`, `secret/data/simpelv1/*`) — that is what the
+  (`sys/capabilities-self`, `secret/data/perlengkapan/*`) — that is what the
   migration seeds, what the Helm block renders, and what Vault does. It is also
   the only vocabulary the gRPC boundary can share, since a gRPC call carries the
   secret path in its body and has no URI. `PolicySet::path_matches` is a plain
@@ -684,7 +684,7 @@ Test suites in `tests/`:
   `middleware::resource_path` before evaluating. Note the ordering:
   `is_whitelisted` still takes the raw URI, because that list is about routes.
 - Narrow a secret path to a single URL segment. Real paths are hierarchical
-  (`simpelv1/app`, `postgres/simpelv2`), so `/data/{path}` 404s on every caller
+  (`perlengkapan/app`, `postgres/simpelv2`), so `/data/{path}` 404s on every caller
   that matters while `/data/{*path}` works. The 404 reads as "no such secret",
   not "no such route" — which is why this is worth stating rather than
   rediscovering.
@@ -731,7 +731,7 @@ Test suites in `tests/`:
 
 ## 🔐 Secret Fetching by Other Services (Consumer Side)
 
-Secreton itu sendiri **tidak fetch dari Secreton** (avoid circular). Tapi dokumentasikan di sini cara service lain (authenc, layanan-perlengkapan, layanan-integrasi, simpelv1) consume:
+Secreton itu sendiri **tidak fetch dari Secreton** (avoid circular). Tapi dokumentasikan di sini cara service lain (authenc, layanan-perlengkapan, layanan-integrasi) consume:
 
 ### Kubernetes Auth Backend — ⚠️ BELUM ADA SISI SERVER (jangan diaktifkan)
 
@@ -780,10 +780,8 @@ Secreton itu sendiri **tidak fetch dari Secreton** (avoid circular). Tapi dokume
 - Staging: HTTP plain port 8200 boleh untuk debugging (tapi mtls.mode=PERMISSIVE harus tetap aktif via Istio sidecar).
   gRPC staging jalan lewat opt-out (`grpcAllowInsecure: "true"`) selama PKI
   belum ada — tercatat di log startup tiap boot, bukan diam-diam.
-- Konsumen yang akan memegang cert: gateway sidecar
-  (`layanan/gateway/src/lib.rs` — sekarang `SecretonServiceClient::new(ch)`
-  tanpa kredensial) dan layanan-perlengkapan. Menyalakan mTLS tanpa
-  menerbitkan cert untuk mereka akan mematahkan `e2e-simpelv1-integration`.
+- Konsumen yang memegang cert: layanan-perlengkapan (dan authenc). Menyalakan
+  mTLS tanpa menerbitkan cert untuk mereka memutus sewa kredensial DB dinamis.
 
 ## 📋 Common Tasks (Operator Perspective)
 

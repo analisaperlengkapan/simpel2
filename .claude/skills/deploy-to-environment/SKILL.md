@@ -66,8 +66,8 @@ Keep the previous final tag available so you can roll forward to a known-good di
 
 Bootstrap+unseal Secreton, DigiCert `simpelv2-tls-secret` in `istio-system`,
 MetalLB IP pool, `secretonAuth.enabled=true`. From F2H (when activating): gRPC mTLS
-cert (or `GRPC_ALLOW_INSECURE=true`), Secreton DB role for dynamic creds, Stakater
-Reloader for simpelv1 secret rotation. See `infra/AGENTS.md` "Bootstrap".
+cert (or `GRPC_ALLOW_INSECURE=true`), Secreton DB role for dynamic creds. See
+`infra/AGENTS.md` "Bootstrap".
 
 ## Fresh-environment bootstrap (first-ever install ≠ steady-state upgrade)
 
@@ -93,7 +93,7 @@ Reloader for simpelv1 secret rotation. See `infra/AGENTS.md` "Bootstrap".
      Do NOT copy it from `arc-runners`: that is an older, different credential and ghcr.io
      answers 403 for these packages (rehearsal 2026-11-09: every pod `ImagePullBackOff`).
 3. **Secrets:** install with `--set secrets.bootstrap=true -f values-secrets.yaml`
-   (gitignored, OUTSIDE the repo tree). Staging = fresh-generated postgres/simpelv1 +
+   (gitignored, OUTSIDE the repo tree). Staging = fresh-generated postgres +
    **MOCK** integration (`.invalid` URLs, sync off — real gov-API tokens are prod-only,
    see `layanan/integrasi/AGENTS.md`). Use a **URL-safe** pg password (`openssl rand -hex 24`).
 4. **Install (no `--wait`):** `helm upgrade --install simpel infra/helm/simpel -f
@@ -109,7 +109,7 @@ Reloader for simpelv1 secret rotation. See `infra/AGENTS.md` "Bootstrap".
    secreton-0 comes up **sealed** (no auto-unseal); with `secretonAuth.enabled=false`
    nothing depends on it so apps still boot from k8s secrets. `deploy.sh` forces
    `--wait 5m` → would time out; call `helm` directly here.
-   - **post-install hooks run in order:** `db-create` (creates `dbsimpelv1`+`secreton`;
+   - **post-install hooks run in order:** `db-create` (creates `secreton`;
      `/docker-entrypoint-initdb.d` runs only on the FIRST init of an empty PGDATA, so
      any volume that already exists — including every restore — never re-runs it and
      newly-added databases would silently not exist) → `integrasi-migrate` →

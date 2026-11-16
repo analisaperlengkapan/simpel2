@@ -14,8 +14,8 @@
   Topology (F5-B): targets the shared dbsimpelv2 (`url` secret key). authenc +
   integrasi + perlengkapan all share dbsimpelv2, each in its own schema, because
   perlengkapan reads `integrasi.*` / `authenc.*` cross-schema (JOINs + an FK) and
-  cross-schema only resolves within one database. secreton + simpelv1 stay
-  isolated on their own databases.
+  cross-schema only resolves within one database. secreton stays isolated on
+  its own database.
 
   Gate: .Values.layananIntegrasi.enabled and .Values.layananIntegrasi.migrationJob.enabled
   (default true when layananIntegrasi is enabled).

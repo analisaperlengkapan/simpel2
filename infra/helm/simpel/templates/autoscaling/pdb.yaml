@@ -11,7 +11,6 @@
   (dict "name" "secreton"             "cfg" .Values.secreton             "selector" (dict "app.kubernetes.io/name" "secreton"))
   (dict "name" "postgres"             "cfg" .Values.postgres             "selector" (dict "app" "postgres"))
   (dict "name" "redis"                "cfg" .Values.redis                "selector" (dict "app.kubernetes.io/name" "redis"))
-  (dict "name" "simpelv1"             "cfg" .Values.simpelv1             "selector" (dict "app" "simpelv1"))
 -}}
 {{- range $w := $workloads }}
 {{- $cfg := $w.cfg -}}

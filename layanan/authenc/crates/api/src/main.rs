@@ -370,7 +370,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     }
 
     // gRPC server (service<->service channel: authenc <-> perlengkapan /
-    // integrasi / simpelv1). Enforces the same token revocation as the REST
+    // integrasi). Enforces the same token revocation as the REST
     // surface and is secured with mTLS — transport-level zero-trust — in
     // production. Runs alongside the HTTP server.
     {

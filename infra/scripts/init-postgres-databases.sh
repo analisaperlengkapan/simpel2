@@ -7,10 +7,9 @@
 # first startup (i.e. when the data volume is empty). On subsequent
 # starts the databases already exist and this script is not re-run.
 #
-# The Rust services and Laravel v1 each expect their own database; the
-# default `postgres` database is not sufficient. Without this script,
-# every dependent service fails at startup with
-# "database \"dbsimpelvN\" does not exist".
+# The services expect their own databases; the default `postgres`
+# database is not sufficient. Without this script, every dependent
+# service fails at startup with "database \"dbsimpelv2\" does not exist".
 #
 # IMPORTANT — file mode: this script SHOULD be committed with mode 0755
 # (executable). The official postgres entrypoint checks `[ -x "$f" ]`
@@ -28,7 +27,6 @@ simpel_init_databases() (
   set -euo pipefail
 
   DATABASES=(
-    dbsimpelv1
     dbsimpelv2
     dbsecretion
     dbintegration

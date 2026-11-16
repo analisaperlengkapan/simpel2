@@ -1,7 +1,7 @@
 //! Are policy rules written in the same vocabulary the evaluator is handed?
 //!
 //! Every policy this system ships is written as a Vault **resource path** —
-//! `sys/capabilities-self`, `auth/token/lookup-self`, `secret/data/simpelv1/*`.
+//! `sys/capabilities-self`, `auth/token/lookup-self`, `secret/data/perlengkapan/*`.
 //! Those are the rows seeded by
 //! `migrations/20260205000002_dynamic_role_system.sql`, and the shape the Helm
 //! `secretonAuth.policies` block renders.
@@ -61,38 +61,48 @@ fn an_http_uri_is_not_a_resource_path() {
     );
 }
 
-/// Prefix globs are how every real policy is written (`secret/data/simpelv1/*`,
+/// Prefix globs are how every real policy is written (`secret/data/perlengkapan/*`,
 /// `kv/data/integrasi/tokens/*` in the Helm block), so the wildcard semantics
 /// matter as much as the prefix.
 #[test]
 fn a_prefix_glob_admits_its_own_subtree_and_nothing_else() {
-    let policies = PolicySet::new(vec![allow("secret/data/simpelv1/*", "read")]);
+    let policies = PolicySet::new(vec![allow("secret/data/perlengkapan/*", "read")]);
 
     assert!(
-        policies.evaluate("simpelv1", "secret/data/simpelv1/app", "read", None),
+        policies.evaluate("perlengkapan", "secret/data/perlengkapan/app", "read", None),
         "a workload was denied the subtree its policy names"
     );
     assert!(
-        !policies.evaluate("simpelv1", "secret/data/authenc/jwt", "read", None),
+        !policies.evaluate("perlengkapan", "secret/data/authenc/jwt", "read", None),
         "a workload reached another workload's secrets"
     );
 }
 
 /// Single `*` is one segment; `**` is the subtree. Worth pinning because the
-/// Helm block uses single-star globs (`kv/data/simpelv1/*`) against paths that
+/// Helm block uses single-star globs (`kv/data/perlengkapan/*`) against paths that
 /// may nest, and getting this backwards denies in production while passing
 /// every shallow test.
 #[test]
 fn single_star_does_not_cross_a_segment_boundary() {
-    let shallow = PolicySet::new(vec![allow("secret/data/simpelv1/*", "read")]);
+    let shallow = PolicySet::new(vec![allow("secret/data/perlengkapan/*", "read")]);
     assert!(
-        !shallow.evaluate("simpelv1", "secret/data/simpelv1/db/password", "read", None),
+        !shallow.evaluate(
+            "perlengkapan",
+            "secret/data/perlengkapan/db/password",
+            "read",
+            None
+        ),
         "single-star matched a nested path; use ** when the subtree is intended"
     );
 
-    let deep = PolicySet::new(vec![allow("secret/data/simpelv1/**", "read")]);
+    let deep = PolicySet::new(vec![allow("secret/data/perlengkapan/**", "read")]);
     assert!(
-        deep.evaluate("simpelv1", "secret/data/simpelv1/db/password", "read", None),
+        deep.evaluate(
+            "perlengkapan",
+            "secret/data/perlengkapan/db/password",
+            "read",
+            None
+        ),
         "double-star must match a nested path"
     );
 }

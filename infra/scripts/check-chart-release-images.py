@@ -5,17 +5,11 @@ WHY THIS EXISTS
 ---------------
 The chart pulls `<prefix><image.name>`; release.yml publishes
 `<prefix><matrix name>`. Two hand-maintained lists that must agree exactly, with
-nothing checking that they do — so they drifted:
-
-  chart   simpelv1.gateway.image.name = gateway   -> simpelv2-gateway
-  release matrix name                = layanan-gateway
-                                                  -> simpelv2-layanan-gateway
+nothing checking that they do — so they drifted once: the chart asked for
+`simpelv2-<name>` while the release published `simpelv2-layanan-<name>`.
 
 Nothing in CI notices, because CI never deploys the chart and the release never
-reads it. It surfaces at `helm upgrade`, as ImagePullBackOff — and for the
-gateway specifically that is a SIDECAR in the simpelv1 pod, so the whole pod
-never becomes Ready. Every other backend already used its `layanan/<dir>` name;
-gateway was the lone outlier.
+reads it. It surfaces at `helm upgrade`, as ImagePullBackOff.
 
 Both directions are checked, because each is a real defect:
   * chart names an image the release never builds -> deploy pulls nothing;
@@ -101,8 +95,7 @@ def main() -> int:
 
     # promote.yml re-tags rc -> final WITHOUT rebuilding, so an image missing from
     # its matrix has no final tag at all: production's `helm install` pulls
-    # `<image>:vX.Y.Z` and gets ImagePullBackOff (layanan-gateway is a SIDECAR in
-    # the simpelv1 pod, so that pod would never become Ready). Found 2026-11-08:
+    # `<image>:vX.Y.Z` and gets ImagePullBackOff. Found 2026-11-08:
     # promote.yml listed 7 of the 9 images release.yml builds, and the first
     # production deploy would have been the first time anyone noticed.
     not_promoted = sorted(release - promote)

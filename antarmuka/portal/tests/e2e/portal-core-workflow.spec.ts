@@ -82,27 +82,22 @@ test.describe('Portal core — operator', () => {
   test('sidebar drives apps, notifications, settings, profile (click navigation)', async ({
     page,
   }) => {
-    // Apps — static registry rendered with both SIMPEL implementations as
-    // first-class cards. v1 and v2 are separate applications (see
-    // features/microfrontends.rs), not one card with a version dropdown, so
-    // each launch URL must be directly clickable.
+    // Apps — static registry. SIMPEL is one application, named without a
+    // version (the legacy v1 was removed on 2026-11-16), and its card is the
+    // launch link.
     await clickSidebarLink(page, '/portal/apps');
     await expect(page.getByPlaceholder('Cari aplikasi...')).toBeVisible({ timeout: 15000 });
-    // Anchor the name assertions on the CARD, not on loose page text. The
-    // sidebar/footer carry the product name "SIMPEL v2.0", which a bare
-    // `getByText('SIMPEL v2')` matches first — and that element is `hidden` at
-    // this width, so the assertion failed on a footer label while the card it
-    // meant to check was present. Scoping to the launch link tests what the
-    // test is named for.
-    const v2Card = page.locator('a[href="/perlengkapan/simpel/v2"]');
-    const v1Card = page.locator('a[href="/perlengkapan/simpel/v1"]');
-    await expect(v2Card).toBeVisible();
-    await expect(v1Card).toBeVisible();
-    await expect(v2Card).toContainText('SIMPEL v2');
-    await expect(v1Card).toContainText('SIMPEL v1');
-    // The cards must not open in the same tab: v1/v2 are separate apps with
-    // their own sessions, so launching one must not tear down the portal.
-    await expect(v1Card).toHaveAttribute('target', '_blank');
+    // Anchor the name assertions on the CARD, not on loose page text: a bare
+    // `getByText` matched a hidden footer label first once, and the assertion
+    // failed on the footer while the card it meant to check was present.
+    const simpelCard = page.locator('a[href="/perlengkapan/simpel/v2"]');
+    await expect(simpelCard).toBeVisible();
+    await expect(simpelCard).toContainText('SIMPEL');
+    await expect(simpelCard).not.toContainText(/SIMPEL v\d/);
+    await expect(page.locator('a[href^="/perlengkapan/simpel/v1"]')).toHaveCount(0);
+    // The card opens in a new tab, so launching the app does not tear down the
+    // portal.
+    await expect(simpelCard).toHaveAttribute('target', '_blank');
 
     // Notifications — the notifikasi service is NOT part of the portal e2e
     // stack, so the page must show the HONEST unavailable/empty state and

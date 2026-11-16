@@ -31,11 +31,8 @@ paths = [
   '''package-lock\.json''',
   '''pnpm-lock\.yaml''',
   '''yarn\.lock''',
-  '''composer\.lock''',
   # Helm chart values templates (placeholder, akan diisi runtime)
   '''infra/helm/.*/values-secrets\.example\.yaml''',
-  # Spec/desain `.kiro/` — kelas yang sama dengan docs/*.md di atas.
-  '''(.+/)?\.kiro/.+\.md''',
   # Catatan implementasi SCREAMING_CASE (mis. MFA_IMPLEMENTATION_COMPLETE.md):
   # write-up desain berisi contoh payload, bukan konfigurasi yang dimuat.
   '''(.+/)?[A-Z][A-Z0-9_]+\.md''',
@@ -120,7 +117,8 @@ regexes = [
 #
 # ⚠️ Kunci Google Maps di `simpel_web-main/...blade.php` TIDAK cukup di-allowlist
 # di sini: file-nya PINDAH ke `monolith/simpelv1/...` sehingga kuncinya MASIH
-# HIDUP. Itu ditangani terpisah (dipindah ke `config/services.php` + env).
+# HIDUP. Itu ditangani terpisah (dipindah ke `config/services.php` + env), lalu
+# seluruh `monolith/simpelv1` dihapus dari repo pada 2026-11-16.
 # Pelajaran metode: memisahkan live-vs-histori dengan mencocokkan PATH akan
 # meleset untuk rahasia yang berpindah path — pakai `--no-git` lalu iris dengan
 # `git ls-files`.

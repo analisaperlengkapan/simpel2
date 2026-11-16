@@ -122,7 +122,6 @@ LITERAL_ALLOWED_FILES = {"lib/core/src/authz.rs"}
 LITERAL_SCAN_DIRS = [
     "layanan/perlengkapan/src",
     "layanan/authenc/crates",
-    "layanan/gateway/src",
     "lib/backend/src",
     "lib/core/src",
 ]

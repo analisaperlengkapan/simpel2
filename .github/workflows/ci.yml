@@ -59,8 +59,6 @@ env:
   SECRETON_GRPC_HOST_PORT: "0"
   INTEGRASI_GRPC_HOST_PORT: "0"
   PERLENGKAPAN_API_HOST_PORT: "0"
-  GATEWAY_HOST_PORT: "0"
-  SIMPELV1_HOST_PORT: "0"
   PORTAL_HOST_PORT: "0"
   PERLENGKAPAN_HOST_PORT: "0"
   AUTHENC_REST_HOST_PORT: "0"
@@ -79,10 +77,6 @@ jobs:
       rust-any: ${{ steps.changes.outputs.rust-any }}
       secreton: ${{ steps.changes.outputs.secreton }}
       cargo-manifests: ${{ steps.changes.outputs.cargo-manifests }}
-      monolith-php: ${{ steps.changes.outputs.monolith-php }}
-      monolith-blade: ${{ steps.changes.outputs.monolith-blade }}
-      monolith-assets: ${{ steps.changes.outputs.monolith-assets }}
-      monolith-any: ${{ steps.changes.outputs.monolith-any }}
       typescript: ${{ steps.changes.outputs.typescript }}
       docker: ${{ steps.changes.outputs.docker }}
       yaml: ${{ steps.changes.outputs.yaml }}
@@ -99,7 +93,6 @@ jobs:
       image-perlengkapan-api: ${{ steps.changes.outputs.image-perlengkapan-api }}
       image-integrasi: ${{ steps.changes.outputs.image-integrasi }}
       image-secreton: ${{ steps.changes.outputs.image-secreton }}
-      image-monolith: ${{ steps.changes.outputs.image-monolith }}
       docker-matrix: ${{ steps.docker-matrix.outputs.matrix }}
       docker-has-images: ${{ steps.docker-matrix.outputs.has-images }}
     steps:
@@ -116,8 +109,6 @@ jobs:
           PERLENGKAPAN_API: ${{ steps.changes.outputs.image-perlengkapan-api }}
           INTEGRASI: ${{ steps.changes.outputs.image-integrasi }}
           SECRETON: ${{ steps.changes.outputs.image-secreton }}
-          MONOLITH: ${{ steps.changes.outputs.image-monolith }}
-          GATEWAY: ${{ steps.changes.outputs.image-gateway }}
         run: |
           set -euo pipefail
           declare -A IMAGES=(
@@ -126,16 +117,12 @@ jobs:
             [layanan-authenc]="layanan/authenc/Dockerfile|.|$AUTHENC"
             [layanan-perlengkapan]="layanan/perlengkapan/Dockerfile|.|$PERLENGKAPAN_API"
             [layanan-integrasi]="layanan/integrasi/Dockerfile|.|$INTEGRASI"
-            # Context MUST be repo root: simpelv1's Dockerfile does
-            # `COPY monolith/simpelv1/nginx.conf …` and secreton's does
-            # `COPY layanan/secreton/secreton.toml …`, both relative to
-            # the workspace root. Earlier these used sub-dir contexts and
-            # buildx failed with `…/nginx.conf: not found` /
+            # Context MUST be repo root: secreton's Dockerfile does
+            # `COPY layanan/secreton/secreton.toml …`, relative to the
+            # workspace root. A sub-dir context failed in buildx with
             # `…/secreton.toml: not found`. Keep this in sync with the
-            # release.yml matrix, which already uses `.` for every image.
+            # release.yml matrix, which uses `.` for every image.
             [layanan-secreton]="layanan/secreton/Dockerfile|.|$SECRETON"
-            [simpelv1]="monolith/simpelv1/Dockerfile|.|$MONOLITH"
-            [layanan-gateway]="layanan/gateway/Dockerfile|.|$GATEWAY"
           )
           entries=()
           for name in "${!IMAGES[@]}"; do
@@ -174,7 +161,7 @@ jobs:
             "antarmuka/portal" "antarmuka/perlengkapan"
             "layanan/authenc" "layanan/perlengkapan" "layanan/integrasi" "layanan/secreton"
             "lib/ui" "lib/core" "lib/backend" "lib/crypto" "lib/perlengkapan"
-            "monolith/simpelv1" "infra/scripts" "infra/lint"
+            "infra/scripts" "infra/lint"
           )
           # NOTE: tests/e2e tidak required. Playwright e2e ada di
           # antarmuka/{portal,perlengkapan}/tests/e2e/ dan di-run oleh job
@@ -189,7 +176,7 @@ jobs:
           done
 
           # ── 2. Root directories whitelist (dot-dirs exempt) ──
-          allowed_dirs="antarmuka docs infra layanan lib monolith tests"
+          allowed_dirs="antarmuka docs infra layanan lib tests"
           while IFS= read -r d; do
             d="${d%/}"
             [[ "$d" == .* ]] && continue
@@ -284,7 +271,7 @@ jobs:
       # `CI Summary` and `Security Summary` are the only two required checks,
       # and both aggregate via a hand-written `needs:`. A job missing from one
       # can be red while the gate is green — which is what let
-      # `E2E simpelv1 ↔ gateway` fail on main @202aea6f under a SUCCESS summary.
+      # an e2e job fail on main @202aea6f under a SUCCESS summary.
       # Derive the scope instead of trusting the lists to be kept up to date.
       - name: Every job is reported by its required-check summary
         shell: bash
@@ -320,19 +307,6 @@ jobs:
       - name: Frontend/backend DTO drift guard self-test
         shell: bash
         run: python3 ./infra/scripts/check-fe-be-dto-drift.py --selftest
-      # A simpelv1 APP_KEY of the wrong length makes every request 500 at boot,
-      # before any application code runs — so it reads as a broken app, not a
-      # bad env var. The shared e2e key was 30 bytes (needs 16 or 32) and sat in
-      # 22 literals across ci.yml, the compose harness and the agent setup
-      # script. Nothing decoded it: YAML, actionlint, `compose config` and
-      # Laravel's config cache all accept a key that "looks like a key". The
-      # PHPUnit job never caught it because phpunit.xml carries its own VALID
-      # key, so the one job that ran v1 code never touched the broken literal.
-      # Found only by booting simpelv1 for real in the cross-app SSO job.
-      - name: simpelv1 APP_KEY literals decode to a usable AES key
-        shell: bash
-        run: python3 ./infra/scripts/check-simpelv1-app-key.py
-
       # Tailwind emits NOTHING for a shade its config does not define — no
       # warning, no build error. `success/warning/danger/info` jumped 100 → 400
       # while 115 classes asked for `-200`/`-300`, so every status message in
@@ -552,10 +526,9 @@ jobs:
           python3 ./infra/scripts/check-e2e-fixture-codification.py --self-test
       # The chart pulls `simpelv2-<image.name>`; release.yml publishes
       # `simpelv2-<matrix name>`. Nothing compared the two, and they drifted:
-      # the chart wanted `simpelv2-gateway` while the release builds
-      # `simpelv2-layanan-gateway`. CI never deploys and the release never reads
-      # the chart, so it would only have surfaced at `helm upgrade` — as a
-      # sidecar ImagePullBackOff taking the whole simpelv1 pod down.
+      # the chart once asked for an image name the release never built. CI never
+      # deploys and the release never reads the chart, so it would only have
+      # surfaced at `helm upgrade`, as an ImagePullBackOff.
       - name: Chart image names match what release.yml builds and promote.yml re-tags
         shell: bash
         run: python3 ./infra/scripts/check-chart-release-images.py
@@ -680,9 +653,6 @@ jobs:
           - name: layanan-secreton
             packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication -p secreton-auto-unseal -p secreton-k8s-operator"
             scope: "--all-targets --all-features"
-          - name: layanan-gateway
-            packages: "-p layanan-gateway"
-            scope: "--all-targets --all-features"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -703,104 +673,6 @@ jobs:
       # autofix bot excludes them — see autofix.yml / antarmuka/AGENTS.md).
       - name: cargo clippy (${{ matrix.name }})
         run: cargo clippy ${{ matrix.packages }} ${{ matrix.extra_args || '' }} ${{ matrix.scope }} -- -D warnings
-
-  lint-php:
-    name: Lint PHP (Pint + Larastan)
-    needs: detect
-    if: needs.detect.outputs.monolith-php == 'true'
-    runs-on: arc-simpel
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-      # vendor/ sengaja mendarat di dalam workspace (UID/GID match) supaya
-      # step pint + phpstan di bawah bisa memakainya tanpa install ulang.
-      - name: composer install (PHP 8.2 docker)
-        uses: ./.github/actions/composer-install
-      - name: Laravel Pint (style check)
-        working-directory: monolith/simpelv1
-        run: |
-          docker run --rm \
-            -v "$PWD":/app \
-            -w /app \
-            -u "$(id -u):$(id -g)" \
-            --entrypoint vendor/bin/pint \
-            serversideup/php:8.2-cli --test
-      - name: Larastan / PHPStan
-        working-directory: monolith/simpelv1
-        run: |
-          if [ -f phpstan.neon ] || [ -f phpstan.neon.dist ]; then
-            docker run --rm \
-              -v "$PWD":/app \
-              -w /app \
-              -u "$(id -u):$(id -g)" \
-              --entrypoint vendor/bin/phpstan \
-              serversideup/php:8.2-cli analyse --no-progress --memory-limit=2G
-          else
-            echo "::warning::No phpstan config found, skipping static analysis"
-          fi
-
-  lint-blade:
-    name: Lint Blade Templates
-    needs: detect
-    if: needs.detect.outputs.monolith-blade == 'true'
-    runs-on: arc-simpel
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup-node
-        with:
-          working-directory: monolith/simpelv1
-      # Scope: Blade files CHANGED by this PR, not the whole tree.
-      #
-      # Two reasons, both measured rather than assumed:
-      #  1. The plugin used to CRASH ("Unknown node type: undefined") on 288 of
-      #     the ~290 committed templates, so this check has never once passed.
-      #     Root cause was the floating range `^1.8.13` resolving to 1.16.2,
-      #     which dropped Prettier 2 support; it is now pinned exactly. (#119)
-      #  2. With the pin the crash is gone, but 248 legacy templates are simply
-      #     not formatted. Reformatting them is NOT whitespace-only: the plugin
-      #     reprints PHP from an AST, adding trailing commas in array literals
-      #     and re-parenthesising expressions (`round($a/$b*100,1)` ->
-      #     `round(($a/$b)*100,1)`). Every case inspected was
-      #     precedence-preserving, but these templates render the live simpelv1
-      #     UI and have no rendering test, so a 248-file AST rewrite is not
-      #     something to land unverified.
-      #
-      # Checking only changed files makes the gate real for new/edited
-      # templates immediately, while the legacy backlog gets reformatted
-      # deliberately, in reviewable batches. Full-tree enforcement returns once
-      # that backlog is cleared.
-      - name: Prettier check (Blade, changed files only)
-        working-directory: monolith/simpelv1
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          set -euo pipefail
-          BASE="${BASE_SHA:-}"
-          if [ -z "$BASE" ]; then
-            BASE=$(git merge-base HEAD origin/main 2>/dev/null || echo "")
-          fi
-          if [ -z "$BASE" ]; then
-            echo "No merge base available; checking HEAD commit only."
-            BASE="HEAD^"
-          fi
-          # `--diff-filter=d` drops deletions: prettier cannot check a file that
-          # no longer exists, and a rename shows up as its new path anyway.
-          mapfile -t FILES < <(
-            git diff --name-only --diff-filter=d "$BASE"...HEAD -- 'resources/views/**/*.blade.php' \
-              | sed 's|^monolith/simpelv1/||'
-          )
-          if [ "${#FILES[@]}" -eq 0 ]; then
-            echo "No Blade templates changed in this PR."
-            exit 0
-          fi
-          printf 'Checking %d changed Blade template(s):\n' "${#FILES[@]}"
-          printf '  %s\n' "${FILES[@]}"
-          # NOTE: prettier prints "All matched files use Prettier code style!"
-          # as its LAST line even when it errors and exits non-zero, so never
-          # judge this step by tail output — only by the exit status.
-          npx prettier --check "${FILES[@]}"
-
   lint-dockerfile:
     name: Lint Dockerfile
     needs: detect
@@ -884,25 +756,14 @@ jobs:
           # "File name should be (or end with) one of the supported types".
           config: infra/lint/.markdownlint.jsonc
           # Negation globs lebih reliable daripada `ignores` di config
-          # untuk markdownlint-cli2 v0.18 (action v18). Skip vendored libs,
-          # node_modules, dan storage Laravel.
+          # untuk markdownlint-cli2 v0.18 (action v18). Skip vendored libs
+          # dan node_modules.
           globs: |
             **/*.md
             !**/node_modules/**
             !**/vendor/**
             !**/target/**
             !**/dist/**
-            !monolith/simpelv1/storage/**
-            # Laravel public web-root = vendored 3rd-party JS-lib READMEs
-            # (gmaps, prismjs, moment, …), not authored docs — exclude like
-            # node_modules/vendor. Without this, any PR that touches a .md
-            # trips ~1800 lint errors in these shipped libraries.
-            !monolith/simpelv1/public/**
-            !monolith/simpelv1/public/assets/libs/**
-            # .kiro/ = Kiro IDE spec artifacts (requirements/design/tasks), not
-            # authored prose, and in the do-not-hand-edit set (CLAUDE.md). Exclude
-            # from the style gate rather than reformat them.
-            !.kiro/**
             !**/CHANGELOG.md
       - name: Lychee link check
         # ADVISORY, sengaja. `--accept` di bawah memuat 404 dan 410, jadi
@@ -926,8 +787,7 @@ jobs:
           # 200..=499 + selected 5xx (gov endpoints return 403 ke
           # unauth access; 410 untuk vendored docs link yang sudah
           # mati tapi tidak actionable kita). `--exclude-path` skip
-          # vendored 3rd-party docs (moment, prismjs, dst di monolith
-          # simpelv1) yang punya banyak link mati di-luar control kita.
+          # direktori build/dependency yang bukan dokumen tulisan kita.
           args: |
             --no-progress
             --max-concurrency 8
@@ -941,16 +801,11 @@ jobs:
             --exclude '^https?://monitoring\.internal'
             --exclude '^https?://wiki\.'
             --exclude 'engineproject\.io'
-            --exclude 'hpneo\.github\.com'
             --exclude 'localhost'
             --exclude '127\.0\.0\.1'
-            --exclude-path 'monolith/simpelv1/public/assets/libs'
-            --exclude-path 'monolith/simpelv1/vendor'
-            --exclude-path 'monolith/simpelv1/node_modules'
             --exclude-path 'node_modules'
             --exclude-path 'target'
             --exclude-path 'dist'
-            --exclude-path '.kiro'
             './**/*.md'
           fail: true
 
@@ -966,7 +821,6 @@ jobs:
         uses: ludeeus/action-shellcheck@2.0.0
         with:
           severity: error
-          ignore_paths: monolith/simpelv1/vendor monolith/simpelv1/node_modules
 
   lint-toml:
     name: Lint TOML
@@ -1206,8 +1060,6 @@ jobs:
             # is `secreton-api::api_server` — mirror layanan/secreton/Dockerfile.
             package: secreton-api
             extra_args: "--bin api_server --features raft-consensus"
-          - name: layanan-gateway
-            package: layanan-gateway
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -1223,22 +1075,6 @@ jobs:
         run: rm -rf target
       - name: cargo build --release -p ${{ matrix.package }}
         run: cargo build --release -p ${{ matrix.package }} ${{ matrix.extra_args }}
-
-  build-monolith-assets:
-    name: Build Monolith Assets (Vite)
-    needs: detect
-    if: needs.detect.outputs.monolith-assets == 'true'
-    runs-on: arc-simpel
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup-node
-        with:
-          working-directory: monolith/simpelv1
-      - name: Vite build
-        working-directory: monolith/simpelv1
-        run: npm run build
-
   build-docker:
     name: Build Docker (${{ matrix.image }})
     needs: detect
@@ -1597,9 +1433,6 @@ jobs:
             # via clippy --all-targets but only run under `cargo bench`.
             target_args: "--lib --bins --tests"
             test_args: "-- --test-threads=4"
-          - tier: layanan-gateway
-            packages: "-p layanan-gateway"
-            test_args: ""
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -1719,89 +1552,6 @@ jobs:
           # shellcheck disable=SC2086  # see the note above: matrix.packages is
           # several `-p x` flags that must reach cargo as separate argv entries.
           cargo test ${{ matrix.packages }} --doc --no-fail-fast
-
-  # Test Monolith (PHPUnit) — ENABLED (F5-A #31). Scope = simpelv1 ↔ Rust-service
-  # INTEGRATION contract tests only (authenc/secreton via Http::fake): they
-  # exercise simpelv1's real internal functions (clients + EnforceTokenRevocation
-  # middleware) WITHOUT a live stack or DB (array cache/session). All legacy/AI
-  # tests were removed (user decision). DB-touching tests (e.g. integrasi pegawai/
-  # BMN, #41) need the schema — convert dbsimpelv1.sql.gz dump → Laravel
-  # migrations/schema (F5-A.3) before adding those; not required for this suite.
-  test-monolith:
-    name: Test Monolith (PHPUnit)
-    needs: detect
-    if: needs.detect.outputs.monolith-any == 'true'
-    runs-on: arc-simpel
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-      - name: composer install (PHP 8.2 docker)
-        uses: ./.github/actions/composer-install
-      - name: Prepare test environment
-        working-directory: monolith/simpelv1
-        run: |
-          [ -f .env ] || cp .env.example .env
-          docker run --rm \
-            -v "$PWD":/app \
-            -w /app \
-            -u "$(id -u):$(id -g)" \
-            --entrypoint php \
-            serversideup/php:8.2-cli artisan key:generate --force
-      - name: Prepare sqlite test DB (file-based)
-        run: |
-          # phpunit.xml sets DB_CONNECTION=sqlite (file). The integration suite
-          # uses Http::fake + array cache/session and does not hit the DB, but the
-          # file must exist so Laravel boots cleanly if anything resolves the
-          # connection. No migrations run (none exist yet — schema conversion is
-          # F5-A.3, needed only for DB-touching tests like #41).
-          rm -f /tmp/simpelv1-test.sqlite
-          touch /tmp/simpelv1-test.sqlite
-          chmod 666 /tmp/simpelv1-test.sqlite
-      - name: PHPUnit (Integration suite)
-        working-directory: monolith/simpelv1
-        run: |
-          docker run --rm \
-            -v "$PWD":/app \
-            -v /tmp/simpelv1-test.sqlite:/tmp/simpelv1-test.sqlite \
-            -w /app \
-            -u "$(id -u):$(id -g)" \
-            --entrypoint vendor/bin/phpunit \
-            serversideup/php:8.2-cli --testsuite Integration --no-coverage
-
-  # ── E2E Playwright: portal & perlengkapan as SEPARATE, PARALLEL jobs ──
-  # Both are listed in ci-summary.needs, so once enabled they are hard-required
-  # exactly like cargo test.
-  #
-  # STATUS: gated OFF until the e2e stack exists (F5). Today the suites cannot
-  # pass — playwright.config.ts has `webServer` commented out, there is no
-  # docker-compose stack, and baseURL points at a non-existent localhost:8080.
-  # The gate is the explicit `vars.E2E_PERLENGKAPAN_ENABLED` repo variable (unset = skip),
-  # NOT hidden in build-result logic, so the skip is intentional and visible.
-  #
-  # F5 TODO (tracked in the plan + memory): (1) wire a real stack — serve the
-  # trunk-built dist via Playwright `webServer` (or a docker-compose) + run
-  # authenc/perlengkapan + postgres, point baseURL at it; (2) set repo variable
-  # E2E_PERLENGKAPAN_ENABLED=true. After that these become blocking via ci-summary.
-  # ── BUILD ONCE, PULL SIX TIMES (#111) ────────────────────────────────────
-  # Every e2e job used to run its own `docker compose build`, so one PR issued
-  # up to six independent multi-stage Rust/WASM builds of the SAME images, and
-  # two open PRs made twelve. Combined with a dind sidecar that had no resource
-  # limits at all, that drove simple02 to loadavg 311 and produced ~90-minute
-  # red jobs that never executed a single assertion.
-  #
-  # Images are pushed to the in-cluster microk8s registry, addressed BY NODE IP
-  # (172.15.10.252:32000): runner pods use dnsPolicy None with public resolvers,
-  # so *.svc.cluster.local does not resolve. dind carries the matching
-  # --insecure-registry flag (infra/helm/arc/values-runner-set.yaml).
-  #
-  # The `e2e/` repository prefix is deliberate and load-bearing: the authenc
-  # image here is built with CAPTCHA_DEBUG=1 (docker-compose.e2e.yml), so it
-  # must never be confusable with the `simpelv2/` images that get promoted to
-  # staging and production. Same reason these are tagged by commit SHA and
-  # never `latest`.
-  #
-  # NOT cached across PRs on purpose: buildx gha cache already handles layer
-  # reuse. What this removes is duplicated CPU inside a single run.
   e2e-build-images:
     name: Build e2e images (once, shared)
     needs: [detect]
@@ -1825,25 +1575,21 @@ jobs:
       - name: Build every e2e image once
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
-          # Union of what the six e2e jobs consume. Both compose files, so the
+          # Union of what the e2e jobs consume. Both compose files, so the
           # authenc image gets the CAPTCHA_DEBUG=1 build arg the e2e suites need.
-          # simpelv1 is in the union because the cross-app SSO job now
-          # exercises the portal↔v1 leg; without it that job would build the
-          # legacy image itself, inside its own 600s bring-up bound.
           if ! timeout 5400 docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
-              authenc secreton gateway layanan-integrasi layanan-perlengkapan \
-              perlengkapan portal simpelv1; then
+              authenc secreton layanan-integrasi layanan-perlengkapan \
+              perlengkapan portal; then
             echo "::error::shared e2e image build failed or timed out after 5400s"
             exit 1
           fi
       - name: Push to in-cluster registry
         run: |
           set -euo pipefail
-          for img in simpel2-authenc simpel2-secreton simpel2-gateway \
+          for img in simpel2-authenc simpel2-secreton \
                      simpel2-integrasi simpel2-layanan-perlengkapan \
-                     simpel2-perlengkapan simpel2-portal simpel2-simpelv1; do
+                     simpel2-perlengkapan simpel2-portal; do
             docker tag "${img}:local" "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}"
             docker push "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}"
           done
@@ -1851,11 +1597,8 @@ jobs:
   e2e-portal:
     name: E2E Playwright (portal)
     # Portal smoke = portal FE + authenc only (login via real authenc, proxy
-    # /api/** → authenc). It does NOT touch simpelv1, so it must NOT wait on
-    # build-monolith-assets (Vite). These build-* needs are fail-fast gates (the
-    # e2e job builds its own stack via compose); monolith adds no signal here.
-    # A full cross-app SSO e2e incl. simpelv1 belongs to the comprehensive
-    # staging suite (F5-C) — add monolith back there deliberately.
+    # /api/** → authenc). These build-* needs are fail-fast gates (the e2e job
+    # builds its own stack via compose).
     needs: [e2e-build-images, detect, build-antarmuka-portal, build-backend]
     # F5-C: real stack bring-up (portal FE + authenc with captcha-debug) via
     # compose, mirroring e2e-perlengkapan. The portal specs proxy /api/** to
@@ -1880,13 +1623,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       # The ARC runner image ships the docker CLI but not the compose v2 plugin.
-      # SIMPELV1_APP_KEY is required by compose interpolation (the simpelv1
-      # service declares ${SIMPELV1_APP_KEY:?...}) even though we do NOT bring
-      # simpelv1 up here — set a throwaway value so `docker compose` can load.
       - name: Pull shared e2e images (authenc + portal + integrasi)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           # layanan-integrasi must be built too: the `up` below starts
           # integrasi-migrate, which runs `image: simpel2-integrasi:local`
@@ -1904,7 +1643,6 @@ jobs:
       - name: Bring up e2e stack (bounded)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           if ! timeout 600 docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d \
               postgres redis integrasi-migrate authenc-migrate authenc portal; then
@@ -1933,7 +1671,6 @@ jobs:
       - name: Seed e2e multi-satker fixtures
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml run -T --rm e2e-seed \
             -v ON_ERROR_STOP=1 -h postgres -U postgres -d dbsimpelv2 -f - \
@@ -1966,7 +1703,6 @@ jobs:
         if: failure()
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           echo "::group::warn/error digest (all services, unbounded)"
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
@@ -1986,7 +1722,6 @@ jobs:
         if: always()
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v || true
       - name: Upload Playwright report
@@ -2005,8 +1740,8 @@ jobs:
   e2e-perlengkapan:
     name: E2E Playwright (perlengkapan)
     # Compose stack = authenc + perlengkapan + integrasi + secreton + postgres +
-    # redis (NO simpelv1) → no dependency on build-monolith-assets (Vite). The
-    # build-* needs are fail-fast gates only (the job builds its own stack).
+    # redis. The build-* needs are fail-fast gates only (the job builds its own
+    # stack).
     needs: [e2e-build-images, detect, build-antarmuka-perlengkapan, build-backend]
     # Self-contained (compose builds the stack) — see e2e-portal note above.
     # Blocking gate via E2E_PERLENGKAPAN_ENABLED, but only when perlengkapan FE or any Rust
@@ -2055,7 +1790,6 @@ jobs:
       - name: Pull shared e2e images
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           # Images come from the shared `e2e-build-images` job (#111); this job
           # used to rebuild them itself, which is why one PR issued up to six
@@ -2068,7 +1802,6 @@ jobs:
       - name: Bring up e2e stack (bounded)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           if ! timeout 600 docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d \
               postgres redis authenc secreton layanan-integrasi layanan-perlengkapan perlengkapan; then
@@ -2119,7 +1852,6 @@ jobs:
       - name: Seed e2e multi-satker + perlengkapan workflow fixtures
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           for f in tests/fixtures/e2e/seed-multisatker.sql \
                    tests/fixtures/e2e/seed-perlengkapan-workflow.sql; do
@@ -2323,7 +2055,6 @@ jobs:
         if: failure()
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           echo "::group::warn/error digest (all services, unbounded)"
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
@@ -2343,7 +2074,6 @@ jobs:
         if: always()
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v || true
       - name: Upload Playwright report
@@ -2364,13 +2094,11 @@ jobs:
   # portal writes localStorage["auth_token"] then redirects to /perlengkapan/…,
   # which reads the SAME-ORIGIN token. The compose stack has two origins, so this
   # job adds `cross-app-ingress` (nginx mirroring the VS) and points Playwright's
-  # `portal-cross-app` project at it. Opt-in (run_e2e / E2E_INTEGRATION_ENABLED),
-  # NOT in ci-summary.needs. Needs BOTH FE builds + the backend.
+  # `portal-cross-app` project at it. Opt-in (run_e2e / E2E_INTEGRATION_ENABLED);
+  # in ci-summary.needs, so a failure blocks the merge. Needs BOTH FE builds +
+  # the backend.
   e2e-portal-cross-app:
-    name: E2E Cross-app SSO (portal ↔ perlengkapan v2 + SIMPEL v1, single-origin)
-    # build-monolith-assets (Vite) is a fail-fast gate: this job now brings up
-    # simpelv1, so a broken frontend build should stop it early rather than let
-    # it fail on a runtime 500.
+    name: E2E Cross-app SSO (portal ↔ SIMPEL, single-origin)
     needs:
       [
         e2e-build-images,
@@ -2378,7 +2106,6 @@ jobs:
         build-antarmuka-portal,
         build-antarmuka-perlengkapan,
         build-backend,
-        build-monolith-assets,
       ]
     if: |
       !cancelled() &&
@@ -2397,7 +2124,6 @@ jobs:
     timeout-minutes: 120
     env:
       POSTGRES_PASSWORD: e2e_test_pw
-      SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
     steps:
       - uses: actions/checkout@v7
       - name: Pull shared e2e images (both FEs + backend)
@@ -2415,22 +2141,15 @@ jobs:
           # the image present, compose silently falls back to BUILDING it from
           # source, which blows the 600s bound — the first revision of this
           # loop omitted it and that is exactly what happened.
-          # simpel2-simpelv1 is required for the portal↔v1 leg: the ingress
-          # routes /perlengkapan/simpel/v1 to it, and the v1 SSO spec asserts
-          # the round trip. Without the image compose would build it from
-          # source and blow the 600s bound.
-          for img in simpel2-authenc simpel2-secreton simpel2-integrasi simpel2-layanan-perlengkapan simpel2-perlengkapan simpel2-portal simpel2-simpelv1; do
+          for img in simpel2-authenc simpel2-secreton simpel2-integrasi simpel2-layanan-perlengkapan simpel2-perlengkapan simpel2-portal; do
             docker pull "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}"
             docker tag "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}" "${img}:local"
           done
       - name: Bring up single-origin stack (bounded)
         run: |
           # --profile cross-app pulls in the cross-app-ingress service.
-          # simpelv1 + gateway are part of the graph: the v1 leg needs the
-          # legacy app, and v1 reaches authenc/secreton through the gateway
-          # sidecar (its Grpc clients speak REST to it).
           if ! timeout 600 docker compose -f docker-compose.yml -f docker-compose.e2e.yml --profile cross-app up -d \
-              postgres redis authenc layanan-integrasi layanan-perlengkapan perlengkapan portal simpelv1 gateway cross-app-ingress; then
+              postgres redis authenc layanan-integrasi layanan-perlengkapan perlengkapan portal cross-app-ingress; then
             echo "::error::cross-app stack bring-up failed or timed out after 600s"
             docker compose -f docker-compose.yml -f docker-compose.e2e.yml ps -a || true
             docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color --tail=300 || true
@@ -2445,44 +2164,22 @@ jobs:
           # origin serves everything the SSO flow needs.
           docker run --rm --network "$NET" curlimages/curl:8.11.1 sh -c '
             for i in $(seq 1 60); do
-              # v1 is *routed* once it answers anything but 000 (connection
-              # refused). It cannot answer 302 yet: the SSO bounce needs
-              # dbsimpelv1 seeded, which is the next step — so asserting the
-              # bounce here would deadlock the gate against its own
-              # prerequisite (observed: v1 500s on an empty schema while the
-              # gate waits for a 302). Readiness means "up and routed"; the 302
-              # and the full round trip are asserted by the spec, after seeding.
-              #
-              # Double quotes (not single) inside this body: it is already
-              # wrapped in single quotes for `sh -c`, so a single-quoted
-              # `%{http_code}` would close that quote and leave the braces to
-              # the outer bash parse (actionlint SC1083).
-              v1=$(curl -s -o /dev/null -w "%{http_code}" http://cross-app-ingress:8080/perlengkapan/simpel/v1/dashboard)
               if curl -sf http://cross-app-ingress:8080/health >/dev/null \
                  && curl -sf http://cross-app-ingress:8080/portal/ >/dev/null \
                  && curl -sf http://cross-app-ingress:8080/perlengkapan/ >/dev/null \
-                 && [ "$v1" != "000" ] \
                  && curl -sf http://authenc:8088/health >/dev/null; then
-                echo "ingress routing both FEs + v1 after $i tries"; exit 0; fi
+                echo "ingress routing both FEs after $i tries"; exit 0; fi
               sleep 5
             done
             echo "cross-app ingress did not become ready"; exit 1'
-      - name: Seed e2e fixtures (dbsimpelv2 + dbsimpelv1)
+      - name: Seed e2e fixtures (dbsimpelv2)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
         run: |
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml run -T --rm e2e-seed \
             -v ON_ERROR_STOP=1 -h postgres -U postgres -d dbsimpelv2 -f - \
             < tests/fixtures/e2e/seed-multisatker.sql
-          # dbsimpelv1 (the legacy schema) is created empty by the chart; the v1
-          # SSO leg needs its tables + the fixture user, or the OAuth callback
-          # dead-ends at "User tidak ditemukan di sistem". `pw` is the psql
-          # variable the file uses to build the postgres_fdw user mapping.
-          docker compose -f docker-compose.yml -f docker-compose.e2e.yml run -T --rm e2e-seed \
-            -v ON_ERROR_STOP=1 -v "pw=${POSTGRES_PASSWORD}" \
-            -h postgres -U postgres -d dbsimpelv1 -f - \
-            < tests/fixtures/e2e/seed-simpelv1-schema.sql
-      - name: Run Playwright cross-app SSO (portal ↔ perlengkapan v2 + SIMPEL v1)
+      - name: Run Playwright cross-app SSO (portal ↔ SIMPEL)
         run: |
           NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
           echo "stack network: ${NET:?simpel-network not found}"
@@ -2545,7 +2242,6 @@ jobs:
       - name: Pull shared e2e images (authenc + secreton + layanan-integrasi)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           # Images come from the shared `e2e-build-images` job (#111); this job
           # used to rebuild them itself, which is why one PR issued up to six
@@ -2558,7 +2254,6 @@ jobs:
       - name: Bring up e2e stack (bounded)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           if ! timeout 600 docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d \
               postgres redis secreton integrasi-migrate authenc-migrate authenc layanan-integrasi; then
@@ -2586,7 +2281,6 @@ jobs:
       - name: Seed e2e multi-satker fixtures
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml run -T --rm e2e-seed \
             -v ON_ERROR_STOP=1 -h postgres -U postgres -d dbsimpelv2 -f - \
@@ -2619,7 +2313,6 @@ jobs:
         if: failure()
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           echo "::group::warn/error digest (all services, unbounded)"
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
@@ -2639,7 +2332,6 @@ jobs:
         if: always()
         env:
           POSTGRES_PASSWORD: e2e_test_pw
-          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
         run: |
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v || true
       - name: Upload Playwright report
@@ -2655,17 +2347,16 @@ jobs:
             antarmuka/portal/tests/e2e/results
           retention-days: 7
 
-  # ── Secreton bootstrap ↔ Gateway (F-GW PR-B) ──
-  # Proves the secreton secret path simpelv1 depends on actually works end to
-  # end: the one-shot `secreton-bootstrap` runs REAL Shamir init+unseal against
-  # secreton's REST API, seeds a secret THROUGH THE GATEWAY (gateway → secreton
-  # gRPC StoreSecret), then reads it back through the gateway and asserts the
-  # value matches. The bootstrap's exit code IS the assertion (real state, not
-  # mock). Shared prereq for the simpelv1 live suite (PR-C). Gated by
-  # E2E_INTEGRATION_ENABLED; the run_e2e dispatch always runs. NOT in
-  # ci-summary.needs (opt-in integration job, mirrors e2e-integrasi-authenc).
-  e2e-secreton-gateway:
-    name: E2E Secreton bootstrap ↔ Gateway (init/unseal/seed)
+  # ── Secreton bootstrap (init/unseal/KV/dynamic DB) ──
+  # The one-shot `secreton-bootstrap` runs REAL Shamir init+unseal against
+  # secreton's REST API, writes a secret and reads it back, then (with
+  # SECRETON_DB_PROVISION=1) configures the dynamic database engine, leases a
+  # credential and proves it logs in to Postgres. Everything goes through the
+  # REST API with the root token init returns. The bootstrap's exit code IS the
+  # assertion (real state, not mock). Gated by E2E_INTEGRATION_ENABLED; the
+  # run_e2e dispatch always runs.
+  e2e-secreton-bootstrap:
+    name: E2E Secreton bootstrap (init/unseal/KV/dynamic DB)
     needs: [e2e-build-images, detect, build-backend]
     if: |
       !cancelled() &&
@@ -2681,55 +2372,50 @@ jobs:
     timeout-minutes: 120
     env:
       POSTGRES_PASSWORD: e2e_test_pw
-      SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
     steps:
       - uses: actions/checkout@v7
-      - name: Build images (secreton + gateway + authenc + layanan-integrasi)
+      - name: Pull the secreton image
         run: |
-          # gateway depends_on authenc + layanan-integrasi (service_started), so
-          # they must exist even though the bootstrap only exercises the secreton
-          # channel (gateway gRPC channels are lazy — connect_lazy).
           # Images come from the shared `e2e-build-images` job (#111); this job
           # used to rebuild them itself, which is why one PR issued up to six
           # identical multi-stage builds.
           set -euo pipefail
-          for img in simpel2-secreton simpel2-gateway simpel2-authenc simpel2-integrasi; do
+          for img in simpel2-secreton; do
             docker pull "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}"
             docker tag "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}" "${img}:local"
           done
       - name: Bring up core stack (bounded)
         run: |
           if ! timeout 600 docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d \
-              postgres secreton integrasi-migrate authenc-migrate authenc layanan-integrasi gateway; then
-            echo "::error::secreton-gateway stack bring-up failed or timed out after 600s"
+              postgres secreton; then
+            echo "::error::secreton stack bring-up failed or timed out after 600s"
             docker compose -f docker-compose.yml -f docker-compose.e2e.yml ps -a || true
             docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color --tail=300 || true
             exit 1
           fi
-      - name: Wait for secreton REST + gateway
+      - name: Wait for secreton REST
         run: |
           NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
           echo "stack network: ${NET:?simpel-network not found}"
           docker run --rm --network "$NET" busybox:1.36 sh -c '
             for i in $(seq 1 60); do
-              if nc -z secreton 8200 && nc -z gateway 8090; then
-                echo "secreton REST + gateway ready after $i tries"; exit 0; fi
+              if nc -z secreton 8200; then
+                echo "secreton REST ready after $i tries"; exit 0; fi
               sleep 5
             done
-            echo "secreton/gateway did not become ready"; exit 1'
+            echo "secreton did not become ready"; exit 1'
       - name: Run secreton bootstrap + dynamic-DB provisioning (exit code = assertion)
         run: |
-          # The one-shot init+unseal+seed-via-gateway+verify-readback, PLUS (with
+          # The one-shot init+unseal+write+verify-readback, PLUS (with
           # SECRETON_DB_PROVISION=1) the dynamic database secrets-engine flow:
           # configure the admin connection, create the leased role, issue one
-          # short-lived credential via the gateway, and prove it authenticates
-          # against Postgres. A non-zero exit means either the secret round-trip
-          # OR the dynamic-lease path broke. The gateway carries
-          # GATEWAY_ENABLE_DB_ADMIN=1 from docker-compose.e2e.yml.
+          # short-lived credential, and prove it authenticates against
+          # Postgres. A non-zero exit means either the secret round-trip OR the
+          # dynamic-lease path broke.
           if ! docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
               run --rm --no-deps -e SECRETON_DB_PROVISION=1 secreton-bootstrap; then
             echo "::error::secreton bootstrap failed — secret round-trip or dynamic-DB lease broke"
-            docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color --tail=200 secreton gateway || true
+            docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color --tail=200 secreton || true
             exit 1
           fi
       - name: Stack logs (on failure)
@@ -2741,117 +2427,6 @@ jobs:
         if: always()
         run: |
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v || true
-
-  # ── simpelv1 ↔ gateway LIVE integration (F-GW PR-C) ──
-  # Runs simpelv1's real *GrpcClient classes (NOT Http::fake) against a live
-  # gateway → authenc + secreton + layanan-integrasi. Proves the REST→gRPC path
-  # simpelv1 depends on actually works: secreton secret round-trip (seeded by the
-  # bootstrap), authenc fail-closed token rejection, and integrasi SIMAN asset +
-  # MySIMKARI employee reads (seeded) + MonSAKTI-dormant 501. Gated by
-  # E2E_INTEGRATION_ENABLED / run_e2e. NOT in ci-summary.needs (opt-in).
-  e2e-simpelv1-integration:
-    name: E2E simpelv1 ↔ gateway (authenc + secreton + integrasi, live)
-    needs: [e2e-build-images, detect, build-backend]
-    if: |
-      !cancelled() &&
-      (
-        github.event.inputs.run_e2e == 'true' ||
-        (vars.E2E_INTEGRATION_ENABLED == 'true' &&
-         (needs.detect.outputs.rust-backend == 'true' ||
-          needs.detect.outputs.monolith-php == 'true' ||
-          needs.detect.outputs.e2e == 'true'))
-      ) &&
-      needs.build-backend.result != 'failure' &&
-      needs.e2e-build-images.result == 'success'
-    runs-on: arc-simpel
-    timeout-minutes: 120
-    env:
-      POSTGRES_PASSWORD: e2e_test_pw
-      SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc="
-    steps:
-      - uses: actions/checkout@v7
-      - name: Build images (authenc + secreton + layanan-integrasi + gateway)
-        run: |
-          # Images come from the shared `e2e-build-images` job (#111); this job
-          # used to rebuild them itself, which is why one PR issued up to six
-          # identical multi-stage builds.
-          set -euo pipefail
-          for img in simpel2-authenc simpel2-secreton simpel2-integrasi simpel2-gateway; do
-            docker pull "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}"
-            docker tag "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}" "${img}:local"
-          done
-      - name: Bring up core stack (bounded)
-        run: |
-          if ! timeout 600 docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d \
-              postgres secreton integrasi-migrate authenc-migrate authenc layanan-integrasi gateway; then
-            echo "::error::simpelv1-integration stack bring-up failed or timed out after 600s"
-            docker compose -f docker-compose.yml -f docker-compose.e2e.yml ps -a || true
-            docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color --tail=300 || true
-            exit 1
-          fi
-      - name: Wait for gateway + backends
-        run: |
-          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
-          echo "stack network: ${NET:?simpel-network not found}"
-          docker run --rm --network "$NET" busybox:1.36 sh -c '
-            for i in $(seq 1 60); do
-              if nc -z gateway 8090 && nc -z authenc 8088 && nc -z layanan-integrasi 50052 && nc -z secreton 8200; then
-                echo "gateway + backends ready after $i tries"; exit 0; fi
-              sleep 5
-            done
-            echo "stack did not become ready"; exit 1'
-      - name: Bootstrap secreton (init/unseal + seed secret via gateway)
-        run: |
-          if ! docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
-              run --rm --no-deps secreton-bootstrap; then
-            echo "::error::secreton bootstrap failed — simpelv1↔secreton test cannot pass"
-            docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color --tail=200 secreton gateway || true
-            exit 1
-          fi
-      - name: Seed integrasi + authenc fixtures (dbsimpelv2)
-        run: |
-          for f in tests/fixtures/e2e/seed-multisatker.sql tests/fixtures/e2e/seed-simpelv1-live.sql; do
-            echo ">>> applying $f"
-            if ! docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
-                run --rm -T e2e-seed \
-                -v ON_ERROR_STOP=1 -h postgres -U postgres -d dbsimpelv2 -f - < "$f"; then
-              echo "::error::seed $f failed"; exit 1
-            fi
-          done
-      - name: composer install (simpelv1)
-        uses: ./.github/actions/composer-install
-      - name: Prepare sqlite test DB
-        run: |
-          rm -f /tmp/simpelv1-test.sqlite
-          touch /tmp/simpelv1-test.sqlite
-          chmod 666 /tmp/simpelv1-test.sqlite
-      - name: PHPUnit IntegrationLive (real gateway)
-        working-directory: monolith/simpelv1
-        run: |
-          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
-          echo "stack network: ${NET:?simpel-network not found}"
-          docker run --rm --network "$NET" \
-            -v "$PWD":/app \
-            -v /tmp/simpelv1-test.sqlite:/tmp/simpelv1-test.sqlite \
-            -w /app -u "$(id -u):$(id -g)" \
-            -e AUTHENC_GATEWAY_URL=http://gateway:8090 \
-            -e SECRETON_GATEWAY_URL=http://gateway:8090 \
-            -e INTEGRASI_GATEWAY_URL=http://gateway:8090 \
-            --entrypoint vendor/bin/phpunit serversideup/php:8.2-cli \
-            --testsuite IntegrationLive --no-coverage
-      - name: Stack logs (on failure)
-        if: failure()
-        run: |
-          docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
-            logs --no-color --tail=200 || true
-      - name: Tear down stack
-        if: always()
-        run: |
-          docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v || true
-
-  # ─────────────────────────────────────────────────────
-  # Phase 5 — Summary (single required check)
-  # ─────────────────────────────────────────────────────
   ci-summary:
     name: CI Summary
     if: always()
@@ -2861,8 +2436,6 @@ jobs:
       - enforce-versioning
       - fmt-rust
       - clippy-rust
-      - lint-php
-      - lint-blade
       - lint-dockerfile
       - lint-yaml
       - lint-markdown
@@ -2875,7 +2448,6 @@ jobs:
       - build-antarmuka-portal
       - build-antarmuka-perlengkapan
       - build-backend
-      - build-monolith-assets
       - build-docker
       - test-lib-core
       - test-lib-backend
@@ -2885,20 +2457,18 @@ jobs:
       - test-antarmuka-portal
       - test-antarmuka-perlengkapan
       - test-services
-      - test-monolith
       - e2e-portal
       - e2e-perlengkapan
-      # Keempat job e2e lintas-service di bawah PERNAH tak ada di daftar ini,
-      # dan `E2E simpelv1 ↔ gateway` sempat merah di main @202aea6f sementara
-      # `CI Summary` melapor success — gate-nya hijau, jobnya merah.
+      # Job e2e lintas-service di bawah PERNAH tak ada di daftar ini, dan
+      # salah satunya sempat merah di main @202aea6f sementara `CI Summary`
+      # melapor success — gate-nya hijau, jobnya merah.
       # `e2e-build-images` ikut masuk karena kegagalannya men-SKIP semua e2e di
       # bawahnya, dan skip dihitung lulus oleh agregator.
       # Dijaga mekanis oleh infra/scripts/check-ci-summary-scope.py.
       - e2e-build-images
       - e2e-integrasi-authenc
       - e2e-portal-cross-app
-      - e2e-secreton-gateway
-      - e2e-simpelv1-integration
+      - e2e-secreton-bootstrap
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
@@ -2956,7 +2526,6 @@ jobs:
       - build-antarmuka-portal
       - build-antarmuka-perlengkapan
       - build-backend
-      - build-monolith-assets
       - build-docker
       - test-lib-core
       - test-lib-backend
@@ -2966,7 +2535,6 @@ jobs:
       - test-antarmuka-portal
       - test-antarmuka-perlengkapan
       - test-services
-      - test-monolith
       - e2e-portal
       - e2e-perlengkapan
     runs-on: arc-simpel

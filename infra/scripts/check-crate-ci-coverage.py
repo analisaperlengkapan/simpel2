@@ -385,8 +385,8 @@ def self_test(workflow_text: str, members: dict[str, Path], doctest_crates: set[
     mutations: list[tuple[str, str, str]] = [
         (
             "drop a crate from the clippy matrix",
-            "-p layanan-gateway",
-            "layanan-gateway",
+            '"-p layanan-integrasi"',
+            "layanan-integrasi",
         ),
     ]
     # Find a real `cargo test --doc` command that names its crate literally

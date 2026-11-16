@@ -1169,7 +1169,7 @@ pub async fn policy_check_middleware(
 /// Turn an HTTP request URI into the resource path policies are written
 /// against.
 ///
-/// `/v1/secret/data/simpelv1/app` → `secret/data/simpelv1/app`
+/// `/v1/secret/data/perlengkapan/app` → `secret/data/perlengkapan/app`
 ///
 /// Policies name resources, not routes. The migration seeds
 /// `sys/capabilities-self`; the Helm block renders `secret/data/<service>/*`;

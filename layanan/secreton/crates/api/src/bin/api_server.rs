@@ -190,8 +190,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         //
         // This is why the opt-out is a named variant rather than a missing
         // policy source: `AnonymousOptOut` reaches the constructor, which logs a
-        // warning naming the reason. Closing this gap is #128 — issue the
-        // gateway a client certificate, then drop the opt-out.
+        // warning naming the reason. Closing this gap is #128 — issue every
+        // client a certificate, then drop the opt-out.
         let authorization = match &listener_security {
             secreton_api::grpc::ListenerSecurity::Mtls(_) => {
                 GrpcAuthorization::Enforced(services.policy_service.clone())
@@ -203,8 +203,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        // gRPC gets `secret_storage`, not `storage`: it is the path the gateway
-        // sidecar and simpelv1 use, so it must encrypt at rest like REST does.
+        // gRPC gets `secret_storage`, not `storage`: secrets written or read over
+        // gRPC must be encrypted at rest exactly like REST's.
         let grpc_service = SecretonGrpcService::new(
             services.secret_storage.clone(),
             Arc::clone(&transit_engine),

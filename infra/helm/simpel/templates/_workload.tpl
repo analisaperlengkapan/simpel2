@@ -369,7 +369,7 @@ istio-envoy,istio-data,istio-podinfo,istio-token,workload-certs,workload-socket,
 
   Nama emptyDir DITURUNKAN dari `volumes` komponen + emptyDir yang dirender helper
   ini (`tmp`), jadi menambah emptyDir baru otomatis terkecuali. Workload yang
-  merender pod-spec sendiri (postgres/redis/simpelv1) menulis daftarnya di berkas
+  merender pod-spec sendiri (postgres/redis) menulis daftarnya di berkas
   masing-masing, tepat di sebelah volume yang dinamainya.
 */}}
 {{- define "simpel.veleroExcludedVolumes" -}}

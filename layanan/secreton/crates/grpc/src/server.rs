@@ -55,7 +55,7 @@ pub enum GrpcAuthorization {
     /// Serve every caller without consulting any policy.
     ///
     /// This exists for `GRPC_ALLOW_INSECURE`, the transitional opt-out that lets
-    /// compose and staging talk to Secreton before the gateway has a client
+    /// compose and staging talk to Secreton before every client has a
     /// certificate (#128). Carrying the reason forces the wiring site to say out
     /// loud why it is off, and puts that sentence in the startup logs where an
     /// operator will see it.
@@ -128,17 +128,17 @@ impl SecretonGrpcService {
 
     /// Authorize one secret operation, or return the `Status` that refuses it.
     ///
-    /// `path` is the secret path from the request body (`simpelv1/app`), which
-    /// this maps to the resource `secret/data/simpelv1/app` — the same
+    /// `path` is the secret path from the request body (`perlengkapan/app`), which
+    /// this maps to the resource `secret/data/perlengkapan/app` — the same
     /// vocabulary `middleware::resource_path` produces for the REST route
-    /// `/v1/secret/data/simpelv1/app`. Both boundaries therefore match against
+    /// `/v1/secret/data/perlengkapan/app`. Both boundaries therefore match against
     /// the identical rule text, which is the entire point of routing them
     /// through one engine.
     ///
     /// The principal is the certificate common name, used directly as a policy
     /// name — Vault's cert auth backend model, and already the mapping the Helm
     /// `secretonAuth.policies` block describes (it is keyed by service name:
-    /// `authenc`, `simpelv1`, `layanan-perlengkapan`).
+    /// `authenc`, `layanan-perlengkapan`).
     ///
     /// Note what is deliberately *not* consulted: the `user-id` request metadata
     /// header. It is set by the caller, so it identifies nobody; it is only good

@@ -1,5 +1,5 @@
 name: 'Detect Changes'
-description: 'Path-based change detection for SIMPEL polyglot monorepo (Rust/PHP/TS, microservices, microfrontends, monolith)'
+description: 'Path-based change detection for the SIMPEL monorepo (Rust/TS, microservices, microfrontends)'
 
 outputs:
   rust-backend:
@@ -17,18 +17,6 @@ outputs:
   cargo-manifests:
     description: 'true jika Cargo.toml/lock berubah'
     value: ${{ steps.filter.outputs.cargo-manifests }}
-  monolith-php:
-    description: 'true jika file PHP monolith berubah'
-    value: ${{ steps.filter.outputs.monolith-php }}
-  monolith-blade:
-    description: 'true jika template Blade berubah'
-    value: ${{ steps.filter.outputs.monolith-blade }}
-  monolith-assets:
-    description: 'true jika package.json/vite/asset frontend monolith berubah'
-    value: ${{ steps.filter.outputs.monolith-assets }}
-  monolith-any:
-    description: 'true jika ada file apapun di monolith berubah'
-    value: ${{ steps.filter.outputs.monolith-any }}
   typescript:
     description: 'true jika file TS/JS berubah'
     value: ${{ steps.filter.outputs.typescript }}
@@ -83,12 +71,6 @@ outputs:
   image-secreton:
     description: 'true jika image secreton harus di-rebuild'
     value: ${{ steps.filter.outputs.image-secreton }}
-  image-monolith:
-    description: 'true jika image monolith Laravel harus di-rebuild'
-    value: ${{ steps.filter.outputs.image-monolith }}
-  image-gateway:
-    description: 'true jika image gateway sidecar harus di-rebuild'
-    value: ${{ steps.filter.outputs.image-gateway }}
 
 runs:
   using: "composite"
@@ -121,28 +103,6 @@ runs:
           cargo-manifests:
             - '**/Cargo.toml'
             - 'Cargo.lock'
-          # The composer-install action is shared by lint-php, test-monolith and
-          # the simpelv1 e2e job. Without it listed here, editing that action
-          # does NOT re-run the two PHP jobs that consume it — which is exactly
-          # what happened when it was introduced: only the e2e job exercised the
-          # change, because the `e2e` filter below does list workflow paths.
-          monolith-php:
-            - 'monolith/simpelv1/**/*.php'
-            - 'monolith/simpelv1/composer.json'
-            - 'monolith/simpelv1/composer.lock'
-            - 'monolith/simpelv1/phpunit.xml'
-            - '.github/actions/composer-install/**'
-          monolith-blade:
-            - 'monolith/simpelv1/**/*.blade.php'
-          monolith-assets:
-            - 'monolith/simpelv1/package.json'
-            - 'monolith/simpelv1/package-lock.json'
-            - 'monolith/simpelv1/vite.config.*'
-            - 'monolith/simpelv1/resources/**'
-            - 'monolith/simpelv1/public/assets/**'
-          monolith-any:
-            - 'monolith/**'
-            - '.github/actions/composer-install/**'
           typescript:
             - '**/*.ts'
             - '**/*.tsx'
@@ -229,14 +189,3 @@ runs:
             - 'Cargo.lock'
           image-secreton:
             - 'layanan/secreton/**'
-          image-monolith:
-            - 'monolith/simpelv1/**'
-          # The gateway compiles the authenc/secreton/integrasi protos, so a
-          # proto change must rebuild it too (keeps wire types in lockstep).
-          image-gateway:
-            - 'layanan/gateway/**'
-            - 'layanan/authenc/proto/**'
-            - 'layanan/secreton/proto/**'
-            - 'layanan/integrasi/proto/**'
-            - 'Cargo.toml'
-            - 'Cargo.lock'

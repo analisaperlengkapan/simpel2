@@ -5,12 +5,10 @@
 #
 # The runtime secreton image ships ONLY `api_server` (no `secreton` CLI), but it
 # serves the REST API on :8200 (the Dockerfile healthcheck + infra/helm/
-# bootstrap-secreton.sh both use it). This script drives that REST API to run the
-# REAL Shamir init/unseal, then seeds a demo secret THROUGH THE GATEWAY so the
-# write path (gateway → secreton gRPC StoreSecret) matches the gRPC read path
-# simpelv1 uses at runtime — REST put_secret (state.engine) and gRPC get_secret
-# (self.storage, HashMap<String,String> envelope) are different code paths, so
-# seeding via the gateway is the only way to guarantee round-trip parity.
+# bootstrap-secreton.sh both use it). This script drives that REST API with the
+# root token init returns: REAL Shamir init/unseal and a KV write + read-back.
+# Opt-in, it then drives the dynamic database secrets engine over gRPC (the path
+# layanan-perlengkapan uses) down to a leased credential that logs in to Postgres.
 #
 # CI-ONLY. The DB is ephemeral every run, so the unseal keys printed here are
 # throwaway — they never protect a real secret. Do NOT reuse this flow for
@@ -18,11 +16,9 @@
 set -euo pipefail
 
 SECRETON_ADDR="${SECRETON_ADDR:-http://secreton:8200}"
-GATEWAY_ADDR="${GATEWAY_ADDR:-http://gateway:8090}"
 SHARES="${SECRETON_SHARES:-5}"
 THRESHOLD="${SECRETON_THRESHOLD:-3}"
-# Flat name (no '/') to avoid %2F path-segment ambiguity at the gateway route.
-SEED_PATH="${SECRETON_SEED_PATH:-simpelv1-app-key}"
+SEED_PATH="${SECRETON_SEED_PATH:-ci-bootstrap/probe}"
 SEED_VALUE="${SECRETON_SEED_VALUE:-ci-bootstrap-secret}"
 
 log() { printf '>>> %s\n' "$*"; }
@@ -53,6 +49,8 @@ init=$(curl -fsS -X POST "${SECRETON_ADDR}/v1/sys/init" \
   || die "init request failed"
 mapfile -t KEYS < <(printf '%s' "$init" | jq -r '.keys[]')
 [ "${#KEYS[@]}" -ge "$THRESHOLD" ] || die "init returned ${#KEYS[@]} keys, need >= ${THRESHOLD}"
+ROOT_TOKEN=$(printf '%s' "$init" | jq -r '.root_token // empty')
+[ -n "$ROOT_TOKEN" ] || die "init returned no root_token"
 
 # ── 3. Unseal with THRESHOLD shares ──────────────────────────────────────────
 log "[3/5] unsealing with ${THRESHOLD} of ${#KEYS[@]} shares ..."
@@ -68,43 +66,50 @@ sealed=$(curl -fsS "${SECRETON_ADDR}/v1/sys/seal-status" | jq -r '.sealed')
 [ "$sealed" = "false" ] || die "engine still sealed after ${THRESHOLD} shares (seal-status .sealed=${sealed})"
 log "    unsealed ✓"
 
-# ── 4. Seed a secret THROUGH THE GATEWAY (gRPC write == gRPC read) ────────────
-log "[4/5] seeding secret '${SEED_PATH}' via gateway ${GATEWAY_ADDR} ..."
-for _ in $(seq 1 30); do
-  curl -fsS "${GATEWAY_ADDR}/healthz" >/dev/null 2>&1 && break
-  sleep 2
-done
-curl -fsS -X PUT "${GATEWAY_ADDR}/v1/secrets/${SEED_PATH}" \
-  -H 'Content-Type: application/json' \
-  -d "$(jq -nc --arg v "$SEED_VALUE" '{value:$v}')" >/dev/null \
-  || die "seed PUT via gateway failed"
+# Every call below is behind the REST auth middleware: bearer = the root token.
+api() { curl -fsS -H "Authorization: Bearer ${ROOT_TOKEN}" -H 'Content-Type: application/json' "$@"; }
 
-# ── 5. Verify readback via the gateway (asserts real state, not presence) ─────
-log "[5/5] verifying readback via gateway ..."
-got=$(curl -fsS "${GATEWAY_ADDR}/v1/secrets/${SEED_PATH}" | jq -r '.value // empty') \
-  || die "readback GET via gateway failed"
-[ "$got" = "$SEED_VALUE" ] || die "readback mismatch (secreton⇄gateway round-trip broke)"
+# ── 4. Write a secret ────────────────────────────────────────────────────────
+log "[4/5] writing secret '${SEED_PATH}' ..."
+api -X POST "${SECRETON_ADDR}/v1/secret/data/${SEED_PATH}" \
+  -d "$(jq -nc --arg v "$SEED_VALUE" '{data:{value:$v}}')" >/dev/null \
+  || die "secret write failed"
+
+# ── 5. Read it back (asserts real state, not presence) ───────────────────────
+log "[5/5] verifying read-back ..."
+got=$(api "${SECRETON_ADDR}/v1/secret/data/${SEED_PATH}" | jq -r '.data.data.value // empty') \
+  || die "secret read-back failed"
+[ "$got" = "$SEED_VALUE" ] || die "read-back mismatch: wrote '${SEED_VALUE}', read '${got}'"
+log "    secret round-trip ✓"
 
 # ── 6. (opt-in) provision the dynamic DB secrets engine + verify a lease ──────
-# Enabled with SECRETON_DB_PROVISION=1 (needs the gateway started with
-# GATEWAY_ENABLE_DB_ADMIN=1). Configures the admin connection Secreton uses to
-# mint roles, creates the role perlengkapan leases, issues ONE short-lived
-# credential, and proves it actually authenticates against Postgres — the full
-# gateway → secreton gRPC → database-engine → real CREATE ROLE path. Exit code
-# is the assertion, same as the secret round-trip above.
+# Enabled with SECRETON_DB_PROVISION=1. Configures the admin connection Secreton
+# uses to mint roles, creates the role perlengkapan leases, issues ONE
+# short-lived credential, and proves it actually authenticates against Postgres.
+# Exit code is the assertion, same as the secret round-trip above.
+#
+# These three calls go over gRPC, not REST: gRPC is the path layanan-perlengkapan
+# leases its database credential on (`SecretonClient` in its main.rs). The REST
+# route for the same lease (`GET /v1/dynamic/database/creds/{role}`) answers 500,
+# "relation \"leases\" does not exist", so it is not the path to prove here.
+# The compose listener is plaintext (GRPC_ALLOW_INSECURE=true), and the proto
+# files are mounted at /proto.
 if [ "${SECRETON_DB_PROVISION:-}" = "1" ]; then
-  log "[6/6] provisioning dynamic DB engine + verifying a leased credential ..."
+  log "[6/6] provisioning dynamic DB engine over gRPC + verifying a leased credential ..."
   apk add --no-cache postgresql-client >/dev/null 2>&1 \
     || die "apk add postgresql-client failed"
+  command -v grpcurl >/dev/null || die "grpcurl missing (the bootstrap image must be fullstorydev/grpcurl:*-alpine)"
   ADMIN_URL="${SECRETON_DB_ADMIN_URL:?SECRETON_DB_ADMIN_URL required when SECRETON_DB_PROVISION=1}"
+  GRPC_ADDR="${SECRETON_GRPC_ADDR:-secreton:50053}"
   ROLE="${SECRETON_DB_ROLE:-perlengkapan-dyn}"
   CONN_NAME="${SECRETON_DB_CONN:-perlengkapan}"
+  rpc() { grpcurl -plaintext -import-path /proto -proto secreton.proto -d "$2" "$GRPC_ADDR" "secreton.v1.SecretonService/$1"; }
 
   log "    configuring admin connection '${CONN_NAME}' ..."
-  curl -fsS -X POST "${GATEWAY_ADDR}/v1/database/config/${CONN_NAME}" \
-    -H 'Content-Type: application/json' \
-    -d "$(jq -nc --arg url "$ADMIN_URL" '{connection_url:$url}')" >/dev/null \
-    || die "configure database connection failed (is GATEWAY_ENABLE_DB_ADMIN=1 on the gateway?)"
+  rpc ConfigureDatabaseConnection "$(jq -nc --arg n "$CONN_NAME" --arg url "$ADMIN_URL" \
+        '{name:$n, db_type:"POSTGRESQL", connection_url:$url, max_open_connections:4,
+          max_idle_connections:2, max_connection_lifetime:3600, verify_connection:true}')" >/dev/null \
+    || die "configure database connection failed"
 
   # SUPERUSER only because the ephemeral e2e database is throwaway and the leased
   # user must run every consumer query + migration; production uses a scoped
@@ -112,23 +117,20 @@ if [ "${SECRETON_DB_PROVISION:-}" = "1" ]; then
   create_sql='CREATE ROLE "{{username}}" WITH LOGIN SUPERUSER PASSWORD '\''{{password}}'\'';'
   revoke_sql='DROP ROLE IF EXISTS "{{username}}";'
   log "    creating role '${ROLE}' ..."
-  curl -fsS -X POST "${GATEWAY_ADDR}/v1/database/roles/${ROLE}" \
-    -H 'Content-Type: application/json' \
-    -d "$(jq -nc --arg db "$CONN_NAME" --arg c "$create_sql" --arg r "$revoke_sql" \
-          '{db_name:$db, default_ttl:60, max_ttl:3600, creation_statements:[$c], revocation_statements:[$r]}')" \
-    >/dev/null \
+  rpc CreateDatabaseRole "$(jq -nc --arg r "$ROLE" --arg db "$CONN_NAME" --arg c "$create_sql" --arg v "$revoke_sql" \
+        '{role_name:$r, db_name:$db, default_ttl:60, max_ttl:3600, creation_statements:[$c], revocation_statements:[$v]}')" >/dev/null \
     || die "create database role failed"
 
   log "    leasing a credential + authenticating it against Postgres ..."
-  creds=$(curl -fsS "${GATEWAY_ADDR}/v1/database-credentials/${ROLE}") \
+  creds=$(rpc GenerateDatabaseCredentials "$(jq -nc --arg r "$ROLE" '{role_name:$r}')") \
     || die "generate database credentials failed"
-  dsn=$(printf '%s' "$creds" | jq -r '.credentials.connection_url // empty')
-  [ -n "$dsn" ] || die "leased credential missing connection_url: ${creds}"
+  dsn=$(printf '%s' "$creds" | jq -r '.credentials.connectionUrl // empty')
+  [ -n "$dsn" ] || die "leased credential missing connection_url: $(printf '%s' "$creds" | jq -c 'del(.credentials.password)')"
   # The leased user must be able to connect AND query — proves CREATE ROLE ran
-  # for real, not that the RPC merely returned 200.
+  # for real, not that the RPC merely returned OK.
   [ "$(psql "$dsn" -tAc 'SELECT 1' 2>/dev/null | tr -d '[:space:]')" = "1" ] \
     || die "leased dynamic credential could not authenticate/query Postgres"
   log "    dynamic DB lease issued + verified ✓"
 fi
 
-log "✓ secreton bootstrap complete — Shamir unsealed + secret round-trips secreton⇄gateway"
+log "✓ secreton bootstrap complete — Shamir unsealed, secret round-trips over REST"

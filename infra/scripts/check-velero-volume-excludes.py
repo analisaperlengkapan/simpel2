@@ -14,7 +14,7 @@ diabaikan orang, dan itu jauh lebih mahal daripada 19 volume.
 
 Chart menurunkan sebagian daftar pengecualian (emptyDir dari values, lewat
 `_workload.tpl`) dan menulis sebagian literal (workload yang merender pod-spec
-sendiri: postgres/redis/simpelv1). Skrip ini yang menjaga bagian tulis-tangan
+sendiri: postgres/redis). Skrip ini yang menjaga bagian tulis-tangan
 itu tidak tertinggal saat emptyDir baru ditambahkan.
 
 Masukan: JSON array berisi seluruh objek dari `helm template`, mis.

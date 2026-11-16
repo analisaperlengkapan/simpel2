@@ -175,57 +175,6 @@ layananPerlengkapan:
   persistence:
     enabled: true
     size: 20Gi
-simpelv1:
-  # AKTIF untuk go-live pertama (keputusan operator 2026-11-10): SIMPEL v1 tetap berjalan berdampingan
-  # dengan v2. v2 (portal, perlengkapan, authenc, integrasi) TIDAK bergantung pada v1, jadi v1 yang
-  # gagal tidak boleh menahan v2. Datanya dimuat SETELAH install langsung ke `dbsimpelv1`
-  # (RUNBOOK §1.7a), bukan lewat Secret: dump produksi ±182 MB, batas Secret/ConfigMap 1 MiB.
-  # Sebelum data dimuat, pod v1 berjalan di atas database kosong (aplikasi kosong) — wajar, dan
-  # tak ada pengguna yang diarahkan ke sana sampai pemuatan selesai.
-  enabled: true
-  replicas: 3
-  image:
-    tag: v0.1.0                            # immutable tag di production
-  resources:
-    requests: { cpu: 500m, memory: 1Gi }
-    limits:   { cpu: "1",  memory: 2Gi }
-  appUrl: "https://simpel.kejaksaan.go.id/perlengkapan/simpel/v1"
-  env:
-    APP_ENV: production
-    QUEUE_CONNECTION: redis
-    # Production tidak pernah menimpa ini, jadi ia mewarisi default chart yang
-    # rusak (`http://portal:3000/portal`) — alamat in-cluster yang dikirim ke
-    # browser pengguna.
-    PORTAL_URL: "https://simpel.kejaksaan.go.id/portal"
-  # `preferred`, BUKAN `required`: klaster production hanya punya DUA node. `required` per host dengan
-  # 3 replika membuat pod ke-3 `Pending` selamanya ("2 node(s) didn't match pod anti-affinity rules"),
-  # lalu PDB `minAvailable: 2` tak menyisakan satu pun gangguan dan rolling update (maxUnavailable 25% dari 3
-  # = 0, surge tak punya tempat) macet. Ditemukan di rehearsal rc45; semua workload lain sudah `preferred`.
-  podAntiAffinity:
-    type: preferred
-  # `none`: tak ada init container restore. `secret` TIDAK BISA dipakai — Secret maksimum 1 MiB,
-  # dump produksi ±182 MB. Data dimuat lewat `kubectl exec ... psql` (RUNBOOK §1.7a).
-  dbBackup:
-    source: none
-    name: simpelv1-db-backup
-  hpa:
-    enabled: true
-    minReplicas: 3
-    maxReplicas: 10
-    cpuUtilization: 70
-    memoryUtilization: 80
-    behavior:
-      scaleUp:
-        stabilizationWindowSeconds: 0
-        policies:
-          - { type: Percent, value: 100, periodSeconds: 15 }
-          - { type: Pods,    value: 2,   periodSeconds: 15 }
-        selectPolicy: Max
-      scaleDown:
-        stabilizationWindowSeconds: 300
-        policies:
-          - { type: Percent, value: 50, periodSeconds: 60 }
-  pdb: { enabled: true, minAvailable: 2 }
 portal:
   replicas: 3
   hpa:
@@ -309,13 +258,6 @@ istio:
         rewrite: /api/captcha/
         destination: { host: authenc, port: 8088 }
         timeout: 30s
-      - match: { exact: /perlengkapan/simpel/v1 }
-        redirect: { uri: /perlengkapan/simpel/v1/, code: 308 }
-      - match: { prefix: /perlengkapan/simpel/v1/ }
-        rewrite: /
-        destination: { host: simpelv1, port: 80 }
-        timeout: 30s
-        retries: { attempts: 3, perTryTimeout: 10s }
       - match: { prefix: /perlengkapan/simpel/v2 }
         destination: { host: perlengkapan, port: 8080 }
         timeout: 30s
@@ -366,25 +308,6 @@ istio:
         destination: { host: portal, port: 8080 }
   destinationRules:
     extra:
-      - name: simpelv1
-        host: simpelv1
-        trafficPolicy:
-          connectionPool:
-            tcp: { maxConnections: 500 }
-            http:
-              http1MaxPendingRequests: 500
-              http2MaxRequests: 1000
-              h2UpgradePolicy: UPGRADE
-              maxRequestsPerConnection: 10
-          outlierDetection:
-            consecutiveErrors: 5
-            interval: 30s
-            baseEjectionTime: 60s
-            maxEjectionPercent: 50
-            minRequestVolume: 10
-            splitExternalLocalOriginErrors: true
-          loadBalancer:
-            simple: LEAST_REQUEST
       - name: layanan-perlengkapan
         host: layanan-perlengkapan
         trafficPolicy:

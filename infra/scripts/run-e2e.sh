@@ -23,7 +23,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO" || exit 1
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.e2e.yml"
 
-# Compose interpolates ${POSTGRES_PASSWORD:?...} and ${SIMPELV1_APP_KEY:?...}
+# Compose interpolates ${POSTGRES_PASSWORD:?...}
 # for every service in the merged files — including ones we never start — so a
 # fresh checkout with no `.env` fails at interpolation time before anything
 # runs. Supply disposable local test credentials (the same values CI passes).
@@ -59,30 +59,26 @@ _dotenv_has() {
   [ -f .env ] || return 1
   grep -qE "^[[:space:]]*(export[[:space:]]+)?$1[[:space:]]*=" .env
 }
-for _v in POSTGRES_PASSWORD SIMPELV1_APP_KEY; do
+for _v in POSTGRES_PASSWORD; do
   [ -n "${!_v:-}" ] && continue # explicit export wins
   _dotenv_has "$_v" && continue  # `.env` wins; Compose will read it
   case "$_v" in
     POSTGRES_PASSWORD) export POSTGRES_PASSWORD=e2e_test_pw ;;
-    SIMPELV1_APP_KEY)
-      export SIMPELV1_APP_KEY=base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc=
-      ;;
   esac
 done
 if [ -f .env ]; then
   _compose_env="$($COMPOSE config --environment 2>/dev/null || true)"
-  for _v in POSTGRES_PASSWORD SIMPELV1_APP_KEY; do
+  for _v in POSTGRES_PASSWORD; do
     _val="$(printf '%s\n' "$_compose_env" | sed -n "s/^$_v=//p" | tail -1)"
     [ -n "$_val" ] && export "$_v=$_val"
   done
 fi
 # `.env` may still leave a key empty, and a fresh checkout has no `.env` at all.
 : "${POSTGRES_PASSWORD:=e2e_test_pw}"
-: "${SIMPELV1_APP_KEY:=base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc=}"
-export POSTGRES_PASSWORD SIMPELV1_APP_KEY
+export POSTGRES_PASSWORD
 
 # Services with a `build:` that the up-* targets start.
-APP_SERVICES="authenc secreton gateway layanan-integrasi layanan-perlengkapan perlengkapan portal"
+APP_SERVICES="authenc secreton layanan-integrasi layanan-perlengkapan perlengkapan portal"
 UP_SERVICES="postgres redis authenc secreton layanan-integrasi layanan-perlengkapan perlengkapan portal"
 CROSS_SERVICES="postgres redis authenc layanan-integrasi layanan-perlengkapan perlengkapan portal cross-app-ingress"
 

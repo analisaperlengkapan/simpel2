@@ -58,8 +58,8 @@ must keep working on the new schema.
 
 - The trio **authenc + integrasi + perlengkapan** share DB `dbsimpelv2`,
   **schema-per-service**; reads cross-schema (e.g. perlengkapan → `integrasi.*`/
-  `authenc.*`, FK `batch_operation_log.user_id → authenc.users`). secreton & simpelv1
-  are isolated DBs. See `layanan/AGENTS.md` → Database Architecture.
+  `authenc.*`, FK `batch_operation_log.user_id → authenc.users`). secreton is an
+  isolated DB. See `layanan/AGENTS.md` → Database Architecture.
 - **Bring-up order: `integrasi-migrate` → `authenc-migrate` → perlengkapan** (cross-
   schema FK needs upstream schema first); wired in docker-compose + Helm hook Jobs.
 - Extensions go in `public` (`CREATE EXTENSION … WITH SCHEMA public`); each service sets

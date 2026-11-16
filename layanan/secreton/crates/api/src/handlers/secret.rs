@@ -31,7 +31,7 @@ pub fn create_routes() -> Router<AppState> {
         // Secret operations.
         //
         // The wildcard is load-bearing: secret paths are hierarchical
-        // (`simpelv1/app`, `postgres/simpelv2`, `prod/api/token`) and a single
+        // (`perlengkapan/app`, `postgres/simpelv2`, `prod/api/token`) and a single
         // `{path}` segment 404s on every one of them. The removed `/v1/kv`
         // router accepted them, so narrowing here would have turned #130 from
         // "delete an in-memory store" into "delete the only route that could

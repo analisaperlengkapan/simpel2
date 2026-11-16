@@ -1,1 +1,0 @@
-<a href="{{$url}}" type="button" class="btn btn-primary waves-effect waves-light {{$className ?? ''}}"><i class="ri-pencil-fill"></i></a>

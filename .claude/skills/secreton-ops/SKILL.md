@@ -78,13 +78,10 @@ route is seal-independent; `/v1/health` is behind `seal_check_middleware`.
 
 - Script: `infra/scripts/secreton-ci-bootstrap.sh` (real Shamir init+unseal).
 - One-shot compose service `secreton-bootstrap` + secreton `/health` healthcheck.
-- CI job `e2e-secreton-gateway` (gated `E2E_INTEGRATION_ENABLED` / `run_e2e`).
-- **Seed via the gateway `PUT /v1/secrets/{path}`**, not secreton REST: REST
-  `put_secret` (`state.engine`) and gRPC `get_secret` (`self.storage`,
-  `HashMap<String,String>` envelope) are different code paths — seeding through
-  the gateway (→ gRPC `StoreSecret`) guarantees the write matches the gRPC read
-  simpelv1 uses. **CI-only** — keys are throwaway (fresh DB per run), never
-  offline-captured secrets.
+- CI job `e2e-secreton-bootstrap` (gated `E2E_INTEGRATION_ENABLED` / `run_e2e`).
+- KV write + read-back go through the REST API with the root token init returns
+  (`POST`/`GET /v1/secret/data/{path}`, `Authorization: Bearer`). **CI-only** —
+  keys are throwaway (fresh DB per run), never offline-captured secrets.
 
 ## Bootstrap auth backend + roles + policies
 
@@ -117,11 +114,13 @@ Postgres role via `CREATE ROLE … PASSWORD` templated on `{{username}}`/`{{pass
 `SECRETON_DB_TLS_MODE=disable` for plaintext PG). A single shared engine instance
 holds the connection/role/lease state, so provisioning + issuance MUST hit the
 **same** secreton process.
-- **Provisioning path:** steps 1–2 are gRPC-only. Reach them from a script via the
-  gateway's env-gated admin routes `POST /v1/database/config/{name}` +
-  `POST /v1/database/roles/{role}` — mounted **only** when the gateway runs with
-  `GATEWAY_ENABLE_DB_ADMIN=1` (off in the prod simpelv1 sidecar; on in e2e). Prod
-  provisioning is an operator action, not a runtime sidecar capability.
+- **Provisioning path:** steps 1–3 over gRPC, the path layanan-perlengkapan
+  leases on. From a script: `grpcurl -import-path layanan/secreton/proto -proto
+  secreton.proto` against `secreton:9000` (`…/ConfigureDatabaseConnection`,
+  `…/CreateDatabaseRole`, `…/GenerateDatabaseCredentials`); the e2e bootstrap
+  runs in `fullstorydev/grpcurl:v1.9.1-alpine`. The REST lease route
+  `GET /v1/dynamic/database/creds/{role}` answers 500 today (`relation "leases"
+  does not exist`), so do not use it. Prod provisioning is an operator action.
 - **e2e:** `infra/scripts/secreton-ci-bootstrap.sh` step 6 (opt-in
   `SECRETON_DB_PROVISION=1`) configures the connection, creates the role, leases a
   credential, and proves it authenticates against PG. The engine↔PG path also has

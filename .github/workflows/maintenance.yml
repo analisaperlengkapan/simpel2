@@ -56,7 +56,7 @@ jobs:
       # never actually linted a single workflow.
       #
       # `docker run` is the pattern already used in this repo for pinned
-      # third-party tooling (see composer-audit in security.yml and trivy), and
+      # third-party tooling (see trivy in security.yml), and
       # the ARC runner has a dind sidecar. The image tag is PINNED, not
       # `:latest` — a floating tag is exactly what caused the FE nightly-rustc
       # ICE and the Blade plugin breakage (#119).

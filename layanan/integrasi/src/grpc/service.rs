@@ -715,7 +715,7 @@ impl IntegrasiService for IntegrasiServiceImpl {
         "#;
 
         // Filter precedence mirrors the request shape: an exact-NIP lookup
-        // (used by the simpelv1 gateway employee-by-NIP endpoint) wins over
+        // (authenc's federation client resolves a person by NIP) wins over
         // the satker listing. `nip_filter` was previously IGNORED entirely.
         let (where_clause, filter): (&str, Option<&str>) = if !req.nip_filter.is_empty() {
             ("WHERE p.nip = $1", Some(req.nip_filter.as_str()))
@@ -1123,9 +1123,8 @@ impl IntegrasiServiceImpl {
                    -- the same reason: the ingest derives its INSERT columns from
                    -- the keys of the SIMAN payload (see db.rs), and SIMAN sends
                    -- `no_aset`, never `nup`. Selecting `nup` bare returned "" for
-                   -- every one of the 624 533 staging rows, so simpelv1's by-NUP
-                   -- inventory scan (which matches on this field) could never hit
-                   -- a real asset. Only our own e2e seed populated `nup`, which is
+                   -- every one of the 624 533 staging rows, so a by-NUP lookup
+                   -- (which matches on this field) could never hit a real asset. Only our own e2e seed populated `nup`, which is
                    -- why the live test passed while production could not work.
                    COALESCE(NULLIF(nup, ''), NULLIF(no_aset, ''), '') AS nup,
                    COALESCE(kode_barang, kd_brg, '')   AS kode_barang,

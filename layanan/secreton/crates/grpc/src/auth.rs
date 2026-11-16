@@ -28,8 +28,8 @@
 //! # What this does NOT do
 //!
 //! mTLS authenticates a **workload**, it does not authorize a **request**. A
-//! valid `gateway` certificate proves the caller is the gateway; it says
-//! nothing about whether the gateway may read `kv/prod/db-password`. Per-path
+//! valid `layanan-perlengkapan` certificate proves who the caller is; it says
+//! nothing about whether that caller may read `kv/prod/db-password`. Per-path
 //! scoping needs the policy engine to actually be consulted on the secret
 //! read/write path, which is a separate piece of work (task #129). Do not read
 //! "mTLS is on" as "secrets are access-controlled".
@@ -57,7 +57,7 @@ pub const ALLOWED_COMMON_NAMES_ENV: &str = "GRPC_ALLOWED_CLIENT_CNS";
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PeerIdentity {
     /// Subject Common Name of the leaf certificate. This is the workload name
-    /// the mesh issues certificates under (`gateway`, `layanan-perlengkapan`, …).
+    /// the mesh issues certificates under (`authenc`, `layanan-perlengkapan`, …).
     pub common_name: String,
     /// Lowercase hex serial of the leaf certificate — the stable handle for a
     /// revocation list, since common names get reissued.
@@ -294,10 +294,10 @@ mod tests {
 
     #[tokio::test]
     async fn an_allowlisted_common_name_is_accepted() {
-        let authorizer = AllowedCommonNames::new(["gateway", "layanan-perlengkapan"]);
+        let authorizer = AllowedCommonNames::new(["authenc", "layanan-perlengkapan"]);
         assert!(
             authorizer
-                .authorize(&peer("gateway"), "/secreton.v1.SecretonService/GetSecret")
+                .authorize(&peer("authenc"), "/secreton.v1.SecretonService/GetSecret")
                 .await
                 .is_ok()
         );
@@ -305,7 +305,7 @@ mod tests {
 
     #[tokio::test]
     async fn an_unlisted_common_name_is_denied() {
-        let authorizer = AllowedCommonNames::new(["gateway"]);
+        let authorizer = AllowedCommonNames::new(["authenc"]);
         let denied = authorizer
             .authorize(
                 &peer("someone-else"),
@@ -318,9 +318,9 @@ mod tests {
     #[tokio::test]
     async fn the_allowlist_is_case_sensitive() {
         // Common names come from a CA we control, so exact match is the
-        // correct rule; a case-insensitive one would let `Gateway` in.
-        let authorizer = AllowedCommonNames::new(["gateway"]);
-        assert!(authorizer.authorize(&peer("Gateway"), "/m").await.is_err());
+        // correct rule; a case-insensitive one would let `Authenc` in.
+        let authorizer = AllowedCommonNames::new(["authenc"]);
+        assert!(authorizer.authorize(&peer("Authenc"), "/m").await.is_err());
     }
 
     #[test]

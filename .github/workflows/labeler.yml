@@ -49,7 +49,7 @@ jobs:
           xl_label: 'size:xl'
           fail_if_xl: 'false'
           message_if_xl: ''
-          files_to_ignore: 'package-lock.json Cargo.lock composer.lock pnpm-lock.yaml yarn.lock'
+          files_to_ignore: 'package-lock.json Cargo.lock pnpm-lock.yaml yarn.lock'
 
   pr-title-check:
     name: PR Title (Conventional Commits)
@@ -83,9 +83,7 @@ jobs:
             authenc
             integrasi
             secreton
-            gateway
             portal
-            monolith
             shared
             infra
             ci
@@ -100,7 +98,7 @@ jobs:
           subjectPatternError: |
             Subject judul PR harus diawali huruf kecil/digit. Contoh:
               feat(layanan-authenc): tambah dukungan WebAuthn
-              fix(simpelv1): atasi NPE di laporan BMN
+              fix(perlengkapan): atasi NPE di laporan BMN
           # Dependabot menulis judulnya sendiri — "<prefix>: Bump <crate> from
           # X to Y" — dan subject-nya selalu diawali huruf BESAR ("Bump").
           # Pola di atas menuntut huruf kecil/digit, jadi SETIAP PR bot

@@ -33,24 +33,6 @@ spec:
   selector:
     app.kubernetes.io/name: redis
 ---
-{{- /*
-  Alias service `redis` agar Laravel/PHP simpelv1 yang membaca host "redis"
-  dari ConfigMap simpelv1-env tetap resolve. Selector identik dengan redis-service.
-*/}}
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis
-  namespace: {{ include "simpel.namespace" . }}
-  labels:
-    {{- include "simpel.componentLabels" (dict "top" . "name" "redis" "component" "cache") | nindent 4 }}
-spec:
-  type: ClusterIP
-  ports:
-    - { name: redis, port: 6379, targetPort: 6379 }
-  selector:
-    app.kubernetes.io/name: redis
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:

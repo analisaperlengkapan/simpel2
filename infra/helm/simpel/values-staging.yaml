@@ -1,8 +1,8 @@
 # Staging overrides untuk SIMPEL.
 #
 # Rilis staging yang hidup merekam 24 nilai `secrets.*` yang TIDAK ADA di
-# berkas ini — kredensial Postgres, `APP_KEY`/`DB_PASSWORD` simpelv1, dan token
-# MySIMKARI/SIMAN/Monsakti — dipasok saat bootstrap lewat `values-secrets.yaml`
+# berkas ini — kredensial Postgres dan token MySIMKARI/SIMAN/Monsakti —
+# dipasok saat bootstrap lewat `values-secrets.yaml`
 # di luar repo. Yang benar soal itu, diperiksa bukan diduga:
 #
 # * `helm upgrade -f values-staging.yaml` saja AMAN hari ini. Dibuktikan dengan
@@ -506,8 +506,8 @@ postgres:
   replicas: 1
   storage: { size: 20Gi }
   # Off since revision 8, for the same reason as `namespace.create`: it was a
-  # `--set` flag the repo never recorded. dbsimpelv2 / dbsimpelv1 / secreton already
-  # exist on this instance, so the create hook has nothing left to do.
+  # `--set` flag the repo never recorded. dbsimpelv2 / secreton already exist on
+  # this instance, so the create hook has nothing left to do.
   dbCreateJob: { enabled: false }
 redis: {}
 authenc:
@@ -562,21 +562,6 @@ layananPerlengkapan:
   podAntiAffinity: { type: preferred }
   persistence:
     enabled: true
-simpelv1:
-  enabled: true
-  replicas: 2
-  appUrl: "http://10.1.7.121/perlengkapan/simpel/v1"
-  env:
-    APP_ENV: staging
-    QUEUE_CONNECTION: sync
-    PORTAL_URL: "http://10.1.7.121/portal"
-  # DB sudah ter-initialize di staging postgres-0 via postgres-init job.
-  # Skip restore-from-backup init container (butuh ConfigMap simpelv1-db-backup
-  # yang berisi SQL dump). Set ke "none" agar init container db-migrate
-  # tidak rendered.
-  dbBackup:
-    source: none
-    name: simpelv1-db-backup
 portal:
   replicas: 1
   hpa: { enabled: true, minReplicas: 1, maxReplicas: 2, cpuUtilization: 75, memoryUtilization: 80 }
@@ -626,19 +611,6 @@ istio:
         rewrite: /api/captcha/
         destination: { host: authenc, port: 8088 }
         timeout: 30s
-      # SIMPEL v1 = Laravel monolith. Istio strip prefix → Laravel sees
-      # `/login`. Laravel `AppServiceProvider::boot()` panggil
-      # `URL::forceRootUrl(APP_URL)` (APP_URL=http://host/perlengkapan/simpel/v1)
-      # → helper `redirect('/auth/login')` produce Location header dengan
-      # prefix lengkap: `http://host/perlengkapan/simpel/v1/auth/login`. User
-      # tetap stay di prefix v1 sesuai routing spec.
-      - match: { exact: /perlengkapan/simpel/v1 }
-        redirect: { uri: /perlengkapan/simpel/v1/, code: 308 }
-      - match: { prefix: /perlengkapan/simpel/v1/ }
-        rewrite: /
-        destination: { host: simpelv1, port: 80 }
-        timeout: 30s
-        retries: { attempts: 3, perTryTimeout: 10s }
       # SIMPEL v2 = antarmuka/perlengkapan (Leptos WASM frontend) di
       # canonical path /perlengkapan/simpel/v2/. Frontend WASM di-build
       # dengan `<base href="/perlengkapan/simpel/v2/" />` dan nginx serve

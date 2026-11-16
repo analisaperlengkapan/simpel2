@@ -13,18 +13,13 @@ vulnerabilities:
       dependabot's weekly cargo bumps will prune it. Not an exposure.
 
 misconfigurations:
-  # DS-0002 (non-root USER) for two images deferred to #46 (Helm pod
-  # securityContext runAsNonRoot, deploy-verified). The portal/perlengkapan
-  # nginx images + integrasi backend ARE fixed at image level (non-root).
-  # These two are coupled to runtime verification:
+  # DS-0002 (non-root USER). The portal/perlengkapan nginx images + integrasi
+  # backend ARE fixed at image level (non-root).
   - id: AVD-DS-0002
     paths:
-      - "monolith/simpelv1/Dockerfile"
       - "antarmuka/perlengkapan/tests/e2e/Dockerfile.e2e"
       - "antarmuka/portal/tests/e2e/Dockerfile.e2e"
     statement: >-
-      simpelv1 runs php-fpm+nginx — non-root needs php-fpm pool + nginx pid
-      rework that must be deploy-verified (tracked with #46 Helm runAsNonRoot).
       The two Dockerfile.e2e are ephemeral CI Playwright runners, never
       deployed (the portal one was added in #607 and missed here).
 

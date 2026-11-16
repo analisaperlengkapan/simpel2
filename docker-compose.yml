@@ -15,8 +15,8 @@ services:
       - "${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Auto-create per-service databases (dbsimpelv1, dbsimpelv2,
-      # dbsecretion, dbintegration) on first startup. Without this, every
+      # Auto-create per-service databases (dbsimpelv2, dbsecretion,
+      # dbintegration) on first startup. Without this, every
       # dependent service crashes with "database does not exist" because
       # the postgres image only creates the default `postgres` database.
       - ./infra/scripts/init-postgres-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
@@ -126,8 +126,8 @@ services:
       RUST_LOG: debug
       GRPC_PORT: "50053"
       # The gRPC listener refuses to start without mTLS material. The e2e stack
-      # has no PKI, and the gateway connects with `SecretonServiceClient::new`
-      # (no client credentials), so the boundary is opened deliberately here.
+      # has no PKI, and its clients connect without client credentials, so the
+      # boundary is opened deliberately here.
       # Enforcement itself is covered by `secreton-grpc`'s mtls_enforcement
       # tests, which mint a CA and drive a real handshake.
       GRPC_ALLOW_INSECURE: "true"
@@ -232,7 +232,7 @@ services:
       DB_NAME: dbsimpelv2
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/dbsimpelv2
       # http:// scheme is required — tonic parses these as URIs (scheme-less
-      # values fail to connect, same as the gateway service's entries below).
+      # values fail to connect).
       AUTHENC_GRPC_URL: http://authenc:50051
       SECRETON_GRPC_URL: http://secreton:50053
       INTEGRASI_GRPC_URL: http://layanan-integrasi:50052
@@ -258,136 +258,40 @@ services:
       - simpel-network
 
   # =====================================================
-  # REST→gRPC gateway sidecar for simpelv1
-  # =====================================================
-  # The PHP gateway clients (Authenc/Secrethon/Integrasi GrpcClient) speak REST
-  # over localhost to this sidecar, which holds long-lived gRPC channels to the
-  # core services and reshapes responses to the contract simpelv1 expects (see
-  # layanan/gateway/AGENTS.md). In compose it's a normal service; in K8s it's a
-  # localhost sidecar in the simpelv1 pod.
-  gateway:
-    build:
-      context: .
-      dockerfile: layanan/gateway/Dockerfile
-    image: simpel2-gateway:local
-    container_name: gateway
-    ports:
-      - "${GATEWAY_HOST_PORT:-8090}:8090"
-    environment:
-      RUST_LOG: debug
-      GATEWAY_PORT: "8090"
-      AUTHENC_GRPC_URL: http://authenc:50051
-      SECRETON_GRPC_URL: http://secreton:50053
-      INTEGRASI_GRPC_URL: http://layanan-integrasi:50052
-    depends_on:
-      authenc:
-        condition: service_started
-      secreton:
-        condition: service_started
-      layanan-integrasi:
-        condition: service_started
-    networks:
-      - simpel-network
-
-  # =====================================================
   # Secreton CI bootstrap (one-shot)
   # =====================================================
-  # Runs the REAL Shamir init+unseal against secreton's REST API, then seeds a
-  # demo secret THROUGH THE GATEWAY (gateway → secreton gRPC StoreSecret) so the
-  # write path matches the gRPC read path simpelv1 uses. Exits 0 on success;
-  # simpelv1's live integration test (F-GW PR-C) gates on
-  # `service_completed_successfully`. CI-only — the unseal keys are throwaway
-  # (fresh DB every run); production keys are captured offline (see secreton-ops).
+  # Runs the REAL Shamir init+unseal against secreton's REST API, writes a
+  # secret and reads it back with the root token init returns, and (with
+  # SECRETON_DB_PROVISION=1) leases a dynamic DB credential. Exits 0 on success.
+  # CI-only — the unseal keys are throwaway (fresh DB every run); production
+  # keys are captured offline (see secreton-ops).
   secreton-bootstrap:
-    image: alpine:3.20
+    # Alpine with grpcurl: step 6 of the bootstrap leases a DB credential over
+    # gRPC, the path layanan-perlengkapan uses.
+    image: fullstorydev/grpcurl:v1.9.1-alpine
+    # The image runs as user `grpcurl`; root is needed to `apk add` bash/curl/jq
+    # and psql into this CI-only one-shot.
+    user: "0:0"
     container_name: secreton-bootstrap
     restart: "no"
     environment:
       SECRETON_ADDR: http://secreton:8200
-      GATEWAY_ADDR: http://gateway:8090
-      SECRETON_SEED_PATH: simpelv1-app-key
+      SECRETON_SEED_PATH: ci-bootstrap/probe
       SECRETON_SEED_VALUE: ci-bootstrap-secret
       # Dynamic DB secrets-engine provisioning inputs. Inert unless the job runs
-      # this one-shot with `-e SECRETON_DB_PROVISION=1` (and the gateway has
-      # GATEWAY_ENABLE_DB_ADMIN=1) — then step 6 of the bootstrap configures the
-      # admin connection + creates the leased role.
+      # this one-shot with `-e SECRETON_DB_PROVISION=1` — then step 6 of the
+      # bootstrap configures the admin connection + creates the leased role.
       SECRETON_DB_ROLE: perlengkapan-dyn
       SECRETON_DB_CONN: perlengkapan
       SECRETON_DB_ADMIN_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/dbsimpelv2
     volumes:
       - ./infra/scripts/secreton-ci-bootstrap.sh:/bootstrap.sh:ro
+      - ./layanan/secreton/proto:/proto:ro
     entrypoint: ["/bin/sh", "-c"]
     command: ["apk add --no-cache bash curl jq >/dev/null 2>&1 && exec bash /bootstrap.sh"]
     depends_on:
       secreton:
         condition: service_healthy
-      gateway:
-        condition: service_started
-    networks:
-      - simpel-network
-
-  # =====================================================
-  # Legacy Application (SIMPEL v1)
-  # =====================================================
-  simpelv1:
-    build:
-      context: .
-      dockerfile: monolith/simpelv1/Dockerfile
-    # Explicit, like every sibling service: without it compose names the built
-    # image `simpel2-simpelv1:latest`, while the e2e jobs push/pull
-    # `simpel2-simpelv1:local` — so the pull silently missed and compose rebuilt
-    # from source, blowing the 600s bring-up bound.
-    image: simpel2-simpelv1:local
-    container_name: simpelv1
-    ports:
-      - "${SIMPELV1_HOST_PORT:-8000}:8080"
-    environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
-      DB_CONNECTION: pgsql
-      DB_HOST: postgres
-      DB_PORT: "5432"
-      DB_DATABASE: dbsimpelv1
-      DB_USERNAME: ${POSTGRES_USER:-postgres}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
-      # Laravel requires APP_KEY for cookie/session encryption. Without it
-      # every web request fails with "No application encryption key has
-      # been specified" because EncryptCookies is in the `web` middleware
-      # group. Generate via `php artisan key:generate --show` and place
-      # the resulting `base64:...` string in .env.
-      APP_KEY: ${SIMPELV1_APP_KEY:?SIMPELV1_APP_KEY must be set in .env (use `php artisan key:generate --show`)}
-      # The public mount point, mirroring `simpelv1.appUrl` in
-      # infra/helm/simpel/values.yaml. `AppServiceProvider::boot` takes the PATH
-      # from here — the host is rebuilt from each request — and forces it as the
-      # URL root, so v1 emits redirects under the same prefix the ingress strips
-      # before PHP sees the request. Without it v1 falls back to the config
-      # default `http://localhost`, i.e. an empty path, and answers
-      # `Location: .../auth/login` with no prefix — a path the ingress does not
-      # route, so the whole SSO handoff 404s.
-      APP_URL: ${SIMPELV1_APP_URL:-http://localhost/perlengkapan/simpel/v1}
-      # Origin-relative on purpose. v1 and the portal are served from ONE origin
-      # (prod Istio VS; the cross-app ingress in e2e), so a relative target
-      # resolves correctly wherever the deployment is reachable — whereas an
-      # absolute `http://localhost:3000/portal` is wrong for every browser that
-      # is not on the compose host (notably the Playwright container, which
-      # talks to `cross-app-ingress:8080`).
-      PORTAL_URL: ${SIMPELV1_PORTAL_URL:-/portal}
-      # The PHP gateway clients read *_GATEWAY_URL (see
-      # `monolith/simpelv1/app/Services/Grpc/*GrpcClient.php`) and speak REST to
-      # the `gateway` sidecar, which holds the gRPC channels upstream. All three
-      # point at the single gateway port (8090); in K8s these become 127.0.0.1.
-      AUTHENC_GATEWAY_URL: http://gateway:8090
-      INTEGRASI_GATEWAY_URL: http://gateway:8090
-      SECRETON_GATEWAY_URL: http://gateway:8090
-      SESSION_DRIVER: file
-      CACHE_DRIVER: file
-    depends_on:
-      postgres:
-        condition: service_healthy
-      authenc:
-        condition: service_started
-      gateway:
-        condition: service_started
     networks:
       - simpel-network
 

@@ -163,11 +163,11 @@ mod tests {
         assert!(!AuthService::is_session_valid(&past));
     }
 
-    /// Both account-policy flags must block the v1 handoff, and the step must
-    /// name the route that clears it.
+    /// Both account-policy flags block, and the step names the route that
+    /// clears it.
     #[test]
-    fn policy_step_blocks_v1_handoff() {
-        use crate::features::auth::legacy_handoff::{PolicyStep, blocking_policy_step};
+    fn policy_step_names_the_route_that_clears_it() {
+        use crate::features::auth::policy_step::{PolicyStep, blocking_policy_step};
 
         assert_eq!(
             blocking_policy_step(&session_with(None, false, false)),
@@ -194,31 +194,5 @@ mod tests {
             blocking_policy_step(&session_with(None, true, true)),
             Some(PolicyStep::PasswordChange)
         );
-    }
-
-    /// The token goes to v1's callback and nowhere else on the origin: the
-    /// prefix must end on a path-segment boundary. Both directions, so a check
-    /// that refused everything would fail too.
-    #[test]
-    fn v1_handoff_target_must_be_v1_on_a_segment_boundary() {
-        use crate::features::auth::legacy_handoff::is_v1_path;
-
-        for ok in [
-            "/perlengkapan/simpel/v1",
-            "/perlengkapan/simpel/v1/",
-            "/perlengkapan/simpel/v1/auth/oauth-callback",
-        ] {
-            assert!(is_v1_path(ok), "{ok} is v1");
-        }
-        for not_v1 in [
-            "/perlengkapan/simpel/v1x/auth/oauth-callback",
-            "/perlengkapan/simpel/v10/auth/oauth-callback",
-            "/perlengkapan/simpel/v1.evil",
-            "/perlengkapan/simpel/v2/auth/oauth-callback",
-            "/portal/login",
-            "/",
-        ] {
-            assert!(!is_v1_path(not_v1), "{not_v1} is not v1");
-        }
     }
 }

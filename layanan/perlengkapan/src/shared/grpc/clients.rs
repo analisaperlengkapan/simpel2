@@ -168,7 +168,7 @@ impl AuthencClient {
     ///
     /// `connect_lazy` never fails at startup and reconnects transparently, so
     /// a slow upstream produces a failed *call* (surfaced as 401) instead of a
-    /// permanently degraded *client*. Same pattern as `layanan/gateway`.
+    /// permanently degraded *client*.
     pub fn connect_lazy(addr: String) -> Result<Self> {
         let channel = lib_backend::grpc::client::endpoint_from_env(&addr)?.connect_lazy();
         Ok(Self {
@@ -308,8 +308,7 @@ impl IntegrasiClient {
     /// `connect_lazy` never fails on a slow upstream and reconnects transparently: an
     /// unreachable integrasi becomes a failed *call* (which the circuit breakers and
     /// the "unknown freshness" paths already handle) instead of a permanently
-    /// degraded *client*. Same pattern as [`AuthencClient::connect_lazy`] and
-    /// `layanan/gateway`. An invalid URL or unreadable mTLS material still fails here,
+    /// degraded *client*. Same pattern as [`AuthencClient::connect_lazy`]. An invalid URL or unreadable mTLS material still fails here,
     /// at startup, where it should.
     pub fn connect_lazy(addr: String) -> Result<Self> {
         let channel = lib_backend::grpc::client::endpoint_from_env(&addr)?.connect_lazy();

@@ -22,7 +22,7 @@ Rules, read off the RENDER (so a workload added tomorrow is covered the day it e
     Secret/key, never as a literal `value` (a literal lands in the manifest, in Helm's
     release record and in `kubectl describe`);
  C. no other workload reads that Secret (the key signs every user's session);
- D. no workload other than authenc and simpelv1 sets `JWT_SECRET` at all — a second
+ D. no workload other than authenc sets `JWT_SECRET` at all — a second
     signer with its own key is how the next version of this bug would arrive.
 
 Input: JSON array of rendered objects (`yq -o=json eval-all '[.]'`, as the other render
@@ -39,7 +39,7 @@ import sys
 
 SECRET = "authenc-jwt"
 KEY = "JWT_SECRET"
-OWN_KEY = {"authenc", "simpelv1"}  # simpelv1 (Laravel) signs its own `api` guard with its own key
+OWN_KEY = {"authenc"}
 
 
 def workloads(objs):
@@ -109,8 +109,6 @@ def _good() -> list[dict]:
          "data": {KEY: key}},
         {"kind": "Deployment", "metadata": {"name": "authenc"}, "spec": {"template": {"spec": {"containers": [
             {"name": "authenc", "env": [{"name": KEY, "valueFrom": {"secretKeyRef": {"name": SECRET, "key": KEY}}}]}]}}}},
-        {"kind": "Deployment", "metadata": {"name": "simpelv1"}, "spec": {"template": {"spec": {"containers": [
-            {"name": "simpelv1", "env": [{"name": KEY, "valueFrom": {"secretKeyRef": {"name": "simpelv1-secrets", "key": KEY}}}]}]}}}},
     ]
 
 

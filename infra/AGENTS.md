@@ -244,9 +244,9 @@ Pemeriksaan pertama menemukan hal-hal yang akan menggagalkan hari pertama:
   menghapusnya dengan `helm uninstall`. Itu satu-satunya pemakai `namespace.retain=false`; tanpanya Namespace
   tak ikut terhapus (`helm.sh/resource-policy: keep`). `check-namespace-retained.py` (CI) menolak opsi itu
   di `values-staging.yaml`/`values-production.yaml`.
-- **SIMPEL v1 NONAKTIF di produksi untuk go-live pertama** (`simpelv1.enabled: false`): v1 butuh dbsimpelv1 berisi
-  data nyata + Secret `simpelv1-db-backup` (dump) yang belum ada; tanpa itu pod macet di ContainerCreating. v2
-  tidak bergantung pada v1. Rute `/perlengkapan/simpel/v1` tetap ada (parity) dan menjawab 503 selama v1 mati.
+- **SIMPEL v1 dihapus dari repo (2026-11-16)** atas keputusan pemilik sistem, beserta gateway sidecar-nya,
+  `dbsimpelv1`, rute `/perlengkapan/simpel/v1`, dan job CI-nya; tak ada data yang perlu dimigrasi. Salinan lokal
+  di `monolith/` (termasuk dump data asli) diabaikan git lewat `/monolith/` di `.gitignore`.
 - **ServiceMonitor mati** (`monitoring.serviceMonitors.enabled: false`): CRD prometheus-operator tidak terpasang di
   klaster, dan merender objeknya menggagalkan `helm install` ("no matches for kind ServiceMonitor").
 - **mTLS gRPC** (authenc, secreton, layanan-integrasi) — `backendConfig.grpcTls.enabled: true` di staging DAN
@@ -341,7 +341,7 @@ apa adanya ⇒ `16-alpine` tetap sah).
   server. Sebelumnya empat template menuliskan `postgres:15-alpine` sebagai literal sementara
   server-nya `16-alpine`; skew itu belum menggigit (keduanya hanya `psql`/`pg_isready`) tapi akan
   FATAL begitu ada job ber-`pg_dump`, yang menolak jalan bila server lebih baru daripada dirinya.
-- **Build**: Tag git `v*.*.*` → `release.yml` GitHub Actions matrix build & push 7 image (portal, perlengkapan, authenc, layanan-integrasi, layanan-perlengkapan, secreton, simpelv1) dengan SBOM + provenance.
+- **Build**: Tag git `v*.*.*` → `release.yml` GitHub Actions matrix build & push 6 image (portal, perlengkapan, authenc, layanan-integrasi, layanan-perlengkapan, secreton) dengan SBOM + provenance.
 - **Image runner ARC** (`simpel2-arc-runner`) di luar matrix itu — ia bukan bagian rilis produk, tapi tetap dibangun CI (`arc-runner-image.yml`), **bukan tangan**. Tag diturunkan dari `infra/helm/arc/values-runner-set.yaml`; workflow menolak PR yang mengubah `runner-image/` tanpa menaikkan tag. Prosedur bump + alasan versinya kritis: `infra/helm/arc/README.md`.
 
 ## 🔐 Secret Management Zero-Trust (Secreton + Kubernetes Auth)
@@ -354,7 +354,6 @@ apa adanya ⇒ `16-alpine` tetap sah).
 - Pod project SA token via `projected.serviceAccountToken` (audience `secreton`, TTL 3600s) ke `/var/run/secrets/tokens/secreton-token`.
 - Service authenticate ke Secreton via `POST /v1/auth/kubernetes/login` dengan JWT projected token → terima Secreton client token (renewable).
 - Service fetch secret pakai client token tsb dari path yang diizinkan policy (lihat `values.yaml` `secretonAuth.policies`).
-- **simpelv1 (Laravel/PHP)** tidak punya client native → init container `fetch-secrets` (script di `infra/helm/simpel/files/fetch-secrets.sh`) generate `/app/runtime/.env` dari Secreton sebelum main container start.
 
 ### Bootstrap (sekali per environment)
 
@@ -367,7 +366,7 @@ apa adanya ⇒ `16-alpine` tetap sah).
    `GET /v1/sys/seal-status` melaporkan `"sealed": false`.
 4. Migrasi `.env` ke Secreton: `SECRETON_TOKEN=<root> ./layanan/secreton/scripts/migrate-env-to-secreton.sh --env-file <path> --kv-prefix <prefix>`.
 5. Bootstrap auth backend + role + policy: `SECRETON_TOKEN=<root> ./infra/helm/bootstrap-secreton.sh <staging|production>`.
-6. Flip `secretonAuth.enabled=true` & `helm upgrade` → service mulai pakai SA token, k8s Secret `simpelv1-secrets` & `integration-secrets` di-deprecate.
+6. Flip `secretonAuth.enabled=true` & `helm upgrade` → service mulai pakai SA token, k8s Secret `integration-secrets` di-deprecate.
 7. Revoke root token: `./infra/helm/bootstrap-secreton.sh <env> --revoke-root`.
 
 > ⚠️ **Tidak ada biner `secreton` di mana pun.** Dockerfile Secreton hanya
@@ -405,16 +404,6 @@ tidak mematikan layanan.
   **Prasyarat F6 (secreton-side):** `ConfigureDatabaseConnection` + `CreateDatabaseRole`
   untuk role tsb, lalu set `SECRETON_DB_ROLE` di `values.yaml` (`<svc>.env`).
   Tanpa `SECRETON_DB_ROLE` → tetap pakai `DATABASE_URL` statik (perilaku lama).
-- **simpelv1 (PHP-FPM, env tak hot-reload).** Dua lapis: (1) kredensial yang
-  di-fetch runtime via gateway/sidecar tetap on-demand; (2) secret boot (APP_KEY,
-  DB via init container `fetch-secrets.sh`) → **rolling-restart-on-rotation** dgn
-  **Stakater Reloader**. **Prasyarat F6:** install controller Reloader, lalu
-  anotasi Deployment simpelv1 `secret.reloader.stakater.com/reload: "simpelv1-secrets"`
-  agar pod restart otomatis saat k8s Secret `simpelv1-secrets` berubah.
-- **⚠️ Asimetri APP_KEY (simpelv1).** Rotasi `APP_KEY` Laravel **membatalkan
-  sesi Redis terenkripsi** (semua user ter-logout) — beda dgn DB/SMTP yang rotasi-nya
-  transparan. Jadwalkan saat maintenance, atau pakai strategi dua-kunci
-  (`APP_PREVIOUS_KEYS`) bila perlu zero-logout.
 
 ## 🛡️ Hardening Opt-in (default OFF)
 
@@ -473,40 +462,6 @@ Helm; jangan `kubectl edit`.
 - **Ukuran**: staging 5Gi, produksi 20Gi (`longhorn-retain`). Belum ada angka
   pemakaian nyata; volume Longhorn dapat diperluas tanpa dibuat ulang.
 - PVC ikut Velero FS backup (bukan scratch).
-
-### Skema database SIMPel v1 di staging (`provision-simpelv1-schema.sh`)
-
-`dbsimpelv1` di staging dibuat **kosong** (0 tabel) dan v1 tak punya migrasi di repo;
-satu-satunya sumber skemanya adalah dump produksi
-`monolith/simpelv1/database/dbsimpelv1.sql.gz` (gitignored, ±5,1 juta baris **data
-nyata**). Staging memakai data MOCK ⇒ dump itu **tidak boleh dimuat apa adanya**.
-
-```bash
-# dry-run (aman): saring jadi DDL saja, tulis ke berkas sementara, cetak ringkasan
-infra/scripts/provision-simpelv1-schema.sh /path/ke/dbsimpelv1.sql.gz
-# terapkan (satu transaksi; menolak bila dbsimpelv1 sudah berisi tabel)
-infra/scripts/provision-simpelv1-schema.sh /path/ke/dbsimpelv1.sql.gz --apply
-# uji saringan tanpa cluster/dump
-infra/scripts/provision-simpelv1-schema.sh --self-test
-```
-
-- Saringan membuang blok `COPY`, `INSERT`, `setval`, `\restrict`, `OWNER TO`, dan
-  `SET transaction_timeout` (PG17-only; staging PG16), lalu **pagar** menolak hasil
-  yang masih mengandung satu pun baris data. Pagar itu sudah terbukti perlu: daftar
-  kolom dump produksi memuat `;` dan regex `COPY` pertama meleset.
-- Hanya untuk namespace `*staging*`; skrip menolak yang lain. Hasil: 259 tabel (di tiga
-  skema: `public` 184, `siman` 59, `mon_sakti` 16) + 16 view, **0 baris data bisnis**.
-- **Skema saja tidak cukup untuk halaman login.** `ViewServiceProvider` membaca
-  `ms_setting_qr` baris `id = 1` di SETIAP tampilan; pada tabel kosong
-  `->logo_aplikasi` = `ErrorException` ⇒ login v1 menjawab 500 (ketemu 2026-11-06,
-  sesudah skemanya terpasang). Karena itu `--apply` menyertakan **satu baris
-  konfigurasi sintetis** (`mock_config_sql`, ditulis di skrip, bukan diambil dari
-  dump; idempoten; sequence dimajukan) dalam transaksi yang sama. Hasil terukur:
-  halaman login v1 tampil (logo, "SIMPEL KEJAKSAAN RI", form), bukan "Internal Server
-  Error".
-- **Batasnya:** tabel pengguna/peran/menu v1 tetap kosong, jadi _login v1 yang
-  sesungguhnya_ (SSO sampai dashboard v1) belum bisa diuji di staging. Itu butuh data
-  mock tambahan dan keputusan tersendiri — jangan diisi dari dump produksi.
 
 ### Allowlist API IAM (`istio.iamAllowlist`)
 
@@ -724,19 +679,15 @@ restart sama sekali.
 # Step 1: lihat events scheduler-level (image pull, OOM, dll)
 kubectl -n simpelv2-<env> describe pod <pod-name> | tail -40
 
-# Step 2: log init container (kebanyakan masalah di sini — fetch-secrets,
-# migration)
+# Step 2: log init container (kebanyakan masalah di sini — migration)
 kubectl -n simpelv2-<env> logs <pod-name> -c <init-container-name>
 
 # Step 3: main container
 kubectl -n simpelv2-<env> logs <pod-name>
 
-# Step 4: jika fetch-secrets fail karena Secreton sealed, unseal dulu
+# Step 4: jika layanan gagal karena Secreton sealed, unseal dulu
 # (REST — tak ada CLI di image):
 kubectl -n simpelv2-<env> port-forward svc/secreton 8200:8200 &
 curl -fsS -X POST http://127.0.0.1:8200/v1/sys/unseal \
   -H 'Content-Type: application/json' -d '{"key":"<unseal-key>"}' | jq -r '.sealed'
 ```
-
-`fetch-secrets` init container sengaja FAIL daripada start dengan
-stale cred — bukan bug, melainkan defense in depth.

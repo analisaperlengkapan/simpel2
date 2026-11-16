@@ -113,8 +113,6 @@ Lihat [Lihat lebih jauh §1 untuk first-time production deploy.](#1-fresh-deploy
 | `values-secrets.yaml` (di LUAR repo, mode 600) | Secret aplikasi | §1.4 |
 | Token MySIMKARI / SIMAN / MonSAKTI **asli** | sinkron data induk (§1.7b); tanpa MySIMKARI tak ada NIP yang ditemukan | pemilik tiap API |
 | NIP + sandi awal administrator pertama | `secrets.authencBootstrapAdmin` | §1.4 |
-| Dump database SIMPEL v1 (`dbsimpelv1.sql.gz`, ±182 MB, data ASLI) | dimuat ke `dbsimpelv1` | §1.7a |
-| `APP_KEY` + `JWT_SECRET` v1 | `secrets.simpelv1` | §1.4 |
 
 ### 1.1 Prasyarat klaster (sekali per klaster)
 
@@ -180,14 +178,6 @@ seed) BOLEH dipilih sebagai administrator pertama — akunnya direklamasi dengan
 sandinya tidak boleh `199203142014031001` (itu kredensial publik yang justru dipensiunkan job ini).
 Acak saja: `head -c 24 /dev/urandom | base64 | tr -d '/+=\n' | cut -c1-24`.
 
-**SIMPEL v1** (`secrets.simpelv1`): `DB_USERNAME` HARUS sama dengan `secrets.postgresCredentials.username`
-(dump dimuat sebagai role itu; objeknya dimiliki role itu, jadi v1 yang memakai role yang sama bisa
-mengaksesnya). `APP_KEY`: kunci BARU (`base64:` + 32 byte acak; keputusan operator 2026-11-10). Aman karena
-dump `dbsimpelv1.sql.gz` diperiksa dan berisi 0 payload terenkripsi Laravel (`eyJpdiI6…`) dan 0 nilai
-`base64:` — tak ada data yang jadi tak terbaca; akibatnya hanya cookie sesi lama tak berlaku (pengguna login
-ulang). Periksa ulang bila dump diganti (`zcat dump | grep -c eyJpdiI6` harus 0); bila tak nol, pakai
-`APP_KEY` ASLI dari `.env` v1 lama. `JWT_SECRET`: acak 32+ byte.
-
 **Kunci JWT authenc** (`secrets.authencJwtSecret`, opsional): kunci yang menandatangani SEMUA sesi pengguna.
 Dibiarkan kosong, chart menerbitkannya sendiri pada instalasi pertama (Secret `authenc-jwt`, 256-bit,
 `helm.sh/resource-policy: keep`) dan memakainya ulang di setiap `helm upgrade`. Isi sendiri (64 hex,
@@ -231,48 +221,6 @@ operasi berbahaya. Hook berurutan: `db-create` → `integrasi-migrate` → `auth
 kubectl -n simpelv2-production get pods,jobs
 kubectl -n simpelv2-production logs job/simpel-authenc-bootstrap   # "seeded accounts disabled ... done"
 ```
-
-### 1.7a Muat data SIMPEL v1 (setelah 1.7, sebelum pengguna diarahkan)
-
-`simpelv1.dbBackup.source: none` — dump produksi (±182 MB) jauh di atas batas Secret 1 MiB, jadi data
-dimuat langsung ke `dbsimpelv1` lewat pipa, tanpa objek Kubernetes dan tanpa berkas di klaster. Dump itu
-data ASLI: tidak masuk git (`monolith/simpelv1/.gitignore`), tidak boleh dimuat ke staging atau rehearsal.
-
-```bash
-F=monolith/simpelv1/database/dbsimpelv1.sql.gz
-gzip -t "$F" && ls -l "$F"                      # utuh; ukuran sama dengan yang diterima operator
-NS=simpelv2-production
-# database ada (hook db-create) dan masih KOSONG:
-echo "select count(*) from information_schema.tables where table_schema in ('public','siman','mon_sakti')" \
-  | kubectl -n $NS exec -i postgres-0 -c postgres -- sh -c 'psql -U "$POSTGRES_USER" -d dbsimpelv1 -At'   # harapan: 0
-
-# Muat — satu transaksi, berhenti di galat pertama:
-gunzip -c "$F" \
-  | sed -E '/^SET transaction_timeout = 0;$/d; /^ALTER .* OWNER TO postgres;$/d' \
-  | kubectl -n $NS exec -i postgres-0 -c postgres -- sh -c \
-      'psql -U "$POSTGRES_USER" -d dbsimpelv1 -v ON_ERROR_STOP=1 -1 -q'
-```
-
-Dua baris yang dibuang: dump dibuat `pg_dump` 17 sedangkan chart memakai Postgres 16 (`transaction_timeout`
-tidak dikenal di 16), dan 420 baris `OWNER TO postgres` (role `postgres` tidak ada di chart; objek jadi
-milik `$POSTGRES_USER`, yaitu role yang dipakai v1). Diuji 2026-11-10 pada `postgres:16-alpine`
-sekali pakai: exit 0, ±5 menit, 259 tabel (public 184, siman 59, mon_sakti 16) + 16 view.
-
-```bash
-# Verifikasi (hitungan saja, jangan menampilkan isi):
-echo "select table_schema, count(*) from information_schema.tables where table_type='BASE TABLE' and table_schema in ('public','siman','mon_sakti') group by 1 order by 1" \
-  | kubectl -n $NS exec -i postgres-0 -c postgres -- sh -c 'psql -U "$POSTGRES_USER" -d dbsimpelv1 -At'
-                                                # harapan: mon_sakti|16, public|184, siman|59
-echo "ANALYZE" | kubectl -n $NS exec -i postgres-0 -c postgres -- sh -c 'psql -U "$POSTGRES_USER" -d dbsimpelv1'
-kubectl -n $NS delete pod -l app=simpelv1       # pod v1 membaca database yang kini terisi
-```
-
-Muat ULANG hanya pada database kosong. Pada database yang sudah terisi perintah ini gagal di pernyataan
-pertama (`ERROR:  schema "mon_sakti" already exists`) dan, karena `-1` + `ON_ERROR_STOP`, tak mengubah apa pun
-(diuji di rehearsal: tabel tetap 259). TETAPI `kubectl exec -i` TIDAK kembali sendiri setelah `psql` di pod
-keluar karena galat — layar berhenti setelah pesan galat. Tekan Ctrl-C; jangan menganggapnya masih memuat. Bila
-ingin kode keluar yang tegas, jadikan hasil `gunzip | sed` sebuah berkas dan pakai `timeout 300 kubectl exec -i … <
-berkas` (kode 124 = menggantung setelah galat; periksa jumlah tabel).
 
 ### 1.7b Sinkron pertama data induk (setelah 1.7, sebelum pengguna diarahkan)
 
@@ -505,51 +453,17 @@ SECRETON_TOKEN=<service-token-with-write> \
 
 CronJob berikutnya akan pakai secret baru otomatis (token TTL 1 jam, renewal pull config terbaru).
 
-### 5.2 simpelv1 APP_KEY
-
-```bash
-NEW_KEY=$(php artisan key:generate --show)   # lokal, jangan apply ke .env
-
-# Port-forward dulu (tak ada CLI di image — lihat §7).
-kubectl -n simpelv2-production port-forward svc/secreton 8200:8200 >/dev/null 2>&1 &
-PF=$!; trap 'kill $PF' EXIT
-
-# Path & nama field HARUS persis seperti yang dibaca fetch-secrets.sh:
-# `simpelv1/app` → field `app_key` (tanpa prefix `base64:`).
-jq -nc --arg v "${NEW_KEY#base64:}" '{data:{app_key:$v}}' \
-  | curl -fsS -X PUT http://127.0.0.1:8200/v1/secret/data/simpelv1/app \
-      -H "X-Secreton-Token: $SECRETON_TOKEN" \
-      -H 'Content-Type: application/json' --data @-
-
-# Verifikasi tulisan mendarat sebelum restart.
-curl -fsS -H "X-Secreton-Token: $SECRETON_TOKEN" \
-  http://127.0.0.1:8200/v1/secret/data/simpelv1/app | jq '.data.data | keys'
-
-kubectl -n simpelv2-production rollout restart deploy/simpelv1
-```
-
-⚠️ **Hati-hati**: rotasi APP_KEY invalidate semua user session.
-
 ### 5.3 PostgreSQL password
 
 Multi-step (butuh koordinasi):
 
 1. `ALTER USER <db-user> WITH PASSWORD '<new>';` di Postgres.
-2. Push ke Secreton. Path yang dibaca `fetch-secrets.sh` = `postgres/simpelv2`,
-   field `username` + `password`. **Tulis KEDUA field sekaligus** — `PUT`
-   mengganti seluruh objek `data`, jadi mengirim `password` saja akan
-   menghilangkan `username` dan pod gagal render `.env`:
-
-   ```bash
-   jq -nc --arg u "<user>" --arg p "<new>" '{data:{username:$u,password:$p}}' \
-     | curl -fsS -X PUT http://127.0.0.1:8200/v1/secret/data/postgres/simpelv2 \
-         -H "X-Secreton-Token: $SECRETON_TOKEN" \
-         -H 'Content-Type: application/json' --data @-
-
-   curl -fsS -H "X-Secreton-Token: $SECRETON_TOKEN" \
-     http://127.0.0.1:8200/v1/secret/data/postgres/simpelv2 | jq '.data.data | keys'
-   ```
-
+2. Perbarui Secret Kubernetes `postgres-credentials`, sumber `DATABASE_URL` setiap layanan (key
+   `url`, dan `secreton-url` untuk secreton), lewat jalur yang sama dengan bootstrap: nilai baru di
+   `values-secrets` (`secrets.postgresCredentials.password`) lalu `helm upgrade` dengan overlay itu.
+   Selama `secretonAuth.enabled=false` (saat ini), Secreton BUKAN sumbernya. Jalur Secreton
+   `postgres/simpelv2` dulu hanya dibaca init container SIMPEL v1, yang sudah dihapus. Langkah ini
+   belum dilatih di staging: latih dulu sebelum dipakai di produksi.
 3. Rolling restart consumer service: `kubectl rollout restart deploy/<service>`.
 
 ---
@@ -590,9 +504,9 @@ done
 
 # Rotasi (jadwalkan SEBELUM kedaluwarsa; sertifikat yang basi memutus hop tanpa pesan yang jelas):
 kubectl -n simpelv2-<env> delete secret grpc-pki-ca grpc-tls-authenc grpc-tls-secreton \
-  grpc-tls-layanan-integrasi grpc-tls-layanan-perlengkapan grpc-tls-gateway
+  grpc-tls-layanan-integrasi grpc-tls-layanan-perlengkapan
 helm upgrade simpel ...   # perintah §1.7 / §2 yang sama; Helm membuat ulang Secret yang hilang
-for d in authenc layanan-integrasi layanan-perlengkapan simpelv1; do kubectl -n simpelv2-<env> rollout restart deploy/$d; done
+for d in authenc layanan-integrasi layanan-perlengkapan; do kubectl -n simpelv2-<env> rollout restart deploy/$d; done
 kubectl -n simpelv2-<env> rollout restart statefulset/secreton
 ```
 
