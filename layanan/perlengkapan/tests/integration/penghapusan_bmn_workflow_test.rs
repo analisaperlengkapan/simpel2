@@ -397,3 +397,87 @@ async fn the_two_unresolvable_uuid_columns_are_gone() {
 
     teardown_test_db(&db_name).await;
 }
+
+/// `WorkflowEngine::transition` builds the notification AFTER the state change commits and logs
+/// a failure there as "non-blocking". So when the notification SQL is wrong, the transition
+/// still answers 200 and the only trace is one `ERROR` line in the pod log.
+///
+/// That is exactly what happened here: the penghapusan branch selected `satker_id`, a column
+/// the table lost when `satker_code` became the satker (the test above pins that it stays
+/// gone). Every transition in staging logged `column "satker_id" does not exist` and no
+/// operator was ever told their usulan moved. The harness did not catch it because it built the
+/// engine without a notifier, so this path never ran. It does now, and this reads the inbox.
+#[tokio::test]
+async fn a_transition_tells_the_operator_who_filed_the_usulan() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+
+    let operator_id = "00000000-0000-0000-0000-000000000001";
+    let operator_satker_id = "00000000-0000-0000-0000-000000000001";
+    let satker_id = "SKR001";
+
+    let mut req = server.post("/penghapusan-bmn").json(&json!({
+        "kode_barang": "3060201003",
+        "nama_barang": "Laptop Dell Latitude 5520",
+        "nup": "15",
+        "tanggal_penghapusan": "2026-01-01",
+        "alasan": "Rusak berat dan sudah usang, tidak ekonomis untuk diperbaiki",
+        "metode_penghapusan": "Pemusnahan",
+        "nilai_perolehan": 0,
+        "lampiran_persyaratan": "https://storage.example.com/lampiran-persyaratan.pdf"
+    }));
+    for (k, v) in auth_headers("operator_satker", operator_id, satker_id) {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    assert_eq!(res.status_code(), 201);
+    let usulan_id = res.json::<serde_json::Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let inbox = |db: &layanan_perlengkapan::shared::db::Database| {
+        let pool = db.pool().clone();
+        async move {
+            let client = pool.get().await.unwrap();
+            client
+                .query(
+                    "SELECT title, message FROM notifikasi.in_app_notifications \
+                     WHERE user_id = $1::text::uuid ORDER BY created_at, id",
+                    &[&operator_id],
+                )
+                .await
+                .unwrap()
+                .iter()
+                .map(|r| (r.get::<_, String>(0), r.get::<_, String>(1)))
+                .collect::<Vec<_>>()
+        }
+    };
+
+    let before = inbox(&db).await.len();
+
+    let mut req = server
+        .post(&format!("/penghapusan-bmn/{}/submit-wilayah", usulan_id))
+        .json(&json!({"catatan": "Mohon verifikasi"}));
+    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+
+    let after = inbox(&db).await;
+    assert_eq!(
+        after.len(),
+        before + 1,
+        "the transition answered 200 but the operator who filed the usulan was not told; \
+         the failure is swallowed as non-blocking, look for `Failed to send notifications` in \
+         the log. Inbox: {after:?}"
+    );
+    let (title, _body) = after.last().unwrap();
+    assert!(
+        title.starts_with("Penghapusan BMN: berpindah ke"),
+        "a transition notice names the module in Indonesian, not `penghapusan_bmn`: {title}"
+    );
+
+    teardown_test_db(&db_name).await;
+}

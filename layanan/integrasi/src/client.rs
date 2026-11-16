@@ -188,20 +188,13 @@ impl MonsaktiClient {
                 }
             }
 
+            // No part of the token is logged, not even a prefix: see `reset_token`.
             if retry_count == 1 {
                 info!("→ Fetching: {} (attempt {})", url, retry_count);
-                info!(
-                    "Token (8 karakter pertama): {}...",
-                    &token.chars().take(8).collect::<String>()
-                );
             } else {
                 info!(
                     "⟳ Retry fetching: {} (attempt {} dengan token baru)",
                     url, retry_count
-                );
-                info!(
-                    "Token baru (8 karakter pertama): {}...",
-                    &token.chars().take(8).collect::<String>()
                 );
             }
 
@@ -575,12 +568,17 @@ impl MonsaktiClient {
         // Get token dari .env untuk reset request
         let token = self.get_current_token(module)?;
 
+        // What this function may log: the URL, the HTTP status and the SIZE of the reply. Never the
+        // token it sends, never the reply itself, and never a prefix of either.
+        //
+        // It used to log `Authorization: Bearer <first 20 characters>`, the token length, and then
+        // `Response body: <the whole reply>` — and the whole reply of this endpoint IS the new
+        // credential: `[{"TOKEN":"eyJ0eXAi..."}]`. Every expiry therefore wrote a complete, freshly
+        // issued token into the pod log at INFO, readable by anyone allowed to read logs (and kept
+        // by whatever collects them). Found on the rc47 production rehearsal, 2026-11-11, from the
+        // line `Token (8 karakter pertama): MOCK-STA...` of a manual MonSAKTI run. The guard is
+        // `tests/no_credentials_in_logs.rs`, which drives this path and reads the log back.
         info!("→ Reset token request: {}", url);
-        info!(
-            "Authorization: Bearer {}...",
-            &token.chars().take(20).collect::<String>()
-        );
-        info!("Token length: {} bytes", token.len());
 
         let response = self
             .client
@@ -590,24 +588,42 @@ impl MonsaktiClient {
             .send()
             .await?;
 
-        info!("Response status: {}", response.status());
-
-        // Log full response untuk debugging
+        let status = response.status();
         let response_text = response.text().await?;
-        info!("Response body: {}", &response_text);
+        info!(
+            "Reset token response: HTTP {}, {} bytes",
+            status,
+            response_text.len()
+        );
 
-        // Parse response sebagai JSON
-        let response_value: serde_json::Value = serde_json::from_str(&response_text)
-            .map_err(|e| MonsaktiError::ApiError(format!("Failed to parse JSON: {}", e)))?;
+        // The parse errors below deliberately do NOT carry serde's message: for a reply of an
+        // unexpected shape serde quotes the offending value (`invalid type: string "eyJ0…"`), and
+        // the offending value here is the token.
+        let response_value: serde_json::Value =
+            serde_json::from_str(&response_text).map_err(|e| {
+                MonsaktiError::ApiError(format!(
+                    "Reset token: reply is not JSON (HTTP {}, {} bytes, {:?} at line {} column {})",
+                    status,
+                    response_text.len(),
+                    e.classify(),
+                    e.line(),
+                    e.column()
+                ))
+            })?;
         // Response format: [{"TOKEN":"eyJ0eXAi..."}]
-        #[derive(Deserialize, Debug)]
+        #[derive(Deserialize)]
         struct ResetTokenItem {
             #[serde(rename = "TOKEN")]
             token: String,
         }
 
-        let mut result: Vec<ResetTokenItem> = serde_json::from_value(response_value)
-            .map_err(|e| MonsaktiError::ApiError(format!("Failed to parse token array: {}", e)))?;
+        let mut result: Vec<ResetTokenItem> = serde_json::from_value(response_value).map_err(|_| {
+            MonsaktiError::ApiError(format!(
+                "Reset token: reply is JSON but not the documented [{{\"TOKEN\": …}}] shape (HTTP {}, {} bytes)",
+                status,
+                response_text.len()
+            ))
+        })?;
 
         if result.is_empty() {
             error!("Reset token response kosong");
@@ -623,10 +639,6 @@ impl MonsaktiClient {
             .insert(module.to_string(), new_token.clone());
 
         info!("✓ Token baru diterima untuk modul {}", module);
-        info!(
-            "Token baru (20 karakter pertama): {}...",
-            &new_token.chars().take(20).collect::<String>()
-        );
 
         // Simpan token baru ke database jika ada koneksi database
         if let Some(db) = &self.db_client {
@@ -897,6 +909,21 @@ impl MonsaktiClient {
 
     // === SIMAN API Methods ===
 
+    /// `text` with the SIMAN BA key replaced by a placeholder.
+    ///
+    /// The key is a credential (operator decision 2026-11-12), and SIMAN puts it where credentials
+    /// do not usually go: in the PATH of `getRowCount/<BA_KEY>/<table>` and in the form body of the
+    /// data calls. So it reached the pod log through the "Fetching" line, `integrasi.api_log.url`
+    /// through every logged call, the log again through reqwest's errors (they quote the whole URL),
+    /// and any reply that echoes the request. Everything SIMAN-related that is printed, stored or
+    /// returned as an error goes through here, or through `reqwest::Error::without_url`.
+    pub(crate) fn redact_siman(&self, text: &str) -> String {
+        match self.config.siman_ba_key.as_deref() {
+            Some(key) if !key.is_empty() => text.replace(key, "<SIMAN_BA_KEY>"),
+            _ => text.to_string(),
+        }
+    }
+
     /// Mendapatkan OAuth2 token dari SSO Kemenkeu untuk SIMAN API
     /// Token akan di-cache dan di-refresh otomatis saat expired
     async fn get_siman_token(&mut self) -> Result<String, MonsaktiError> {
@@ -986,8 +1013,10 @@ impl MonsaktiClient {
             ba_key,
             category.table_name()
         );
+        // What may be printed or stored. `url` itself goes on the wire and nowhere else.
+        let shown = self.redact_siman(&url);
 
-        info!("Fetching SIMAN row count: {}", url);
+        info!("Fetching SIMAN row count: {}", shown);
 
         let started = Instant::now();
 
@@ -996,20 +1025,21 @@ impl MonsaktiClient {
             .get(&url)
             .header("Authorization", format!("Bearer {}", token))
             .send()
-            .await?;
+            .await
+            .map_err(reqwest::Error::without_url)?;
 
         let elapsed_ms = started.elapsed().as_millis() as i32;
         let endpoint_name = format!("getRowCount/{}", category.table_name());
 
         if !response.status().is_success() {
             let status = response.status();
-            let body = response.text().await.unwrap_or_default();
+            let body = self.redact_siman(&response.text().await.unwrap_or_default());
             error!("SIMAN getRowCount request failed: {} - {}", status, body);
 
             self.log_api_call(
                 "SIMAN",
                 &endpoint_name,
-                &url,
+                &shown,
                 "GET",
                 Some(status.as_u16() as i32),
                 elapsed_ms,
@@ -1027,12 +1057,12 @@ impl MonsaktiClient {
         }
 
         // SIMAN mengembalikan structure yang berbeda, wrap dalam MonsaktiResponse
-        let data: serde_json::Value = response.json().await?;
+        let data: serde_json::Value = response.json().await.map_err(reqwest::Error::without_url)?;
 
         self.log_api_call(
             "SIMAN",
             &endpoint_name,
-            &url,
+            &shown,
             "GET",
             Some(200),
             elapsed_ms,
@@ -1091,14 +1121,17 @@ impl MonsaktiClient {
             .header("Authorization", format!("Bearer {}", token))
             .form(&params)
             .send()
-            .await?;
+            .await
+            .map_err(reqwest::Error::without_url)?;
 
         let elapsed_ms = started.elapsed().as_millis() as i32;
         let endpoint_name = category.endpoint().to_string();
 
         if !response.status().is_success() {
             let status = response.status();
-            let body = response.text().await.unwrap_or_default();
+            // The key travels in this request's form body; a reply that echoes the request
+            // carries it back.
+            let body = self.redact_siman(&response.text().await.unwrap_or_default());
             error!(
                 "SIMAN {} request failed: {} - {}",
                 category.endpoint(),
@@ -1127,10 +1160,11 @@ impl MonsaktiClient {
         }
 
         // Parse response
-        let data: serde_json::Value = response.json().await?;
+        let data: serde_json::Value = response.json().await.map_err(reqwest::Error::without_url)?;
 
         // Cek apakah ada error dalam response
         if let Some(error_msg) = data.get("error").and_then(|e| e.as_str()) {
+            let error_msg = self.redact_siman(error_msg);
             self.log_api_call(
                 "SIMAN",
                 &endpoint_name,
@@ -1140,11 +1174,11 @@ impl MonsaktiClient {
                 elapsed_ms,
                 None,
                 false,
-                Some(error_msg),
+                Some(&error_msg),
                 1,
             )
             .await;
-            return Err(MonsaktiError::ApiError(error_msg.to_string()));
+            return Err(MonsaktiError::ApiError(error_msg));
         }
 
         let record_count = if let Some(a) = data.as_array() {

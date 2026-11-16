@@ -67,9 +67,17 @@ async fn main() -> Result<()> {
     // Load configuration
     let config = Config::from_env()?;
 
-    if !config.scheduler_enabled {
-        error!("❌ Scheduler is disabled (SCHEDULER_ENABLED=false)");
-        info!("Set SCHEDULER_ENABLED=true in .env to enable scheduling");
+    // Parse CLI args first: whether the daemon flag applies depends on them.
+    let cli = Cli::parse();
+
+    // `SCHEDULER_ENABLED` switches the long-running DAEMON (no `--source`) on or off. It must not
+    // gate `--source <p>`: that is an explicit request for one run, and it is what every
+    // Kubernetes CronJob executes. With the flag off by default (the server must not schedule
+    // work on its own), gating `--source` here would make every CronJob log an error and exit 0
+    // having synced nothing — the silent success this binary's exit status exists to prevent.
+    if cli.source.is_none() && !config.scheduler_enabled {
+        error!("❌ Scheduler daemon is disabled (SCHEDULER_ENABLED=false)");
+        info!("Set SCHEDULER_ENABLED=true to run the daemon, or pass --source <p> for one run");
         return Ok(());
     }
 
@@ -85,9 +93,6 @@ async fn main() -> Result<()> {
     );
     info!("  • Output Directory: {}", config.output_dir);
 
-    // Parse CLI args
-    let cli = Cli::parse();
-
     // Create scheduler
     let mut scheduler = IntegrationScheduler::new(config).await?;
 
@@ -100,19 +105,23 @@ async fn main() -> Result<()> {
             "mysimkari" => layanan_integrasi::scheduler::DataSource::Mysimkari,
             "siman" => layanan_integrasi::scheduler::DataSource::Siman,
             _ => {
-                error!(
+                // A typo in a CronJob's `--source` is a broken deployment, not a run to shrug at.
+                anyhow::bail!(
                     "Invalid source: {}. Use 'all', 'monsakti', 'mysimkari', or 'siman'.",
                     source
                 );
-                return Ok(());
             }
         };
 
-        if let Err(e) = scheduler.run_manual_sync(source_enum).await {
+        // The exit status is the ONLY thing a Kubernetes CronJob sees. A failed sync used to be
+        // logged and followed by `return Ok(())`, so every run ended `Complete` — with
+        // `lastSuccessfulTime` advancing — while not one row had been fetched (found 2026-11-09
+        // in the production rehearsal: `ERROR ❌ Manual sync failed` and `Succeeded` together).
+        scheduler.run_manual_sync(source_enum).await.map_err(|e| {
             error!("❌ Manual sync failed: {}", e);
-        } else {
-            info!("✅ Manual sync completed successfully");
-        }
+            e
+        })?;
+        info!("✅ Manual sync completed successfully");
         return Ok(());
     }
 

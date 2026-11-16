@@ -318,6 +318,15 @@ pub enum StorageStrategy {
 }
 
 impl StorageStrategy {
+    /// Whether this strategy writes to PostgreSQL, i.e. whether the tables the application reads
+    /// are the ones a sync replaces or retires rows in.
+    pub fn writes_database(&self) -> bool {
+        matches!(
+            self,
+            StorageStrategy::Database | StorageStrategy::Both { .. }
+        )
+    }
+
     /// Simpan data sesuai strategy yang dipilih
     /// Returns the number of records successfully saved to database
     pub async fn save(

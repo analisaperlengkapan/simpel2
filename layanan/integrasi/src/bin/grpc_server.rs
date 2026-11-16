@@ -12,11 +12,9 @@
 //!   GRPC_HOST    - Host to bind to (default: 0.0.0.0)
 //!   GRPC_PORT    - Port to listen on (default: 50051)
 
-use std::sync::Arc;
-
+use layanan_integrasi::db_handle::DbHandle;
 use layanan_integrasi::grpc::{server::GrpcServerConfig, start_grpc_server};
-use tokio_postgres::NoTls;
-use tracing::{error, info};
+use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -42,15 +40,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Connecting to database...");
 
-    // Connect to database
-    let (client, connection) = tokio_postgres::connect(&database_url, NoTls).await?;
-
-    // Spawn the connection handler
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            error!("Database connection error: {}", e);
-        }
-    });
+    // Connect to database (a reconnecting handle; see `db_handle`).
+    let db_client = DbHandle::connect(&database_url).await?;
 
     info!("Database connected successfully");
 
@@ -64,7 +55,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Start gRPC server
-    let db_client = Arc::new(client);
     start_grpc_server(db_client, config).await?;
 
     info!("=== Server shutdown complete ===");

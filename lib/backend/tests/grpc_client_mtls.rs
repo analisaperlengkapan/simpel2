@@ -111,6 +111,9 @@ async fn serve(ca: &TestCa, server: &Leaf) -> SocketAddr {
         .await
         .expect("bind");
     let addr = listener.local_addr().expect("addr");
+    // What a service's startup does. The dev-dependency `rustls/ring` makes this graph
+    // ambiguous, and the server task races the client's endpoint() for the first TLS config.
+    lib_backend::grpc::ensure_crypto_provider();
     let tls = ServerTlsConfig::new()
         .identity(Identity::from_pem(&server.cert_pem, &server.key_pem))
         .client_ca_root(Certificate::from_pem(&ca.cert_pem));

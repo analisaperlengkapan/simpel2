@@ -3,6 +3,7 @@ pub mod audit;
 pub mod client;
 pub mod config;
 pub mod db;
+pub mod db_handle;
 pub mod error;
 pub mod response;
 pub mod storage;
@@ -17,6 +18,9 @@ pub mod batch;
 
 // Scheduler for automated data fetching
 pub mod scheduler;
+
+// Outcome of every sync run, in integrasi.sync_status
+pub mod sync_run;
 
 // gRPC module (feature-gated)
 #[cfg(feature = "grpc")]

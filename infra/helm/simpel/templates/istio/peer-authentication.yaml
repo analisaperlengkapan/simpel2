@@ -8,3 +8,35 @@ metadata:
 spec:
   mtls:
     mode: {{ .Values.mtls.mode }}
+{{- /*
+  Pengecualian per-port. Namespace STRICT menolak klien di luar mesh dengan mengganti
+  sertifikat server dengan milik Envoy (CA Istio), jadi bagi klien yang tak berada di mesh
+  hasilnya `invalid peer certificate: UnknownIssuer`. authenc berjalan TANPA sidecar
+  (`sidecar.istio.io/inject: "false"`) dan memanggil layanan-integrasi:50051 — untuk
+  provisioning otomatis di login pertama dan `/auth/me` — sedangkan layanan-integrasi ada di
+  dalam mesh. Staging PERMISSIVE sehingga tak pernah melihatnya; rehearsal produksi
+  (2026-11-09) yang melihatnya.
+
+  Hanya PORT itu, hanya pada workload itu: port lain tetap mengikuti mtls.mode. Port gRPC
+  tetap dijaga mTLS tingkat aplikasi (sertifikat klien dari CA chart WAJIB, fail-closed) dan
+  NetworkPolicy — yang dilonggarkan hanya lapisan mesh untuk klien di luar mesh.
+*/}}
+{{- range .Values.mtls.portExceptions | default (list) }}
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: {{ .workload }}-port-{{ .port }}
+  namespace: {{ include "simpel.namespace" $ }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" $ "name" .workload "component" "security") | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .workload }}
+  mtls:
+    mode: {{ $.Values.mtls.mode }}
+  portLevelMtls:
+    {{ .port | quote }}:
+      mode: PERMISSIVE
+{{- end }}

@@ -91,6 +91,10 @@ full-backend = [
 # at runtime — a checked-in cert expires one day and turns a security test into a
 # flake that someone deletes.
 rcgen = { workspace = true }
+# `ring` ON TOP of the default aws_lc_rs: the same two-provider graph the shipped binaries
+# have (lettre enables it). With it, rustls cannot choose a provider on its own, so any TLS
+# config built without grpc::ensure_crypto_provider() panics here as it did in staging.
+rustls = { workspace = true, features = ["ring"] }
 tempfile = { workspace = true }
 tokio-stream = { workspace = true, features = ["net"] }
 tonic-prost = { workspace = true }

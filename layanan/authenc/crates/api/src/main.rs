@@ -180,6 +180,10 @@ fn load_grpc_tls() -> std::result::Result<Option<authenc_grpc::TlsConfig>, Strin
     };
     let ca = std::env::var("GRPC_TLS_CA_PATH").ok();
     let mutual = ca.is_some();
+    // This binary links both rustls providers (lettre enables `ring`, tonic/reqwest use
+    // `aws_lc_rs`), so rustls cannot pick one by itself and the first TLS config panics —
+    // it crash-looped authenc in staging rc39. Install it before the listener builds one.
+    lib_backend::grpc::ensure_crypto_provider();
     match authenc_grpc::TlsConfig::from_files(&cert, &key, ca) {
         Ok(cfg) => {
             info!("gRPC mTLS enabled (mutual_auth={})", mutual);
@@ -245,20 +249,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     // gRPC validate_token service so both reject revoked tokens before `exp`.
     let revocation_store = Arc::new(PostgresRevocationStore::new(db.clone()));
 
-    // JWT service
-    let signing_key_bytes: [u8; 32] = if !jwt_secret_hex.is_empty() {
-        let bytes =
-            hex::decode(&jwt_secret_hex).map_err(|e| format!("Invalid JWT_SECRET hex: {}", e))?;
-        if bytes.len() != 32 {
-            return Err("JWT_SECRET must be 32 bytes (64 hex chars)".into());
-        }
-        let mut key = [0u8; 32];
-        key.copy_from_slice(&bytes);
-        key
-    } else {
-        info!("JWT_SECRET not set - generating ephemeral key (not for production)");
-        JwtService::generate_signing_key()
-    };
+    // JWT service. The key must be shared by every replica; see `signing_key`.
+    let app_environment = std::env::var("APP_ENVIRONMENT").unwrap_or_default();
+    let signing_key_bytes = authenc_api::signing_key::resolve(&app_environment, &jwt_secret_hex)?;
 
     let jwt_service = Arc::new(JwtService::new(
         &signing_key_bytes,

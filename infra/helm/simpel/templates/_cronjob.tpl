@@ -15,6 +15,14 @@
 {{- $name := .name -}}
 {{- $values := .values -}}
 {{- $defaults := default (dict) .defaults -}}
+{{- /* Pod Job TIDAK boleh membawa sidecar Istio kecuali diminta eksplisit (istioInjection: true).
+       Terukur di rehearsal produksi: tanpa anotasi, percobaan PERTAMA keluar dengan kode 1 dalam 3 ms
+       (`Failed to connect to database: error connecting to server`, Envoy belum mendengar); restart
+       OnFailure berikutnya berhasil tetapi `backoffLimit: 1` sudah habis, jadi Job tercatat GAGAL
+       walau pekerjaannya selesai — `lastSuccessfulTime` di staging kosong sejak awal. Sidecar juga
+       membuat pod Job tak pernah selesai setelah aplikasinya keluar. Job lain di chart ini
+       (db-create, *-migrate, authenc-bootstrap) sudah `sidecar.istio.io/inject: "false"`. */ -}}
+{{- $podValues := mergeOverwrite (deepCopy $values) (dict "istioInjection" (ternary $values.istioInjection false (hasKey $values "istioInjection"))) -}}
 {{- if $values.enabled }}
 apiVersion: batch/v1
 kind: CronJob
@@ -47,12 +55,21 @@ spec:
             {{- include "simpel.selectorLabels" (dict "top" $ctx "name" $name) | nindent 12 }}
             app.kubernetes.io/component: {{ default $name $values.component }}
           annotations:
-            {{- include "simpel.istioPodAnnotations" $values | nindent 12 }}
+            {{- include "simpel.istioPodAnnotations" $podValues | nindent 12 }}
         spec:
           serviceAccountName: {{ default $name $values.serviceAccountName }}
           automountServiceAccountToken: {{ default false $values.automountServiceAccountToken }}
           {{- include "simpel.imagePullSecrets" $ctx | nindent 10 }}
-          restartPolicy: {{ default "OnFailure" (default $defaults.restartPolicy $values.restartPolicy) }}
+          {{- /* `Never`, dan sengaja BUKAN nilai yang bisa diatur. Dengan `OnFailure` container diulang
+                 di dalam pod yang sama; begitu `backoffLimit` habis, Job controller MENGHAPUS pod itu
+                 (perilaku terdokumentasi Kubernetes) dan log-nya ikut hilang. Terukur di rehearsal
+                 produksi rc47 (2026-11-11): tiga sinkronisasi gagal berturut-turut, lalu `kubectl logs`
+                 menjawab "No resources found" — satu-satunya jejak adalah `BackoffLimitExceeded` pada
+                 Job; klaster ini tak punya pengumpul log. Dengan `Never` tiap percobaan adalah pod
+                 sendiri yang tetap ada (fase Failed, tak memakai kuota) selama Job-nya disimpan
+                 `failedJobsHistoryLimit`. Jumlah percobaan tak berubah: backoffLimit + 1.
+                 Dijaga `infra/scripts/check-failed-job-keeps-its-log.py`. */}}
+          restartPolicy: Never
           {{- with default $ctx.Values.global.priorityClassName $values.priorityClassName }}
           priorityClassName: {{ . }}
           {{- end }}
@@ -81,8 +98,15 @@ spec:
               envFrom:
                 {{- toYaml . | nindent 16 }}
               {{- end }}
-              {{- if or $values.env (and $values.secretonAuth $values.secretonAuth.enabled) }}
               env:
+                {{- /* The run records its CronJob's schedule and the next time it should fire in
+                       integrasi.sync_status (layanan/integrasi/src/sync_run.rs), so "this source
+                       is overdue" is judged against the schedule that actually runs. Derived here
+                       from the same values as `spec.schedule`/`spec.timeZone`, never restated. */}}
+                - name: SYNC_SCHEDULE
+                  value: {{ $values.schedule | quote }}
+                - name: SYNC_TIMEZONE
+                  value: {{ default "UTC" $values.timeZone | quote }}
                 {{- with $values.env }}
                 {{- toYaml . | nindent 16 }}
                 {{- end }}
@@ -96,7 +120,6 @@ spec:
                 - name: SECRETON_K8S_TOKEN_PATH
                   value: {{ default "/var/run/secrets/tokens/secreton-token" $values.secretonAuth.tokenPath | quote }}
                 {{- end }}
-              {{- end }}
               {{- with $values.resources }}
               resources:
                 {{- toYaml . | nindent 16 }}

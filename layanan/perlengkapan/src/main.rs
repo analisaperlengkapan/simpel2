@@ -276,47 +276,20 @@ async fn main() -> anyhow::Result<()> {
     info!("Running refinery migrations...");
     layanan_perlengkapan::migrations::run(db.pool()).await?;
 
-    // Initialize Integrasi Client (optional, service continues if unavailable).
+    // Integrasi client. Lazy: it never dials here, so a restarting or slow
+    // `layanan-integrasi` can no longer leave this pod without a client for the rest
+    // of its life (see `IntegrasiClient::connect_lazy`). The calls it serves are the
+    // MySIMKARI rekap and the sync-freshness probes; each already degrades to
+    // "unknown" when a call fails.
     //
-    // Deliberately AFTER the migrations above: this client is optional (a
-    // failure here only disables the MySIMKARI rekap), while the migrations are
-    // mandatory — they create the `perlengkapan` schema. Running the retry loop
-    // first meant an optional dependency delayed mandatory schema work by up to
-    // ~7s, which is how a slow `layanan-integrasi` made the e2e seed step fail
-    // with `relation "perlengkapan.pengajuan_kebutuhan_bmn" does not exist`
-    // (run 32906148313): the schema simply did not exist yet. It also spent the
-    // startupProbe budget on a dependency the service does not need to serve.
-    let integrasi_client = {
-        info!("Connecting to Integrasi at {}", integrasi_url);
-        let mut retries = 3;
-        let mut client = None;
-        let mut delay = tokio::time::Duration::from_secs(1);
-
-        while retries > 0 {
-            match IntegrasiClient::connect(integrasi_url.clone()).await {
-                Ok(c) => {
-                    client = Some(c);
-                    break;
-                }
-                Err(e) => {
-                    error!(
-                        "Failed to connect to Integrasi: {}. Retrying in {:?}...",
-                        e, delay
-                    );
-                    tokio::time::sleep(delay).await;
-                    delay *= 2;
-                    retries -= 1;
-                }
-            }
-        }
-
-        if client.is_none() {
-            error!(
-                "Could not connect to Integrasi after retries, MySIMKARI rekap will be disabled"
-            );
-        }
-        client
-    };
+    // Still AFTER the migrations above, as before: nothing optional may delay the
+    // mandatory schema work (run 32906148313: a slow integrasi made the e2e seed
+    // step fail with `relation "perlengkapan.pengajuan_kebutuhan_bmn" does not exist`).
+    info!("Integrasi client (lazy) targeting {}", integrasi_url);
+    let integrasi_client = Some(
+        IntegrasiClient::connect_lazy(integrasi_url.clone())
+            .map_err(|e| anyhow::anyhow!("Invalid INTEGRASI_GRPC_URL {}: {}", integrasi_url, e))?,
+    );
 
     // NOTE: there is deliberately no boot-time index step here. `add_essential_indexes`
     // used to run 19 DDL statements at startup; measured against the real baseline, 10

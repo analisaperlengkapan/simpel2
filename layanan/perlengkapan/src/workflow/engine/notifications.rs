@@ -102,17 +102,27 @@ impl WorkflowEngine {
                 (requester_id, None)
             }
             "penghapusan_bmn" => {
+                // `penghapusan_bmn` has no `satker_id`: the column was dropped when
+                // `satker_code` (text, the kode satker) became the satker, and
+                // `the_two_unresolvable_uuid_columns_are_gone` pins that it stays gone.
+                // This query kept selecting it, so every penghapusan transition logged
+                // `column "satker_id" does not exist` as a "non-blocking" notification error
+                // and no operator was ever told their usulan moved.
+                //
+                // There is deliberately no satker uuid here: a kode satker is not one, and
+                // the only consumer of it (`get_approvers_for_state`) is a placeholder that
+                // returns nobody. `created_by` is nullable, hence `Option` — reading it as a
+                // bare `Uuid` would panic.
                 let query = r#"
-                    SELECT created_by, satker_id
+                    SELECT created_by
                     FROM perlengkapan.penghapusan_bmn
                     WHERE id = $1
                 "#;
 
                 let row = client.query_one(query, &[&request.entity_id]).await?;
-                let requester_id: Uuid = row.get("created_by");
-                let satker_id: Uuid = row.get("satker_id");
+                let requester_id: Option<Uuid> = row.get("created_by");
 
-                (Some(requester_id), Some(satker_id))
+                (requester_id, None)
             }
             "pemakaian_bmn" => {
                 // `izin_pemakaian_bmn` has neither `pemohon_id` nor `satker_id`

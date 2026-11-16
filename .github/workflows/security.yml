@@ -714,6 +714,78 @@ jobs:
               < "rendered/${f}.yaml" \
               | python3 ./infra/scripts/check-netpol-service-ports.py "$f"
           done
+      # Pod klien postgres yang labelnya terlewat dari `allow-backend-to-postgres` tidak
+      # gagal dengan galat: koneksinya hanya menunggu (default-deny-ingress). Hook
+      # `db-create` membuat `helm install` produksi habis waktu 600s, dan empat CronJob
+      # integrasi gagal ~10 detik tiap jadwal di staging tanpa satu pun sinyal merah.
+      # Klien DITURUNKAN dari render (DATABASE_URL/PG*/postgres-credentials/pg_isready),
+      # jadi klien baru ikut tercakup pada hari ia ditambahkan.
+      - name: Setiap klien postgres diizinkan NetworkPolicy
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
+          for f in staging production; do
+            docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
+              < "rendered/${f}.yaml" \
+              | python3 ./infra/scripts/check-netpol-postgres-reach.py "$f"
+          done
+      # Dua kelas cacat yang HANYA muncul di bentuk produksi (namespace STRICT, cron aktif):
+      # (A) klien tanpa sidecar -> server di mesh: STRICT menjawab dengan sertifikat Envoy,
+      #     klien melihat `invalid peer certificate: UnknownIssuer` (login pertama setiap
+      #     pegawai gagal: authenc -> layanan-integrasi). Staging PERMISSIVE, jadi tak melihatnya.
+      # (B) Job/CronJob tanpa anotasi inject: percobaan pertama bertabrakan dengan Envoy yang
+      #     belum siap, backoffLimit 1 habis, Job tercatat GAGAL walau pekerjaannya selesai.
+      # Keanggotaan mesh, server, dan klien DITURUNKAN dari render.
+      - name: Hop mesh STRICT berpengecualian port dan Job tanpa sidecar tak terduga
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
+          for f in staging production; do
+            docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
+              < "rendered/${f}.yaml" \
+              | python3 ./infra/scripts/check-mesh-strict-reach.py "$f"
+          done
+      # LimitRange menolak POD, bukan Deployment: container di bawah `min`/di atas `max` membuat
+      # ReplicaSet gagal FailedCreate dan Deployment hidup dengan 0/N pod tanpa galat lain. Staging
+      # tak punya LimitRange, jadi hanya production yang melihatnya (init container v1 16Mi < 32Mi,
+      # rehearsal 2026-11-10). Batasnya dibaca dari render, bukan dari daftar.
+      - name: Setiap container muat di LimitRange namespace-nya
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
+          for f in staging production; do
+            docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
+              < "rendered/${f}.yaml" \
+              | python3 ./infra/scripts/check-limitrange-bounds.py "$f"
+          done
+      # Klaster ini tak punya pengumpul log: pod Job yang gagal ADALAH log-nya. `restartPolicy:
+      # OnFailure` membuat Job controller menghapus pod itu saat backoffLimit habis, dan
+      # `ttlSecondsAfterFinished` yang pendek menghapus Job gagal beserta pod-nya. Terukur di rehearsal
+      # produksi rc47: tiga sinkronisasi gagal, `kubectl logs -l job-name=…` menjawab "No resources
+      # found". Cakupan DITURUNKAN: setiap render chart, plus setiap manifest mentah di infra/helm yang
+      # memuat Job/CronJob (bukan daftar nama berkas). `--must-find` pada staging/production: render
+      # tanpa satu pun Job berarti penjaganya buta, bukan bersih.
+      - name: Job yang gagal meninggalkan pod dan log-nya
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
+          python3 ./infra/scripts/check-failed-job-keeps-its-log.py --self-test
+          for f in rendered/*.yaml; do
+            name="$(basename "$f" .yaml)"
+            args=("$name")
+            case "$name" in staging|production) args+=(--must-find) ;; esac
+            docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' < "$f" \
+              | python3 ./infra/scripts/check-failed-job-keeps-its-log.py "${args[@]}"
+          done
+          # Manifest mentah (di luar templates/, jadi tak ikut di-render): dicari, bukan didaftar.
+          mapfile -t raw < <(grep -rlE '^kind: (Job|CronJob)[[:space:]]*$' infra/helm \
+            --include='*.yaml' --include='*.yml' | grep -v '/templates/' | sort)
+          echo "manifest mentah ber-Job/CronJob di infra/helm: ${#raw[@]}"
+          for f in "${raw[@]}"; do
+            label="mentah:${f#infra/helm/}"
+            docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' < "$f" \
+              | python3 ./infra/scripts/check-failed-job-keeps-its-log.py "$label" --must-find
+          done
       # mTLS gRPC tersebar di lima tempat yang harus sepakat (Secret PKI, env server,
       # env klien, skema *_GRPC_URL, appProtocol Service). Salah satunya meleset =
       # `helm lint` dan kube-linter tetap hijau, dan akibatnya: pod production
@@ -731,6 +803,23 @@ jobs:
               --set backendConfig.grpcAllowInsecure=false \
               | docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
               | python3 ./infra/scripts/check-grpc-tls-wiring.py "$f"
+          done
+      # authenc menandatangani dan memverifikasi token dengan SATU kunci. Tanpa
+      # JWT_SECRET tiap replika mengundi kuncinya sendiri: token satu replika
+      # ditolak yang lain dan tiap restart mengakhiri semua sesi. Chart tak pernah
+      # menyetelnya, dan tak ada yang merah — lint/template/kube-linter hijau, suite
+      # staging lulus berbulan-bulan karena HPA bertahan di SATU replika, sampai
+      # rc40 naik ke dua dan 20 dari 218 e2e gagal. Pagar ini membaca render,
+      # bukan daftar, dan self-test-nya memastikan ia MENOLAK render yang rusak.
+      - name: authenc memakai satu kunci JWT bersama dari Secret yang bertahan
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
+          python3 ./infra/scripts/check-authenc-jwt-wiring.py --self-test
+          for f in staging production; do
+            docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
+              < "rendered/${f}.yaml" \
+              | python3 ./infra/scripts/check-authenc-jwt-wiring.py "$f"
           done
       - name: Setiap emptyDir dikecualikan dari backup Velero
         if: steps.filter.outputs.helm == 'true'

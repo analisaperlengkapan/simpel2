@@ -198,6 +198,45 @@ pub async fn setup_test_db() -> (Database, String) {
         client.batch_execute("RESET search_path").await.unwrap();
     }
 
+    // `integrasi.sync_status` (read by `admin::sync_status`) is integrasi's table: its DDL and the
+    // rows it is seeded with are cut out of integrasi's OWN migration 002, not restated, then
+    // integrasi 007 adds `last_success_at`. The rest of 002 builds views over tables this stub
+    // schema does not have, so the file is not applied whole. Each cut fails loudly if 002
+    // changes shape.
+    {
+        const M002: &str =
+            include_str!("../../integrasi/migrations/002_enhance_integration_schema.sql");
+        const M007: &str =
+            include_str!("../../integrasi/migrations/007_sync_status_last_success.sql");
+        let table_at = M002
+            .find("CREATE TABLE IF NOT EXISTS integrasi.sync_status")
+            .expect("integrasi 002 no longer creates integrasi.sync_status");
+        let table_end = table_at
+            + M002[table_at..]
+                .find("\n);")
+                .expect("integrasi 002: end of the sync_status CREATE TABLE")
+            + "\n);".len();
+        let seed_at = M002
+            .find("INSERT INTO integrasi.sync_status")
+            .expect("integrasi 002 no longer seeds integrasi.sync_status");
+        let seed_tail = "ON CONFLICT (module, endpoint) DO NOTHING;";
+        let seed_end = M002
+            .rfind(seed_tail)
+            .expect("integrasi 002: end of the sync_status seed")
+            + seed_tail.len();
+        let client = db.pool().get().await.unwrap();
+        for (what, sql) in [
+            ("sync_status table (002)", &M002[table_at..table_end]),
+            ("sync_status seed (002)", &M002[seed_at..seed_end]),
+            ("last_success_at (007)", M007),
+        ] {
+            client
+                .batch_execute(sql)
+                .await
+                .unwrap_or_else(|e| panic!("integrasi {what} must apply: {e:?}"));
+        }
+    }
+
     // Cross-schema SoT stub for satker identity (integrasi owns it; perlengkapan
     // reads it). Pakaian-dinas satker queries LEFT JOIN this, and the wilayah
     // resolver filters on `wilayah`.
@@ -595,7 +634,13 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
         PakaianDinasService::new(pakaian_dinas_repo).with_notifier(notifier.clone());
 
     let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());
-    let kebutuhan_bmn_workflow = WorkflowEngine::for_kebutuhan_bmn(db.pool().clone());
+    // The three workflow engines carry the notifier here exactly as `main.rs` gives it to them.
+    // They did not: `transition()` only builds notifications when a notifier is present, and it
+    // swallows a failure there as "non-blocking", so for as long as this harness left it off,
+    // no test ever ran the notification SQL. The penghapusan branch selected a column that does
+    // not exist, failed on every transition in staging, and nothing here could have said so.
+    let kebutuhan_bmn_workflow = WorkflowEngine::for_kebutuhan_bmn(db.pool().clone())
+        .with_notification_sender(notifier.clone());
     // Wired like `main.rs`: the satker-level transitions audit themselves, and a
     // harness that omits the sink would let that emission rot unseen.
     let kebutuhan_bmn_service = KebutuhanBmnService::new(
@@ -612,13 +657,15 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
     let roadmap_service = RoadmapService::new(roadmap_repo);
 
     let pemakaian_bmn_repo = PemakaianBmnRepository::new(db.pool().clone());
-    let pemakaian_bmn_workflow = WorkflowEngine::for_pemakaian_bmn(db.pool().clone());
+    let pemakaian_bmn_workflow = WorkflowEngine::for_pemakaian_bmn(db.pool().clone())
+        .with_notification_sender(notifier.clone());
     let pemakaian_bmn_service =
         PemakaianBmnService::new(pemakaian_bmn_repo, pemakaian_bmn_workflow)
             .with_document_generator(docs.clone());
 
     let penghapusan_bmn_workflow = WorkflowEngine::for_penghapusan_bmn(db.pool().clone())
-        .with_document_generator(docs.clone());
+        .with_document_generator(docs.clone())
+        .with_notification_sender(notifier.clone());
     let penghapusan_bmn_service = Arc::new(
         PenghapusanBmnService::new(db.pool().clone(), Arc::new(penghapusan_bmn_workflow))
             .with_document_generator(docs.clone()),

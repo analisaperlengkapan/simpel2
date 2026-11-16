@@ -340,7 +340,95 @@ global:
   # sebelum rc39 (mengembalikan GRPC_ALLOW_INSECURE=true; Secret PKI yang dibuat
   # rc39 ikut dihapus Helm karena bukan bagian revisi lama). Tanpa migrasi skema,
   # tetapi dump pra-upgrade tetap wajib. Hasil verifikasi rc39 dicatat sesudah rilis.
-  imageTag: v0.1.0-rc39
+  #
+  # rc40 = rc39 + #1074. rc39 SEMPAT dipasang di staging dan GAGAL: authenc dan
+  # layanan-perlengkapan crash-loop saat start dengan
+  #   "Could not automatically determine the process-level CryptoProvider"
+  # (rustls 0.23 hanya memilih penyedia kripto otomatis bila TEPAT SATU dari
+  # aws_lc_rs/ring ada di graf biner; keduanya menautkan lettre -> ring DAN
+  # aws_lc_rs, jadi keduanya bimbang). Staging dikembalikan ke rc38 lewat
+  # `helm rollback` (revisi 24) dan diverifikasi sama dengan baseline. Tes
+  # mTLS CI lolos karena bentuk graf-nya beda dari biner yang dikirim.
+  # #1074: `lib_backend::grpc::ensure_crypto_provider()` dipasang eksplisit
+  # sebelum konfigurasi TLS pertama (authenc, integrasi, klien lib-backend) +
+  # tes yang mereproduksi graf dua-penyedia. Selebihnya sama dengan rc39
+  # (#1061 + #1062, komentar di atas). rc39 TIDAK pernah terverifikasi;
+  # jangan dipromosikan.
+  #
+  # rc41 = rc40 + kunci JWT authenc bersama + klien integrasi lazy. rc40 jalan (crash-loop rc39 hilang, mTLS terpasang di semua hop
+  # gRPC) tetapi e2e penuh GAGAL 20 dari 218 (rc38: 218/218), semuanya `Token validation
+  # failed`. Akar: authenc TIDAK PERNAH diberi JWT_SECRET oleh chart, jadi tiap replika
+  # mengundi kunci penanda-tangan sendiri. Selama HPA di SATU replika (berbulan-bulan)
+  # tak ada yang terlihat; saat HPA naik ke dua di tengah suite, token satu replika
+  # ditolak yang lain. Produksi (replika >1) akan terkena terus-menerus.
+  # Perbaikan: Secret `authenc-jwt` terbitan chart (lookup + keep) + env JWT_SECRET;
+  # authenc menolak start di staging/produksi tanpa kunci; pagar CI membaca render.
+  # Sekaligus: klien integrasi layanan-perlengkapan jadi lazy (satu replika rc40 kehilangan
+  # klien integrasi seumur hidup karena integrasi sedang restart saat boot) dan
+  # holdApplicationUntilProxyStarts (layanan-integrasi crash 2x per upgrade pada sambungan
+  # Postgres pertamanya). rc40 TIDAK lolos e2e: jangan dipromosikan.
+  #
+  # rc42 = rc41 + perbaikan dari rehearsal produksi (`helm install` bersih profil produksi di
+  # namespace buangan). rc41 lolos e2e 218/218 di staging TETAPI TIDAK boleh dipromosikan: di
+  # bentuk produksi `helm install` gagal di hook db-create (NetworkPolicy), admin pertama tak
+  # bisa login (realm_id NULL), authenc tak bisa menjangkau layanan-integrasi di namespace
+  # STRICT (UnknownIssuer), dan CronJob integrasi gagal (race sidecar + tanpa egress/ingress).
+  # Staging tak melihat satu pun karena PERMISSIVE, db-create dimatikan, cron di-suspend.
+  # Daftar lengkap + bukti: PR #1077. rc39, rc40, dan rc41 jangan dipromosikan.
+  #
+  # rc43 = rc42 + `scheduler --source X` keluar non-nol saat sinkronisasi gagal. rc42 lolos e2e
+  # 218/218 dan rehearsal produksi bersih (admin pertama login tanpa solusi SQL, hop STRICT, cron
+  # tanpa sidecar) TETAPI rehearsal juga memperlihatkan `ERROR ❌ Manual sync failed` bersama
+  # Job `Succeeded`: kegagalan ditelan, jadi di produksi `lastSuccessfulTime` akan maju untuk
+  # sinkronisasi yang tak pernah berhasil. rc42 jangan dipromosikan.
+  #
+  # rc44 = rc43 + dua perbaikan yang ditemukan SAAT menguji rc43. rc43 lolos e2e 218/218 dan
+  # membuktikan `mysimkari`/`monsakti` kini `Failed` terhadap URL `.invalid`, TETAPI (1) cron
+  # `siman` tetap `Complete` dengan 10 dari 10 kategori gagal (warn lalu `Ok(())`; PR #1080), dan
+  # (2) notifikasi transisi penghapusan BMN tak pernah terkirim: query memilih kolom `satker_id`
+  # yang sudah dihapus dari `penghapusan_bmn`, galatnya ditelan sebagai "non-blocking", dan
+  # harness tes tak memasang notifier seperti main.rs sehingga jalur itu tak pernah berjalan.
+  # rc43 jangan dipromosikan.
+  #
+  # rc45 = rc44 + daemon scheduler dalam-proses dimatikan. rc44 lolos e2e 218/218 TETAPI
+  # pemindaian log pasca-e2e (dan rehearsal profil produksi, 2 replika) memperlihatkan pod server
+  # `layanan-integrasi` menjalankan sinkronisasi MySIMKARI, SIMAN (10 kategori), dan MonSAKTI
+  # tiap 15 menit: `SCHEDULER_ENABLED` default true, chart tak pernah mengisinya, dan jadwal chart
+  # `0 */15 * * * *`. Di produksi itu API pemerintah asli, per replika, di luar jadwal CronJob
+  # (SIMAN mingguan). Biner `scheduler` juga menggerbangi jalur `--source` dengan flag yang sama,
+  # jadi default mati saja akan membuat semua CronJob keluar 0 tanpa sinkronisasi; flag kini
+  # hanya menggerbangi daemon. rc44 jangan dipromosikan.
+  #
+  # rc46 = rc45 + dua perbaikan chart yang HANYA tampak setelah SIMPEL v1 dinyalakan di profil
+  # produksi (rehearsal rc45). rc45 lolos e2e 218/218 dan membuktikan daemon scheduler mati, TETAPI:
+  # (1) init container `nginx-dirs` v1 meminta 16Mi sedangkan LimitRange produksi mensyaratkan 32Mi
+  # ⇒ pod ditolak, Deployment `simpelv1` 0/3 tanpa pod; staging tak punya LimitRange. (2) v1 memakai
+  # podAntiAffinity `required` per host dengan 3 replika di klaster DUA node ⇒ pod ke-3 Pending
+  # selamanya, PDB minAvailable 2 menutup semua gangguan, rolling update macet. Gambar identik secara
+  # kode dengan rc45; tag baru hanya agar yang diuji = yang dipromosikan. rc45 jangan dipromosikan.
+  #
+  # rc47 = rc46 + koneksi database server integrasi yang bisa menyambung ulang. rc46 lolos e2e 218/218
+  # (setelah staging dibersihkan dari 101 kampanye buatan tes yang menyingkirkan fixture dari dropdown
+  # laporan yang hanya memuat 100) TETAPI pemindaian log pod yang sudah hidup 10 jam menunjukkan server
+  # integrasi memegang SATU `tokio_postgres::Client`: tepat 1 jam setelah start koneksinya putus tanpa lalu
+  # lintas apa pun, lalu semua kueri pegawai/satker/foto menjawab `connection closed` dan
+  # `/api/monitoring/health` 503 sampai pod di-restart (pod tetap Ready: probe TCP). Produksi mengalaminya di
+  # jam sepi pertama dan di setiap restart Postgres. rc46 jangan dipromosikan.
+  #
+  # rc48 = rc47 + empat cacat dari rehearsal rc47 dan pembacaan kode sebelum instal pertama. rc47 lolos
+  # staging dan e2e 218/218, TETAPI: klien MonSAKTI menulis token utuh ke log pod (#1089); Job sinkron yang
+  # gagal menghapus log-nya sendiri (#1090); endpoint monitoring tanpa autentikasi menyisipkan `?source=` ke
+  # SQL dan UNION membaca `monsakti_tokens` (#1091); CronJob MySIMKARI menulis ke tabel yang tak dibaca siapa
+  # pun (5 satker saja) dan SIMAN menambahkan seluruh register tiap run (#1092); probe postgres mencatat
+  # 1080 FATAL/jam (#1093). rc47 jangan dipromosikan.
+  #
+  # rc49 = rc48 + halaman admin "Status Sinkronisasi". rc48 lolos staging (e2e 218/218) dan rehearsal bersih,
+  # TETAPI: kunci SIMAN_BA_KEY tercetak di log pod dan `integrasi.api_log` (#1095); tak satu pun run sinkron
+  # mencatat hasilnya, jadi admin tak bisa tahu sinkron MySIMKARI/SIMAN (sumber isian NIP dan pilihan aset)
+  # berhenti; empat endpoint monitoring integrasi tanpa autentikasi dihapus (#1096); halaman admin membaca
+  # `integrasi.sync_status` (#1099). Ikut pula bump dependensi simpelv1 (Laravel #1097, phpspreadsheet #1098).
+  # rc48 jangan dipromosikan.
+  imageTag: v0.1.0-rc49
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
@@ -413,7 +501,7 @@ backendConfig:
   grpcTls:
     enabled: true
 
-# Workload — staging sengaja minimum (1 replica, HPA 1/2, no PDB).
+# Workload — staging sengaja minimum (1 replica, HPA 1/2, no PDB), KECUALI authenc.
 postgres:
   replicas: 1
   storage: { size: 20Gi }
@@ -423,11 +511,20 @@ postgres:
   dbCreateJob: { enabled: false }
 redis: {}
 authenc:
-  replicas: 1
+  # 2 replika, bukan 1: produksi menjalankan authenc 3-6 replika, dan satu-satunya replika
+  # staging menyembunyikan bug "tiap replika mengundi kunci JWT sendiri" berbulan-bulan —
+  # setiap token selalu divalidasi oleh pod yang menerbitkannya. HPA yang kebetulan naik ke
+  # dua di tengah e2e rc40 yang membukanya (20 dari 218 gagal). Dengan 2 replika tetap,
+  # setiap suite menguji bentuk yang dipakai produksi.
+  replicas: 2
   resources:
     requests: { cpu: 250m, memory: 256Mi }
     limits:   { cpu: "1",  memory: 512Mi }
-  hpa: { enabled: true, minReplicas: 1, maxReplicas: 2, cpuUtilization: 75, memoryUtilization: 80 }
+  hpa: { enabled: true, minReplicas: 2, maxReplicas: 3, cpuUtilization: 75, memoryUtilization: 80 }
+  # Dua replika wajib terpisah bila bisa — kalau tidak, satu node mati = authenc mati (kube-linter
+  # `no-anti-affinity` menolak chart ini tanpa ini). `preferred`, bukan `required`: dengan 2 node,
+  # `required` + surge RollingUpdate membuat pod ke-3 tak punya tempat dan rollout macet.
+  podAntiAffinity: { type: preferred }
 secreton:
   replicas: 1
 layananIntegrasi:

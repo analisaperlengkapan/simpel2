@@ -76,7 +76,12 @@ metadata:
 spec:
   backoffLimit: 5
   activeDeadlineSeconds: 600
-  ttlSecondsAfterFinished: 600
+  # Sehari, bukan 10 menit. Hook yang SUKSES sudah dihapus Helm saat itu juga (`hook-succeeded`),
+  # jadi TTL ini hanya berlaku bagi hook yang GAGAL — dan di sana ia menghapus Job beserta pod dan
+  # log-nya: bukti mengapa install/upgrade gagal hilang 10 menit setelah gagal. Percobaan berikutnya
+  # tetap membersihkannya (`before-hook-creation`).
+  # Dijaga infra/scripts/check-failed-job-keeps-its-log.py.
+  ttlSecondsAfterFinished: 86400
   template:
     metadata:
       labels:

@@ -2,7 +2,7 @@
 //!
 //! This binary starts both:
 //! 1. gRPC server for IntegrasiService (for backend-to-backend communication)
-//! 2. HTTP server for monitoring dashboard (for admin/ops monitoring)
+//! 2. HTTP server with one health endpoint (`monitoring.rs` says why there is nothing else)
 //!
 //! Usage:
 //!   cargo run --bin layanan-integrasi-server --features grpc
@@ -14,17 +14,15 @@
 //!   HTTP_HOST    - HTTP host to bind to (default: 0.0.0.0)
 //!   HTTP_PORT    - HTTP port to listen on (default: 8080)
 
-use std::sync::Arc;
-
 use axum::Router;
 use layanan_integrasi::{
     Config,
+    db_handle::DbHandle,
     grpc::{server::GrpcServerConfig, start_grpc_server},
     monitoring::{MonitoringState, create_monitoring_router},
     scheduler::IntegrationScheduler,
 };
 use tokio::net::TcpListener;
-use tokio_postgres::NoTls;
 use tracing::{error, info};
 
 #[tokio::main]
@@ -51,19 +49,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Connecting to database...");
 
-    // Connect to database
-    let (client, connection) = tokio_postgres::connect(&database_url, NoTls).await?;
-
-    // Spawn the connection handler
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            error!("Database connection error: {}", e);
-        }
-    });
+    // Connect to database. A handle, not a bare client: a bare client dies with its connection and
+    // never recovers (see `db_handle`), which left this server unhealthy from the first idle hour.
+    let db_client = DbHandle::connect(&database_url).await?;
 
     info!("Database connected successfully");
-
-    let db_client = Arc::new(client);
 
     // Get HTTP server config
     let http_host = std::env::var("HTTP_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
@@ -80,13 +70,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create monitoring router
     let monitoring_router = create_monitoring_router(monitoring_state);
 
-    // Add CORS middleware for dashboard access
-    let app = Router::new().merge(monitoring_router).layer(
-        tower_http::cors::CorsLayer::new()
-            .allow_origin(tower_http::cors::Any)
-            .allow_methods(tower_http::cors::Any)
-            .allow_headers(tower_http::cors::Any),
-    );
+    // No CORS layer: no browser page calls this port. It used to allow any origin, for a
+    // dashboard that was never written.
+    let app = Router::new().merge(monitoring_router);
 
     // Start HTTP server in background
     let http_addr = format!("{}:{}", http_host, http_port);
@@ -100,25 +86,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     info!("HTTP monitoring server started successfully");
-    info!("Monitoring endpoints:");
     info!(
         "  - GET  http://{}:{}/api/monitoring/health",
-        http_host, http_port
-    );
-    info!(
-        "  - GET  http://{}:{}/api/monitoring/sync-status",
-        http_host, http_port
-    );
-    info!(
-        "  - GET  http://{}:{}/api/monitoring/sync-history",
-        http_host, http_port
-    );
-    info!(
-        "  - GET  http://{}:{}/api/monitoring/alerts",
-        http_host, http_port
-    );
-    info!(
-        "  - GET  http://{}:{}/api/monitoring/dashboard",
         http_host, http_port
     );
 

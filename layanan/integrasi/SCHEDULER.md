@@ -82,7 +82,7 @@ Scheduler menggunakan format cron expression standar dengan 5 field:
 
 | Variable | Default | Deskripsi |
 |----------|---------|-----------|
-| `SCHEDULER_ENABLED` | `true` | Enable/disable scheduler |
+| `SCHEDULER_ENABLED` | `false` | Menyalakan DAEMON scheduler (`server` dan `scheduler` tanpa `--source`). Tidak berlaku untuk `scheduler --source <p>` yang dijalankan CronJob |
 | `MONSAKTI_SCHEDULE` | `0 2 * * *` | Jadwal penarikan MonSAKTI |
 | `MYSIMKARI_SCHEDULE` | `0 2 * * *` | Jadwal penarikan MySIMKARI |
 | `SIMAN_SCHEDULE` | `0 3 * * 0` | Jadwal penarikan SIMAN |

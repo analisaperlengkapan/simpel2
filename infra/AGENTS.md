@@ -257,6 +257,48 @@ Pemeriksaan pertama menemukan hal-hal yang akan menggagalkan hari pertama:
   (fail-closed: konfigurasi setengah-jadi atau `http://` dengan materi TLS ditolak saat start). Service port gRPC
   jadi `appProtocol: tls` (Envoy tak boleh mem-parse TLS sebagai HTTP/2). `check-grpc-tls-wiring.py` (CI) memeriksa
   lima titik itu dari hasil render. Rotasi: `RUNBOOK.md` §5.x.
+- **Kunci JWT authenc = SATU untuk semua replika** (`templates/secrets/authenc-jwt.yaml`, Secret `authenc-jwt`, env
+  `JWT_SECRET`). Tanpa itu tiap replika mengundi kuncinya sendiri: token satu replika ditolak yang lain
+  (`Token validation failed` muncul-hilang) dan tiap restart mengakhiri semua sesi. Tak ada yang merah karena HPA
+  staging bertahan di SATU replika — rc40 naik ke dua dan 20 dari 218 e2e gagal. authenc kini menolak start di
+  `APP_ENVIRONMENT=staging|production` tanpa kunci; Secret ber-`resource-policy: keep` + `lookup` (upgrade tak merotasi).
+  `check-authenc-jwt-wiring.py` (CI) memeriksanya dari render. Rotasi: `RUNBOOK.md` §5.y.
+- **Aplikasi menunggu sidecar** (`proxy.istio.io/config: holdApplicationUntilProxyStarts`, `_helpers.tpl`): tanpa
+  itu sambungan keluar pertama aplikasi ditolak (iptables sudah mengalihkan ke Envoy yang belum mendengar).
+  Klien gRPC ke layanan lain dibangun **lazy** (`connect_lazy`), bukan `connect()` sekali-jadi: klien eager yang
+  gagal saat boot membuat pod melayani tanpa klien seumur hidupnya.
+- **Setiap pod klien postgres harus dicakup `allow-backend-to-postgres`** (`templates/network/policies.yaml`).
+  `default-deny-ingress` menutup semua pod; yang terlewat tidak gagal dengan galat, koneksinya hanya MENUNGGU.
+  Terjadi dua kali dari satu sebab: hook `db-create` (`component=database`) membuat `helm install` produksi habis
+  waktu 600s, dan CronJob integrasi (`component=scheduler`) gagal ~10 detik tiap jadwal di staging tanpa sinyal merah
+  (`lastSuccessfulTime` kosong). Pod/Job/CronJob baru yang memakai `DATABASE_URL`/`PG*`/`postgres-credentials`/`pg_isready`
+  wajib dicakup salah satu peer `from` — `check-netpol-postgres-reach.py` (CI) menurunkannya dari render.
+  Jalur yang MATI di staging (`dbCreateJob.enabled: false`) hanya teruji lewat rehearsal produksi (RUNBOOK §1.9).
+- **Bentuk produksi ≠ bentuk staging di tiga tempat, dan e2e tak melihat satu pun** (ditemukan rehearsal produksi
+  2026-11-09): (1) namespace **STRICT** vs PERMISSIVE — klien tanpa sidecar (authenc) ke server di mesh
+  (layanan-integrasi:50051) melihat `UnknownIssuer` karena Envoy menjawab dengan CA Istio; pengecualian per-port di
+  `mtls.portExceptions`. (2) **Job/CronJob wajib menyatakan `sidecar.istio.io/inject`** (cron default `false`): tanpa
+  itu percobaan pertama bertabrakan dengan Envoy dan `backoffLimit: 1` menandai Job GAGAL walau selesai. (3) pod
+  `component=scheduler` butuh egress 443 sendiri (`layanan-integrasi-scheduler-egress`); policy lama hanya memilih
+  Deployment. `check-mesh-strict-reach.py` (CI) menurunkan (1) dan (2) dari render.
+
+Dua kelas cacat lagi yang HANYA tampak di profil produksi, keduanya ditemukan saat SIMPEL v1 pertama kali
+dinyalakan di rehearsal (2026-11-10), karena v1 tak pernah berjalan di profil itu: (a) **LimitRange menolak POD,
+bukan Deployment** — init container `nginx-dirs` meminta 16Mi, minimum produksi 32Mi, jadi `simpelv1` hidup 0/3 tanpa
+satu pun pod dan tanpa galat selain event `FailedCreate` pada ReplicaSet; staging tak punya LimitRange.
+`check-limitrange-bounds.py` (CI) membaca batasnya dari render. (b) **Klaster produksi hanya DUA node**:
+`podAntiAffinity: required` per host dengan 3 replika membuat pod ke-3 `Pending` selamanya, PDB `minAvailable: 2`
+menutup semua gangguan, dan rolling update macet (maxUnavailable 25% dari 3 = 0). Pakai `preferred`; `required`
+hanya bila replika ≤ jumlah node.
+
+**Job yang gagal harus meninggalkan pod-nya — pod itulah log-nya** (rehearsal produksi rc47, 2026-11-11). Klaster
+ini tak punya pengumpul log. `restartPolicy: OnFailure` membuat Job controller MENGHAPUS pod saat `backoffLimit`
+habis (perilaku terdokumentasi, bukan bug): tiga sinkronisasi gagal, lalu `kubectl logs -l job-name=…` menjawab
+"No resources found", `integrasi.api_log` 0 baris, `sync_status` tetap `pending`. `ttlSecondsAfterFinished` pendek
+dan `failedJobsHistoryLimit: 0` berakibat sama. Wajib untuk SETIAP Job/CronJob: `restartPolicy: Never` (tiap
+percobaan = pod sendiri yang tetap ada, fase Failed), riwayat gagal ≥ 1, TTL ≥ 86400 atau tak ditulis.
+`check-failed-job-keeps-its-log.py` (CI) memeriksa setiap Job/CronJob di tiap render chart dan tiap manifest mentah
+di `infra/helm/`.
 
 Urutan lengkap: `infra/helm/RUNBOOK.md` §1.
 
@@ -517,6 +559,21 @@ infra/scripts/provision-simpelv1-schema.sh --self-test
 kubectl -n simpelv2-staging create job --from=cronjob/layanan-integrasi-mysimkari manual-$(date +%s)
 kubectl -n simpelv2-staging logs job/manual-XXXX --tail=200
 ```
+
+**Status keluar proses = satu-satunya sinyal CronJob.** Job controller hanya melihat kode keluar binary: `Complete`
+→ `lastSuccessfulTime` maju, `Failed` → terlihat. `scheduler --source X` dulu mencatat `❌ Manual sync failed` lalu
+`return Ok(())`, jadi sinkronisasi yang tak pernah berhasil (token kedaluwarsa, API mati, URL salah) tetap `Complete`
+tanpa satu pun sinyal merah (ditemukan 2026-11-09 di rehearsal produksi). Binary apa pun yang dijalankan CronJob WAJIB
+keluar non-nol saat kerjanya gagal; `layanan/integrasi/tests/scheduler_exit_status.rs` menjalankan binary sungguhan.
+Akibatnya `backoffLimit: 1` mengulang SATU kali: gagal = paling banyak dua panggilan API per jadwal (lihat RUNBOOK §9.4
+bila rate-limit).
+
+Loop yang **melanjutkan** setelah satu item gagal (10 kategori SIMAN, sampel pegawai MySIMKARI) tetap menyelesaikan
+semua item supaya satu yang buruk tak menyembunyikan sisanya, tetapi RUN gagal bila ada satu item pun yang gagal
+(`fail_if_any` di `layanan/integrasi/src/scheduler.rs`). Cukup `warn!` lalu `Ok(())` pernah membuat Job `siman` berakhir
+`Complete` dengan 10 dari 10 kategori gagal (rehearsal rc43). Perilaku ini belum diuji terhadap API asli: bila satu
+kategori SIMAN sah mengembalikan galat tiap run, cron akan merah terus, dan itu harus diputuskan (tangani kategorinya,
+jangan kembalikan `Ok(())` secara buta).
 
 Override schedule per-env di `values-staging.yaml` / `values-production.yaml`:
 

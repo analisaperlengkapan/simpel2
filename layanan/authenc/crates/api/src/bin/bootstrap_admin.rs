@@ -50,6 +50,7 @@ use argon2::{
     password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
 };
 use authenc_storage::Database;
+use authenc_types::domain::Realm;
 use tracing::{error, info};
 use uuid::Uuid;
 
@@ -121,6 +122,19 @@ impl Config {
     }
 }
 
+/// Insert for the first administrator.
+///
+/// `realm_id` is NOT optional here. Login looks users up with
+/// `WHERE username = $1 AND realm_id = $2` (master realm,
+/// `00000000-0000-0000-0000-000000000000`); the seeded accounts carry it, but the
+/// column has no default, so an insert that leaves it out stores NULL and the account
+/// can never sign in — "User not found" for a row that is sitting in the table. The
+/// first production rehearsal (2026-11-09) found exactly that.
+const INSERT_FIRST_ADMIN: &str = "INSERT INTO authenc.users (id, username, email, password_hash, \
+     email_verified, enabled, federated, satker_code, nip, nama, \
+     require_password_change, password_changed_at, realm_id) \
+     VALUES ($1, $2, $3, $4, true, true, false, $5, $2, $6, true, now(), $7)";
+
 fn hash_password(password: &str) -> Result<String, String> {
     let salt = SaltString::generate(&mut OsRng);
     Argon2::default()
@@ -170,10 +184,7 @@ async fn run(cfg: Config) -> Result<(), String> {
         None => {
             let id = Uuid::new_v4();
             tx.execute(
-                "INSERT INTO authenc.users (id, username, email, password_hash, \
-                 email_verified, enabled, federated, satker_code, nip, nama, \
-                 require_password_change, password_changed_at) \
-                 VALUES ($1, $2, $3, $4, true, true, false, $5, $2, $6, true, now())",
+                INSERT_FIRST_ADMIN,
                 &[
                     &id,
                     &cfg.username,
@@ -181,6 +192,7 @@ async fn run(cfg: Config) -> Result<(), String> {
                     &hash,
                     &cfg.satker_code,
                     &cfg.nama,
+                    &Realm::MASTER_ID,
                 ],
             )
             .await
@@ -288,6 +300,17 @@ mod tests {
     #[test]
     fn one_repeated_character_is_rejected() {
         assert!(validate_initial_password("u", "aaaaaaaaaaaaaa").is_err());
+    }
+
+    #[test]
+    fn first_admin_insert_names_the_master_realm() {
+        // Login filters on realm_id; a NULL realm_id is an account nobody can sign in to.
+        assert!(super::INSERT_FIRST_ADMIN.contains("realm_id"));
+        assert!(super::INSERT_FIRST_ADMIN.contains("$7"));
+        assert_eq!(
+            authenc_types::domain::Realm::MASTER_ID.to_string(),
+            "00000000-0000-0000-0000-000000000000"
+        );
     }
 
     #[test]

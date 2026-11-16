@@ -59,6 +59,9 @@ namespace:
 # Default mTLS — dipakai PeerAuthentication & DestinationRule.
 mtls:
   mode: PERMISSIVE                         # production: STRICT
+  # Port yang dilonggarkan ke PERMISSIVE pada SATU workload bila mode STRICT, untuk klien di
+  # luar mesh (lihat templates/istio/peer-authentication.yaml). Bentuk: { workload: <label name>, port: <containerPort> }.
+  portExceptions: []
   destinationRules:
     enabled: true
     # Workload tanpa Istio sidecar harus DISABLE mTLS Istio agar plaintext masuk.
@@ -204,6 +207,9 @@ secrets:
       simpelv2: dbsimpelv2
       simpelv1: dbsimpelv1                 # Laravel monolith DB (legacy simpelv1) — ISOLATED
       secreton: secreton                   # secret manager — ISOLATED
+  # Kunci JWT authenc, 64 hex (`openssl rand -hex 32`). KOSONG = chart menerbitkan
+  # sendiri dan mempertahankannya antar upgrade (templates/secrets/authenc-jwt.yaml).
+  authencJwtSecret: ""
   integration: {}                          # MONSAKTI_*, MYSIMKARI_*, SIMAN_* sebagai key→value
   simpelv1: {}                             # DB_USERNAME / DB_PASSWORD / APP_KEY
 
@@ -260,10 +266,16 @@ backendConfig:
   secretonGrpcUrl: ""                      # default: http://secreton.<ns>.svc.cluster.local:9000
   secretonEndpoint: ""                     # default: http://secreton.<ns>.svc.cluster.local:8200
   integrasiGrpcUrl: ""                     # default: http://layanan-integrasi.<ns>.svc.cluster.local:50051
+  # Jadwal untuk daemon scheduler DALAM-PROSES (6 field, tokio-cron). Daemon itu MATI secara
+  # default (`SCHEDULER_ENABLED` tak pernah diisi chart; default kode = false), jadi nilai di sini
+  # tidak dipakai: yang menjadwalkan sinkronisasi adalah CronJob `layananIntegrasi.cronjobs`.
+  # Disamakan dengan CronJob agar daemon yang dinyalakan tak sengaja tak menembak API pemerintah.
+  # Sebelumnya `0 */15 * * * *` untuk ketiganya DAN daemon menyala: tiap replika server menarik
+  # SIMAN (10 kategori) tiap 15 menit (rehearsal produksi 2026-11-10).
   schedules:
-    mysimkari: "0 */15 * * * *"
-    siman: "0 */15 * * * *"
-    monsakti: "0 */15 * * * *"
+    mysimkari: "0 0 */6 * * *"             # = cronjob mysimkari (tiap 6 jam)
+    siman: "0 0 4 * * 0"                   # = cronjob siman (Minggu 04:00)
+    monsakti: "0 0 3 * * *"                # = cronjob monsakti (tiap hari 03:00)
 
 # ─── Infrastructure ────────────────────────────────────────────────────────────
 postgres:
@@ -419,6 +431,11 @@ authenc:
     # cross-schema (JOINs + an FK) which only resolves within one database.
     - name: DATABASE_URL
       valueFrom: { secretKeyRef: { name: postgres-credentials, key: url } }
+    # Kunci penanda-tangan JWT: SATU kunci untuk semua replika (templates/secrets/
+    # authenc-jwt.yaml menerbitkannya). Tanpa ini tiap pod mengundi kuncinya sendiri
+    # dan token satu replika ditolak yang lain; authenc menolak start di staging/produksi.
+    - name: JWT_SECRET
+      valueFrom: { secretKeyRef: { name: authenc-jwt, key: JWT_SECRET } }
   istioInjection: false                    # authenc tidak pakai sidecar; DR DISABLE
   topologySpreadConstraints:
     enabled: false                         # production override true
@@ -653,11 +670,13 @@ layananIntegrasi:
       activeDeadlineSeconds: 600
   cronjobDefaults:
     successfulJobsHistoryLimit: 3
+    # >= 1 WAJIB: Job gagal terakhir (dan pod + log-nya) adalah satu-satunya bukti mengapa sebuah
+    # sinkronisasi gagal. restartPolicy pod-nya `Never` dan TIDAK bisa diatur di sini — lihat
+    # templates/_cronjob.tpl dan infra/scripts/check-failed-job-keeps-its-log.py.
     failedJobsHistoryLimit: 1
     concurrencyPolicy: Forbid
-    restartPolicy: OnFailure
     activeDeadlineSeconds: 3600            # max 1 jam per run
-    backoffLimit: 1
+    backoffLimit: 1                        # 2 percobaan; tiap percobaan = pod sendiri
 
 layananPerlengkapan:
   enabled: true
@@ -825,7 +844,9 @@ simpelv1:
       seccompProfile: { type: RuntimeDefault }
   dbBackup:
     # source: configMap | secret | none
-    # Staging pakai configMap (small dump checked-in), production pakai secret (gitignored).
+    # configMap/secret dibatasi 1 MiB oleh Kubernetes: hanya untuk dump kecil. Dump produksi
+    # (±182 MB) tidak muat, jadi staging DAN production memakai `none` dan data dimuat lewat
+    # `kubectl exec ... psql` (RUNBOOK §1.7a).
     source: none
     name: simpelv1-db-backup
   podAntiAffinity:

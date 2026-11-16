@@ -111,8 +111,10 @@ Lihat [Lihat lebih jauh §1 untuk first-time production deploy.](#1-fresh-deploy
 | Sertifikat + kunci DigiCert `simpel.kejaksaan.go.id` | TLS gateway produksi | §1.3 |
 | PAT GitHub `read:packages` | `ghcr-pull` | §1.2 |
 | `values-secrets.yaml` (di LUAR repo, mode 600) | Secret aplikasi | §1.4 |
-| Token MySIMKARI / SIMAN / MonSAKTI **asli** | sinkron data induk | pemilik tiap API |
+| Token MySIMKARI / SIMAN / MonSAKTI **asli** | sinkron data induk (§1.7b); tanpa MySIMKARI tak ada NIP yang ditemukan | pemilik tiap API |
 | NIP + sandi awal administrator pertama | `secrets.authencBootstrapAdmin` | §1.4 |
+| Dump database SIMPEL v1 (`dbsimpelv1.sql.gz`, ±182 MB, data ASLI) | dimuat ke `dbsimpelv1` | §1.7a |
+| `APP_KEY` + `JWT_SECRET` v1 | `secrets.simpelv1` | §1.4 |
 
 ### 1.1 Prasyarat klaster (sekali per klaster)
 
@@ -171,6 +173,28 @@ mematikan akun seed migrasi (superuser `admin` dan NIP `199203142014031001` yang
 NIP itu sendiri — terlihat di repo publik) lalu membuat akun ini dengan peran `admin` dan
 **wajib ganti sandi di login pertama**. Berikan sandi awalnya lewat saluran terpisah.
 
+Aturan sandi awal (ditegakkan job, `bootstrap_admin.rs::validate_initial_password`): minimal 12
+karakter, TIDAK boleh sama dengan atau memuat NIP-nya, bukan satu karakter berulang. Pelanggarannya
+membuat hook `post-install` gagal, jadi `helm install` produksi gagal. NIP `199203142014031001` (akun
+seed) BOLEH dipilih sebagai administrator pertama — akunnya direklamasi dengan sandi baru — tetapi
+sandinya tidak boleh `199203142014031001` (itu kredensial publik yang justru dipensiunkan job ini).
+Acak saja: `head -c 24 /dev/urandom | base64 | tr -d '/+=\n' | cut -c1-24`.
+
+**SIMPEL v1** (`secrets.simpelv1`): `DB_USERNAME` HARUS sama dengan `secrets.postgresCredentials.username`
+(dump dimuat sebagai role itu; objeknya dimiliki role itu, jadi v1 yang memakai role yang sama bisa
+mengaksesnya). `APP_KEY`: kunci BARU (`base64:` + 32 byte acak; keputusan operator 2026-11-10). Aman karena
+dump `dbsimpelv1.sql.gz` diperiksa dan berisi 0 payload terenkripsi Laravel (`eyJpdiI6…`) dan 0 nilai
+`base64:` — tak ada data yang jadi tak terbaca; akibatnya hanya cookie sesi lama tak berlaku (pengguna login
+ulang). Periksa ulang bila dump diganti (`zcat dump | grep -c eyJpdiI6` harus 0); bila tak nol, pakai
+`APP_KEY` ASLI dari `.env` v1 lama. `JWT_SECRET`: acak 32+ byte.
+
+**Kunci JWT authenc** (`secrets.authencJwtSecret`, opsional): kunci yang menandatangani SEMUA sesi pengguna.
+Dibiarkan kosong, chart menerbitkannya sendiri pada instalasi pertama (Secret `authenc-jwt`, 256-bit,
+`helm.sh/resource-policy: keep`) dan memakainya ulang di setiap `helm upgrade`. Isi sendiri (64 hex,
+`openssl rand -hex 32`) bila kuncinya harus dipegang operator. Semua replika authenc WAJIB berbagi satu
+kunci — tanpa itu token satu replika ditolak yang lain dan authenc menolak start di staging/produksi.
+Rotasi: lihat §5.y.
+
 ### 1.5 Pre-render & validasi
 
 ```bash
@@ -208,6 +232,94 @@ kubectl -n simpelv2-production get pods,jobs
 kubectl -n simpelv2-production logs job/simpel-authenc-bootstrap   # "seeded accounts disabled ... done"
 ```
 
+### 1.7a Muat data SIMPEL v1 (setelah 1.7, sebelum pengguna diarahkan)
+
+`simpelv1.dbBackup.source: none` — dump produksi (±182 MB) jauh di atas batas Secret 1 MiB, jadi data
+dimuat langsung ke `dbsimpelv1` lewat pipa, tanpa objek Kubernetes dan tanpa berkas di klaster. Dump itu
+data ASLI: tidak masuk git (`monolith/simpelv1/.gitignore`), tidak boleh dimuat ke staging atau rehearsal.
+
+```bash
+F=monolith/simpelv1/database/dbsimpelv1.sql.gz
+gzip -t "$F" && ls -l "$F"                      # utuh; ukuran sama dengan yang diterima operator
+NS=simpelv2-production
+# database ada (hook db-create) dan masih KOSONG:
+echo "select count(*) from information_schema.tables where table_schema in ('public','siman','mon_sakti')" \
+  | kubectl -n $NS exec -i postgres-0 -c postgres -- sh -c 'psql -U "$POSTGRES_USER" -d dbsimpelv1 -At'   # harapan: 0
+
+# Muat — satu transaksi, berhenti di galat pertama:
+gunzip -c "$F" \
+  | sed -E '/^SET transaction_timeout = 0;$/d; /^ALTER .* OWNER TO postgres;$/d' \
+  | kubectl -n $NS exec -i postgres-0 -c postgres -- sh -c \
+      'psql -U "$POSTGRES_USER" -d dbsimpelv1 -v ON_ERROR_STOP=1 -1 -q'
+```
+
+Dua baris yang dibuang: dump dibuat `pg_dump` 17 sedangkan chart memakai Postgres 16 (`transaction_timeout`
+tidak dikenal di 16), dan 420 baris `OWNER TO postgres` (role `postgres` tidak ada di chart; objek jadi
+milik `$POSTGRES_USER`, yaitu role yang dipakai v1). Diuji 2026-11-10 pada `postgres:16-alpine`
+sekali pakai: exit 0, ±5 menit, 259 tabel (public 184, siman 59, mon_sakti 16) + 16 view.
+
+```bash
+# Verifikasi (hitungan saja, jangan menampilkan isi):
+echo "select table_schema, count(*) from information_schema.tables where table_type='BASE TABLE' and table_schema in ('public','siman','mon_sakti') group by 1 order by 1" \
+  | kubectl -n $NS exec -i postgres-0 -c postgres -- sh -c 'psql -U "$POSTGRES_USER" -d dbsimpelv1 -At'
+                                                # harapan: mon_sakti|16, public|184, siman|59
+echo "ANALYZE" | kubectl -n $NS exec -i postgres-0 -c postgres -- sh -c 'psql -U "$POSTGRES_USER" -d dbsimpelv1'
+kubectl -n $NS delete pod -l app=simpelv1       # pod v1 membaca database yang kini terisi
+```
+
+Muat ULANG hanya pada database kosong. Pada database yang sudah terisi perintah ini gagal di pernyataan
+pertama (`ERROR:  schema "mon_sakti" already exists`) dan, karena `-1` + `ON_ERROR_STOP`, tak mengubah apa pun
+(diuji di rehearsal: tabel tetap 259). TETAPI `kubectl exec -i` TIDAK kembali sendiri setelah `psql` di pod
+keluar karena galat — layar berhenti setelah pesan galat. Tekan Ctrl-C; jangan menganggapnya masih memuat. Bila
+ingin kode keluar yang tegas, jadikan hasil `gunzip | sed` sebuah berkas dan pakai `timeout 300 kubectl exec -i … <
+berkas` (kode 124 = menggantung setelah galat; periksa jumlah tabel).
+
+### 1.7b Sinkron pertama data induk (setelah 1.7, sebelum pengguna diarahkan)
+
+Form v2 tidak meminta data pegawai atau aset diketik: pegawai dicari dari NIP di
+`integrasi.mysimkari_pegawai`/`mysimkari_satker`, aset dari `integrasi.siman_aset`. Pada instalasi baru
+ketiga tabel itu KOSONG, jadi tak satu NIP pun ditemukan sampai sinkron pertama selesai. Menunggu jadwal
+(`mysimkari` tiap 6 jam, `siman` Minggu 04.00 WIB) bisa berarti berhari-hari. Jalankan sekali dengan
+tangan, MySIMKARI dulu (tanpa satker dan pegawai, aset pun tak bisa dikaitkan ke siapa pun). Syaratnya
+token asli sudah ada di `secrets.integration` (§1.4). `monsakti` tetap di-suspend karena API-nya tidak
+aktif.
+
+```bash
+NS=simpelv2-production
+J=first-mysimkari-$(date +%s)
+kubectl -n $NS create job --from=cronjob/layanan-integrasi-mysimkari $J
+# `wait --for=condition=complete` menunggu sampai habis waktu bila Job GAGAL; tunggu salah satunya:
+until kubectl -n $NS get job $J -o jsonpath='{.status.conditions[?(@.status=="True")].type}' \
+      | grep -qwE 'Complete|Failed'; do sleep 15; done
+kubectl -n $NS get job $J -o jsonpath='{.status.conditions[?(@.status=="True")].type}{"\n"}'
+kubectl -n $NS logs -l job-name=$J --prefix --tail=40    # pod tetap ada setelah Failed (§1.9 butir 5)
+```
+
+Ulangi dengan `layanan-integrasi-siman` (register ratusan ribu baris, jauh lebih lama). Hasil yang
+dihitung adalah BARIS DI TABEL yang dibaca perlengkapan, bukan exit code (perintahnya sama dengan
+[§4](#4-manual-trigger-sync-integrasi-staging)):
+
+```bash
+kubectl -n $NS exec -i postgres-0 -c postgres -- sh -c 'psql -U "$POSTGRES_USER" -d dbsimpelv2' <<'SQL'
+SELECT 'mysimkari_satker' AS tabel, count(*) AS baris, max(updated_at) AS terakhir FROM integrasi.mysimkari_satker
+UNION ALL
+SELECT 'mysimkari_pegawai ' || coalesce(status_pegawai, '(null)'), count(*), max(updated_at)
+  FROM integrasi.mysimkari_pegawai GROUP BY status_pegawai
+UNION ALL
+SELECT 'siman_aset ' || coalesce(jenis_aset, '(null)'), count(*), max(synced_at)
+  FROM integrasi.siman_aset GROUP BY jenis_aset
+ORDER BY 1;
+SQL
+```
+
+Sebagai pembanding, staging (data mock) berisi `mysimkari_satker` 545 dan `mysimkari_pegawai aktif`
+21.328. Lalu ketik satu NIP nyata di form pemakaian BMN: identitas pegawai harus terisi sendiri.
+
+`Failed` aman diulang. Run MySIMKARI yang tidak lengkap (daftar satker gagal atau kosong, roster satu
+satker gagal, satu baris gagal disimpan) berhenti SEBELUM menonaktifkan pegawai mana pun. Run SIMAN yang
+terputus membuang baris barunya sendiri, dan salinan lama kategori itu tetap utuh. Jangan "membereskan"
+hasilnya dengan SQL: baca alasannya di log, perbaiki penyebabnya (token, egress, API), lalu jalankan lagi.
+
 ### 1.8 Verifikasi
 
 ```bash
@@ -220,46 +332,76 @@ Login dengan administrator pertama, ganti sandi, lalu **cabut sandi awalnya dari
 
 ### 1.9 Rehearsal produksi di cluster staging (WAJIB sebelum 1.7)
 
-Staging memakai profil lain (1 replika, mTLS PERMISSIVE, fixture). Tiga hal hanya terbukti bila
-profil PRODUKSI dijalankan sungguhan: HA + PDB + HPA + kuota + NetworkPolicy, Job bootstrap (akun seed
-mati, administrator pertama bisa login), dan mTLS gRPC pada replika produksi. Rute sudah dijaga
-`check-route-parity.py`; gateway/TLS DigiCert tak bisa dilatih di sini (butuh sertifikat asli).
+Staging memakai profil lain (1 replika, mTLS PERMISSIVE, fixture, cron di-suspend). Yang hanya terbukti
+bila profil PRODUKSI dijalankan sungguhan: HA + PDB + HPA + kuota + NetworkPolicy, Job bootstrap (akun seed
+mati, administrator pertama bisa login), mTLS gRPC STRICT pada replika produksi, dan CronJob integrasi.
+Bukti nilainya: rehearsal + pemindaian log 2026-11-09/10 menemukan 10 cacat (rc41 → rc45) yang e2e 218/218 di staging tidak
+lihat. Gateway/TLS DigiCert tak bisa dilatih di sini (butuh sertifikat asli).
 
-Pasang `values-production.yaml` ke namespace buangan lewat Helm, rilis `simpel-rehearsal` yang
-DISIMPAN di namespace `default` (rilis tak boleh hidup di namespace yang ia hapus sendiri):
+Pasang `values-production.yaml` ke namespace buangan lewat Helm, rilis `simpel-rehearsal` yang DISIMPAN di
+namespace `default` (rilis tak boleh hidup di namespace yang ia hapus sendiri). Chart-nya dari
+`git archive <tag> infra/helm` (rilis persis yang akan dipromosikan), bukan checkout kerja:
 
 ```bash
-helm upgrade --install simpel-rehearsal infra/helm/simpel \
-  -f infra/helm/simpel/values-production.yaml -f <secrets-tiruan.yaml> \
-  -n default --timeout 20m --set secrets.bootstrap=true \
+helm upgrade --install simpel-rehearsal <chart>/simpel \
+  -f <chart>/simpel/values-production.yaml -f <secrets-tiruan.json> \
+  -n default --timeout 20m --set global.imageTag=<tag> --set secrets.bootstrap=true \
   --set namespace.create=true --set namespace.name=simpel-rehearsal --set namespace.retain=false \
-  --set istio.gateway.enabled=false --set istio.virtualService.enabled=false \
-  --set priorityClass.name=simpelv2-rehearsal-default
+  --set istio.gateway.name=simpelv2-rehearsal-gateway --set 'istio.gateway.hosts={rehearsal.simpel.invalid}' \
+  --set istio.gateway.tls.enabled=false --set istio.gateway.httpsRedirect=false \
+  --set istio.virtualService.name=simpelv2-rehearsal-routes \
+  --set 'istio.virtualService.hosts={rehearsal.simpel.invalid}' \
+  --set priorityClass.name=simpelv2-rehearsal-default --set global.storageClass=longhorn
 ```
 
-- `istio.gateway/virtualService.enabled=false`: Gateway dan VirtualService hidup di `istio-system` dan
-  dipakai bersama — rehearsal TIDAK boleh menyentuhnya (nama `simpelv2-prod-routes` bahkan masih dimiliki
-  relik produksi). Uji lewat `kubectl port-forward`/`exec`, bukan ingress.
+- Gateway/VirtualService TETAP dirender, tetapi dengan nama dan host SENDIRI (`simpelv2-rehearsal-*`,
+  `rehearsal.simpel.invalid`, tanpa TLS): keduanya hidup di `istio-system` dan dipakai bersama, jadi memakai
+  nama produksi (`simpelv2-prod-routes` masih dimiliki relik produksi) akan menimpa milik orang lain.
+  Menonaktifkannya (`enabled=false`) menghapus Gateway dari uji. Uji lewat `kubectl exec`/`port-forward`.
 - `priorityClass.name=…rehearsal…`: PriorityClass bersifat cluster-scoped; nama produksi dibiarkan bebas
   untuk instalasi sungguhan.
+- `global.storageClass=longhorn`: kelas `longhorn-retain` milik produksi MENAHAN volume, jadi uninstall
+  meninggalkan PV yatim. Rehearsal harus bersih tanpa sisa.
 - `namespace.retain=false`: satu-satunya pemakai opsi ini. Tanpa itu `helm uninstall` meninggalkan
   Namespace (anotasi `helm.sh/resource-policy: keep`). CI menolaknya di values-staging/production.
-- `<secrets-tiruan.yaml>` = overlay rahasia staging (turunan `helm get values simpel -n simpelv2-staging`,
-  hanya kunci `secrets`, mode 600, di luar repo, `shred` sesudahnya) + `secrets.authencBootstrapAdmin`
-  berisi NIP dan sandi acak sekali pakai. Jangan pernah memakai token asli.
-- `ghcr-pull` harus ada di `simpel-rehearsal` sebelum image bisa ditarik; namespace-nya baru lahir saat
-  `helm` jalan, jadi salin Secret-nya (tanpa menampilkan isinya) begitu namespace muncul.
+- `<secrets-tiruan.json>` = overlay rahasia staging (`helm get values simpel -n simpelv2-staging -o json | jq
+  '{secrets: (.secrets + {authencBootstrapAdmin: {…}})}'`, mode 600 di `/run/user/<uid>`, di luar repo,
+  `shred -u` sesudahnya) + `secrets.authencBootstrapAdmin` berisi NIP dan sandi ACAK sekali pakai (aturan di
+  §1.4). Jangan pernah memakai token asli. SELALU saring `helm get values` (`jq 'del(.secrets)'`/`keys`):
+  keluaran mentahnya memuat sandi.
+- `ghcr-pull` harus ada di `simpel-rehearsal` sebelum image bisa ditarik, dan salin dari `simpelv2-staging`
+  (namespace yang sungguh menarik image ini), BUKAN dari `arc-runners`: itu kredensial lain yang lebih tua dan
+  ghcr.io menjawab 403 untuk paket-paket ini. Namespace baru lahir saat `helm` jalan, jadi salin begitu muncul
+  (`kubectl create`, tanpa menampilkan isinya), lalu hapus pod yang terjebak `ImagePullBackOff`.
 - Muat: ±4,5 CPU / 9 GiB request. `kubectl describe node` dulu — saat CI penuh, pod menunggu
   (PriorityClass `preemptionPolicy: Never` tidak menggusur runner).
 
-Periksa: semua pod Ready; `kubectl -n simpel-rehearsal get hpa,pdb,resourcequota,networkpolicy`;
-log Job `authenc-bootstrap` (akun seed `admin` dan NIP `199203142014031001` nonaktif, administrator
-pertama dibuat); login administrator pertama berhasil dan login akun seed GAGAL; permintaan nyata yang
-menyeberangi tiap hop gRPC (login → authenc, pencarian pegawai/aset → integrasi) tanpa galat TLS di log.
+**Langkah WAJIB — semuanya, bukan sebagian** (tiap butir pernah menangkap cacat nyata):
 
-Bersihkan, dan buktikan tak ada sisa: `helm uninstall simpel-rehearsal -n default`, lalu pastikan
-`kubectl get ns simpel-rehearsal` dan `kubectl get priorityclass simpelv2-rehearsal-default` sama-sama
-NotFound sebelum memasang produksi.
+1. `helm install` BERSIH (bukan upgrade). Semua pod Ready; `kubectl -n simpel-rehearsal get
+   hpa,pdb,resourcequota,networkpolicy`; hook `db-create` → `integrasi-migrate` → `authenc-migrate` →
+   `authenc-bootstrap` berhasil.
+2. Administrator pertama: log Job `authenc-bootstrap` (akun seed `admin` dan NIP `199203142014031001`
+   nonaktif); login berhasil; sandi awal WAJIB diganti; sandi lama ditolak; login akun seed GAGAL.
+3. Matriks token 3×3: token yang diterbitkan tiap replika authenc diterima tiap replika lain dan tiap
+   konsumen (200); token dirusak → 401.
+4. Hop gRPC pada namespace STRICT: permintaan nyata yang menyeberangi tiap hop (login → authenc;
+   pencarian pegawai/aset → integrasi; authenc → integrasi) tanpa galat TLS di log.
+5. CronJob integrasi dijalankan manual (`kubectl create job --from=cronjob/<nama>`), satu per satu.
+   Terhadap URL `.invalid`: `mysimkari`, `monsakti`, `siman` HARUS berakhir `Failed` (exit non-nol) dan
+   `snapshot-refresh` `Complete`. Job yang `Complete` padahal sinkronisasinya gagal = cacat (rc43/rc44).
+   Setelah tiap Job `Failed`, `kubectl -n simpel-rehearsal logs -l job-name=<job> --prefix` HARUS masih
+   menampilkan alasannya (dua pod: `backoffLimit: 1` = dua percobaan). "No resources found" = cacat
+   (rc47): di produksi pukul 02.00 tak ada yang mengikuti log saat Job berjalan.
+6. Pemindaian log SEMUA pod setelah beban: kelompokkan baris ERROR per pesan (angka dinormalkan, jangan
+   dibuang hitungannya) dan jelaskan tiap kelompok. Periksa juga bahwa pod server `layanan-integrasi` TIDAK
+   mencetak `scheduled data fetch` sepanjang ≥ 2 kelipatan 15 menit (daemon scheduler dalam-proses harus
+   mati; CronJob satu-satunya penjadwal — cacat rc44).
+7. Bersihkan, dan buktikan tak ada sisa: `helm uninstall simpel-rehearsal -n default`, lalu pastikan
+   `kubectl get ns simpel-rehearsal`, `kubectl get priorityclass simpelv2-rehearsal-default`,
+   `kubectl -n istio-system get gateway simpelv2-rehearsal-gateway`, `… virtualservice
+   simpelv2-rehearsal-routes` sama-sama NotFound, dan tak ada PV yatim (`kubectl get pv | grep
+   simpel-rehearsal`). Lalu `shred -u` berkas overlay dan sandi administrator rehearsal.
 
 ---
 
@@ -320,13 +462,33 @@ kubectl -n simpelv2-staging logs \
   -l job-name=manual-mysimkari-XXXXX --tail=200
 ```
 
-Verifikasi data masuk DB:
+Bila Job **gagal**, `wait --for=condition=complete` hanya akan habis waktu — periksa `kubectl -n
+simpelv2-staging get job manual-mysimkari-XXXXX`. Pod-nya TETAP ADA (fase `Error`, satu pod per
+percobaan) dan perintah `logs` di atas tetap menjawab; itulah satu-satunya catatan alasan kegagalan,
+karena sinkronisasi yang gagal belum menulis apa pun ke `integrasi.sync_status`/`api_log`. Hapus Job
+manual itu sendiri setelah dibaca (`kubectl delete job`).
+
+Verifikasi data masuk DB: hitung baris di tabel yang dibaca perlengkapan (`shared/pegawai_ref.rs`
+membaca `mysimkari_pegawai`/`mysimkari_satker`; bank aset dan pemilihan aset membaca `siman_aset`).
 
 ```bash
-kubectl -n simpelv2-staging exec postgres-0 -- \
-  psql -U postgres -d integrasi -c \
-  "SELECT module, endpoint, last_success_at, row_count FROM v_recent_successful_calls ORDER BY last_success_at DESC LIMIT 5;"
+kubectl -n simpelv2-staging exec -i postgres-0 -c postgres -- sh -c 'psql -U "$POSTGRES_USER" -d dbsimpelv2' <<'SQL'
+SELECT 'mysimkari_satker' AS tabel, count(*) AS baris, max(updated_at) AS terakhir FROM integrasi.mysimkari_satker
+UNION ALL
+SELECT 'mysimkari_pegawai ' || coalesce(status_pegawai, '(null)'), count(*), max(updated_at)
+  FROM integrasi.mysimkari_pegawai GROUP BY status_pegawai
+UNION ALL
+SELECT 'siman_aset ' || coalesce(jenis_aset, '(null)'), count(*), max(synced_at)
+  FROM integrasi.siman_aset GROUP BY jenis_aset
+ORDER BY 1;
+SQL
 ```
+
+Perintah yang dulu tertulis di sini (`psql -U postgres -d integrasi … v_recent_successful_calls`) tak
+pernah bisa jalan: di chart ini tidak ada database `integrasi` (skema `integrasi` ada di `dbsimpelv2`),
+tidak ada role `postgres`, dan view itu tidak didefinisikan di mana pun. Exit code Job juga bukan bukti:
+sampai #1092, CronJob MySIMKARI berakhir `Complete` sambil mengisi tabel `mysimkari_*_satker`/`*_pegawai`
+yang tak dibaca siapa pun.
 
 ---
 
@@ -391,6 +553,26 @@ Multi-step (butuh koordinasi):
 3. Rolling restart consumer service: `kubectl rollout restart deploy/<service>`.
 
 ---
+
+### 5.y Kunci JWT authenc (`authenc-jwt`)
+
+authenc menandatangani dan memverifikasi token dengan SATU kunci dari Secret `authenc-jwt` (key `JWT_SECRET`,
+64 hex; `templates/secrets/authenc-jwt.yaml`). `helm upgrade` biasa memakai ulang Secret yang ada, jadi sesi
+bertahan melewati rilis dan restart. Secret ini ber-`resource-policy: keep`: rollback dan uninstall tidak
+menghapusnya. Masukkan ke cakupan backup Velero namespace.
+
+```bash
+# Rotasi (semua sesi aktif berakhir; pengguna login ulang). Pilih satu:
+#  a) biarkan chart menerbitkan yang baru:
+kubectl -n simpelv2-<env> delete secret authenc-jwt && helm upgrade simpel ...   # perintah §1.7 / §2
+#  b) tetapkan sendiri: isi secrets.authencJwtSecret di berkas values-secrets, lalu helm upgrade.
+kubectl -n simpelv2-<env> rollout restart deploy/authenc    # kunci dibaca saat start
+```
+
+Gejala kunci yang TIDAK dibagi: `Token validation failed` / HTTP 401 yang muncul-hilang pada token yang baru
+diterbitkan, hanya saat authenc punya >1 replika; log authenc memuat `Signature verification failed`. Periksa
+`kubectl logs deploy/authenc | grep -c 'JWT_SECRET not set'` — harus 0 (authenc kini menolak start tanpa kunci
+di staging/produksi, tetapi cek ini menangkap lingkungan lain).
 
 ### 5.x Rotasi PKI gRPC (mTLS antar-layanan)
 
@@ -649,8 +831,14 @@ Common causes:
 
 ```bash
 helm history simpel -n simpelv2-<env>
-helm get values simpel -n simpelv2-<env>
+# JANGAN `helm get values` mentah: keluarannya memuat seluruh `secrets.*` (sandi, token).
+helm get values simpel -n simpelv2-<env> -o json | jq 'del(.secrets)'
 helm get manifest simpel -n simpelv2-<env> | head -100
+# Hook yang gagal (db-create, integrasi-migrate, authenc-migrate, authenc-bootstrap): Job dan pod-nya
+# disimpan 24 jam, jadi alasannya masih terbaca setelah `helm` keluar. Baca SEBELUM mengulang
+# `helm upgrade`: percobaan berikutnya menghapus Job hook yang lama (`before-hook-creation`).
+kubectl -n simpelv2-<env> get jobs
+kubectl -n simpelv2-<env> logs -l job-name=simpel-authenc-migrate --prefix --tail=200
 ```
 
 Jika `--atomic` rollback otomatis: cek `kubectl events` untuk root cause.

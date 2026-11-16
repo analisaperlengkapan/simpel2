@@ -84,10 +84,14 @@ Reloader for simpelv1 secret rotation. See `infra/AGENTS.md` "Bootstrap".
    - `kubectl create ns simpelv2-<env>` + labels `istio-injection=enabled`,
      `pod-security.kubernetes.io/{enforce=privileged,audit=baseline,warn=baseline}`
      (then install with `--set namespace.create=false`), and
-   - `ghcr-pull` image-pull Secret — copy from ns `arc-runners`
-     (`kubectl get secret ghcr-pull -n arc-runners -o json | jq 'del(.metadata.namespace,
+   - `ghcr-pull` image-pull Secret. Production: create it from the `read:packages` PAT
+     (RUNBOOK §1.2). A throwaway/staging-like namespace: copy it from `simpelv2-staging`, the
+     namespace that actually pulls these images (never print the value):
+     `kubectl get secret ghcr-pull -n simpelv2-staging -o json | jq 'del(.metadata.namespace,
      .metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.ownerReferences,
-     .metadata.managedFields)' | kubectl apply -n simpelv2-<env> -f -`).
+     .metadata.managedFields,.metadata.annotations)' | kubectl create -n simpelv2-<env> -f -`.
+     Do NOT copy it from `arc-runners`: that is an older, different credential and ghcr.io
+     answers 403 for these packages (rehearsal 2026-11-09: every pod `ImagePullBackOff`).
 3. **Secrets:** install with `--set secrets.bootstrap=true -f values-secrets.yaml`
    (gitignored, OUTSIDE the repo tree). Staging = fresh-generated postgres/simpelv1 +
    **MOCK** integration (`.invalid` URLs, sync off — real gov-API tokens are prod-only,

@@ -6,8 +6,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::db_handle::DbHandle;
 use tokio::sync::RwLock;
-use tokio_postgres::Client;
 use tonic::{Request, Response, Status};
 use tracing::{debug, error, info, warn};
 
@@ -47,7 +47,7 @@ const FOTO_MAX_BYTES: u64 = 8 * 1024 * 1024;
 /// Shared state for the gRPC service
 #[derive(Clone)]
 pub struct ServiceState {
-    pub db_client: Arc<Client>,
+    pub db_client: Arc<DbHandle>,
     pub sync_status: Arc<RwLock<HashMap<DataSource, SyncStatus>>>,
     /// One client, not one per request: `reqwest::Client` owns the connection
     /// pool, and building a new one per call means a fresh TLS handshake to
@@ -83,7 +83,7 @@ pub struct IntegrasiServiceImpl {
 
 impl IntegrasiServiceImpl {
     /// Create a new IntegrasiServiceImpl with database connection
-    pub fn new(db_client: Arc<Client>) -> Self {
+    pub fn new(db_client: Arc<DbHandle>) -> Self {
         let mut sync_status = HashMap::new();
         sync_status.insert(DataSource::Monsakti, SyncStatus::default());
         sync_status.insert(DataSource::Mysimkari, SyncStatus::default());
