@@ -92,6 +92,12 @@ the returned getter into `loginViaSameOriginUi(page, user, getCaptchaAnswer)`.
 
 ## CI
 
+Which of these jobs run on a pull request is decided by what the diff can affect, not
+by file extension: see "CI scoping" in `.github/WORKFLOWS.md`. A change to the portal
+runs the suites that use the portal image; a change to `layanan/secreton` runs the two
+that use Secreton; `lib/core` runs all of them; a docs-only change runs none. The
+nightly run and `workflow_dispatch` always run every suite.
+
 | Job | Blocking? | Stack |
 |---|---|---|
 | `e2e-portal` | **yes** (`ci-summary.needs`) | portal + authenc |

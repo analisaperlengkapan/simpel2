@@ -9,6 +9,11 @@ on:
   # The PR then read `mergeStateStatus: CLEAN` with zero jobs having run.
   # Enforced by infra/scripts/check-pr-workflows-run-on-every-pr.py.
   pull_request:
+  # Nightly FULL run (03:00 WIB). Pull requests and pushes run only the jobs a
+  # change can affect (infra/scripts/ci-scope.py); this is the safety net behind
+  # a classification mistake — everything runs, whatever changed.
+  schedule:
+    - cron: "0 20 * * *"
   workflow_dispatch:
     inputs:
       run_e2e:
@@ -91,10 +96,49 @@ jobs:
       workflows: ${{ steps.changes.outputs.workflows }}
       helm: ${{ steps.changes.outputs.helm }}
       e2e: ${{ steps.changes.outputs.e2e }}
+      # What a change can affect, derived by infra/scripts/ci-scope.py. The Rust
+      # and e2e jobs below read these instead of "did any Rust file change".
+      scope: ${{ steps.scope.outputs.scope }}
+      units: ${{ steps.scope.outputs.units }}
+      clippy-matrix: ${{ steps.scope.outputs.clippy-matrix }}
+      clippy-any: ${{ steps.scope.outputs.clippy-any }}
+      test-matrix: ${{ steps.scope.outputs.test-matrix }}
+      test-any: ${{ steps.scope.outputs.test-any }}
+      build-backend-matrix: ${{ steps.scope.outputs.build-backend-matrix }}
+      build-backend-any: ${{ steps.scope.outputs.build-backend-any }}
+      e2e-jobs: ${{ steps.scope.outputs.e2e-jobs }}
+      e2e-images: ${{ steps.scope.outputs.e2e-images }}
+      e2e-services: ${{ steps.scope.outputs.e2e-services }}
     steps:
       - uses: actions/checkout@v7
       - id: changes
         uses: ./.github/actions/detect-changes
+      # Which crates and e2e suites can this change affect? Derived from the
+      # crates' own dependency graph, not from folder names: see the header of
+      # infra/scripts/ci-scope.py. Anything it cannot classify runs everything.
+      - id: scope
+        name: Scope the Rust and e2e jobs to the change
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT" == "schedule" || "$EVENT" == "workflow_dispatch" ]]; then
+            python3 infra/scripts/ci-scope.py --full --reason "$EVENT run" --github-output
+            exit 0
+          fi
+          # Through a file, not an env var: a big PR's file list exceeds the
+          # per-variable limit (128 KiB) and the step would die with E2BIG.
+          cat > "$RUNNER_TEMP/changed-files.json" <<'CHANGED_FILES_JSON'
+          ${{ steps.changes.outputs.all-files }}
+          CHANGED_FILES_JSON
+          # No list at all means the diff could not be computed, not that nothing
+          # changed — and "nothing" must never be the answer to "I don't know".
+          if ! grep -q '[^][[:space:]]' "$RUNNER_TEMP/changed-files.json"; then
+            python3 infra/scripts/ci-scope.py --full --reason "no changed-file list" --github-output
+            exit 0
+          fi
+          python3 infra/scripts/ci-scope.py --changed-files "$RUNNER_TEMP/changed-files.json" --github-output
 
   # ─────────────────────────────────────────────────────
   # Phase 1 — Enforcement (cepat, selalu jalan)
@@ -214,6 +258,20 @@ jobs:
       - name: Every workspace crate is covered by a CI cargo job
         shell: bash
         run: python3 ./infra/scripts/check-crate-ci-coverage.py
+      # Pull requests run only the Rust units and e2e suites a change can affect
+      # (infra/scripts/ci-scope.py, derived from the crates' own dependency
+      # graph). The two steps below keep that honest: the guard fails when a job
+      # is not wired to the decision (it would run on every PR again) or when
+      # .github/ci-scope.json no longer matches the workspace; the tests prove
+      # the derivation itself — each rule on a synthetic workspace, plus the
+      # properties nobody should lose on the real one (docs-only runs nothing, a
+      # lockfile change runs everything, a portal change leaves the backends out).
+      - name: CI scoping is wired to every scoped job and matches the workspace
+        shell: bash
+        run: python3 ./infra/scripts/check-ci-scope.py
+      - name: CI scoping derives what a change can affect
+        shell: bash
+        run: python3 ./infra/scripts/test_ci_scope.py
       # ```ignore is the hole in the doctest gate #115 built: rustdoc never
       # compiles those fences, so they keep documenting types that were renamed
       # or deleted. Demonstrated, not assumed — reintroducing
@@ -559,62 +617,18 @@ jobs:
   clippy-rust:
     name: Lint Rust Clippy (${{ matrix.name }})
     needs: detect
-    if: needs.detect.outputs.rust-any == 'true'
+    # Only the units the change can affect (a crate and everything that depends
+    # on it). The matrix itself is data in .github/ci-scope.json — which crates
+    # form a unit, and the lint surface for each (backend crates: the full
+    # graph; the wasm CSR frontends: only the shipped target, because
+    # --all-targets would compile their test targets for wasm32 and
+    # --all-features would turn on server-side features that are never shipped).
+    if: needs.detect.outputs.clippy-any == 'true'
     runs-on: arc-simpel
     timeout-minutes: 120
     strategy:
       fail-fast: false
-      matrix:
-        # `scope` controls the lint surface per crate. Backend crates lint the
-        # full graph (`--all-targets --all-features`). The wasm CSR frontends
-        # lint only the shipped target (`--lib --bins`, default = csr feature):
-        # `--all-targets` would compile their test/dev targets for wasm32 (which
-        # pull native tokio → `mio`, doesn't build on wasm), and `--all-features`
-        # would turn on server-side features (ssr/hydrate) that are never shipped.
-        include:
-          - name: lib-core
-            packages: "-p lib-core"
-            scope: "--all-targets --all-features"
-          - name: lib-backend
-            packages: "-p lib-backend"
-            scope: "--all-targets --all-features"
-          - name: lib-crypto
-            packages: "-p lib-crypto"
-            scope: "--all-targets --all-features"
-          - name: lib-perlengkapan
-            packages: "-p lib-perlengkapan"
-            scope: "--all-targets --all-features"
-          - name: lib-ui
-            packages: "-p lib-ui"
-            scope: "--all-targets --all-features"
-          - name: antarmuka-portal
-            packages: "-p portal-microfrontend"
-            targets: "wasm32-unknown-unknown"
-            extra_args: "--target wasm32-unknown-unknown"
-            scope: "--lib --bins"
-          - name: antarmuka-perlengkapan
-            packages: "-p perlengkapan-microfrontend"
-            targets: "wasm32-unknown-unknown"
-            extra_args: "--target wasm32-unknown-unknown"
-            scope: "--lib --bins"
-          - name: layanan-authenc
-            packages: "-p authenc-types -p authenc-core -p authenc-crypto -p authenc-storage -p authenc-api -p authenc-iam-api -p authenc-grpc -p authenc-mfa -p authenc-federation -p authenc-webauthn"
-            scope: "--all-targets --all-features"
-          - name: layanan-perlengkapan
-            packages: "-p layanan-perlengkapan"
-            scope: "--all-targets --all-features"
-          - name: layanan-integrasi
-            packages: "-p layanan-integrasi"
-            scope: "--all-targets --all-features"
-          # secreton-auto-unseal and secreton-k8s-operator were absent from this
-          # list AND from the test matrix, so 7.4k lines were never linted or
-          # tested on any PR — a break only surfaced at release time, when
-          # release.yml's `cargo build --workspace` finally compiled them.
-          # `check-crate-ci-coverage.py` (Enforce Repo Invariants job) now fails
-          # if a workspace member is missing from either matrix. (#125)
-          - name: layanan-secreton
-            packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication -p secreton-auto-unseal -p secreton-k8s-operator"
-            scope: "--all-targets --all-features"
+      matrix: ${{ fromJson(needs.detect.outputs.clippy-matrix) }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -923,7 +937,7 @@ jobs:
     # Builds don't require lint to pass — run them in parallel with lint-rust
     # (whose clippy step is slow and now non-blocking) instead of after it.
     needs: detect
-    if: needs.detect.outputs.rust-frontend == 'true'
+    if: contains(fromJson(needs.detect.outputs.units), 'antarmuka-portal')
     runs-on: arc-simpel
     timeout-minutes: 120
     steps:
@@ -965,7 +979,7 @@ jobs:
     # Builds don't require lint to pass — run them in parallel with lint-rust
     # (whose clippy step is slow and now non-blocking) instead of after it.
     needs: detect
-    if: needs.detect.outputs.rust-frontend == 'true'
+    if: contains(fromJson(needs.detect.outputs.units), 'antarmuka-perlengkapan')
     runs-on: arc-simpel
     timeout-minutes: 120
     steps:
@@ -1000,28 +1014,14 @@ jobs:
     # Builds don't require lint to pass — run them in parallel with lint-rust
     # (whose clippy step is slow and now non-blocking) instead of after it.
     needs: detect
-    if: needs.detect.outputs.rust-backend == 'true'
+    if: needs.detect.outputs.build-backend-any == 'true'
     runs-on: arc-simpel
     timeout-minutes: 120
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: layanan-authenc
-            # The `authenc` package (layanan/authenc) is legacy/out-of-workspace;
-            # the deployable binary `authenc` lives in the `authenc-api` crate.
-            package: authenc-api
-          - name: layanan-perlengkapan
-            package: layanan-perlengkapan
-          - name: layanan-integrasi
-            package: layanan-integrasi
-          - name: layanan-secreton
-            # The top-level `secreton` package is target-less (no lib/bin — only
-            # tests/examples/benches), so `cargo build -p secreton` compiled
-            # NOTHING (false green, ~5min download-only). The deployable binary
-            # is `secreton-api::api_server` — mirror layanan/secreton/Dockerfile.
-            package: secreton-api
-            extra_args: "--bin api_server --features raft-consensus"
+      # Data in .github/ci-scope.json (matrices.build-backend), filtered to the
+      # units the change can affect.
+      matrix: ${{ fromJson(needs.detect.outputs.build-backend-matrix) }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -1057,6 +1057,7 @@ jobs:
     # only one of them would skip the one build that exists to catch it.
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
       github.ref == 'refs/heads/main' ||
       github.ref == 'refs/heads/staging'
     runs-on: arc-simpel
@@ -1101,6 +1102,7 @@ jobs:
   test-lib-core:
     name: Test Rust (lib-core)
     needs: detect
+    if: contains(fromJson(needs.detect.outputs.units), 'lib-core')
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
@@ -1136,6 +1138,7 @@ jobs:
   test-lib-backend:
     name: Test Rust (lib-backend)
     needs: detect
+    if: contains(fromJson(needs.detect.outputs.units), 'lib-backend')
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
@@ -1169,6 +1172,7 @@ jobs:
   test-lib-crypto:
     name: Test Rust (lib-crypto)
     needs: detect
+    if: contains(fromJson(needs.detect.outputs.units), 'lib-crypto')
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
@@ -1197,6 +1201,7 @@ jobs:
   test-lib-perlengkapan:
     name: Test Rust (lib-perlengkapan)
     needs: detect
+    if: contains(fromJson(needs.detect.outputs.units), 'lib-perlengkapan')
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
@@ -1225,6 +1230,7 @@ jobs:
   test-lib-ui:
     name: Test Rust (lib-ui)
     needs: detect
+    if: contains(fromJson(needs.detect.outputs.units), 'lib-ui')
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
@@ -1273,6 +1279,7 @@ jobs:
   test-antarmuka-portal:
     name: Test Rust (antarmuka-portal)
     needs: detect
+    if: contains(fromJson(needs.detect.outputs.units), 'antarmuka-portal')
     runs-on: arc-simpel
     # Measured 21m end-to-end with the host doctest pass (6.5m wasm check +
     # 12.7m doctest compile); 45 leaves room for a cold cache and node
@@ -1329,6 +1336,7 @@ jobs:
   test-antarmuka-perlengkapan:
     name: Test Rust (antarmuka-perlengkapan)
     needs: detect
+    if: contains(fromJson(needs.detect.outputs.units), 'antarmuka-perlengkapan')
     runs-on: arc-simpel
     # wasm32 check + a host compile for the crate's own tests. The host pass
     # is what #115 removed for doctests (it ran zero of them); it is back for
@@ -1377,55 +1385,20 @@ jobs:
   test-services:
     name: Test Rust (${{ matrix.tier }})
     needs: detect
+    if: needs.detect.outputs.test-any == 'true'
     runs-on: arc-simpel
     timeout-minutes: 120
     strategy:
       fail-fast: false
-      # No max-parallel cap: the 4 tiers are independent and ARC (maxRunners=20)
+      # No max-parallel cap: the tiers are independent and ARC (maxRunners=20)
       # is the natural ceiling. Capping at 2 needlessly serialized the heaviest
       # phase of CI.
-      matrix:
-        include:
-          # `-p authenc` di-skip — package `authenc` legacy di
-          # `layanan/authenc/Cargo.toml` di-commented dari workspace
-          # members (lihat root Cargo.toml). Yang ada hanya sub-crates.
-          - tier: layanan-authenc
-            packages: "-p authenc-types -p authenc-core -p authenc-crypto -p authenc-storage -p authenc-api -p authenc-iam-api -p authenc-grpc -p authenc-mfa -p authenc-federation -p authenc-webauthn"
-            test_args: ""
-          - tier: layanan-perlengkapan
-            packages: "-p layanan-perlengkapan"
-            # The `integration::` DB suite is a HARD gate: the "Start Postgres"
-            # step below stands up a dind Postgres and fails the job if it can't
-            # be reached, then exports TEST_ARGS="" so the suite runs. This
-            # matrix value is only a fallback for the (now-unreachable) case
-            # where the step is skipped; kept empty so nothing is silently
-            # filtered out.
-            test_args: ""
-          - tier: layanan-integrasi
-            packages: "-p layanan-integrasi"
-            # The whole gRPC server (and its tests, including the production mTLS
-            # gate) sits behind `#[cfg(feature = "grpc")]`. Without the feature it
-            # compiles to nothing and every one of those tests is silently absent
-            # from the run — green for the same reason an empty suite is green.
-            test_args: "--features grpc"
-          # secreton-auto-unseal / secreton-k8s-operator added here and to the
-          # clippy matrix — they were in neither, so 7.4k lines (including a
-          # ~700-line integration suite) had never been executed by any gate.
-          # See #125 and the guard in the Enforce Repo Invariants job.
-          - tier: layanan-secreton
-            packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication -p secreton-auto-unseal -p secreton-k8s-operator"
-            # Heaviest tier (13 crates, PG property tests). Test binaries
-            # default --test-threads to ncpus (dozens on the ARC host class),
-            # which resource-kills the runner with no assertion output — the
-            # job dies identically on main and PRs (e.g. run 28557595484).
-            # Cap intra-binary test parallelism as mitigation.
-            # target_args: secreton has criterion benches (harness = false);
-            # under --all-targets `cargo test` executes those bench binaries
-            # too, and they reject the forwarded `--test-threads` (run
-            # 28566784769). Restrict to lib/bins/tests so benches build in CI
-            # via clippy --all-targets but only run under `cargo bench`.
-            target_args: "--lib --bins --tests"
-            test_args: "-- --test-threads=4"
+      #
+      # The tiers (crates, test_args, target_args) are data in
+      # .github/ci-scope.json (matrices.test-services), filtered to the units the
+      # change can affect; the reasons behind each tier's flags are recorded
+      # there next to them.
+      matrix: ${{ fromJson(needs.detect.outputs.test-matrix) }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -1556,9 +1529,7 @@ jobs:
           (vars.E2E_PORTAL_ENABLED == 'true' ||
            vars.E2E_PERLENGKAPAN_ENABLED == 'true' ||
            vars.E2E_INTEGRATION_ENABLED == 'true') &&
-          (needs.detect.outputs.rust-frontend == 'true' ||
-           needs.detect.outputs.rust-backend == 'true' ||
-           needs.detect.outputs.e2e == 'true')
+          needs.detect.outputs.e2e-jobs != '[]'
         )
       )
     runs-on: arc-simpel
@@ -1578,9 +1549,12 @@ jobs:
           # Remove the builder + its buildkit container at job end (they leaked
           # by the hundred on the shared host before; see the docker-build action).
           cleanup: true
-      - name: Build every e2e image once
+      - name: Build the e2e images the selected suites need
         env:
           POSTGRES_PASSWORD: e2e_test_pw
+          # Build only what the suites that will run actually consume (derived by
+          # infra/scripts/ci-scope.py from each suite's own `docker pull` loop).
+          E2E_SERVICES: ${{ needs.detect.outputs.e2e-services }}
           # Only main writes the cache, and only when something it is keyed on
           # may have changed. See infra/scripts/ci-build-e2e-images.sh.
           E2E_CACHE_WRITE: >-
@@ -1598,11 +1572,13 @@ jobs:
             exit 1
           fi
       - name: Push to in-cluster registry
+        env:
+          E2E_IMAGES: ${{ needs.detect.outputs.e2e-images }}
         run: |
           set -euo pipefail
-          for img in simpel2-authenc simpel2-secreton \
-                     simpel2-integrasi simpel2-layanan-perlengkapan \
-                     simpel2-perlengkapan simpel2-portal; do
+          # Only the images that were built: tagging one that was not would push
+          # whatever stale `:local` the runner's daemon happens to hold.
+          for img in ${E2E_IMAGES}; do
             docker tag "${img}:local" "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}"
             docker push "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}"
           done
@@ -1624,9 +1600,7 @@ jobs:
       (
         github.event.inputs.run_e2e == 'true' ||
         (vars.E2E_PORTAL_ENABLED == 'true' &&
-         (needs.detect.outputs.rust-frontend == 'true' ||
-          needs.detect.outputs.rust-backend == 'true' ||
-          needs.detect.outputs.e2e == 'true'))
+         contains(fromJson(needs.detect.outputs.e2e-jobs), 'e2e-portal'))
       ) &&
       needs.build-antarmuka-portal.result != 'failure' &&
       needs.build-backend.result != 'failure' &&
@@ -1766,9 +1740,7 @@ jobs:
       (
         github.event.inputs.run_e2e == 'true' ||
         (vars.E2E_PERLENGKAPAN_ENABLED == 'true' &&
-         (needs.detect.outputs.rust-frontend == 'true' ||
-          needs.detect.outputs.rust-backend == 'true' ||
-          needs.detect.outputs.e2e == 'true'))
+         contains(fromJson(needs.detect.outputs.e2e-jobs), 'e2e-perlengkapan'))
       ) &&
       needs.build-antarmuka-perlengkapan.result != 'failure' &&
       needs.build-backend.result != 'failure' &&
@@ -2125,9 +2097,7 @@ jobs:
       (
         github.event.inputs.run_e2e == 'true' ||
         (vars.E2E_INTEGRATION_ENABLED == 'true' &&
-         (needs.detect.outputs.rust-frontend == 'true' ||
-          needs.detect.outputs.rust-backend == 'true' ||
-          needs.detect.outputs.e2e == 'true'))
+         contains(fromJson(needs.detect.outputs.e2e-jobs), 'e2e-portal-cross-app'))
       ) &&
       needs.build-antarmuka-portal.result != 'failure' &&
       needs.build-antarmuka-perlengkapan.result != 'failure' &&
@@ -2243,8 +2213,7 @@ jobs:
       (
         github.event.inputs.run_e2e == 'true' ||
         (vars.E2E_INTEGRATION_ENABLED == 'true' &&
-         (needs.detect.outputs.rust-backend == 'true' ||
-          needs.detect.outputs.e2e == 'true'))
+         contains(fromJson(needs.detect.outputs.e2e-jobs), 'e2e-integrasi-authenc'))
       ) &&
       needs.build-backend.result != 'failure' &&
       needs.e2e-build-images.result == 'success'
@@ -2376,8 +2345,7 @@ jobs:
       (
         github.event.inputs.run_e2e == 'true' ||
         (vars.E2E_INTEGRATION_ENABLED == 'true' &&
-         (needs.detect.outputs.rust-backend == 'true' ||
-          needs.detect.outputs.e2e == 'true'))
+         contains(fromJson(needs.detect.outputs.e2e-jobs), 'e2e-secreton-bootstrap'))
       ) &&
       needs.build-backend.result != 'failure' &&
       needs.e2e-build-images.result == 'success'

@@ -53,6 +53,9 @@ outputs:
   docs:
     description: 'true jika hanya dokumentasi berubah'
     value: ${{ steps.filter.outputs.docs }}
+  all-files:
+    description: 'JSON array of EVERY changed path (input to infra/scripts/ci-scope.py)'
+    value: ${{ steps.filter.outputs.all_files }}
   image-portal:
     description: 'true jika image portal harus di-rebuild'
     value: ${{ steps.filter.outputs.image-portal }}
@@ -137,6 +140,9 @@ runs:
           workflows:
             - '.github/workflows/**'
             - '.github/actions/**'
+            # The data that decides which jobs run: dropping a unit from a matrix here
+            # must run the guards that notice (enforce-versioning), not only be accepted.
+            - '.github/ci-scope.json'
           helm:
             - 'infra/helm/**'
           # Changes that should re-run the Playwright e2e stack even without a
@@ -163,6 +169,10 @@ runs:
           docs:
             - '**/*.md'
             - 'docs/**'
+          # Every changed path, for infra/scripts/ci-scope.py (`list-files: json`
+          # publishes it as the `all_files` output).
+          all:
+            - '**'
           image-portal:
             - 'antarmuka/portal/**'
             - 'lib/ui/**'
