@@ -1,0 +1,13 @@
+# BuildKit config for every CI image build on the ARC runners.
+#
+# The in-cluster registry (microk8s container-registry addon) speaks plain HTTP.
+# `docker push` from the runner's dind works because the DAEMON trusts it, but a
+# docker-container buildx builder has its own buildkitd that knows nothing about
+# the daemon's settings — without this block every registry cache import/export
+# fails with "http: server gave HTTP response to HTTPS client".
+#
+# Address by NODE IP, not a cluster DNS name: ARC runner pods run with
+# dnsPolicy None + public resolvers, so cluster DNS names do not resolve.
+[registry."172.15.10.252:32000"]
+  http = true
+  insecure = true
