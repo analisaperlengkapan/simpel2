@@ -211,12 +211,48 @@ runs:
         tar -xzf "$dest/sccache.tgz" -C "$dest" --strip-components=1 "${archive}/sccache"
         chmod +x "$dest/sccache"
 
+        # cargo calls THIS, not sccache: sccache is an accelerator, never a gate.
+        # sccache 0.10.0 refuses to start its server when the store fails its startup
+        # check, and SCCACHE_IGNORE_SERVER_IO_ERROR only covers errors after startup,
+        # so a cache that went away between the probe above and cargo's next rustc call
+        # (a Helm upgrade of the cache pod, a node restart) would fail the whole job
+        # (measured: `cargo build` exits 101). The wrapper decides BEFORE the compile,
+        # so a real compiler error is still the compiler's own exit code.
+        cat > "$dest/sccache-or-rustc" <<'WRAPPER'
+        #!/usr/bin/env bash
+        # usage (set by cargo): sccache-or-rustc <rustc> <args...>
+        #   a server already answers  -> sccache (it survives its store dying later)
+        #   else it can be started    -> sccache
+        #   else                      -> the compiler directly, uncached
+        sccache="$(dirname "$0")/sccache"
+        port="${SCCACHE_SERVER_PORT:-4226}"
+        if (exec 3<>"/dev/tcp/127.0.0.1/${port}") 2>/dev/null || "$sccache" --start-server >/dev/null 2>&1; then
+          exec "$sccache" "$@"
+        fi
+        exec "$@"
+        WRAPPER
+        chmod +x "$dest/sccache-or-rustc"
+
+        export SCCACHE_WEBDAV_ENDPOINT="${CACHE_ENDPOINT}" SCCACHE_WEBDAV_KEY_PREFIX=ci \
+               SCCACHE_IGNORE_SERVER_IO_ERROR=1 SCCACHE_IDLE_TIMEOUT=0
+        # Start the server now. Its startup check is the real test of "can this job
+        # use the cache": the probe above only proves something answers PROPFIND.
+        # SCCACHE_IDLE_TIMEOUT=0 keeps it for the whole job (default: exits after 10
+        # idle minutes, and a restart while the cache is down would fall back to an
+        # uncached compile instead of using it).
+        if ! "$dest/sccache" --start-server >/dev/null 2>"$dest/start.err"; then
+          echo "::warning::sccache could not start against ${CACHE_ENDPOINT}; building without the cache ($(head -c 200 "$dest/start.err" | tr '\n' ' '))"
+          exit 0
+        fi
+
         {
-          echo "RUSTC_WRAPPER=$dest/sccache"
+          echo "RUSTC_WRAPPER=$dest/sccache-or-rustc"
+          echo "SCCACHE_BIN=$dest/sccache"
           echo "SCCACHE_WEBDAV_ENDPOINT=${CACHE_ENDPOINT}"
           echo "SCCACHE_WEBDAV_KEY_PREFIX=ci"
           # A cache that errors mid-job must degrade to a slower build, not a failed one.
           echo "SCCACHE_IGNORE_SERVER_IO_ERROR=1"
+          echo "SCCACHE_IDLE_TIMEOUT=0"
           # sccache cannot cache incremental compilations.
           echo "CARGO_INCREMENTAL=0"
         } >> "$GITHUB_ENV"

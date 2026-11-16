@@ -11,11 +11,12 @@ runs:
     - name: sccache statistics
       shell: bash
       run: |
-        if [ -z "${RUSTC_WRAPPER:-}" ] || [ ! -x "${RUSTC_WRAPPER}" ]; then
+        # SCCACHE_BIN is the sccache binary; RUSTC_WRAPPER is the wrapper cargo calls.
+        if [ -z "${SCCACHE_BIN:-}" ] || [ ! -x "${SCCACHE_BIN}" ]; then
           echo "compile cache not enabled in this job"
           exit 0
         fi
-        stats="$("${RUSTC_WRAPPER}" --show-stats 2>&1 || true)"
+        stats="$("${SCCACHE_BIN}" --show-stats 2>&1 || true)"
         echo "$stats"
         {
           echo "### sccache"
