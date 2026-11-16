@@ -58,6 +58,40 @@ Updates are grouped (related crates together, every other minor/patch crate in o
 as everyone else's work. Security updates ignore the schedule. The crypto crates
 stay out of the catch-all group so a minor bump there is always reviewed by a person.
 
+## CI scoping: only what the change can affect
+
+A pull request (and a push to `main`) runs the Rust units and e2e suites its diff can
+affect, and nothing else. The decision is made once, in the `detect` job, by
+`infra/scripts/ci-scope.py`:
+
+- **The crate graph is derived**, from the workspace's own `Cargo.toml` files (normal,
+  dev, build and target-specific dependencies). A change to a crate affects it and
+  everything that depends on it, transitively: `lib/core` reaches nearly everything;
+  `antarmuka/portal` reaches only the portal; `layanan/integrasi` reaches itself and
+  `layanan/perlengkapan`, because that crate imports it.
+- **`.github/ci-scope.json`** says which crates form a *unit* (the granularity of the
+  clippy/test/build jobs), holds those matrices as data, and classifies paths that are
+  not inside a crate: `everything` (lockfile, toolchain, `ci.yml`), `e2e_only`
+  (compose files, specs, fixtures, nginx), `no_effect` (docs, Helm values, other
+  workflows, guard scripts).
+- **e2e suites** run when they consume an image whose unit is affected. What a suite
+  consumes is read from its own `for img in simpel2-...; do docker pull` loop in
+  `ci.yml`. `e2e-build-images` builds and pushes only the union of those images.
+- **A doubt is always resolved by running more.** A path that matches no rule runs
+  everything, and so does a diff that could not be computed or that is long enough to
+  have been truncated. Only the `no_effect` globs may skip work, and they are matched
+  before ownership.
+- **Safety nets:** the nightly `schedule` run and `workflow_dispatch` are always full.
+  Run a full CI (`gh workflow run ci.yml --ref main -f run_e2e=true`) on the commit you
+  are about to tag as a release candidate.
+- **Guards:** `check-ci-scope.py` fails if a per-unit job or an e2e suite is not wired
+  to the decision (it would run on every PR again) or if `ci-scope.json` stops matching
+  the workspace; `test_ci_scope.py` proves the derivation. A new crate must be added to
+  a unit; a new `test-<unit>` job needs the `contains(fromJson(needs.detect.outputs.units), ...)`
+  condition; both are enforced.
+- **Reading a run:** the `detect` job's summary lists every unit and suite with why it
+  ran or was skipped.
+
 ## Image builds and the BuildKit cache
 
 - **Pull requests** build the six images once, in `e2e-build-images`
