@@ -175,7 +175,7 @@ async fn a_client_with_a_ca_signed_certificate_reaches_the_handler() {
     let dir = TempDir::new().unwrap();
     let ca = TestCa::new("simpel-test-ca");
     let server = ca.issue("secreton", vec!["localhost".into()]);
-    let client = ca.issue("gateway", vec!["gateway".into()]);
+    let client = ca.issue("layanan-perlengkapan", vec!["layanan-perlengkapan".into()]);
 
     let addr = serve_with_mtls(&ca, &server, Arc::new(AnyTrustedPeer), &dir).await;
     let channel = connect(addr, &ca.cert_pem, Some(&client))
@@ -228,7 +228,7 @@ async fn a_certificate_from_another_ca_is_not_a_certificate() {
     // Same common name as a legitimate workload, signed by a CA we never
     // trusted. Name equality must not be identity.
     let rogue_ca = TestCa::new("rogue-ca");
-    let rogue = rogue_ca.issue("gateway", vec!["gateway".into()]);
+    let rogue = rogue_ca.issue("layanan-perlengkapan", vec!["layanan-perlengkapan".into()]);
 
     let addr = serve_with_mtls(&ca, &server, Arc::new(AnyTrustedPeer), &dir).await;
 
@@ -256,7 +256,7 @@ async fn an_authenticated_peer_outside_the_allowlist_is_denied() {
     // Chain-valid, so the handshake succeeds; the layer is what must refuse it.
     let stranger = ca.issue("some-other-workload", vec!["stranger".into()]);
 
-    let authorizer = Arc::new(AllowedCommonNames::new(["gateway"]));
+    let authorizer = Arc::new(AllowedCommonNames::new(["layanan-perlengkapan"]));
     let addr = serve_with_mtls(&ca, &server, authorizer, &dir).await;
 
     let channel = connect(addr, &ca.cert_pem, Some(&stranger))

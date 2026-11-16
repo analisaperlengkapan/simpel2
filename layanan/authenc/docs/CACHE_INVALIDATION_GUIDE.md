@@ -456,4 +456,3 @@ If migrating from an old cache system:
 - [Cache Invalidation Service](../src/services/cache/invalidation.rs)
 - [Cache Invalidation Listener](../src/services/cache_invalidation_listener.rs)
 - [Event System](../src/events/mod.rs)
-- [Requirements: 15.3, 5.3](../../.kiro/specs/authenc-comprehensive-optimization/requirements.md)

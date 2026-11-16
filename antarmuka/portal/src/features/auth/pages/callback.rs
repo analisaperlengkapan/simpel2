@@ -64,7 +64,7 @@ pub fn CallbackPage() -> impl IntoView {
                         // policy step still open. Treat it the same way the
                         // login form does.
                         if let Some(step) =
-                            crate::features::auth::legacy_handoff::blocking_policy_step(&session)
+                            crate::features::auth::policy_step::blocking_policy_step(&session)
                         {
                             navigate(step.route(), Default::default());
                             return;

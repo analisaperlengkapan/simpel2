@@ -414,7 +414,5 @@ These integration tests provide comprehensive coverage of:
 
 ## References
 
-- [Auto-Unseal Design Document](../.kiro/specs/secreton-vault-parity/design.md)
-- [Auto-Unseal Requirements](../.kiro/specs/secreton-vault-parity/requirements.md)
 - [Property-Based Tests](./README.md)
 - [Fallback Documentation](../FALLBACK.md)

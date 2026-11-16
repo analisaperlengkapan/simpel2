@@ -273,7 +273,6 @@ These property-based tests should be run in CI/CD pipelines with a test database
 
 ## References
 
-- [Secreton Vault Parity Specification](../../.kiro/specs/secreton-vault-parity/requirements.md)
 - [Sealed Key Storage Implementation](../src/storage/sealed_keys.rs)
 - [PropTest Documentation](https://docs.rs/proptest/)
 - [Property-Based Testing Guide](https://hypothesis.works/articles/what-is-property-based-testing/)

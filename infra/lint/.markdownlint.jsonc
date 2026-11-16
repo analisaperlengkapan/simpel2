@@ -44,12 +44,6 @@
     "vendor",
     "target",
     "dist",
-    "monolith/simpelv1/vendor",
-    "monolith/simpelv1/node_modules",
-    "monolith/simpelv1/storage",
-    // Vendored JS libraries (moment, prismjs, sortablejs, etc.) shipped
-    // by simpelv1 monolith. Bundled docs are 3rd-party; don't lint.
-    "monolith/simpelv1/public/assets/libs/**",
     "antarmuka/portal/tests/e2e/node_modules",
     "antarmuka/perlengkapan/tests/e2e/node_modules",
     "CHANGELOG.md",

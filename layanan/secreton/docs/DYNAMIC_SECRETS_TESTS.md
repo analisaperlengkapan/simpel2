@@ -325,4 +325,3 @@ test:dynamic-secrets:
 - [Database Secrets Engine Implementation](../crates/core/src/services/secrets/database.rs)
 - [Lease Manager](../crates/core/src/services/lease.rs)
 - [Dynamic Secrets API Documentation](./DYNAMIC_SECRETS_API.md)
-- [Requirements Document](../../.kiro/specs/secreton-comprehensive-refactor/requirements.md) - Requirement 13.2

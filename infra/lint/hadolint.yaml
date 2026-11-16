@@ -15,8 +15,8 @@ ignored:
   # idempotency failure (re-run on already-patched file).
   - SC2015
   # DL4006 (warning): `SHELL ["/bin/bash", "-o", "pipefail"]` before
-  # RUN with pipes. simpelv1 alpine image: busybox sh doesn't support
-  # pipefail; switching to /bin/ash for one pipe isn't worth it.
+  # RUN with pipes. Hit by infra/helm/arc/runner-image/Dockerfile:64 (one
+  # piped RUN on the upstream actions-runner base); not worth a SHELL switch.
   - DL4006
 
 trustedRegistries:

@@ -4,7 +4,7 @@
 //!
 //! `/api/monitoring/sync-status`, `/sync-history`, `/alerts` and `/dashboard` answered without
 //! authentication, with CORS open to any origin, to every pod NetworkPolicy lets reach this port
-//! (backend, frontend, authenc, simpelv1). No page, script or service in the repo called them, and
+//! (backend, frontend, authenc). No page, script or service in the repo called them, and
 //! the ingress does not route to them. What they served was `integrasi.api_log`, which only holds
 //! calls that got an HTTP answer: a sync that died on DNS, on its token, or before its first
 //! request did not appear in them at all, so "is the sync running, and is something wrong" (what

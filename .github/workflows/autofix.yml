@@ -11,7 +11,6 @@
 #   - rust       : cargo fmt + cargo fix + clippy --fix + Cargo versioning
 #   - toml       : taplo fmt
 #   - markdown   : markdownlint-cli2 --fix
-#   - php        : Laravel Pint (PSR-12 + Laravel preset)
 #   - whitespace : trim trailing whitespace untuk yaml/json/sh/sql
 #
 # Untuk PR dari fork (read-only token), push tidak bisa — patch
@@ -321,8 +320,6 @@ jobs:
             '!**/vendor/**' \
             '!**/target/**' \
             '!**/dist/**' \
-            '!monolith/simpelv1/storage/**' \
-            '!monolith/simpelv1/public/assets/libs/**' \
             '!**/CHANGELOG.md' \
             || md_exit=$?
           if [ $md_exit -ne 0 ]; then echo "::warning::markdownlint --fix exit code (sisa lint issue yang tidak auto-fixable): $md_exit"; fi
@@ -332,86 +329,6 @@ jobs:
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           AUTOFIX_LABEL: "markdownlint --fix (Markdown)"
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet && git diff --cached --quiet; then
-            echo "✓ No changes — nothing to commit for '$AUTOFIX_LABEL'"
-            exit 0
-          fi
-          git diff --stat
-          git add -A
-          git commit -m "chore(autofix): $AUTOFIX_LABEL
-
-          Auto-applied by autofix.yml di PR #${PR_NUMBER}."
-          for attempt in 1 2 3 4 5 6 7 8; do
-            if git push origin "HEAD:${PR_HEAD_REF}"; then
-              echo "✓ Push sukses pada attempt ${attempt}"; exit 0
-            fi
-            echo "⟳ Push ditolak (attempt ${attempt}/8); fetch + rebase + retry"
-            git fetch origin "${PR_HEAD_REF}"
-            if ! git rebase "origin/${PR_HEAD_REF}"; then
-              echo "::error::Rebase conflict pada '$AUTOFIX_LABEL'"; git rebase --abort; exit 1
-            fi
-            sleep_s=$(( attempt < 5 ? (2 ** attempt) : 30 ))
-            sleep "$sleep_s"
-          done
-          echo "::error::Push gagal setelah 8 attempts untuk '$AUTOFIX_LABEL'"
-          exit 1
-
-  # ─────────────────────────────────────────────────────────
-  # PHP: Laravel Pint
-  # ─────────────────────────────────────────────────────────
-  php:
-    name: Autofix (PHP Pint)
-    needs: guard
-    runs-on: arc-simpel
-    timeout-minutes: 30
-    if: github.event.pull_request.head.repo.full_name == github.repository && needs.guard.outputs.is_autofix != 'true'
-    concurrency:
-      group: autofix-php-${{ github.ref }}
-      cancel-in-progress: true
-    steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          fetch-depth: 0
-          token: ${{ secrets.AUTOFIX_PAT || secrets.GITHUB_TOKEN }}
-
-      - name: composer install + Pint
-        shell: bash
-        run: |
-          if [ ! -d monolith/simpelv1 ]; then
-            echo "::warning::monolith/simpelv1 tidak ada — skip pint"
-            exit 0
-          fi
-          cd monolith/simpelv1
-          if [ ! -f vendor/bin/pint ]; then
-            docker run --rm \
-              -v "$PWD":/app -w /app -u "$(id -u):$(id -g)" \
-              -e COMPOSER_HOME=/tmp/composer \
-              --entrypoint composer \
-              serversideup/php:8.2-cli \
-              install --prefer-dist --no-progress --no-interaction \
-              --ignore-platform-req=ext-gd \
-              || { echo "::warning::composer install gagal; skip pint"; exit 0; }
-          fi
-          pint_exit=0
-          docker run --rm \
-            -v "$PWD":/app -w /app -u "$(id -u):$(id -g)" \
-            --entrypoint vendor/bin/pint \
-            serversideup/php:8.2-cli \
-            || pint_exit=$?
-          if [ $pint_exit -ne 0 ]; then echo "::warning::pint exit code: $pint_exit"; fi
-      - name: Commit & push (retry on rebase conflict)
-        shell: bash
-        env:
-          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          AUTOFIX_LABEL: "Laravel Pint (PHP)"
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -465,7 +382,7 @@ jobs:
       - name: Strip trailing whitespace
         shell: bash
         run: |
-          # Tipe file yang BELUM di-handle tool spesifik (taplo, pint,
+          # Tipe file yang BELUM di-handle tool spesifik (taplo,
           # rustfmt, markdownlint sudah handle trailing-whitespace untuk
           # masing-masing). Lewatkan Helm templates (`{{- }}` syntax
           # bisa rusak kalau ada trailing yang berarti).
@@ -479,9 +396,6 @@ jobs:
             -not -path './vendor/*' \
             -not -path './*/vendor/*' \
             -not -path './infra/helm/*/templates/*' \
-            -not -path './monolith/simpelv1/public/assets/libs/*' \
-            -not -path './monolith/simpelv1/vendor/*' \
-            -not -path './monolith/simpelv1/storage/*' \
             -not -path './.git/*' \
             -print0 \
           | xargs -0 -r sed -i 's/[[:space:]]\+$//'
@@ -580,22 +494,7 @@ jobs:
             --fix --config /workdir/infra/lint/.markdownlint.jsonc \
             '**/*.md' \
             '!**/node_modules/**' '!**/vendor/**' '!**/target/**' '!**/dist/**' \
-            '!monolith/simpelv1/storage/**' '!monolith/simpelv1/public/assets/libs/**' \
             '!**/CHANGELOG.md'
-          # PHP Pint
-          if [ -d monolith/simpelv1 ]; then
-            (cd monolith/simpelv1 && \
-              docker run --rm \
-                -v "$PWD":/app -w /app -u "$(id -u):$(id -g)" \
-                -e COMPOSER_HOME=/tmp/composer \
-                --entrypoint composer \
-                serversideup/php:8.2-cli \
-                install --prefer-dist --no-progress --no-interaction --ignore-platform-req=ext-gd && \
-              docker run --rm \
-                -v "$PWD":/app -w /app -u "$(id -u):$(id -g)" \
-                --entrypoint vendor/bin/pint \
-                serversideup/php:8.2-cli)
-          fi
 
       - name: Generate patch
         shell: bash
@@ -618,8 +517,8 @@ jobs:
 
   # Per-run cleanup mirroring ci.yml::cleanup-runner. The `rust` job runs
   # cargo fmt + fix + clippy --fix end to end, building target/ from scratch
-  # and leaving multi-GB behind on the runner. Six docker pulls (markdown,
-  # toml, php, etc.) add image layers. This sweep keeps the leak bounded
+  # and leaving multi-GB behind on the runner. The docker pulls (markdown,
+  # toml, etc.) add image layers. This sweep keeps the leak bounded
   # without losing recent-job cache. The daily
   # `maintenance.yml::runner-health` is still the cross-runner backstop.
   cleanup-runner:
@@ -629,7 +528,6 @@ jobs:
       - rust
       - toml
       - markdown
-      - php
       - whitespace
       - patch-for-fork
     runs-on: arc-simpel

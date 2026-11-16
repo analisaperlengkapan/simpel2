@@ -149,7 +149,7 @@ else
 fi
 
 step "Local .env for docker compose"
-# docker-compose.yml requires POSTGRES_PASSWORD and SIMPELV1_APP_KEY via
+# docker-compose.yml requires POSTGRES_PASSWORD via
 # `${VAR:?}` interpolation for every service in the merged files — including
 # ones a given command never starts — so `docker compose` fails outright without
 # them. The e2e harness fills these in at runtime, but anything else the agent
@@ -174,10 +174,9 @@ if [ ! -f .env ]; then
 # staging get theirs from Secreton (see infra/AGENTS.md).
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=e2e_test_pw
-SIMPELV1_APP_KEY=base64:dGVzdGtleTMyYnl0ZXNfMDEyMzQ1Njc4OWFiY2RlZmc=
 EOF
   )
-  note "wrote .env (POSTGRES_USER/POSTGRES_PASSWORD/SIMPELV1_APP_KEY)"
+  note "wrote .env (POSTGRES_USER/POSTGRES_PASSWORD)"
   note "ignored by git, so it will not be committed"
 fi
 

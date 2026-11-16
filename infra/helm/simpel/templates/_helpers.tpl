@@ -154,16 +154,6 @@ tolerations:
 {{- default (printf "%s://layanan-integrasi.%s.svc.cluster.local:50051" (include "simpel.grpcScheme" .) (include "simpel.namespace" .)) .Values.backendConfig.integrasiGrpcUrl -}}
 {{- end -}}
 
-{{- define "simpel.simpelv1DbHost" -}}
-{{- $env := .Values.simpelv1.env -}}
-{{- default (printf "postgres.%s.svc.cluster.local" (include "simpel.namespace" .)) $env.DB_HOST -}}
-{{- end -}}
-
-{{- define "simpel.simpelv1RedisHost" -}}
-{{- $env := .Values.simpelv1.env -}}
-{{- default (printf "redis.%s.svc.cluster.local" (include "simpel.namespace" .)) $env.REDIS_HOST -}}
-{{- end -}}
-
 {{- define "simpel.mtlsMode" -}}
 {{- default .Values.mtls.mode .Values.config.mtlsMode -}}
 {{- end -}}

@@ -15,7 +15,6 @@ memuat **AI Routing Guide** ke semua AGENTS.md per-domain. Pintasan:
 | Backend services | [`layanan/AGENTS.md`](layanan/AGENTS.md) (+ `layanan/<svc>/AGENTS.md`) |
 | Frontend (Leptos WASM) | [`antarmuka/AGENTS.md`](antarmuka/AGENTS.md) |
 | Shared libraries | [`lib/AGENTS.md`](lib/AGENTS.md) (+ `lib/<crate>/AGENTS.md`) |
-| Legacy (Laravel) | [`monolith/AGENTS.md`](monolith/AGENTS.md), [`monolith/simpelv1/AGENTS.md`](monolith/simpelv1/AGENTS.md) |
 | Infra / DevOps / Deploy | [`infra/AGENTS.md`](infra/AGENTS.md) |
 | Testing (E2E/Integration) | [`tests/AGENTS.md`](tests/AGENTS.md) |
 | Docs / ADR | [`docs/AGENTS.md`](docs/AGENTS.md) |

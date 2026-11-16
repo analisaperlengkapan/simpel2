@@ -732,8 +732,7 @@ antarmuka/perlengkapan (WASM)
 > and Istio routes `prefix: /api/v1/perlengkapan` → `layanan-perlengkapan:3020`
 > **without rewrite** in all three `infra/helm/simpel/values*.yaml`. This sits in
 > authenc's `/api/v1/*` namespace alongside `/api/v1/{auth,iam,oauth2}` (authenc),
-> partitioning portal vs perlengkapan-v1 (Laravel, `/perlengkapan/simpel/v1`) vs
-> perlengkapan-v2 (this service). The legacy `/api/pembinaan/perlengkapan` +
+> partitioning portal vs perlengkapan (this service). The legacy `/api/pembinaan/perlengkapan` +
 > rewrite-from-`/api/perlengkapan/` prefixes are **removed** (pre-prod, no
 > back-compat). Any new endpoint is reached at `/api/v1/perlengkapan/<route>`;
 > FE calls must go through the `api/client.rs` helpers (which prepend `API_BASE`)
@@ -772,7 +771,7 @@ Snapshot as of the May 2026 stabilization sweep (Phase 1–2 of the
 | Authorization Services (Keycloak parity: resource servers, scopes, policies, evaluate) | 🔴 Pending epic | `antarmuka/portal/src/pages/admin/permissions.rs` shows a labelled "Pratinjau" UI; no backend endpoints yet. |
 | Realm Settings tabs other than General | 🔴 Pending epic | Login/Email/Themes/Keys/Sessions/Tokens/Security/Localization need authenc settings endpoints. |
 | TOTP secret encryption-at-rest | 🟡 Follow-up | Tracked in migration 049 comment; wrap with envelope encryption from `authenc-crypto`. |
-| Pengadaan tender, BMN Wasdal | 🟡 Stays on v1 | Per the plan, v1 PHP keeps these — bug fixes in `monolith/simpelv1/`, no v2 rebuild scheduled. |
+| Pengadaan tender, BMN Wasdal | ⛔ Not in SIMPEL | They lived only in SIMPEL v1, which was removed on 2026-11-16 (product owner: nothing to migrate). Rebuilding them here needs an explicit decision. |
 
 ---
 

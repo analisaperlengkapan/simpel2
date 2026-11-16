@@ -16,7 +16,7 @@
 -- no natural key) is delete-by-marker then re-inserted.
 --
 -- SCOPE: authenc + integrasi ONLY. This file is applied by EVERY e2e job, and
--- several of them (e2e-portal, e2e-integrasi-authenc, e2e-simpelv1-integration)
+-- several of them (e2e-portal, e2e-integrasi-authenc)
 -- bring up no layanan-perlengkapan — so the `perlengkapan` schema does not
 -- exist there. Business-workflow preconditions therefore live in the companion
 -- seed-perlengkapan-workflow.sql, applied only by jobs whose stack includes

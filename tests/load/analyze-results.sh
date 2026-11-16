@@ -304,7 +304,6 @@ cat >> "$REPORT_FILE" << 'EOF'
 
 - [Load Test Analysis Guide](./LOAD_TEST_ANALYSIS.md)
 - [K8s Load Testing Guide](./K8S_LOAD_TESTING.md)
-- [Performance Requirements](../../.kiro/specs/simpel-completion/requirements.md)
 EOF
 
 echo ""

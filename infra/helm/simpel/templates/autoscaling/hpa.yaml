@@ -8,7 +8,6 @@
   (dict "name" "authenc"              "cfg" .Values.authenc              "kind" "Deployment")
   (dict "name" "layanan-perlengkapan" "cfg" .Values.layananPerlengkapan  "kind" "Deployment")
   (dict "name" "layanan-integrasi"    "cfg" .Values.layananIntegrasi     "kind" "Deployment")
-  (dict "name" "simpelv1"             "cfg" .Values.simpelv1             "kind" "Deployment")
   (dict "name" "secreton"             "cfg" .Values.secreton             "kind" "StatefulSet")
 -}}
 {{- range $w := $workloads }}

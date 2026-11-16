@@ -249,10 +249,6 @@ test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured
      - Property-based tests for principal embedding
      - Unit tests for extensions, audit, and validation
 
-4. **Documentation:**
-   - `.kiro/specs/secreton-comprehensive-enhancement/tasks.md`
-     - Marked all Task 14 subtasks as completed
-
 ## Compliance
 
 All implementations comply with the requirements specified in:

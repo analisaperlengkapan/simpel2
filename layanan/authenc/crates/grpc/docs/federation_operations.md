@@ -307,8 +307,6 @@ cargo test federation_test
 
 ## Related Documentation
 
-- [Design Document](../../../.kiro/specs/authenc-portal-comprehensive-refactoring/design.md) - Federation architecture
-- [Requirements Document](../../../.kiro/specs/authenc-portal-comprehensive-refactoring/requirements.md) - REQ-FED-001, REQ-FED-002, REQ-FED-003
 - [AGENTS.md](../../../AGENTS.md) - Authenc conventions
 
 ---

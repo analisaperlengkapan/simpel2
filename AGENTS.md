@@ -19,7 +19,6 @@ Berdasarkan lokasi file yang sedang Anda kerjakan, baca `AGENTS.md` spesifik di 
 
 - ⚙️ **Backend Services**: Baca `layanan/AGENTS.md` (Pola Axum, gRPC, PostgreSQL, Observability).
 - 🌐 **Frontend (WASM)**: Baca `antarmuka/AGENTS.md` (Pola Leptos v0.8.x, Signals, CSS).
-- 🏗️ **Legacy/Monolith (Laravel)**: Baca `monolith/AGENTS.md` (Aplikasi Monolitik Umum) atau `monolith/simpelv1/AGENTS.md` (Untuk proyek PHP spesifik).
 - 📦 **Shared Libraries**: Baca `lib/AGENTS.md` (Aturan library mandiri).
 - 🔐 **Authenc Service**: Baca `layanan/authenc/AGENTS.md` (Aturan OAuth2, OIDC, Identity).
 - 🔒 **Secreton Service**: Baca `layanan/secreton/AGENTS.md` (Aturan Secrets Vault).
@@ -77,7 +76,6 @@ flowchart TB
 - **`antarmuka/`**: Frontend WASM (Portal, Perlengkapan).
 - **`layanan/`**: Backend services & Core infra (Perlengkapan, Integrasi, Authenc, Secreton).
 - **`lib/`**: Shared crates (`lib-ui`, `lib-core`, `lib-backend`, `lib-crypto`, `lib-perlengkapan`).
-- **`monolith/`**: Kode aplikasi monolitik umum. Berisi `monolith/simpelv1/` (PHP/Laravel).
 
 ### Key Tech Stack
 
@@ -127,6 +125,6 @@ flowchart TB
 
 1. **Domain playbook?** → Sebelum mulai, baca `AGENTS.md` di direktori yang Anda kerjakan (`layanan/<svc>/`, `antarmuka/`, `lib/`, dll) untuk playbook konkret (wiring endpoint, fetch secret, nambah workflow, dst). File `AGENTS.md` per-domain menyimpan resep spesifik supaya root tetap ringkas.
 2. **Auth-related?** → Gunakan Portal + `use_auth()` hook. Flow: MFE → REST → gRPC.
-3. **Needs secrets?** → Gunakan Secreton client di backend dengan **Kubernetes Auth Backend** (BUKAN `SECRETON_TOKEN` env). Pod project SA token → exchange ke Secreton token → fetch dari `kv/<service>/...`. Untuk simpelv1 (PHP/Laravel): init container `fetch-secrets` generate `.env` ke emptyDir saat pod start.
+3. **Needs secrets?** → Gunakan Secreton client di backend dengan **Kubernetes Auth Backend** (BUKAN `SECRETON_TOKEN` env). Pod project SA token → exchange ke Secreton token → fetch dari `kv/<service>/...`.env` ke emptyDir saat pod start.
 4. **Reusable UI?** → Masukkan ke `lib/ui/`, lalu impor.
 5. **New dependency?** → Tambahkan ke root `Cargo.toml` `[workspace.dependencies]` terlebih dahulu.

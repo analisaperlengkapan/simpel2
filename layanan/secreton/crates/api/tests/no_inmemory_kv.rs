@@ -32,15 +32,15 @@ fn root_auth() -> String {
 
 /// Hierarchical paths must work on the surviving route.
 ///
-/// Every real caller uses one — `fetch-secrets.sh` reads `simpelv1/app` and
-/// `postgres/simpelv2`, `migrate-env-to-secreton.sh` writes `<prefix>/<key>`.
+/// Every real caller uses one — the Helm policies name `postgres/perlengkapan`
+/// and `perlengkapan/notifikasi/*`, `migrate-env-to-secreton.sh` writes `<prefix>/<key>`.
 /// The removed `/v1/kv` router matched `{*path}`; if `/v1/secret/data` had kept
 /// a single-segment `{path}`, deleting the in-memory store would have left no
 /// route capable of addressing any of them, and the 404 would have looked like
 /// "no such secret" rather than "no such route".
 #[tokio::test]
 async fn a_secret_written_over_rest_lands_in_the_shared_backend() {
-    const PATH: &str = "simpelv1/app/kv-persistence-probe";
+    const PATH: &str = "perlengkapan/app/kv-persistence-probe";
 
     let state = unsealed_state().await;
     let services = state.services.clone();

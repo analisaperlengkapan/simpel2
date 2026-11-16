@@ -41,7 +41,7 @@ ignore = [
   # unsafe-libyaml (unmaintained, no vulnerability). Reached only through
   # serde_yaml 0.9 (itself deprecated) in kube-client 3.1 and the secreton
   # agent / cli / k8s-operator crates — none of which is built into any shipped
-  # image (the Dockerfiles build authenc, gateway, perlengkapan, integrasi and
+  # image (the Dockerfiles build authenc, perlengkapan, integrasi and
   # secreton-api only). kube 4.x moved to serde-saphyr, so upgrading the
   # operator removes it.
   "RUSTSEC-2024-0449",

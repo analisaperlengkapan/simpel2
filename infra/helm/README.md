@@ -4,7 +4,7 @@ Pengganti `infra/k8s/` (Kustomize) yang sebelumnya. Dua chart hidup berdampingan
 
 | Chart            | Lokasi                | Namespace target            | Fungsi                                                        |
 | ---------------- | --------------------- | --------------------------- | ------------------------------------------------------------- |
-| `simpel`         | `infra/helm/simpel`   | `simpelv2-staging` / `…-production` | Stack aplikasi: Postgres, Redis, Authenc, Secreton, layanan-*, simpelv1, portal, perlengkapan, Istio routing, NetworkPolicies, HPA, PDB, ServiceMonitors. |
+| `simpel`         | `infra/helm/simpel`   | `simpelv2-staging` / `…-production` | Stack aplikasi: Postgres, Redis, Authenc, Secreton, layanan-*, portal, perlengkapan, Istio routing, NetworkPolicies, HPA, PDB, ServiceMonitors. |
 | `simpel-metallb` | `infra/helm/metallb`  | `metallb-system`            | IPAddressPool & L2Advertisement. Cluster-scoped, dirilis terpisah. |
 
 ## Quickstart
@@ -52,7 +52,7 @@ curl -fsS http://10.1.7.121/portal/
 ./infra/helm/deploy.sh production install    # setelah review
 ```
 
-Production menggunakan tag immutable `:prod` (atau `:v0.1.0` untuk simpelv1) dan
+Production menggunakan tag immutable (`vX.Y.Z`) dan
 `STRICT` mTLS. Secret production WAJIB dikelola via Secreton SecretSync CRD;
 lihat [`layanan/secreton/crates/k8s-operator/README.md`](../../layanan/secreton/crates/k8s-operator/README.md).
 Bootstrap (`secrets.bootstrap=true`) hanya untuk first-install.
@@ -134,11 +134,6 @@ dengan `global.registry`) atau `image.repository` (full path).
 Pastikan `istio.virtualService.gatewayRef` cocok dengan namespace/name Gateway
 yang ada (default: `<istioNamespace>/<gateway.name>`). Untuk mensharing gateway
 existing di `istio-system`, set `istio.gateway.name: simpelv2-gateway`.
-
-### Secret `simpelv1-db-backup` tidak ada
-
-Setel `simpelv1.dbBackup.source: none` (default) untuk skip init container restore,
-atau pre-create ConfigMap/Secret berisi `dbsimpelv1.sql.gz`.
 
 ## Dokumen terkait
 

@@ -158,8 +158,8 @@ fn a_request_uri_maps_to_the_resource_path_policies_are_written_against() {
         "sys/capabilities-self"
     );
     assert_eq!(
-        resource_path("/v1/secret/data/simpelv1/app"),
-        "secret/data/simpelv1/app"
+        resource_path("/v1/secret/data/perlengkapan/app"),
+        "secret/data/perlengkapan/app"
     );
 
     // Idempotent: feeding an already-normalised path back in must not strip

@@ -3,14 +3,12 @@
 
 ## Masalah yang dijawab
 
-Pemeriksaan dependency (`cargo audit`, `cargo deny`, `composer audit`) semuanya
+Pemeriksaan dependency (`cargo audit`, `cargo deny`) semuanya
 mengunduh sesuatu dari internet sebelum ia bisa memeriksa apa pun:
 
   * `cargo audit` / `cargo deny` mengambil DB advisory RustSec
     (`github.com/rustsec/advisory-db`) — sebuah `git clone`/fetch;
   * `cargo deny` juga menarik crate registri untuk membangun graph;
-  * `composer audit` mengambil DB advisory Packagist, dan container PHP-nya
-    sendiri harus di-`docker pull`;
   * memasang alatnya sendiri mengunduh rilis GitHub.
 
 Kegagalan di lapisan itu **tidak ada hubungannya dengan kesehatan dependency
@@ -19,7 +17,7 @@ persis, dan yang paling sering terjadi justru yang paling tidak berarti: satu
 koneksi putus membaca sebagai "ada kerentanan".
 
 Sejarah repo ini sudah membayar ongkosnya berkali-kali — lihat `composer-install`
-action (retry karena `--prefer-dist` mematikan source fallback, sehingga satu
+action lama (retry karena `--prefer-dist` mematikan source fallback, sehingga satu
 `curl error 28` di antara 159 unduhan langsung mematikan job), `release.yml`
 (plugin Blade bertag mengambang), dan #711 (actionlint lewat GitHub API). Pola
 umumnya selalu sama: **jangan pernah menggantungkan build pada unduhan jaringan

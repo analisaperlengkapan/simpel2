@@ -5,8 +5,8 @@
 //! answers *what they may reach*, which until #129 nothing did: the four secret
 //! handlers went straight to `self.storage`, so any workload holding a
 //! CA-signed certificate could read, overwrite and delete every secret at every
-//! path. A valid `gateway` certificate proves the caller is the gateway; it says
-//! nothing about whether the gateway may read `postgres/authenc`.
+//! path. A valid `layanan-perlengkapan` certificate proves who the caller is; it
+//! says nothing about whether that caller may read `postgres/authenc`.
 //!
 //! The handlers are driven directly rather than through a TLS listener, because
 //! the transport is not what is under test here and a real handshake would make
@@ -92,11 +92,11 @@ fn allow(path: &str, action: &str) -> PolicyRule {
 
 /// The shape the Helm `secretonAuth.policies` block renders: the certificate
 /// common name is the policy name, and the policy names resource paths.
-fn gateway_may_read_simpelv1() -> Arc<dyn PolicyRuleSource> {
+fn perlengkapan_may_read_its_secrets() -> Arc<dyn PolicyRuleSource> {
     let mut policies = HashMap::new();
     policies.insert(
-        "gateway".to_string(),
-        vec![allow("secret/data/simpelv1/*", "read")],
+        "layanan-perlengkapan".to_string(),
+        vec![allow("secret/data/perlengkapan/*", "read")],
     );
     Arc::new(StoredPolicies(policies))
 }
@@ -121,15 +121,17 @@ fn as_peer<T>(message: T, common_name: &str) -> Request<T> {
 
 #[tokio::test]
 async fn a_workload_reaches_the_path_its_policy_names() {
-    let service = service(GrpcAuthorization::Enforced(gateway_may_read_simpelv1()));
+    let service = service(GrpcAuthorization::Enforced(
+        perlengkapan_may_read_its_secrets(),
+    ));
 
     let status = service
         .get_secret(as_peer(
             GetSecretRequest {
-                path: "simpelv1/app".to_string(),
+                path: "perlengkapan/app".to_string(),
                 ..Default::default()
             },
-            "gateway",
+            "layanan-perlengkapan",
         ))
         .await
         .expect_err("nothing was ever written at this path");
@@ -137,15 +139,17 @@ async fn a_workload_reaches_the_path_its_policy_names() {
     assert_eq!(
         status.code(),
         Code::NotFound,
-        "the gateway holds `secret/data/simpelv1/*` and asked for \
-         `secret/data/simpelv1/app` — it must be dispatched to the handler, \
+        "layanan-perlengkapan holds `secret/data/perlengkapan/*` and asked for \
+         `secret/data/perlengkapan/app` — it must be dispatched to the handler, \
          which 404s on an unwritten path; got {status:?}"
     );
 }
 
 #[tokio::test]
 async fn a_workload_cannot_reach_another_workloads_secrets() {
-    let service = service(GrpcAuthorization::Enforced(gateway_may_read_simpelv1()));
+    let service = service(GrpcAuthorization::Enforced(
+        perlengkapan_may_read_its_secrets(),
+    ));
 
     // This is the defect the whole task is about: before #129 this call
     // succeeded, because the handler never asked whether the caller was
@@ -156,10 +160,10 @@ async fn a_workload_cannot_reach_another_workloads_secrets() {
                 path: "postgres/authenc".to_string(),
                 ..Default::default()
             },
-            "gateway",
+            "layanan-perlengkapan",
         ))
         .await
-        .expect_err("the gateway has no policy covering authenc's database credentials");
+        .expect_err("layanan-perlengkapan has no policy covering authenc's database credentials");
 
     assert_eq!(
         status.code(),
@@ -170,14 +174,16 @@ async fn a_workload_cannot_reach_another_workloads_secrets() {
 
 #[tokio::test]
 async fn a_caller_with_no_certificate_is_refused() {
-    let service = service(GrpcAuthorization::Enforced(gateway_may_read_simpelv1()));
+    let service = service(GrpcAuthorization::Enforced(
+        perlengkapan_may_read_its_secrets(),
+    ));
 
     // No `PeerIdentity` in extensions: the call arrived without a client
     // certificate. There is no principal to authorize, so there is nothing that
     // could make this an allow.
     let status = service
         .get_secret(Request::new(GetSecretRequest {
-            path: "simpelv1/app".to_string(),
+            path: "perlengkapan/app".to_string(),
             ..Default::default()
         }))
         .await
@@ -196,15 +202,17 @@ async fn a_caller_with_no_certificate_is_refused() {
 /// read-path test stayed green.
 #[tokio::test]
 async fn read_access_does_not_confer_write_or_delete() {
-    let service = service(GrpcAuthorization::Enforced(gateway_may_read_simpelv1()));
+    let service = service(GrpcAuthorization::Enforced(
+        perlengkapan_may_read_its_secrets(),
+    ));
 
     let store = service
         .store_secret(as_peer(
             StoreSecretRequest {
-                path: "simpelv1/app".to_string(),
+                path: "perlengkapan/app".to_string(),
                 ..Default::default()
             },
-            "gateway",
+            "layanan-perlengkapan",
         ))
         .await
         .expect_err("a read-only policy must not authorize a write");
@@ -217,9 +225,9 @@ async fn read_access_does_not_confer_write_or_delete() {
     let delete = service
         .delete_secret(as_peer(
             DeleteSecretRequest {
-                path: "simpelv1/app".to_string(),
+                path: "perlengkapan/app".to_string(),
             },
-            "gateway",
+            "layanan-perlengkapan",
         ))
         .await
         .expect_err("a read-only policy must not authorize a delete");
@@ -233,7 +241,9 @@ async fn read_access_does_not_confer_write_or_delete() {
 /// An unfiltered List is a request to enumerate every secret in the store.
 #[tokio::test]
 async fn an_unscoped_list_is_not_granted_by_a_subtree_policy() {
-    let service = service(GrpcAuthorization::Enforced(gateway_may_read_simpelv1()));
+    let service = service(GrpcAuthorization::Enforced(
+        perlengkapan_may_read_its_secrets(),
+    ));
 
     let status = service
         .list_secrets(as_peer(
@@ -241,7 +251,7 @@ async fn an_unscoped_list_is_not_granted_by_a_subtree_policy() {
                 prefix: None,
                 ..Default::default()
             },
-            "gateway",
+            "layanan-perlengkapan",
         ))
         .await
         .expect_err("listing the whole store is not covered by a subtree policy");
@@ -265,10 +275,10 @@ async fn an_unreachable_policy_store_denies_rather_than_admits() {
     let status = service
         .get_secret(as_peer(
             GetSecretRequest {
-                path: "simpelv1/app".to_string(),
+                path: "perlengkapan/app".to_string(),
                 ..Default::default()
             },
-            "gateway",
+            "layanan-perlengkapan",
         ))
         .await
         .expect_err("policies could not be loaded, so the caller is not authorized");

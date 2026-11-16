@@ -4,8 +4,7 @@ description: |
   SIMPEL Kejaksaan RI — umbrella chart untuk seluruh stack:
   Postgres (single-instance), Redis, Authenc (IdP), Secreton (Vault),
   layanan-integrasi (gRPC + scheduler), layanan-perlengkapan,
-  simpelv1 (Laravel legacy), portal (Leptos WASM), perlengkapan
-  (microfrontend), plus Istio routing, NetworkPolicies, HPA, PDB,
+  portal (Leptos WASM), perlengkapan (microfrontend), plus Istio routing, NetworkPolicies, HPA, PDB,
   dan PrometheusOperator ServiceMonitors.
 
 type: application

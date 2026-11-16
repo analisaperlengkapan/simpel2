@@ -4,7 +4,7 @@
 //! module — `oidc_jwt` backs the oauth2 id_token path). The #102 audit
 //! deleted 17 unrouted modules (device flow, token exchange, SAML/social/
 //! SSO federation, consent UI, Ed25519 twins, …): none had a route, an
-//! intra-crate consumer, or a frontend/simpelv1 caller.
+//! intra-crate consumer, or a frontend caller.
 
 // Authentication handlers
 pub mod active_role;

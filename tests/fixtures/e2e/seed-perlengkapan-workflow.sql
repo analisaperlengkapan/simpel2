@@ -8,8 +8,8 @@
 -- SPLIT FROM seed-multisatker.sql (which is applied by EVERY e2e job): these
 -- rows live in the `perlengkapan` schema, which only exists once
 -- layanan-perlengkapan has run its refinery migrations. Jobs whose stack has no
--- layanan-perlengkapan (e2e-portal, e2e-integrasi-authenc,
--- e2e-simpelv1-integration) previously failed the shared seed outright with
+-- layanan-perlengkapan (e2e-portal, e2e-integrasi-authenc) previously
+-- failed the shared seed outright with
 -- `relation "perlengkapan.pengajuan_kebutuhan_bmn" does not exist`. Apply this
 -- file ONLY in jobs that bring layanan-perlengkapan up, AFTER
 -- seed-multisatker.sql (it references the users/satkers seeded there).

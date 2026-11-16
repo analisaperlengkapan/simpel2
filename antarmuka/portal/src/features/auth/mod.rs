@@ -2,7 +2,7 @@
 //!
 //! Provides authentication state management and user session handling
 
-pub mod legacy_handoff;
+pub mod policy_step;
 
 use serde::{Deserialize, Serialize};
 

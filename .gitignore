@@ -153,7 +153,6 @@ yarn.lock
 package-lock.json
 !tests/e2e/package-lock.json
 !**/tests/e2e/package-lock.json
-!monolith/simpelv1/package-lock.json
 npm-debug.log*
 lerna-debug.log*
 
@@ -238,19 +237,6 @@ antarmuka/*/Cargo.lock
 # Cargo Chef auto-generated
 recipe.json
 !**/tailwind.config.js
-# Tracked JS configuration files in monolith Laravel. Tanpa un-ignore
-# ini, `.gitignore:156 **/*.js` membuat vite.config.js (entry point
-# Vite build) terabaikan dan CI Vite job gagal dengan
-# "Cannot resolve entry module index.html" karena fresh checkout tidak
-# punya config dan Vite fallback ke entry default.
-!**/vite.config.js
-!**/postcss.config.js
-# Laravel source assets (resources/js/*.js) di-track sebagai source code.
-# Tanpa exception, `**/*.js` membuat `monolith/simpelv1/resources/js/
-# app.js` + `bootstrap.js` (entry point Vite) tidak ada di fresh
-# checkout, dan Vite build gagal "Cannot resolve entry module
-# resources/js/app.js".
-!monolith/simpelv1/resources/js/**/*.js
 !**/profile.rs
 .env
 
@@ -271,3 +257,11 @@ recipe.json
 # sandbox cannot obtain setup.sh unless it already exists on that machine.
 .openhands/*
 !.openhands/setup.sh
+
+# SIMPEL v1 (Laravel, `monolith/simpelv1`) was removed from the repository on
+# 2026-11-16. A checkout that still has a local copy keeps its untracked files
+# (vendor/, node_modules/, .env and the REAL production dump
+# `database/dbsimpelv1.sql.gz`), and with v1's own .gitignore gone nothing else
+# would ignore them. Real data must never be committed, so the whole directory is
+# ignored. Delete the local copy when it is no longer needed.
+/monolith/

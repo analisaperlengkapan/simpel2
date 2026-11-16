@@ -30,11 +30,6 @@
       - any-glob-to-any-file:
           - antarmuka/portal/**
 
-"comp:monolith":
-  - changed-files:
-      - any-glob-to-any-file:
-          - monolith/**
-
 "comp:shared":
   - changed-files:
       - any-glob-to-any-file:
@@ -76,7 +71,6 @@
       - any-glob-to-any-file:
           - Cargo.lock
           - "**/package-lock.json"
-          - "**/composer.lock"
 
 # Hanya berlaku bila SELURUH file yang berubah adalah markdown (docs murni).
 "area:docs":

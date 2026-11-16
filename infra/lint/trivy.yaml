@@ -6,8 +6,8 @@
 scan:
   # Build artifacts + third-party trees we neither author nor ship from source.
   # - target/**           : cargo build output (e.g. a vendored rdkafka Dockerfile)
-  # - **/vendor/**        : PHP/Go vendored deps (Laravel Sail Dockerfiles, mockery docs)
-  # - **/node_modules/**  : npm deps (Playwright e2e, simpelv1)
+  # - **/vendor/**        : vendored third-party deps
+  # - **/node_modules/**  : npm deps (Playwright e2e)
   # - **/dist/**          : trunk/web build output
   # - infra/helm/**       : Helm charts are gated by kube-linter (security.yml). Trivy's
   #                         misconfig scanner cannot even render them (charts require

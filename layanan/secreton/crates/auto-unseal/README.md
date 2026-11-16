@@ -283,9 +283,6 @@ max_retry_delay_secs = 16
 ## Related Documentation
 
 - [Fallback Mechanism](./FALLBACK.md) - Detailed fallback documentation
-- [Design Document](../../.kiro/specs/secreton-vault-parity/design.md)
-- [Requirements](../../.kiro/specs/secreton-vault-parity/requirements.md)
-- [Tasks](../../.kiro/specs/secreton-vault-parity/tasks.md)
 
 ## License
 

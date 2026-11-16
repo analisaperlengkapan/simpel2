@@ -4,7 +4,7 @@ set -e
 echo "Running Repository Structure Check..."
 
 # Allowed folders in root
-declare -a ALLOWED_FOLDERS=(".github" ".vscode" ".gitlab" "docs" "infra" "layanan" "antarmuka" "lib" "monolith" "tests" "target")
+declare -a ALLOWED_FOLDERS=(".github" ".vscode" ".gitlab" "docs" "infra" "layanan" "antarmuka" "lib" "tests" "target")
 # Allowed root files (besides .md docs which are checked separately)
 declare -a ALLOWED_FILES=("Cargo.toml" "Cargo.lock" "README.md" "CONTRIBUTING.md" "AGENTS.md" "CHANGELOG.md" "deny.toml" "playwright.config.ts" ".gitignore" ".editorconfig" ".gitleaks.toml" "docker-compose.yml" "docker-compose.build.yml" "SIMPEL.code-workspace")
 

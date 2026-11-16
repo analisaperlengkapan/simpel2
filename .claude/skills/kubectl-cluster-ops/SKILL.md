@@ -41,7 +41,7 @@ kubectl -n istio-system get gateway,virtualservice -A
 ## Troubleshooting playbooks
 
 - **CrashLoopBackOff** → `logs --previous`; check startupProbe window (perlengkapan/
-  simpelv1 run migrations/secret-fetch at boot — liveness can kill them; F6-X adds
+  authenc run migrations/secret-fetch at boot — liveness can kill them; F6-X adds
   startupProbe). Check Secreton reachable + creds.
 - **Pending** → `describe pod` events: insufficient resources (prod ResourceQuota/
   LimitRange), node-pin (staging pods pinned to `simple02`), or PVC unbound

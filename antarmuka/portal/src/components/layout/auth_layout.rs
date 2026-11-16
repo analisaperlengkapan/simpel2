@@ -33,7 +33,7 @@ pub fn AuthLayout(
             <footer class="flex-shrink-0 border-t border-white/10" role="contentinfo">
                 <div class="max-w-7xl mx-auto px-4 py-4">
                     <p class="text-center text-sm text-slate-400">
-                        "© 2026 Kejaksaan Republik Indonesia — Portal SIMPEL v2.0"
+                        "© 2026 Kejaksaan Republik Indonesia — Portal SIMPEL"
                     </p>
                 </div>
             </footer>

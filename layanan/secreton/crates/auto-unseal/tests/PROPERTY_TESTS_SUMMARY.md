@@ -191,9 +191,6 @@ Each provider-specific test will verify the same round-trip property using real 
 
 ## References
 
-- **Requirements**: `layanan/secreton/.kiro/specs/secreton-vault-parity/requirements.md`
-- **Design**: `layanan/secreton/.kiro/specs/secreton-vault-parity/design.md`
-- **Tasks**: `layanan/secreton/.kiro/specs/secreton-vault-parity/tasks.md`
 - **Proptest Documentation**: https://docs.rs/proptest/
 
 ---

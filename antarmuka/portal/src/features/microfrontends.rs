@@ -141,36 +141,17 @@ pub struct MicrofrontendRegistry;
 impl MicrofrontendRegistry {
     /// Get all registered applications
     pub fn get_all_apps() -> Vec<MicrofrontendApp> {
-        vec![
-            // Perlengkapan ships as two parallel implementations (see
-            // `monolith/simpelv1/AGENTS.md` → "v1 ↔ v2 Boundary"): the legacy
-            // Laravel monolith and the Rust/WASM rewrite. They are listed as
-            // two apps, not one app with a version submenu, because the user
-            // picks a system up front — the choice is which application to
-            // open, not a setting inside one.
-            MicrofrontendApp {
-                id: "perlengkapan-v2".to_string(),
-                name: "SIMPEL v2".to_string(),
-                description: "Manajemen Aset dan Logistik — Rust & WebAssembly".to_string(),
-                icon: "📦".to_string(),
-                url: "/perlengkapan/simpel/v2".to_string(),
-                color: AppColor::Orange,
-                category: AppCategory::Asset,
-                required_role: None,
-                status: AppStatus::Active,
-            },
-            MicrofrontendApp {
-                id: "perlengkapan-v1".to_string(),
-                name: "SIMPEL v1".to_string(),
-                description: "Manajemen Aset dan Logistik — Laravel (versi lama)".to_string(),
-                icon: "🗄️".to_string(),
-                url: "/perlengkapan/simpel/v1".to_string(),
-                color: AppColor::Blue,
-                category: AppCategory::Asset,
-                required_role: None,
-                status: AppStatus::Active,
-            },
-        ]
+        vec![MicrofrontendApp {
+            id: "perlengkapan".to_string(),
+            name: "SIMPEL".to_string(),
+            description: "Manajemen Aset dan Logistik".to_string(),
+            icon: "📦".to_string(),
+            url: "/perlengkapan/simpel/v2".to_string(),
+            color: AppColor::Orange,
+            category: AppCategory::Asset,
+            required_role: None,
+            status: AppStatus::Active,
+        }]
     }
 
     /// Get apps by category

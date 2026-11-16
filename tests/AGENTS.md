@@ -120,36 +120,25 @@ Unit Tests dan Integration Tests berada di dalam *crate* masing-masing, bukan di
   Proto integrasi ADA DI LUAR konteks image e2e → di-copy ke build context +
   `INTEGRASI_PROTO_PATH` (env-override di spec). Gate `E2E_INTEGRATION_ENABLED`
   / dispatch `run_e2e`.
-- **Cross-app SSO e2e (portal↔perlengkapan↔simpelv1):** job
-  `e2e-portal-cross-app` (project `portal-cross-app`, spec `auth-login-flow` +
-  `v1-sso-flow`) — SSO NYATA lewat
+- **Cross-app SSO e2e (portal↔perlengkapan):** job `e2e-portal-cross-app`
+  (project `portal-cross-app`, spec `auth-login-flow`) — SSO NYATA lewat
   **single-origin `cross-app-ingress`** (`infra/nginx/e2e-cross-app-ingress.conf`,
-  meniru Istio VS prod: `/portal`+`/perlengkapan`+`/perlengkapan/simpel/v1`+
-  `/api/*` satu origin). `v1-sso-flow` menutup leg legacy: v1 **tidak punya
-  halaman login** — `TokenToOAuthMiddleware` memantulkan rute v1 yang belum
-  terautentikasi ke `{origin}/portal/login?return_to=…&callback=…&state=…`,
-  portal mengembalikan JWT lewat **form POST** ke `auth/oauth-callback` v1, lalu
-  v1 redirect ke `return_to`. Stack job ini sekarang membawa `simpelv1` +
-  `gateway` dan meng-seed `dbsimpelv1` dari
-  `tests/fixtures/e2e/seed-simpelv1-schema.sql` (skema legacy dibuat KOSONG oleh
-  chart; tanpa seed ini callback mati di "User tidak ditemukan di sistem"). Alur =
+  meniru Istio VS prod: `/portal`+`/perlengkapan`+`/api/*` satu origin). Alur =
   **dua-hop**: `/perlengkapan/` → login-page perlengkapan sendiri → link "Masuk
   via Portal" (`/portal/login?redirect_uri=…dashboard`) → login authenc nyata →
   portal honor redirect_uri → dashboard perlengkapan mount dari JWT same-origin
   (`localStorage["auth_token"]`). **JANGAN** `page.addInitScript(localStorage.
   clear())` (re-run tiap navigasi → hapus token saat hard-redirect ke dashboard;
-  Playwright sudah isolasi context per-test). Butuh KEDUA FE build → **tidak** di
-  `ci-summary.needs`. Gate `E2E_INTEGRATION_ENABLED` / `run_e2e`.
-- **Secreton bootstrap↔Gateway e2e:** job `e2e-secreton-gateway` — init+unseal
-  (Shamir)+seed secret via gateway REST (`infra/scripts/secreton-ci-bootstrap.sh`).
-  Opsi `SECRETON_DB_PROVISION=1`: provision DB-secrets-engine + lease + buktikan
-  dynamic credential PG login (psql SELECT 1) lewat gateway (`GATEWAY_ENABLE_DB_ADMIN=1`).
-  Provisioning + issuance WAJIB ke proses secreton yang SAMA. Gate `E2E_INTEGRATION_ENABLED`
-  / `run_e2e`; skill `secreton-ops`.
-- **simpelv1↔Gateway live e2e:** job `e2e-simpelv1-integration` — PHPUnit suite
-  `IntegrationLive` lawan **gateway sidecar NYATA** (BUKAN `Http::fake`) →
-  authenc+secreton+layanan-integrasi. Membuktikan jalur internal v1 (verifyToken,
-  fetch-secret) nyata. Gate `E2E_INTEGRATION_ENABLED` / `run_e2e`.
+  Playwright sudah isolasi context per-test). Ada di `ci-summary.needs`. Gate
+  `E2E_INTEGRATION_ENABLED` / `run_e2e`.
+- **Secreton bootstrap e2e:** job `e2e-secreton-bootstrap` — init+unseal
+  (Shamir) + tulis/baca rahasia lewat REST Secreton dengan root token hasil init
+  (`infra/scripts/secreton-ci-bootstrap.sh`). Opsi `SECRETON_DB_PROVISION=1`:
+  konfigurasi DB-secrets-engine + role + lease lewat **gRPC** (`grpcurl`, jalur
+  yang dipakai layanan-perlengkapan) dan buktikan dynamic credential PG login
+  (psql SELECT 1). Jalur REST untuk lease (`/v1/dynamic/database/creds/*`) saat
+  ini 500 (`relation "leases" does not exist`), jadi tidak dipakai di sini.
+  Gate `E2E_INTEGRATION_ENABLED` / `run_e2e`; skill `secreton-ops`.
 
 #### Matriks coverage E2E lintas-service (kanonik — F-GW)
 
@@ -165,10 +154,7 @@ via `E2E_PORTAL_ENABLED`/`E2E_PERLENGKAPAN_ENABLED`).
 | perlengkapan → integrasi (bank_aset cross-schema + gRPC pegawai) | `e2e-perlengkapan` + `e2e-integrasi-authenc` | ✅ | opt-in |
 | **portal → perlengkapan (SSO same-origin)** | `e2e-portal-cross-app` | ✅ | opt-in |
 | authenc → integrasi (resolve-satker gRPC) + integrasi gRPC/REST | `e2e-integrasi-authenc` | ✅ | opt-in |
-| secreton ↔ gateway (bootstrap + dynamic-lease) | `e2e-secreton-gateway` | ✅ | opt-in |
-| simpelv1 → gateway → {authenc, secreton, integrasi} | `e2e-simpelv1-integration` | ✅ | opt-in |
-| portal → simpelv1 (SSO + gateway) | `e2e-portal-cross-app` | ✅ | opt-in |
-| simpelv1 → integrasi (data-plane pegawai/BMN) | — | — | **belum ada** (#41 FDW+REST, pasca-F5) |
+| secreton (bootstrap + KV REST + dynamic-lease gRPC) | `e2e-secreton-bootstrap` | ✅ | opt-in |
 | authenc ↔ secreton (MFA-opt fetch) | — | — | **staging-only** (tak ter-wire di compose) |
 | integrasi ↔ secreton (app gRPC) | — | — | **N/A** (integrasi 0 secreton gRPC ref → `SECRETON_GRPC_URL` vestigial, dibuang. Token API eksternal disuntik via SA-token @prod = concern platform, bukan integrasi app, lihat `layanan/integrasi/AGENTS.md`) |
 

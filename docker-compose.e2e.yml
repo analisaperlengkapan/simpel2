@@ -52,15 +52,6 @@ services:
       # :18088 for local runs, which is what the header above documents.
       - "${AUTHENC_REST_HOST_PORT:-18088}:8088" # REST API for e2e real-auth + captcha-debug
 
-  # Enable the gateway's privileged database secrets-engine provisioning routes
-  # (/v1/database/config/*, /v1/database/roles/*) so the secreton bootstrap can
-  # configure Secreton's DB engine + create the leased role. OFF in the base
-  # compose and in production (Helm) — the routes accept an admin DSN + raw SQL,
-  # so they must not exist on the production simpelv1 localhost sidecar.
-  gateway:
-    environment:
-      GATEWAY_ENABLE_DB_ADMIN: "1"
-
   # Single-origin reverse proxy for the cross-app SSO e2e (F-GW PR-E). Mirrors
   # the prod Istio VirtualService (one host: /portal, /perlengkapan, /api/*) so
   # the portal→perlengkapan JWT handoff (same-origin localStorage["auth_token"])

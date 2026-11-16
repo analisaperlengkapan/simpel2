@@ -179,9 +179,6 @@
     "layananPerlengkapan": {
       "$ref": "#/definitions/workload"
     },
-    "simpelv1": {
-      "$ref": "#/definitions/workload"
-    },
     "portal": {
       "$ref": "#/definitions/workload"
     },
