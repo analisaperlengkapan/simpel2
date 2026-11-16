@@ -93,6 +93,10 @@ regexes = [
   # template SIMPEL v1): `e.SHORTKEY=e.default=void 0` adalah konstanta tombol pintasan
   # keyboard. generic-api-key menangkap `e.default=void` sebagai "nilai kunci".
   '''^e\.default=void$''',
+  # Dropzone (`.../libs/dropzone/dropzone{,-min}.js`, `.mjs`): `this.KEY_STR = "A..Z a..z 0..9 +/="`
+  # adalah ALFABET base64 milik encoder EXIF-nya, bukan kunci. gitleaks 8.24.3 (versi CI)
+  # menandainya; 8.30.1 tidak.
+  '''^ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\+/=$''',
 ]
 
 # ─── Allowlist commit historis ─────────────────────────────────────
