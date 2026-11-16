@@ -9,5 +9,5 @@
 # Address by NODE IP, not a cluster DNS name: ARC runner pods run with
 # dnsPolicy None + public resolvers, so cluster DNS names do not resolve.
 [registry."172.15.10.252:32000"]
-  http = true
-  insecure = true
+http = true
+insecure = true
