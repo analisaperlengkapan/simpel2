@@ -611,20 +611,14 @@ istio:
         rewrite: /api/captcha/
         destination: { host: authenc, port: 8088 }
         timeout: 30s
-      # SIMPEL v2 = antarmuka/perlengkapan (Leptos WASM frontend) di
-      # canonical path /perlengkapan/simpel/v2/. Frontend WASM di-build
-      # dengan `<base href="/perlengkapan/simpel/v2/" />` dan nginx serve
-      # dari `/usr/share/nginx/html/perlengkapan/simpel/v2/`. NO rewrite —
+      # SIMPEL = antarmuka/perlengkapan (Leptos WASM frontend) di path
+      # /perlengkapan/simpel/. Frontend WASM di-build dengan
+      # `<base href="/perlengkapan/simpel/" />` dan nginx serve dari
+      # `/usr/share/nginx/html/perlengkapan/simpel/`. NO rewrite —
       # backend terima path apa adanya.
-      - match: { prefix: /perlengkapan/simpel/v2 }
-        destination: { host: perlengkapan, port: 8080 }
-        timeout: 30s
-      # Parent path /perlengkapan/ dan /perlengkapan/simpel/ — frontend
-      # nginx serve static index.html dengan meta-refresh ke canonical
-      # /perlengkapan/simpel/v2/. Redirect dilakukan di FRONTEND HTML
-      # (bukan di Istio) supaya tidak konflik dengan Istio rewrite logic.
       - match: { prefix: /perlengkapan/simpel }
         destination: { host: perlengkapan, port: 8080 }
+        timeout: 30s
       - match: { prefix: /perlengkapan }
         destination: { host: perlengkapan, port: 8080 }
       - match: { prefix: /pembinaan/perlengkapan }

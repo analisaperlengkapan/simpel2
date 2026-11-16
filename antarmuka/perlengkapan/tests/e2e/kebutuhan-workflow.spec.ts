@@ -34,7 +34,7 @@ import {
 } from './helpers/real-auth';
 import { clickAction } from './helpers/workflow';
 
-const BASE = '/perlengkapan/simpel/v2';
+const BASE = '/perlengkapan/simpel';
 const CAMPAIGN_ID = 'c1000000-0000-4c00-8c00-000000000001';
 const S1_OPERATOR = 'c1000000-0000-4c00-8c00-0000000a0001'; // 0200010 @2001
 const S2_WILAYAH = 'c1000000-0000-4c00-8c00-0000000a0002'; //  0200020 @2002

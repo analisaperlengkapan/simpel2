@@ -258,11 +258,9 @@ istio:
         rewrite: /api/captcha/
         destination: { host: authenc, port: 8088 }
         timeout: 30s
-      - match: { prefix: /perlengkapan/simpel/v2 }
-        destination: { host: perlengkapan, port: 8080 }
-        timeout: 30s
       - match: { prefix: /perlengkapan/simpel }
         destination: { host: perlengkapan, port: 8080 }
+        timeout: 30s
       - match: { prefix: /perlengkapan }
         destination: { host: perlengkapan, port: 8080 }
       - match: { prefix: /pembinaan/perlengkapan }

@@ -36,7 +36,7 @@ else
 fi
 
 # Generate config.json di lokasi canonical microfrontend
-# (/perlengkapan/simpel/v2/) — same path dengan WASM `<base href>`.
+# (/perlengkapan/simpel/) — same path dengan WASM `<base href>`.
 #
 # Di bawah Helm ini TIDAK PERNAH berhasil: chart menyetel
 # `readOnlyRootFilesystem: true`, jadi web root tak bisa ditulis. Itu bukan
@@ -49,7 +49,7 @@ fi
 # dicatat, gagal dicatat sebagai peringatan. Perbaikan sebenarnya = sajikan
 # config.json dari ConfigMap chart (seperti nginx.conf) supaya tak ada tulisan
 # runtime sama sekali; itu butuh verifikasi FE tersendiri.
-CONFIG_JSON=/usr/share/nginx/html/perlengkapan/simpel/v2/config.json
+CONFIG_JSON=/usr/share/nginx/html/perlengkapan/simpel/config.json
 if cat <<EOT > "$CONFIG_JSON" 2>/dev/null
 {
   "api_url": "${API_URL:-http://10.1.7.121/api/v1/perlengkapan}",

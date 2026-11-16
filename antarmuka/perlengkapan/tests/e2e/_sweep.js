@@ -10,7 +10,7 @@ const { chromium } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
 const LOCAL = 'http://127.0.0.1:8099';
-const BASE = '/perlengkapan/simpel/v2';
+const BASE = '/perlengkapan/simpel';
 const OUT = process.env.OUT_DIR;
 const PASS = '199203142014031001';
 // Derived from the seed, not hand-listed — the same mistake the route list

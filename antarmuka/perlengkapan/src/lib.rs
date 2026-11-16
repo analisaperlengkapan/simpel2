@@ -148,18 +148,18 @@ pub fn App() -> impl IntoView {
         <Meta name="viewport" content="width=device-width, initial-scale=1" />
 
         <AppShell>
-            // Router base harus match canonical mount point `/perlengkapan/simpel/v2/`
-            // sesuai routing spec — supaya path `/perlengkapan/simpel/v2/` ke router
+            // Router base harus match canonical mount point `/perlengkapan/simpel/`
+            // sesuai routing spec — supaya path `/perlengkapan/simpel/` ke router
             // dianggap path `/` (root), trigger redirect ke `/login` jika belum
             // authenticated. Sebelumnya base="/perlengkapan" tidak match path baru
             // sehingga semua route fall through ke NotFound.
-            <Router base="/perlengkapan/simpel/v2">
+            <Router base="/perlengkapan/simpel">
                 {
                     let location = leptos_router::hooks::use_location();
                     let is_login_page = move || {
                         let path = location.pathname.get();
                         let normalized = path.trim_end_matches('/');
-                        normalized == "/perlengkapan/simpel/v2/login"
+                        normalized == "/perlengkapan/simpel/login"
                             || normalized == "/perlengkapan/login" || normalized == "/login"
                             || normalized.ends_with("/login")
                     };
@@ -210,10 +210,10 @@ pub fn App() -> impl IntoView {
                                                 if AuthService::load_session().is_some() {
                                                     let nav = leptos_router::hooks::use_navigate();
                                                     nav("/dashboard", Default::default());
-                                                    // Leptos Router base "/perlengkapan/simpel/v2" otomatis
+                                                    // Leptos Router base "/perlengkapan/simpel" otomatis
                                                     // prepend ke nav() path — pakai relative path /dashboard
                                                     // (tanpa prefix) supaya tidak jadi
-                                                    // "/perlengkapan/simpel/v2/perlengkapan/simpel/v2/dashboard".
+                                                    // "/perlengkapan/simpel/perlengkapan/simpel/dashboard".
                                                     view! { <div></div> }
                                                         .into_any()
                                                 } else {

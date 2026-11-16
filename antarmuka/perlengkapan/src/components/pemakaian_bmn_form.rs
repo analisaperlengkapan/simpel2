@@ -565,7 +565,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     gloo_timers::callback::Timeout::new(1500, move || {
                         // navigate() resolves against the router base, so this
                         // must be base-relative (full-path form would double
-                        // the /perlengkapan/simpel/v2 prefix and 404).
+                        // the /perlengkapan/simpel prefix and 404).
                         navigate("/pengelolaan/pemakaian", Default::default());
                     })
                     .forget();

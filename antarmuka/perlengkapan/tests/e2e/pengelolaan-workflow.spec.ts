@@ -36,7 +36,7 @@ import { apiLogin, credsFor, storageStatePath, TEST_USERS, PERLENGKAPAN_API_URL 
 import { clickAction } from "./helpers/workflow";
 import { reachable } from "./helpers/page-load";
 
-const BASE = "/perlengkapan/simpel/v2";
+const BASE = "/perlengkapan/simpel";
 const PH_API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/penghapusan-bmn`;
 const PM_API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/pemakaian-bmn`;
 

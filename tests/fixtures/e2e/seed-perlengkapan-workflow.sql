@@ -625,7 +625,7 @@ INSERT INTO notifikasi.in_app_notifications
 VALUES
   ('f1000000-0000-4f00-8f00-0000000c0001', '11111111-1111-4111-8111-111111111111',
    'workflow', 'E2E Notifikasi Satu', 'Usulan penghapusan menunggu tindakan Anda.',
-   'normal', 'info', '/perlengkapan/simpel/v2/pengelolaan/penghapusan', false, NULL),
+   'normal', 'info', '/perlengkapan/simpel/pengelolaan/penghapusan', false, NULL),
   ('f1000000-0000-4f00-8f00-0000000c0002', '11111111-1111-4111-8111-111111111111',
    'workflow', 'E2E Notifikasi Dua', 'Periode kebutuhan BMN 2026 telah dibuka.',
    'high', 'warning', NULL, false, NULL),

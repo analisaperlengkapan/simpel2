@@ -38,7 +38,7 @@ import {
   formatThousands,
 } from './helpers/real-auth';
 
-const DAFTAR = '/perlengkapan/simpel/v2/bank-aset/daftar';
+const DAFTAR = '/perlengkapan/simpel/bank-aset/daftar';
 
 /** Table body rows of the asset list (structural, not text-matched). */
 function rowsOf(page: Page) {

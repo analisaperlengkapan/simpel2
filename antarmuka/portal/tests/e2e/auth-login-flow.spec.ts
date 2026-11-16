@@ -20,7 +20,7 @@ import {
  *
  * The handoff is a TWO-HOP delegation (this is the real FE design, not a direct
  * bounce): perlengkapan does NOT redirect unauthenticated users straight to the
- * portal. It renders its OWN login page (`/perlengkapan/simpel/v2/login`, see
+ * portal. It renders its OWN login page (`/perlengkapan/simpel/login`, see
  * antarmuka/perlengkapan/src/pages/login.rs) that carries a single "Masuk via
  * Portal" link → `/portal/login?redirect_uri=%2Fperlengkapan%2Fsimpel%2Fv2%2Fdashboard`.
  * The portal login honors that `redirect_uri` (only when it starts with

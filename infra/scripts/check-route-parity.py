@@ -11,7 +11,7 @@ feature that works on staging and silently 404s for real users.
 
 That is exactly what happened: production's table was a pre-F5 copy with NOT ONE
 authenc route (`/api/v1/auth`, `/api/v1/iam`, `/api/v1/oauth2`, `/api/v1/captcha`,
-`/api/auth`, `/captcha/`...), `/perlengkapan/simpel/v2` pointed at the backend
+`/api/auth`, `/captcha/`...), `/perlengkapan/simpel` pointed at the backend
 instead of the frontend, and `/portal/` did not exist. Login would have been
 impossible on day one. Nothing noticed, because production had never been
 deployed and nothing compared the two tables.
