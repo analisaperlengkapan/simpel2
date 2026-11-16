@@ -1,0 +1,20 @@
+# Gitleaks findings that were read and are not secrets. One fingerprint per line,
+# written exactly as Gitleaks prints it: <commit>:<file>:<rule>:<line>. A fingerprint
+# names one commit, one file and one line, so it silences exactly that finding and
+# nothing that resembles it (unlike a path or regex allowlist in .gitleaks.toml).
+#
+# All three are in commit 3d44462e (2026-11-13), the only commit of the branch
+# fix/simpelv1-template-javascript (closed PR #1100, superseded by the removal of v1
+# in #1109), so they were never on main. The scheduled scan reads every branch and the
+# whole history (push and pull-request scans read only the new commits), which is why
+# it failed every night while CI stayed green. Deleting that stale branch would also
+# make the findings disappear; this file silences them without deleting anything.
+#
+# dropzone: `this.KEY_STR` is the public Base64 alphabet (A-Z, a-z, 0-9, "+",
+# "/", "=") used by its image-orientation code. The literal is NOT repeated here
+# on purpose: gitleaks scans this file too, and the alphabet itself matches
+# `generic-api-key` — writing it out silences three findings and adds one.
+3d44462ea63ea247c296385177c45fe2c572ad8a:monolith/simpelv1/public/assets/libs/dropzone/dropzone-min.js:generic-api-key:1
+3d44462ea63ea247c296385177c45fe2c572ad8a:monolith/simpelv1/public/assets/libs/dropzone/dropzone.js:generic-api-key:2871
+# quill: `e.SHORTKEY = ...` is a JavaScript symbol name in minified code, not a credential.
+3d44462ea63ea247c296385177c45fe2c572ad8a:monolith/simpelv1/public/assets/libs/quill/quill.min.js:generic-api-key:7
