@@ -310,8 +310,16 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.image.name }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}
+          # NO build cache, on purpose. These are the images that get promoted and
+          # deployed, so they are built from source and nothing else. The only cache
+          # we have lives in the in-cluster registry, which speaks plain HTTP and has
+          # no authentication: anyone on the runner network could replace a cached
+          # layer and have it end up inside a release image (cache poisoning). A
+          # release is rare and its six builds run in parallel, so the extra
+          # minutes cost less than that trust. `type=gha` was dropped earlier: its
+          # export counted against the shared Actions storage quota and aborted
+          # builds when that ran out. ci.yml's builds may use the registry cache;
+          # check-image-build-scope.py fails if this workflow ever does.
           provenance: true
           sbom: true
 

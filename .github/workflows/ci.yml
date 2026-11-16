@@ -15,6 +15,10 @@ on:
         description: "Run the Playwright e2e smoke stack (on-demand validation, independent of vars.E2E_PERLENGKAPAN_ENABLED)"
         type: boolean
         default: false
+      refresh_cache:
+        description: "Re-export the BuildKit registry cache from the e2e image build (needs run_e2e, and a run on main)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -87,58 +91,10 @@ jobs:
       workflows: ${{ steps.changes.outputs.workflows }}
       helm: ${{ steps.changes.outputs.helm }}
       e2e: ${{ steps.changes.outputs.e2e }}
-      image-portal: ${{ steps.changes.outputs.image-portal }}
-      image-perlengkapan-ui: ${{ steps.changes.outputs.image-perlengkapan-ui }}
-      image-authenc: ${{ steps.changes.outputs.image-authenc }}
-      image-perlengkapan-api: ${{ steps.changes.outputs.image-perlengkapan-api }}
-      image-integrasi: ${{ steps.changes.outputs.image-integrasi }}
-      image-secreton: ${{ steps.changes.outputs.image-secreton }}
-      docker-matrix: ${{ steps.docker-matrix.outputs.matrix }}
-      docker-has-images: ${{ steps.docker-matrix.outputs.has-images }}
     steps:
       - uses: actions/checkout@v7
       - id: changes
         uses: ./.github/actions/detect-changes
-      - id: docker-matrix
-        shell: bash
-        env:
-          IS_MAIN: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging' }}
-          PORTAL: ${{ steps.changes.outputs.image-portal }}
-          PERLENGKAPAN_UI: ${{ steps.changes.outputs.image-perlengkapan-ui }}
-          AUTHENC: ${{ steps.changes.outputs.image-authenc }}
-          PERLENGKAPAN_API: ${{ steps.changes.outputs.image-perlengkapan-api }}
-          INTEGRASI: ${{ steps.changes.outputs.image-integrasi }}
-          SECRETON: ${{ steps.changes.outputs.image-secreton }}
-        run: |
-          set -euo pipefail
-          declare -A IMAGES=(
-            [antarmuka-portal]="antarmuka/portal/Dockerfile|.|$PORTAL"
-            [antarmuka-perlengkapan]="antarmuka/perlengkapan/Dockerfile|.|$PERLENGKAPAN_UI"
-            [layanan-authenc]="layanan/authenc/Dockerfile|.|$AUTHENC"
-            [layanan-perlengkapan]="layanan/perlengkapan/Dockerfile|.|$PERLENGKAPAN_API"
-            [layanan-integrasi]="layanan/integrasi/Dockerfile|.|$INTEGRASI"
-            # Context MUST be repo root: secreton's Dockerfile does
-            # `COPY layanan/secreton/secreton.toml …`, relative to the
-            # workspace root. A sub-dir context failed in buildx with
-            # `…/secreton.toml: not found`. Keep this in sync with the
-            # release.yml matrix, which uses `.` for every image.
-            [layanan-secreton]="layanan/secreton/Dockerfile|.|$SECRETON"
-          )
-          entries=()
-          for name in "${!IMAGES[@]}"; do
-            IFS='|' read -r dockerfile context cond <<<"${IMAGES[$name]}"
-            if [[ "$IS_MAIN" == "true" || "$cond" == "true" ]]; then
-              entries+=("{\"image\":\"$name\",\"dockerfile\":\"$dockerfile\",\"context\":\"$context\"}")
-            fi
-          done
-          if [[ ${#entries[@]} -eq 0 ]]; then
-            echo "matrix={\"include\":[]}" >> "$GITHUB_OUTPUT"
-            echo "has-images=false" >> "$GITHUB_OUTPUT"
-          else
-            json=$(IFS=,; echo "${entries[*]}")
-            echo "matrix={\"include\":[$json]}" >> "$GITHUB_OUTPUT"
-            echo "has-images=true" >> "$GITHUB_OUTPUT"
-          fi
 
   # ─────────────────────────────────────────────────────
   # Phase 1 — Enforcement (cepat, selalu jalan)
@@ -532,6 +488,12 @@ jobs:
       - name: Chart image names match what release.yml builds and promote.yml re-tags
         shell: bash
         run: python3 ./infra/scripts/check-chart-release-images.py
+      # Two promises the image builds depend on and nothing else checks: a change
+      # to anything a Dockerfile reads reaches an image build on a PR, and a release
+      # image never imports the shared, unauthenticated build cache.
+      - name: Image builds are reachable from a PR, and releases use no shared cache
+        shell: bash
+        run: python3 ./infra/scripts/check-image-build-scope.py
       # Staging proves a route table; production serves a different one. Production's
       # was a pre-F5 copy with no authenc route at all, so login was impossible on
       # day one and nothing could have noticed before the first real deploy.
@@ -1078,7 +1040,25 @@ jobs:
   build-docker:
     name: Build Docker (${{ matrix.image }})
     needs: detect
-    if: needs.detect.outputs.docker-has-images == 'true'
+    # main/staging and on demand, NOT on pull requests. The PR's
+    # e2e-build-images job builds the same six Dockerfiles (same contexts, plus
+    # CAPTCHA_DEBUG for authenc), so a PR build here only paid ~395
+    # runner-minutes per run (a third of a run's compute) to learn what
+    # e2e-build-images had just learned — and that compute is what made PRs
+    # queue for hours. A Dockerfile that breaks still fails the PR (hadolint,
+    # the e2e image build) and is built again here on main and in release.yml
+    # before anything is promoted. The job is in ci-summary.needs, where a
+    # skipped job counts as passed, so a PR is not blocked by its absence.
+    #
+    # On main/staging it runs on EVERY push, as it always did. Do not narrow it
+    # to "code, manifest or Dockerfile changed": the portal and perlengkapan
+    # Dockerfiles `COPY . .` and then run infra/scripts/* inside the build, so the
+    # image depends on files no path filter here lists, and a push that touched
+    # only one of them would skip the one build that exists to catch it.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/staging'
     runs-on: arc-simpel
     timeout-minutes: 120
     permissions:
@@ -1087,7 +1067,18 @@ jobs:
       security-events: write
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.detect.outputs.docker-matrix) }}
+      matrix:
+        # Context MUST be repo root: secreton's Dockerfile does
+        # `COPY layanan/secreton/secreton.toml …`, relative to the workspace
+        # root; a sub-dir context failed in buildx with `…/secreton.toml: not
+        # found`. Keep this in sync with the release.yml matrix.
+        include:
+          - { image: antarmuka-portal, dockerfile: antarmuka/portal/Dockerfile, context: . }
+          - { image: antarmuka-perlengkapan, dockerfile: antarmuka/perlengkapan/Dockerfile, context: . }
+          - { image: layanan-authenc, dockerfile: layanan/authenc/Dockerfile, context: . }
+          - { image: layanan-perlengkapan, dockerfile: layanan/perlengkapan/Dockerfile, context: . }
+          - { image: layanan-integrasi, dockerfile: layanan/integrasi/Dockerfile, context: . }
+          - { image: layanan-secreton, dockerfile: layanan/secreton/Dockerfile, context: . }
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/docker-build
@@ -1101,6 +1092,8 @@ jobs:
           push: "false"
           load: "true"
           scan: "false"
+          # Read-only: e2e-build-images is the only writer of this cache.
+          cache-registry: ${{ env.E2E_REGISTRY }}
 
   # ─────────────────────────────────────────────────────
   # Phase 4 — Test (KONSERVATIF — selalu jalan)
@@ -1572,15 +1565,35 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
+      - name: Setup Buildx (registry cache)
+        uses: docker/setup-buildx-action@v4
+        with:
+          # docker-container driver: the default `docker` driver cannot export a
+          # cache. The builder trusts the HTTP registry through buildkitd.toml.
+          driver: docker-container
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
+          buildkitd-config: .github/buildkitd.toml
+          # Remove the builder + its buildkit container at job end (they leaked
+          # by the hundred on the shared host before; see the docker-build action).
+          cleanup: true
       - name: Build every e2e image once
         env:
           POSTGRES_PASSWORD: e2e_test_pw
+          # Only main writes the cache, and only when something it is keyed on
+          # may have changed. See infra/scripts/ci-build-e2e-images.sh.
+          E2E_CACHE_WRITE: >-
+            ${{ github.ref == 'refs/heads/main' &&
+            ((github.event_name == 'push' &&
+              (needs.detect.outputs.cargo-manifests == 'true' ||
+               needs.detect.outputs.docker == 'true' ||
+               needs.detect.outputs.workflows == 'true')) ||
+             github.event.inputs.refresh_cache == 'true') }}
         run: |
           # Union of what the e2e jobs consume. Both compose files, so the
           # authenc image gets the CAPTCHA_DEBUG=1 build arg the e2e suites need.
-          if ! timeout 5400 docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
-              authenc secreton layanan-integrasi layanan-perlengkapan \
-              perlengkapan portal; then
+          if ! timeout 5400 bash infra/scripts/ci-build-e2e-images.sh; then
             echo "::error::shared e2e image build failed or timed out after 5400s"
             exit 1
           fi
