@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ci-cache
+  labels:
+    app.kubernetes.io/name: ci-cache
+    app.kubernetes.io/part-of: simpel-ci
+spec:
+  replicas: 1
+  # One replica on a ReadWriteOnce volume: a rolling update would start the new pod
+  # while the old one still holds the volume.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ci-cache
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ci-cache
+        app.kubernetes.io/part-of: simpel-ci
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: ci-cache
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: webdav
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}@{{ .Values.image.digest }}"
+          imagePullPolicy: IfNotPresent
+          args: ["-c", "/etc/ci-cache/config.yml"]
+          ports:
+            - name: webdav
+              containerPort: 6060
+          readinessProbe:
+            tcpSocket:
+              port: webdav
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: webdav
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/ci-cache
+              readOnly: true
+        # Expires old entries. The volume size is the hard ceiling; this keeps the
+        # cache from sitting at it. Cache entries are immutable and re-made on a miss,
+        # so deleting by age is safe. Directories are left alone: sccache fans entries
+        # out over a bounded set of them, and removing one mid-PUT would fail a write.
+        - name: janitor
+          image: "{{ .Values.janitor.repository }}:{{ .Values.janitor.tag }}@{{ .Values.janitor.digest }}"
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              while true; do
+                find /data -type f -mtime +{{ .Values.janitor.retentionDays }} -delete
+                echo "expired entries older than {{ .Values.janitor.retentionDays }} days; $(du -sk /data | cut -f1) KiB left"
+                sleep {{ mul .Values.janitor.intervalHours 3600 }}
+              done
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: ci-cache-data
+        - name: config
+          configMap:
+            name: ci-cache-config

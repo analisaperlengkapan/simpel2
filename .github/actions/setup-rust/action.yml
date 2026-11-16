@@ -26,6 +26,20 @@ inputs:
     description: 'GitHub token for API requests'
     required: false
     default: ''
+  sccache:
+    description: >-
+      'true' routes rustc through sccache backed by the shared in-cluster compile
+      cache (infra/helm/ci-cache). Opt-in per job: ONLY CI checks (clippy, tests,
+      gate builds) turn it on. Release builds, which produce the binaries that get
+      shipped, never do — a cache that anyone on the LAN can write to must not be
+      able to influence a shipped artifact. Unreachable cache = no cache, never a
+      failed build.
+    required: false
+    default: 'false'
+  sccache-endpoint:
+    description: 'WebDAV endpoint of the compile cache (node IP: runner pods cannot resolve cluster DNS)'
+    required: false
+    default: 'http://172.15.10.252:32010'
 
 runs:
   using: "composite"
@@ -158,6 +172,55 @@ runs:
         echo "PROTOC_INCLUDE=${{ runner.temp }}/.local/include" >> $GITHUB_ENV
 
         ${{ runner.temp }}/.local/bin/protoc --version
+
+    - name: Enable the shared compile cache (sccache)
+      if: inputs.sccache == 'true'
+      shell: bash
+      env:
+        # Pinned, and the archive is checked against the digest below before it is
+        # run. Bump both together, deliberately.
+        SCCACHE_VERSION: "0.10.0"
+        SCCACHE_SHA256: "1fbb35e135660d04a2d5e42b59c7874d39b3deb17de56330b25b713ec59f849b"
+        CACHE_ENDPOINT: ${{ inputs.sccache-endpoint }}
+      run: |
+        # Everything here is an optimisation: any failure is a warning and the job
+        # builds without the cache.
+        set -uo pipefail
+
+        # sccache's own startup check does a PROPFIND; a server that answers it is
+        # one it can write to (nginx's stock DAV module answers 405 and breaks every
+        # write, which is why the cache runs hacdias/webdav).
+        code="$(curl -s -o /dev/null -m 5 -w '%{http_code}' -X PROPFIND -H 'Depth: 0' "${CACHE_ENDPOINT}/" || true)"
+        if [ "$code" != "207" ]; then
+          echo "::warning::compile cache unreachable at ${CACHE_ENDPOINT} (HTTP ${code:-none}); building without it"
+          exit 0
+        fi
+
+        dest="${{ runner.temp }}/sccache"
+        archive="sccache-v${SCCACHE_VERSION}-x86_64-unknown-linux-musl"
+        mkdir -p "$dest"
+        if ! curl -fsSL --retry 3 --max-time 120 -o "$dest/sccache.tgz" \
+              "https://github.com/mozilla/sccache/releases/download/v${SCCACHE_VERSION}/${archive}.tar.gz"; then
+          echo "::warning::could not download sccache ${SCCACHE_VERSION}; building without the cache"
+          exit 0
+        fi
+        if ! echo "${SCCACHE_SHA256}  $dest/sccache.tgz" | sha256sum -c - >/dev/null 2>&1; then
+          echo "::warning::sccache archive does not match the pinned sha256; NOT using it"
+          exit 0
+        fi
+        tar -xzf "$dest/sccache.tgz" -C "$dest" --strip-components=1 "${archive}/sccache"
+        chmod +x "$dest/sccache"
+
+        {
+          echo "RUSTC_WRAPPER=$dest/sccache"
+          echo "SCCACHE_WEBDAV_ENDPOINT=${CACHE_ENDPOINT}"
+          echo "SCCACHE_WEBDAV_KEY_PREFIX=ci"
+          # A cache that errors mid-job must degrade to a slower build, not a failed one.
+          echo "SCCACHE_IGNORE_SERVER_IO_ERROR=1"
+          # sccache cannot cache incremental compilations.
+          echo "CARGO_INCREMENTAL=0"
+        } >> "$GITHUB_ENV"
+        echo "::notice::compile cache on (${CACHE_ENDPOINT}, sccache ${SCCACHE_VERSION})"
 
     - name: Setup Rust cache
       uses: Swatinem/rust-cache@v2

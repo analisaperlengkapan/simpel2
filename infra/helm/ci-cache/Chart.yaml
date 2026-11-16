@@ -1,0 +1,26 @@
+apiVersion: v2
+name: simpel-ci-cache
+description: |
+  Compile cache for the CI runners (sccache over WebDAV).
+
+  CI compiles the same dependency tree in a dozen ephemeral runner pods per run;
+  this is where those compiled crates are shared. It is a CACHE: losing the volume
+  costs one cold run, never data, and CI treats an unreachable cache as "no cache".
+
+  Install once per cluster, in its own namespace (the chart does not create it, so
+  `helm uninstall` can never take a namespace with it):
+
+    helm upgrade --install ci-cache infra/helm/ci-cache \
+      --namespace ci-cache --create-namespace
+
+type: application
+version: 0.1.0
+appVersion: "5.7.4"
+kubeVersion: ">=1.27.0-0"
+
+maintainers:
+  - name: SIMPEL DevOps Team
+    email: simpel-devops@kejaksaan.go.id
+
+annotations:
+  category: CI

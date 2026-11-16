@@ -210,7 +210,8 @@
       ".github/actions/detect-changes/**",
       ".github/workflows/ci.yml",
       ".github/ci-scope.json",
-      "infra/scripts/ci-scope.py"
+      "infra/scripts/ci-scope.py",
+      ".github/actions/sccache-stats/**"
     ],
     "e2e_only": [
       "antarmuka/*/tests/e2e/**",
