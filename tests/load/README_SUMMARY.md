@@ -313,7 +313,6 @@ For issues or questions:
 - [k6 Documentation](https://k6.io/docs/)
 - [PostgreSQL Performance](https://wiki.postgresql.org/wiki/Performance_Optimization)
 - [Kubernetes Best Practices](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
-- [SIMPEL Requirements](../../.kiro/specs/simpel-completion/requirements.md)
 
 ---
 

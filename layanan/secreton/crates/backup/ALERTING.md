@@ -300,5 +300,4 @@ Potential future improvements:
 ## See Also
 
 - [Backup Manager Documentation](./README.md)
-- [Secreton Vault Parity Spec](../.kiro/specs/secreton-vault-parity/requirements.md)
 - [Prometheus Metrics](https://prometheus.io/docs/concepts/metric_types/)

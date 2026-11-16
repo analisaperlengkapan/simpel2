@@ -356,8 +356,6 @@ secreton_secondary_reads_rejected_stale_total{node="secondary-1"} 5
 
 ## References
 
-- [Requirements Document](../../.kiro/specs/secreton-vault-parity/requirements.md) - Requirement 2.2.4
-- [Design Document](../../.kiro/specs/secreton-vault-parity/design.md) - Section 3.2.2
 - [Secondary Initialization](./SECONDARY_INITIALIZATION.md) - Bootstrap process
 - [Replication Manager](./src/manager.rs) - Main replication logic
 

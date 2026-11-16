@@ -187,8 +187,5 @@ let (count, set_count) = create_signal(0);
 
 ## References
 
-- **Requirements:** `.kiro/specs/simpel-completion/requirements.md`
-- **Design:** `.kiro/specs/simpel-completion/design.md`
-- **Tasks:** `.kiro/specs/simpel-completion/tasks.md` (Task 7.5.2)
 - **Backend API:** `layanan/perlengkapan/crates/api/src/kebutuhan_bmn/handlers.rs`
 - **AGENTS.md:** Root workspace AGENTS.md for architecture patterns

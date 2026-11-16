@@ -263,9 +263,6 @@ The implementation is ready for integration with the Secreton health monitoring 
 
 ## References
 
-- **Requirements:** `layanan/secreton/.kiro/specs/secreton-vault-parity/requirements.md` (Section 2.6)
-- **Design:** `layanan/secreton/.kiro/specs/secreton-vault-parity/design.md` (Section 5.6)
-- **Tasks:** `layanan/secreton/.kiro/specs/secreton-vault-parity/tasks.md` (Task 3.2)
 - **Implementation:** `layanan/secreton/crates/health/`
 - **Tests:** `layanan/secreton/crates/health/tests/property_tests.rs`
 

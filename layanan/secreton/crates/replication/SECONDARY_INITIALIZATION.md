@@ -464,8 +464,6 @@ let encrypted_snapshot = encrypt_snapshot(&snapshot, &encryption_key)?;
 
 ## References
 
-- [Replication Design Document](../../.kiro/specs/secreton-vault-parity/design.md)
-- [Replication Requirements](../../.kiro/specs/secreton-vault-parity/requirements.md)
 - [WAL Streaming Documentation](./WAL_STREAMING.md)
 - [Replication Manager API](./src/manager.rs)
 - [Secondary Initializer API](./src/secondary.rs)
