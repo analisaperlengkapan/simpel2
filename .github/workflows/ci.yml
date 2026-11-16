@@ -633,6 +633,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
+          sccache: "true"
           components: clippy
           targets: ${{ matrix.targets || '' }}
           cache-key: ci-clippy-${{ matrix.name }}
@@ -649,6 +650,8 @@ jobs:
       # autofix bot excludes them — see autofix.yml / antarmuka/AGENTS.md).
       - name: cargo clippy (${{ matrix.name }})
         run: cargo clippy ${{ matrix.packages }} ${{ matrix.extra_args || '' }} ${{ matrix.scope }} -- -D warnings
+      - uses: ./.github/actions/sccache-stats
+        if: always()
   lint-dockerfile:
     name: Lint Dockerfile
     needs: detect
@@ -944,6 +947,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
+          sccache: "true"
           targets: wasm32-unknown-unknown
           cache-key: trunk-portal
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -973,6 +977,8 @@ jobs:
       # was the only step that could fail the whole FE build on the account's
       # Actions artifact-storage quota (billed as a month-to-date average, so
       # a past overrun blocks uploads for days after the artifacts are gone).
+      - uses: ./.github/actions/sccache-stats
+        if: always()
 
   build-antarmuka-perlengkapan:
     name: Build Perlengkapan Microfrontend
@@ -986,6 +992,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
+          sccache: "true"
           targets: wasm32-unknown-unknown
           cache-key: trunk-perlengkapan
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -1008,6 +1015,8 @@ jobs:
       # was the only step that could fail the whole FE build on the account's
       # Actions artifact-storage quota (billed as a month-to-date average, so
       # a past overrun blocks uploads for days after the artifacts are gone).
+      - uses: ./.github/actions/sccache-stats
+        if: always()
 
   build-backend:
     name: Build Backend (${{ matrix.name }})
@@ -1026,6 +1035,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
+          sccache: "true"
           cache-key: ci-build-${{ matrix.name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Wipe stale target/ (self-hosted runner persistence)
@@ -1037,6 +1047,8 @@ jobs:
         run: rm -rf target
       - name: cargo build --release -p ${{ matrix.package }}
         run: cargo build --release -p ${{ matrix.package }} ${{ matrix.extra_args }}
+      - uses: ./.github/actions/sccache-stats
+        if: always()
   build-docker:
     name: Build Docker (${{ matrix.image }})
     needs: detect
@@ -1109,6 +1121,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
+          sccache: "true"
           cache-key: ci-test-lib-core
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Wipe stale target/ (self-hosted runner persistence)
@@ -1134,6 +1147,8 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: cargo test -p lib-core --doc --no-fail-fast
+      - uses: ./.github/actions/sccache-stats
+        if: always()
 
   test-lib-backend:
     name: Test Rust (lib-backend)
@@ -1145,6 +1160,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
+          sccache: "true"
           cache-key: ci-test-lib-backend
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Wipe stale target/ (self-hosted runner persistence)
@@ -1168,6 +1184,8 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: cargo test -p lib-backend --doc --all-features --no-fail-fast
+      - uses: ./.github/actions/sccache-stats
+        if: always()
 
   test-lib-crypto:
     name: Test Rust (lib-crypto)
@@ -1179,6 +1197,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
+          sccache: "true"
           cache-key: ci-test-lib-crypto
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Wipe stale target/ (self-hosted runner persistence)
@@ -1197,6 +1216,8 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: cargo test -p lib-crypto --doc --no-fail-fast
+      - uses: ./.github/actions/sccache-stats
+        if: always()
 
   test-lib-perlengkapan:
     name: Test Rust (lib-perlengkapan)
@@ -1208,6 +1229,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
+          sccache: "true"
           cache-key: ci-test-lib-perlengkapan
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Wipe stale target/ (self-hosted runner persistence)
@@ -1226,6 +1248,8 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: cargo test -p lib-perlengkapan --doc --no-fail-fast
+      - uses: ./.github/actions/sccache-stats
+        if: always()
 
   test-lib-ui:
     name: Test Rust (lib-ui)
@@ -1237,6 +1261,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
+          sccache: "true"
           # NOTE: Tidak ada `targets: wasm32-unknown-unknown` di sini.
           # lib-ui adalah library Leptos yang dipakai oleh microfrontend
           # WASM, tapi cargo test menjalankan unit tests di host
@@ -1275,6 +1300,8 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: cargo test -p lib-ui --doc --no-fail-fast
+      - uses: ./.github/actions/sccache-stats
+        if: always()
 
   test-antarmuka-portal:
     name: Test Rust (antarmuka-portal)
@@ -1289,6 +1316,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
+          sccache: "true"
           targets: wasm32-unknown-unknown
           cache-key: ci-test-portal
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -1332,6 +1360,8 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: cargo test -p portal-microfrontend --lib --bins --tests --no-fail-fast
+      - uses: ./.github/actions/sccache-stats
+        if: always()
 
   test-antarmuka-perlengkapan:
     name: Test Rust (antarmuka-perlengkapan)
@@ -1346,6 +1376,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
+          sccache: "true"
           targets: wasm32-unknown-unknown
           cache-key: ci-test-perlengkapan
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -1381,6 +1412,8 @@ jobs:
       # ("the self-hosted runner lost communication with the server"). Adding
       # the first real example here turns check-crate-ci-coverage.py red, which
       # is where the requirement to re-add this step comes from. (#115)
+      - uses: ./.github/actions/sccache-stats
+        if: always()
 
   test-services:
     name: Test Rust (${{ matrix.tier }})
@@ -1403,6 +1436,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
+          sccache: "true"
           cache-key: ci-test-${{ matrix.tier }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Wipe stale target/ (self-hosted runner persistence)
@@ -1518,6 +1552,8 @@ jobs:
           # shellcheck disable=SC2086  # see the note above: matrix.packages is
           # several `-p x` flags that must reach cargo as separate argv entries.
           cargo test ${{ matrix.packages }} --doc --no-fail-fast
+      - uses: ./.github/actions/sccache-stats
+        if: always()
   e2e-build-images:
     name: Build e2e images (once, shared)
     needs: [detect]

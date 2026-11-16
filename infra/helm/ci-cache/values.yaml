@@ -1,0 +1,45 @@
+# Compile cache for CI (sccache over WebDAV). See README.md.
+
+image:
+  # A small single-binary WebDAV server. Pinned by tag AND digest: the tag says what
+  # was meant, the digest is what actually runs (tags can be moved).
+  #
+  # Chosen after trying the alternatives against sccache 0.10.0:
+  #   nginx (ngx_http_dav_module)  — answers PROPFIND with 405; sccache's startup
+  #                                  check needs it, and every cache WRITE then fails
+  #   Apache httpd (mod_dav)       — needs a lock database whose DBM driver the
+  #                                  alpine image does not ship; every write is a 500
+  #   hacdias/webdav               — MKCOL / PUT / GET / PROPFIND all work; sccache
+  #                                  reaches 65/65 hits on the second build
+  repository: hacdias/webdav
+  tag: v5.7.4
+  digest: sha256:e5712e6bb99fefeb86a2e87cc63d0262d27412fc0defc106458654c07659fa0a
+
+# The sidecar that expires old entries (busybox `find -mtime`).
+janitor:
+  repository: busybox
+  tag: "1.37.0"
+  digest: sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+  # Cache entries are immutable and re-created on a miss, so deleting by age is safe;
+  # what is hot is simply re-made. The volume size below is the hard ceiling.
+  retentionDays: 14
+  intervalHours: 6
+
+service:
+  # Addressed by NODE IP from the runners (ARC pods cannot resolve cluster DNS),
+  # next to the in-cluster registry on 32000. Must match SCCACHE_WEBDAV_ENDPOINT in
+  # .github/actions/setup-rust/action.yml.
+  nodePort: 32010
+
+persistence:
+  # Real ceiling: when it fills, writes fail and sccache carries on without caching.
+  # storageClassName is deliberately not set: the cluster default applies.
+  size: 40Gi
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
