@@ -31,6 +31,7 @@ ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 BUILD_SCRIPT = ROOT / "infra" / "scripts" / "ci-build-e2e-images.sh"
 COMPOSE = ROOT / "docker-compose.yml"
+RELEASE = ROOT / ".github" / "workflows" / "release.yml"
 
 spec = importlib.util.spec_from_file_location("ci_scope", ROOT / "infra" / "scripts" / "ci-scope.py")
 ci_scope = importlib.util.module_from_spec(spec)
@@ -96,7 +97,8 @@ def job_if(body: str) -> str:
 
 
 def check(
-    workflow_text: str, cfg: dict, graph: dict, build_script: str, compose: str, filters_text: str = ""
+    workflow_text: str, cfg: dict, graph: dict, build_script: str, compose: str, release_text: str = "",
+    filters_text: str = ""
 ) -> list[str]:
     problems: list[str] = []
     err = lambda msg: problems.append(f"::error file=.github/workflows/ci.yml::{msg}")  # noqa: E731
@@ -161,7 +163,17 @@ def check(
     for image in sorted(set(images) - in_compose):
         problems.append(f"::error file=.github/ci-scope.json::images lists `{image}`, which docker-compose.yml does not build")
 
-    # 5. The job that runs these guards runs when what they guard changes. Found in
+    # 5. The shared compile cache (sccache): a job that turns it on must also report
+    # how it did, or a cache that silently stopped working looks like one that is;
+    # and the workflow that builds what gets SHIPPED must never use it — the cache
+    # is writable by anyone on the LAN, so it may influence checks, not artifacts.
+    for job, body in bodies.items():
+        if 'sccache: "true"' in body and "./.github/actions/sccache-stats" not in body:
+            err(f"job `{job}` enables sccache but never reports its statistics (add ./.github/actions/sccache-stats with `if: always()`)")
+    if "sccache" in release_text:
+        problems.append("::error file=.github/workflows/release.yml::release.yml must not use sccache: its binaries are what gets shipped")
+
+    # 6. The job that runs these guards runs when what they guard changes. Found in
     # review: a PR that only edited ci-scope.json (dropping a unit from the clippy
     # matrix) matched none of enforce-versioning's path filters, so the coverage
     # check that would have rejected it never ran. The gate is read from the job.
@@ -185,17 +197,20 @@ def check(
 
 
 def self_test(
-    workflow_text: str, cfg: dict, graph: dict, build_script: str, compose: str, filters_text: str = ""
+    workflow_text: str, cfg: dict, graph: dict, build_script: str, compose: str, release_text: str = "",
+    filters_text: str = ""
 ) -> int:
     """Each mutation below is a mistake this guard exists to catch."""
     failures = 0
 
     def expect(description: str, mutated_text: str | None = None, mutated_cfg: dict | None = None,
-               mutated_script: str | None = None, mutated_filters: str | None = None, needle: str = "") -> None:
+               mutated_script: str | None = None, mutated_release: str | None = None,
+               mutated_filters: str | None = None, needle: str = "") -> None:
         nonlocal failures
         found = check(mutated_text if mutated_text is not None else workflow_text,
                       mutated_cfg if mutated_cfg is not None else cfg, graph,
                       mutated_script if mutated_script is not None else build_script, compose,
+                      mutated_release if mutated_release is not None else release_text,
                       mutated_filters if mutated_filters is not None else filters_text)
         if any(needle in p for p in found):
             print(f"  ok   detects: {description}")
@@ -231,6 +246,18 @@ def self_test(
     unknown_image["images"].pop("simpel2-portal")
     expect("an e2e suite pulls an image the table does not know", mutated_cfg=unknown_image, needle="simpel2-portal")
 
+    stats = "      - uses: ./.github/actions/sccache-stats\n        if: always()\n"
+    if stats in workflow_text:
+        expect("a job enables sccache but stops reporting its statistics",
+               mutated_text=workflow_text.replace(stats, "", 1), needle="statistics")
+    else:
+        print("::error::self-test is stale: no sccache-stats step in the expected form")
+        failures += 1
+
+    expect("the release workflow starts using sccache",
+           mutated_release=release_text + "\n      - uses: ./.github/actions/setup-rust\n        with:\n          sccache: \"true\"\n",
+           needle="release.yml")
+
     config_line = "            - '.github/ci-scope.json'\n"
     if config_line in filters_text:
         expect("a change to ci-scope.json alone would not run the guards that check it",
@@ -251,12 +278,13 @@ def main() -> int:
     graph = ci_scope.load_workspace(ROOT)
     build_script = BUILD_SCRIPT.read_text(encoding="utf-8")
     compose = COMPOSE.read_text(encoding="utf-8")
+    release_text = RELEASE.read_text(encoding="utf-8")
 
     filters_text = FILTERS.read_text(encoding="utf-8")
 
-    if self_test(workflow_text, cfg, graph, build_script, compose, filters_text):
+    if self_test(workflow_text, cfg, graph, build_script, compose, release_text, filters_text):
         return 1
-    problems = check(workflow_text, cfg, graph, build_script, compose, filters_text)
+    problems = check(workflow_text, cfg, graph, build_script, compose, release_text, filters_text)
     for problem in problems:
         print(problem)
     if problems:

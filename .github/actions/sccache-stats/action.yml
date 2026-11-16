@@ -1,0 +1,25 @@
+name: 'sccache stats'
+description: >-
+  Print how well the shared compile cache worked in this job (hits, misses, errors)
+  to the log and the job summary. Add it as the LAST step with `if: always()`; a no-op
+  when the job did not enable sccache. Without it a cache that silently stopped
+  working looks exactly like a cache that is working.
+
+runs:
+  using: "composite"
+  steps:
+    - name: sccache statistics
+      shell: bash
+      run: |
+        if [ -z "${RUSTC_WRAPPER:-}" ] || [ ! -x "${RUSTC_WRAPPER}" ]; then
+          echo "compile cache not enabled in this job"
+          exit 0
+        fi
+        stats="$("${RUSTC_WRAPPER}" --show-stats 2>&1 || true)"
+        echo "$stats"
+        {
+          echo "### sccache"
+          echo '```'
+          echo "$stats" | grep -E 'Compile requests executed|Cache hits  |Cache hits rate|Cache misses  |Cache read errors|Cache write errors|Non-cacheable' || true
+          echo '```'
+        } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
