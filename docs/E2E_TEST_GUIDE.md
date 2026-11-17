@@ -9,7 +9,7 @@ top-level suite.
 
 The cross-app leg runs against the **single-origin** `cross-app-ingress`
 (`infra/nginx/e2e-cross-app-ingress.conf`), which mirrors the production Istio
-VirtualService: `/portal`, `/perlengkapan/simpel/v2` and `/api/*` all on one
+VirtualService: `/portal`, `/perlengkapan/simpel` and `/api/*` all on one
 origin. One origin is not a test convenience — SSO depends on it. The Portal
 writes `localStorage["auth_token"]` and SIMPEL reads the same-origin token, so a
 second origin silently detaches them.

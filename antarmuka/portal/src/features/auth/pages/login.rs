@@ -27,7 +27,7 @@ fn resolve_perlengkapan_redirect_target() -> Option<String> {
     }
 
     if matches!(params.get("redirect").as_deref(), Some("perlengkapan")) {
-        return Some("/perlengkapan/dashboard".to_string());
+        return Some("/perlengkapan/simpel/dashboard".to_string());
     }
 
     None

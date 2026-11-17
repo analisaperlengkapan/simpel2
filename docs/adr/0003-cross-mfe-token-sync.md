@@ -13,7 +13,7 @@ mengakses authenc:
 - **Portal** (`antarmuka/portal/`) — entry point user, login + admin
   IAM + MFA setup. Mount path: `/portal/`.
 - **Perlengkapan** (`antarmuka/perlengkapan/`) — modul BMN; user lompat
-  ke sini setelah login dari Portal. Mount path: `/perlengkapan/simpel/v2/`.
+  ke sini setelah login dari Portal. Mount path: `/perlengkapan/simpel/`.
 
 Karena keduanya **same-origin** (`simpel.kejaksaan.go.id`), keduanya
 berbagi `localStorage`. JWT access token disimpan di key kanonik

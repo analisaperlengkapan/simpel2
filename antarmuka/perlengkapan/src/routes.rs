@@ -4,7 +4,7 @@ pub mod path {
     #[cfg(target_arch = "wasm32")]
     pub const LOGIN: &str = "/perlengkapan/simpel/login";
     pub const PORTAL_LOGIN_WITH_REDIRECT: &str =
-        "/portal/login?redirect_uri=%2Fperlengkapan%2Fsimpel%2Fv2%2Fdashboard";
+        "/portal/login?redirect_uri=%2Fperlengkapan%2Fsimpel%2Fdashboard";
 
     pub const DASHBOARD: &str = "/perlengkapan/simpel/dashboard";
 

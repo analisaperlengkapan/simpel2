@@ -103,7 +103,7 @@ cmd_wait() {
   docker run --rm --network "$n" curlimages/curl:8.11.1 sh -c '
     for i in $(seq 1 90); do
       if curl -sf http://authenc:8088/health >/dev/null \
-         && curl -sf http://perlengkapan:8080/perlengkapan/ >/dev/null \
+         && curl -sf http://perlengkapan:8080/perlengkapan/simpel/ >/dev/null \
          && curl -sf http://layanan-perlengkapan:3020/health >/dev/null; then
         echo "stack ready after $i tries"; exit 0; fi
       sleep 5

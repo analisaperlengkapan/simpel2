@@ -1856,7 +1856,7 @@ jobs:
           docker run --rm --network "$NET" curlimages/curl:8.11.1 sh -c '
             for i in $(seq 1 60); do
               if curl -sf http://authenc:8088/health >/dev/null \
-                 && curl -sf http://perlengkapan:8080/perlengkapan/ >/dev/null \
+                 && curl -sf http://perlengkapan:8080/perlengkapan/simpel/ >/dev/null \
                  && curl -sf http://layanan-perlengkapan:3020/health >/dev/null; then
                 echo "stack ready after $i tries"; exit 0; fi
               sleep 5
@@ -2185,7 +2185,7 @@ jobs:
             for i in $(seq 1 60); do
               if curl -sf http://cross-app-ingress:8080/health >/dev/null \
                  && curl -sf http://cross-app-ingress:8080/portal/ >/dev/null \
-                 && curl -sf http://cross-app-ingress:8080/perlengkapan/ >/dev/null \
+                 && curl -sf http://cross-app-ingress:8080/perlengkapan/simpel/ >/dev/null \
                  && curl -sf http://authenc:8088/health >/dev/null; then
                 echo "ingress routing both FEs after $i tries"; exit 0; fi
               sleep 5
