@@ -244,6 +244,7 @@
       "*.code-workspace",
       ".gitlab-ci.yml",
       ".gitleaks.toml",
+      ".gitleaksignore",
       "cliff.toml",
       "deny.toml",
       ".leptosfmt.toml",
