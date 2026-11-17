@@ -5,7 +5,7 @@
       "name": "perlengkapan",
       "routesRs": "antarmuka/perlengkapan/src/routes.rs",
       "specsDir": "antarmuka/perlengkapan/tests/e2e",
-      "base": "/perlengkapan/simpel/v2",
+      "base": "/perlengkapan/simpel",
       "excludeSuffix": ["/login"],
       "blocking": true,
       "allowUncovered": []

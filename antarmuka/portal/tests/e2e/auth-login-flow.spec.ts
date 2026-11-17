@@ -20,9 +20,9 @@ import {
  *
  * The handoff is a TWO-HOP delegation (this is the real FE design, not a direct
  * bounce): perlengkapan does NOT redirect unauthenticated users straight to the
- * portal. It renders its OWN login page (`/perlengkapan/simpel/v2/login`, see
+ * portal. It renders its OWN login page (`/perlengkapan/simpel/login`, see
  * antarmuka/perlengkapan/src/pages/login.rs) that carries a single "Masuk via
- * Portal" link → `/portal/login?redirect_uri=%2Fperlengkapan%2Fsimpel%2Fv2%2Fdashboard`.
+ * Portal" link → `/portal/login?redirect_uri=%2Fperlengkapan%2Fsimpel%2Fdashboard`.
  * The portal login honors that `redirect_uri` (only when it starts with
  * `/perlengkapan`, see resolve_perlengkapan_redirect_target in
  * antarmuka/portal/src/features/auth/pages/login.rs) and hard-redirects back
@@ -30,7 +30,7 @@ import {
  * user to `{origin}/portal/login` (profile_menu.rs), NOT its own login page.
  *
  * Flow asserted:
- *   1. Unauthenticated `/perlengkapan/` → perlengkapan's own login page, which
+ *   1. Unauthenticated `/perlengkapan/simpel/` → perlengkapan's own login page, which
  *      offers a "Masuk via Portal" link with a `redirect_uri` back to perlengkapan.
  *   2. Follow that link → portal login → REAL login (authenc + captcha via the
  *      debug endpoint) as a dashboard-capable fixture user.
@@ -59,10 +59,10 @@ test.describe('Cross-app SSO (real, single-origin ingress)', () => {
     page: Page,
     getCaptchaAnswer: () => Promise<string | null>,
   ): Promise<void> {
-    await page.goto('/perlengkapan/', { waitUntil: 'domcontentloaded' });
+    await page.goto('/perlengkapan/simpel/', { waitUntil: 'domcontentloaded' });
     // Perlengkapan bounces the unauthenticated user to ITS OWN login page
     // (it delegates auth to the portal rather than redirecting there directly).
-    await expect(page).toHaveURL(/\/perlengkapan\/simpel\/v2\/login/, { timeout: 30000 });
+    await expect(page).toHaveURL(/\/perlengkapan\/simpel\/login/, { timeout: 30000 });
     // Follow the single SSO entry point (a hard <a href> navigation).
     await page.getByRole('link', { name: /Masuk via Portal/i }).click();
     await expect(page).toHaveURL(/\/portal\/login\?redirect_uri=/, { timeout: 30000 });
@@ -71,9 +71,9 @@ test.describe('Cross-app SSO (real, single-origin ingress)', () => {
   test('unauthenticated perlengkapan shows its login with a portal SSO link carrying a redirect_uri back', async ({
     page,
   }) => {
-    await page.goto('/perlengkapan/', { waitUntil: 'domcontentloaded' });
+    await page.goto('/perlengkapan/simpel/', { waitUntil: 'domcontentloaded' });
     // Its own login page, not a direct bounce to the portal.
-    await expect(page).toHaveURL(/\/perlengkapan\/simpel\/v2\/login/, { timeout: 30000 });
+    await expect(page).toHaveURL(/\/perlengkapan\/simpel\/login/, { timeout: 30000 });
 
     // The "Masuk via Portal" link is the SSO entry point; its href hands the
     // portal a redirect_uri that points back to the perlengkapan dashboard.

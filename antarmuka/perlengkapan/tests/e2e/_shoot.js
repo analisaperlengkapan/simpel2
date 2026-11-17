@@ -2,7 +2,7 @@
 // before/after obligation without re-running the whole 256-shot sweep.
 const { chromium } = require('@playwright/test');
 const LOCAL = 'http://127.0.0.1:8099';
-const BASE = '/perlengkapan/simpel/v2';
+const BASE = '/perlengkapan/simpel';
 const OUT = process.env.OUT_DIR;
 const ROUTES = (process.env.ROUTES_CSV || '').split(',').filter(Boolean);
 const NIP = process.env.NIP || '200000000000000004';

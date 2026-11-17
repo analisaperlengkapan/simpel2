@@ -22,7 +22,7 @@ import { TEST_USERS, storageStatePath } from './helpers/real-auth';
 // admin-gated route proves the gate. This spec proves only the GATE (who may
 // open the page) — what the page SHOWS is asserted in admin-audit-log.spec.ts;
 // the heading alone stayed green for as long as the page was empty by design.
-const ADMIN_ROUTE = '/perlengkapan/simpel/v2/admin/audit';
+const ADMIN_ROUTE = '/perlengkapan/simpel/admin/audit';
 // ForbiddenPage (route guard) and the page-level guard both render this.
 const FORBIDDEN = /Akses Ditolak/i;
 // AdminAuditPage renders this title only once the admin gate passes.

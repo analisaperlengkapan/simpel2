@@ -942,7 +942,7 @@ istio:
         destination: { host: authenc, port: 8088 }
       - match: { prefix: /api/v1/perlengkapan }
         destination: { host: layanan-perlengkapan, port: 3020 }
-      - match: { prefix: /perlengkapan/simpel/v2 }
+      - match: { prefix: /perlengkapan/simpel }
         rewrite: /
         destination: { host: layanan-perlengkapan, port: 3020 }
         timeout: 30s

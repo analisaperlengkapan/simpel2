@@ -209,8 +209,8 @@ konsumen nyata, satu-satunya yang menyebutnya adalah baris re-export di
 `prelude` itu sendiri.
 
 Dan karena tak pernah dipakai, tak ada yang menyadari **setiap** path di
-`PerlengkapanRoute` kehilangan segmen `/simpel/v2` — aplikasi disajikan di
-`/perlengkapan/simpel/v2/`, enum-nya menghasilkan `/perlengkapan/...`.
+`PerlengkapanRoute` kehilangan segmen `/simpel` — aplikasi disajikan di
+`/perlengkapan/simpel/`, enum-nya menghasilkan `/perlengkapan/...`.
 Doctest-nya meng-assert path yang salah itu dan ber-tag ```ignore``` sehingga
 tak pernah dijalankan. Jadi abstraksi yang dijual sebagai "compile-time-checked,
 tidak ada typo URL yang lolos sampai runtime" justru menyimpan URL salah

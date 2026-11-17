@@ -9,15 +9,15 @@
 //! `allowUncovered` debt, no loosened `excludeSuffix` (a `.png` suffix rule
 //! could mask a genuine route later). The constant simply belongs elsewhere.
 
-/// The app is served under `/perlengkapan/simpel/v2/`. Four independent places
+/// The app is served under `/perlengkapan/simpel/`. Four independent places
 /// agree on that prefix: `Trunk.toml` `public_url`, `<base href>` in
-/// index.html, the nginx `location /perlengkapan/simpel/v2/` block, and the
-/// Dockerfile COPY target `/usr/share/nginx/html/perlengkapan/simpel/v2`.
+/// index.html, the nginx `location /perlengkapan/simpel/` block, and the
+/// Dockerfile COPY target `/usr/share/nginx/html/perlengkapan/simpel`.
 ///
 /// Three call sites used to hard-code `/perlengkapan/assets/kejaksaan-logo.png`,
-/// missing the `/simpel/v2` segment. That 404s rather than falling back to the
+/// missing the `/simpel` segment. That 404s rather than falling back to the
 /// SPA index because nginx's static-asset regex location
 /// (`~* \.(wasm|js|css|png|…)$`) matches before any prefix location and has no
 /// `try_files`, so it resolves straight against root to a path that does not
 /// exist. One constant, so the prefix lives in exactly one place.
-pub const LOGO: &str = "/perlengkapan/simpel/v2/assets/kejaksaan-logo.png";
+pub const LOGO: &str = "/perlengkapan/simpel/assets/kejaksaan-logo.png";

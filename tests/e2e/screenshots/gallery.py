@@ -34,7 +34,7 @@ SECTIONS: list[tuple[str, str, str]] = [
     ("/portal/login", "Masuk & Sesi", "Titik masuk SSO dan hasil akhir sebuah sesi."),
     ("/portal/callback", "Masuk & Sesi", "Penukaran authorization code menjadi sesi."),
     ("/portal/mfa", "Autentikasi Dua Faktor", "Enrolment, verifikasi, dan kode pemulihan."),
-    ("/perlengkapan/simpel/v2/login", "Masuk & Sesi", "Halaman masuk mandiri Perlengkapan."),
+    ("/perlengkapan/simpel/login", "Masuk & Sesi", "Halaman masuk mandiri Perlengkapan."),
     ("/portal/apps", "Portal", "Katalog microfrontend dan pintasan modul."),
     ("/portal/notifications", "Portal", "Kotak masuk lintas-modul."),
     ("/portal/profile", "Akun", "Identitas dan pengaturan akun pengguna."),

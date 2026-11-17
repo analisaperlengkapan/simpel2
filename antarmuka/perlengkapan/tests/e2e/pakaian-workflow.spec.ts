@@ -22,7 +22,7 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
 import { tokenFor, storageStatePath, PERLENGKAPAN_API_URL } from "./helpers/real-auth";
 import { reachable } from "./helpers/page-load";
 
-const BASE = "/perlengkapan/simpel/v2";
+const BASE = "/perlengkapan/simpel";
 const PD_API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/pakaian-dinas`;
 
 // Tokens come from the shared `tokenFor` helper rather than a spec-local

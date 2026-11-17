@@ -181,15 +181,15 @@ Katalog microfrontend dan pintasan modul.
 
 Titik masuk SSO dan hasil akhir sebuah sesi.
 
-**`/perlengkapan/simpel/v2/login`**
+**`/perlengkapan/simpel/login`**
 
-![/perlengkapan/simpel/v2/login](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__login.png)
+![/perlengkapan/simpel/login](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__login.png)
 
 <sub>1600×3727 piksel</sub>
 
-**`/perlengkapan/simpel/v2/login (anon)`**
+**`/perlengkapan/simpel/login (anon)`**
 
-![/perlengkapan/simpel/v2/login (anon)](docs/assets/screenshots/perlengkapan__anon__perlengkapan__simpel__v2__login.png)
+![/perlengkapan/simpel/login (anon)](docs/assets/screenshots/perlengkapan__anon__perlengkapan__simpel__login.png)
 
 <sub>1600×1000 piksel</sub>
 
@@ -329,15 +329,15 @@ IAM: pengguna, peran, klien OAuth2, audit.
 
 Beranda aplikasi dan indeks modul.
 
-**`/perlengkapan/simpel/v2/`**
+**`/perlengkapan/simpel/`**
 
-![/perlengkapan/simpel/v2/](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__.png)
+![/perlengkapan/simpel/](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__.png)
 
 <sub>1600×3727 piksel</sub>
 
-**`/perlengkapan/simpel/v2/dashboard`**
+**`/perlengkapan/simpel/dashboard`**
 
-![/perlengkapan/simpel/v2/dashboard](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__dashboard.png)
+![/perlengkapan/simpel/dashboard](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__dashboard.png)
 
 <sub>1600×3727 piksel</sub>
 
@@ -345,33 +345,33 @@ Beranda aplikasi dan indeks modul.
 
 Katalog BMN: daftar, dashboard, sebaran, dan QR.
 
-**`/perlengkapan/simpel/v2/bank-aset/daftar`**
+**`/perlengkapan/simpel/bank-aset/daftar`**
 
-![/perlengkapan/simpel/v2/bank-aset/daftar](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__bank-aset__daftar.png)
+![/perlengkapan/simpel/bank-aset/daftar](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__bank-aset__daftar.png)
 
 <sub>1600×1131 piksel</sub>
 
-**`/perlengkapan/simpel/v2/bank-aset/daftar/:id`**
+**`/perlengkapan/simpel/bank-aset/daftar/:id`**
 
-![/perlengkapan/simpel/v2/bank-aset/daftar/:id](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__bank-aset__daftar__id.png)
+![/perlengkapan/simpel/bank-aset/daftar/:id](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__bank-aset__daftar__id.png)
 
 <sub>1600×1000 piksel</sub>
 
-**`/perlengkapan/simpel/v2/bank-aset/dashboard`**
+**`/perlengkapan/simpel/bank-aset/dashboard`**
 
-![/perlengkapan/simpel/v2/bank-aset/dashboard](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__bank-aset__dashboard.png)
+![/perlengkapan/simpel/bank-aset/dashboard](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__bank-aset__dashboard.png)
 
 <sub>1600×1569 piksel</sub>
 
-**`/perlengkapan/simpel/v2/bank-aset/qrcode`**
+**`/perlengkapan/simpel/bank-aset/qrcode`**
 
-![/perlengkapan/simpel/v2/bank-aset/qrcode](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__bank-aset__qrcode.png)
+![/perlengkapan/simpel/bank-aset/qrcode](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__bank-aset__qrcode.png)
 
 <sub>1600×1000 piksel</sub>
 
-**`/perlengkapan/simpel/v2/bank-aset/sebaran`**
+**`/perlengkapan/simpel/bank-aset/sebaran`**
 
-![/perlengkapan/simpel/v2/bank-aset/sebaran](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__bank-aset__sebaran.png)
+![/perlengkapan/simpel/bank-aset/sebaran](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__bank-aset__sebaran.png)
 
 <sub>1600×1000 piksel</sub>
 
@@ -379,45 +379,45 @@ Katalog BMN: daftar, dashboard, sebaran, dan QR.
 
 Usulan kebutuhan per satker dan alur persetujuannya.
 
-**`/perlengkapan/simpel/v2/kebutuhan-bmn/:id/edit`**
+**`/perlengkapan/simpel/kebutuhan-bmn/:id/edit`**
 
-![/perlengkapan/simpel/v2/kebutuhan-bmn/:id/edit](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__id__edit.png)
-
-<sub>1600×1000 piksel</sub>
-
-**`/perlengkapan/simpel/v2/kebutuhan-bmn/buat`**
-
-![/perlengkapan/simpel/v2/kebutuhan-bmn/buat](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__buat.png)
+![/perlengkapan/simpel/kebutuhan-bmn/:id/edit](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__kebutuhan-bmn__id__edit.png)
 
 <sub>1600×1000 piksel</sub>
 
-**`/perlengkapan/simpel/v2/kebutuhan-bmn/daftar`**
+**`/perlengkapan/simpel/kebutuhan-bmn/buat`**
 
-![/perlengkapan/simpel/v2/kebutuhan-bmn/daftar](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__daftar.png)
+![/perlengkapan/simpel/kebutuhan-bmn/buat](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__kebutuhan-bmn__buat.png)
 
 <sub>1600×1000 piksel</sub>
 
-**`/perlengkapan/simpel/v2/kebutuhan-bmn/detail/:id`**
+**`/perlengkapan/simpel/kebutuhan-bmn/daftar`**
 
-![/perlengkapan/simpel/v2/kebutuhan-bmn/detail/:id](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__detail__id.png)
+![/perlengkapan/simpel/kebutuhan-bmn/daftar](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__kebutuhan-bmn__daftar.png)
+
+<sub>1600×1000 piksel</sub>
+
+**`/perlengkapan/simpel/kebutuhan-bmn/detail/:id`**
+
+![/perlengkapan/simpel/kebutuhan-bmn/detail/:id](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__kebutuhan-bmn__detail__id.png)
 
 <sub>1600×1150 piksel</sub>
 
-**`/perlengkapan/simpel/v2/kebutuhan-bmn/laporan`**
+**`/perlengkapan/simpel/kebutuhan-bmn/laporan`**
 
-![/perlengkapan/simpel/v2/kebutuhan-bmn/laporan](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__laporan.png)
-
-<sub>1600×1000 piksel</sub>
-
-**`/perlengkapan/simpel/v2/kebutuhan-bmn/periode`**
-
-![/perlengkapan/simpel/v2/kebutuhan-bmn/periode](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__periode.png)
+![/perlengkapan/simpel/kebutuhan-bmn/laporan](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__kebutuhan-bmn__laporan.png)
 
 <sub>1600×1000 piksel</sub>
 
-**`/perlengkapan/simpel/v2/kebutuhan-bmn/satker/:satker_id`**
+**`/perlengkapan/simpel/kebutuhan-bmn/periode`**
 
-![/perlengkapan/simpel/v2/kebutuhan-bmn/satker/:satker_id](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__kebutuhan-bmn__satker__satker_id.png)
+![/perlengkapan/simpel/kebutuhan-bmn/periode](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__kebutuhan-bmn__periode.png)
+
+<sub>1600×1000 piksel</sub>
+
+**`/perlengkapan/simpel/kebutuhan-bmn/satker/:satker_id`**
+
+![/perlengkapan/simpel/kebutuhan-bmn/satker/:satker_id](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__kebutuhan-bmn__satker__satker_id.png)
 
 <sub>1600×1091 piksel</sub>
 
@@ -425,45 +425,45 @@ Usulan kebutuhan per satker dan alur persetujuannya.
 
 Jenis, campaign pengajuan, ukuran, dan laporan.
 
-**`/perlengkapan/simpel/v2/pakaian-dinas/jenis`**
+**`/perlengkapan/simpel/pakaian-dinas/jenis`**
 
-![/perlengkapan/simpel/v2/pakaian-dinas/jenis](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__jenis.png)
-
-<sub>1600×1000 piksel</sub>
-
-**`/perlengkapan/simpel/v2/pakaian-dinas/jenis/:id/spesifikasi`**
-
-![/perlengkapan/simpel/v2/pakaian-dinas/jenis/:id/spesifikasi](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__jenis__id__spesifikasi.png)
+![/perlengkapan/simpel/pakaian-dinas/jenis](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__pakaian-dinas__jenis.png)
 
 <sub>1600×1000 piksel</sub>
 
-**`/perlengkapan/simpel/v2/pakaian-dinas/laporan`**
+**`/perlengkapan/simpel/pakaian-dinas/jenis/:id/spesifikasi`**
 
-![/perlengkapan/simpel/v2/pakaian-dinas/laporan](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__laporan.png)
-
-<sub>1600×1000 piksel</sub>
-
-**`/perlengkapan/simpel/v2/pakaian-dinas/pengajuan`**
-
-![/perlengkapan/simpel/v2/pakaian-dinas/pengajuan](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__pengajuan.png)
+![/perlengkapan/simpel/pakaian-dinas/jenis/:id/spesifikasi](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__pakaian-dinas__jenis__id__spesifikasi.png)
 
 <sub>1600×1000 piksel</sub>
 
-**`/perlengkapan/simpel/v2/pakaian-dinas/pengajuan/:pengajuan_id/satker`**
+**`/perlengkapan/simpel/pakaian-dinas/laporan`**
 
-![/perlengkapan/simpel/v2/pakaian-dinas/pengajuan/:pengajuan_id/satker](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__pengajuan__pengajuan_id__satker.png)
-
-<sub>1600×1000 piksel</sub>
-
-**`/perlengkapan/simpel/v2/pakaian-dinas/pengajuan/:pengajuan_id/satker/:satker_code/isi`**
-
-![/perlengkapan/simpel/v2/pakaian-dinas/pengajuan/:pengajuan_id/satker/:satker_code/isi](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__pengajuan__pengajuan_id__satker__satker_code__isi.png)
+![/perlengkapan/simpel/pakaian-dinas/laporan](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__pakaian-dinas__laporan.png)
 
 <sub>1600×1000 piksel</sub>
 
-**`/perlengkapan/simpel/v2/pakaian-dinas/ukuran`**
+**`/perlengkapan/simpel/pakaian-dinas/pengajuan`**
 
-![/perlengkapan/simpel/v2/pakaian-dinas/ukuran](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pakaian-dinas__ukuran.png)
+![/perlengkapan/simpel/pakaian-dinas/pengajuan](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__pakaian-dinas__pengajuan.png)
+
+<sub>1600×1000 piksel</sub>
+
+**`/perlengkapan/simpel/pakaian-dinas/pengajuan/:pengajuan_id/satker`**
+
+![/perlengkapan/simpel/pakaian-dinas/pengajuan/:pengajuan_id/satker](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__pakaian-dinas__pengajuan__pengajuan_id__satker.png)
+
+<sub>1600×1000 piksel</sub>
+
+**`/perlengkapan/simpel/pakaian-dinas/pengajuan/:pengajuan_id/satker/:satker_code/isi`**
+
+![/perlengkapan/simpel/pakaian-dinas/pengajuan/:pengajuan_id/satker/:satker_code/isi](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__pakaian-dinas__pengajuan__pengajuan_id__satker__satker_code__isi.png)
+
+<sub>1600×1000 piksel</sub>
+
+**`/perlengkapan/simpel/pakaian-dinas/ukuran`**
+
+![/perlengkapan/simpel/pakaian-dinas/ukuran](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__pakaian-dinas__ukuran.png)
 
 <sub>1600×1000 piksel</sub>
 
@@ -471,27 +471,27 @@ Jenis, campaign pengajuan, ukuran, dan laporan.
 
 Izin pemakaian beserta rantai persetujuannya.
 
-**`/perlengkapan/simpel/v2/pengelolaan/pemakaian`**
+**`/perlengkapan/simpel/pengelolaan/pemakaian`**
 
-![/perlengkapan/simpel/v2/pengelolaan/pemakaian](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian.png)
+![/perlengkapan/simpel/pengelolaan/pemakaian](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__pengelolaan__pemakaian.png)
 
 <sub>1600×1054 piksel</sub>
 
-**`/perlengkapan/simpel/v2/pengelolaan/pemakaian/buat`**
+**`/perlengkapan/simpel/pengelolaan/pemakaian/buat`**
 
-![/perlengkapan/simpel/v2/pengelolaan/pemakaian/buat](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian__buat.png)
+![/perlengkapan/simpel/pengelolaan/pemakaian/buat](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__pengelolaan__pemakaian__buat.png)
 
 <sub>1600×1075 piksel</sub>
 
-**`/perlengkapan/simpel/v2/pengelolaan/pemakaian/detail/:id`**
+**`/perlengkapan/simpel/pengelolaan/pemakaian/detail/:id`**
 
-![/perlengkapan/simpel/v2/pengelolaan/pemakaian/detail/:id](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian__detail__id.png)
+![/perlengkapan/simpel/pengelolaan/pemakaian/detail/:id](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__pengelolaan__pemakaian__detail__id.png)
 
 <sub>1600×1109 piksel</sub>
 
-**`/perlengkapan/simpel/v2/pengelolaan/pemakaian/monitoring`**
+**`/perlengkapan/simpel/pengelolaan/pemakaian/monitoring`**
 
-![/perlengkapan/simpel/v2/pengelolaan/pemakaian/monitoring](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pengelolaan__pemakaian__monitoring.png)
+![/perlengkapan/simpel/pengelolaan/pemakaian/monitoring](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__pengelolaan__pemakaian__monitoring.png)
 
 <sub>1600×1196 piksel</sub>
 
@@ -499,21 +499,21 @@ Izin pemakaian beserta rantai persetujuannya.
 
 Usulan penghapusan sampai Konsep SK.
 
-**`/perlengkapan/simpel/v2/pengelolaan/penghapusan`**
+**`/perlengkapan/simpel/pengelolaan/penghapusan`**
 
-![/perlengkapan/simpel/v2/pengelolaan/penghapusan](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pengelolaan__penghapusan.png)
+![/perlengkapan/simpel/pengelolaan/penghapusan](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__pengelolaan__penghapusan.png)
 
 <sub>1600×1000 piksel</sub>
 
-**`/perlengkapan/simpel/v2/pengelolaan/penghapusan/buat`**
+**`/perlengkapan/simpel/pengelolaan/penghapusan/buat`**
 
-![/perlengkapan/simpel/v2/pengelolaan/penghapusan/buat](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pengelolaan__penghapusan__buat.png)
+![/perlengkapan/simpel/pengelolaan/penghapusan/buat](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__pengelolaan__penghapusan__buat.png)
 
 <sub>1600×1246 piksel</sub>
 
-**`/perlengkapan/simpel/v2/pengelolaan/penghapusan/detail/:id`**
+**`/perlengkapan/simpel/pengelolaan/penghapusan/detail/:id`**
 
-![/perlengkapan/simpel/v2/pengelolaan/penghapusan/detail/:id](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__pengelolaan__penghapusan__detail__id.png)
+![/perlengkapan/simpel/pengelolaan/penghapusan/detail/:id](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__pengelolaan__penghapusan__detail__id.png)
 
 <sub>1600×1627 piksel</sub>
 
@@ -521,15 +521,15 @@ Usulan penghapusan sampai Konsep SK.
 
 Proyeksi kebutuhan sarana-prasarana.
 
-**`/perlengkapan/simpel/v2/analitik/roadmap`**
+**`/perlengkapan/simpel/analitik/roadmap`**
 
-![/perlengkapan/simpel/v2/analitik/roadmap](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__analitik__roadmap.png)
+![/perlengkapan/simpel/analitik/roadmap](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__analitik__roadmap.png)
 
 <sub>1600×1000 piksel</sub>
 
-**`/perlengkapan/simpel/v2/analitik/roadmap/buat`**
+**`/perlengkapan/simpel/analitik/roadmap/buat`**
 
-![/perlengkapan/simpel/v2/analitik/roadmap/buat](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__analitik__roadmap__buat.png)
+![/perlengkapan/simpel/analitik/roadmap/buat](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__analitik__roadmap__buat.png)
 
 <sub>1600×1000 piksel</sub>
 
@@ -537,9 +537,9 @@ Proyeksi kebutuhan sarana-prasarana.
 
 Kotak masuk notifikasi Perlengkapan.
 
-**`/perlengkapan/simpel/v2/notifikasi`**
+**`/perlengkapan/simpel/notifikasi`**
 
-![/perlengkapan/simpel/v2/notifikasi](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__notifikasi.png)
+![/perlengkapan/simpel/notifikasi](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__notifikasi.png)
 
 <sub>1600×1000 piksel</sub>
 
@@ -547,21 +547,21 @@ Kotak masuk notifikasi Perlengkapan.
 
 Panduan, FAQ, dan helpdesk.
 
-**`/perlengkapan/simpel/v2/bantuan/faq`**
+**`/perlengkapan/simpel/bantuan/faq`**
 
-![/perlengkapan/simpel/v2/bantuan/faq](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__bantuan__faq.png)
+![/perlengkapan/simpel/bantuan/faq](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__bantuan__faq.png)
 
 <sub>1600×1031 piksel</sub>
 
-**`/perlengkapan/simpel/v2/bantuan/helpdesk`**
+**`/perlengkapan/simpel/bantuan/helpdesk`**
 
-![/perlengkapan/simpel/v2/bantuan/helpdesk](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__bantuan__helpdesk.png)
+![/perlengkapan/simpel/bantuan/helpdesk](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__bantuan__helpdesk.png)
 
 <sub>1600×1223 piksel</sub>
 
-**`/perlengkapan/simpel/v2/bantuan/panduan`**
+**`/perlengkapan/simpel/bantuan/panduan`**
 
-![/perlengkapan/simpel/v2/bantuan/panduan](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__bantuan__panduan.png)
+![/perlengkapan/simpel/bantuan/panduan](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__bantuan__panduan.png)
 
 <sub>1600×1409 piksel</sub>
 
@@ -569,51 +569,51 @@ Panduan, FAQ, dan helpdesk.
 
 Peran dan hak akses.
 
-**`/perlengkapan/simpel/v2/admin/audit`**
+**`/perlengkapan/simpel/admin/audit`**
 
-![/perlengkapan/simpel/v2/admin/audit](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__admin__audit.png)
+![/perlengkapan/simpel/admin/audit](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__admin__audit.png)
 
 <sub>1600×1069 piksel</sub>
 
-**`/perlengkapan/simpel/v2/admin/master`**
+**`/perlengkapan/simpel/admin/master`**
 
-![/perlengkapan/simpel/v2/admin/master](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__admin__master.png)
+![/perlengkapan/simpel/admin/master](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__admin__master.png)
 
 <sub>1600×1000 piksel</sub>
 
-**`/perlengkapan/simpel/v2/admin/roles`**
+**`/perlengkapan/simpel/admin/roles`**
 
-![/perlengkapan/simpel/v2/admin/roles](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__admin__roles.png)
+![/perlengkapan/simpel/admin/roles](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__admin__roles.png)
 
 <sub>1600×1487 piksel</sub>
 
-**`/perlengkapan/simpel/v2/admin/roles (operator)` — ditolak oleh guard**
+**`/perlengkapan/simpel/admin/roles (operator)` — ditolak oleh guard**
 
-![/perlengkapan/simpel/v2/admin/roles (operator)](docs/assets/screenshots/guard__operator__perlengkapan__simpel__v2__admin__roles.png)
+![/perlengkapan/simpel/admin/roles (operator)](docs/assets/screenshots/guard__operator__perlengkapan__simpel__admin__roles.png)
 
 <sub>1600×1000 piksel</sub>
 
-**`/perlengkapan/simpel/v2/admin/status-sinkronisasi`**
+**`/perlengkapan/simpel/admin/status-sinkronisasi`**
 
-![/perlengkapan/simpel/v2/admin/status-sinkronisasi](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__admin__status-sinkronisasi.png)
+![/perlengkapan/simpel/admin/status-sinkronisasi](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__admin__status-sinkronisasi.png)
 
 <sub>1600×1252 piksel</sub>
 
-**`/perlengkapan/simpel/v2/admin/templates`**
+**`/perlengkapan/simpel/admin/templates`**
 
-![/perlengkapan/simpel/v2/admin/templates](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__admin__templates.png)
-
-<sub>1600×1000 piksel</sub>
-
-**`/perlengkapan/simpel/v2/admin/workflow`**
-
-![/perlengkapan/simpel/v2/admin/workflow](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__admin__workflow.png)
+![/perlengkapan/simpel/admin/templates](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__admin__templates.png)
 
 <sub>1600×1000 piksel</sub>
 
-**`/perlengkapan/simpel/v2/admin/workflow-monitoring`**
+**`/perlengkapan/simpel/admin/workflow`**
 
-![/perlengkapan/simpel/v2/admin/workflow-monitoring](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__v2__admin__workflow-monitoring.png)
+![/perlengkapan/simpel/admin/workflow](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__admin__workflow.png)
+
+<sub>1600×1000 piksel</sub>
+
+**`/perlengkapan/simpel/admin/workflow-monitoring`**
+
+![/perlengkapan/simpel/admin/workflow-monitoring](docs/assets/screenshots/perlengkapan__perlengkapan__simpel__admin__workflow-monitoring.png)
 
 <sub>1600×1338 piksel</sub>
 

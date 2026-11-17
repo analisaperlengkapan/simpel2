@@ -90,7 +90,7 @@ test.describe('Portal core — operator', () => {
     // Anchor the name assertions on the CARD, not on loose page text: a bare
     // `getByText` matched a hidden footer label first once, and the assertion
     // failed on the footer while the card it meant to check was present.
-    const simpelCard = page.locator('a[href="/perlengkapan/simpel/v2"]');
+    const simpelCard = page.locator('a[href="/perlengkapan/simpel"]');
     await expect(simpelCard).toBeVisible();
     await expect(simpelCard).toContainText('SIMPEL');
     await expect(simpelCard).not.toContainText(/SIMPEL v\d/);

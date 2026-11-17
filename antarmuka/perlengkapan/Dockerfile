@@ -85,10 +85,10 @@ RUN cp /usr/local/cargo/bin/wasm-bindgen /root/.cache/trunk/wasm-bindgen-0.2.100
 RUN /workspace/infra/scripts/preseed-trunk-tools.sh /workspace/antarmuka/perlengkapan /workspace
 
 # Build with trunk (release mode).
-# Assets served at /perlengkapan/simpel/v2/ path prefix (canonical
-# microfrontend mount point). Browser URL `/perlengkapan/simpel/v2/...`
-# matches `<base href>` in index.html dan WASM router base path.
-RUN trunk build --release --public-url "/perlengkapan/simpel/v2/"
+# Assets served at the /perlengkapan/simpel/ path prefix (the microfrontend's
+# mount point). Browser URL `/perlengkapan/simpel/...` matches `<base href>` in
+# index.html dan WASM router base path.
+RUN trunk build --release --public-url "/perlengkapan/simpel/"
 
 # SHA-256 of every inline <script> in the BUILT index.html, for the opt-in
 # hash-based CSP (`CSP_HASH_MODE=true` in the entrypoint replaces
@@ -109,23 +109,12 @@ USER root
 # Copy perlengkapan-specific nginx config
 COPY antarmuka/perlengkapan/nginx.conf /etc/nginx/nginx.conf
 
-# Copy build output to Nginx html dir di path canonical
-# /usr/share/nginx/html/perlengkapan/simpel/v2 — match URL prefix.
+# Copy build output to Nginx html dir di
+# /usr/share/nginx/html/perlengkapan/simpel — match URL prefix.
 RUN rm -rf /usr/share/nginx/html/* && \
-    mkdir -p /usr/share/nginx/html/perlengkapan/simpel
-COPY --from=builder /workspace/antarmuka/perlengkapan/dist /usr/share/nginx/html/perlengkapan/simpel/v2
+    mkdir -p /usr/share/nginx/html/perlengkapan
+COPY --from=builder /workspace/antarmuka/perlengkapan/dist /usr/share/nginx/html/perlengkapan/simpel
 COPY --from=builder /workspace/antarmuka/perlengkapan/csp-script-hashes.txt /usr/share/nginx/csp-script-hashes.txt
-
-# Redirect HTML untuk path parent. Saat user akses /perlengkapan/ atau
-# /perlengkapan/simpel/, browser dapat meta-refresh ke canonical
-# /perlengkapan/simpel/v2/. Redirect dilakukan di HTML (BUKAN di Istio)
-# supaya tetap di sisi frontend dan tidak menimbulkan loop/error di
-# gateway. Konten redirect statik dipertahankan di repo
-# (`antarmuka/perlengkapan/redirect-to-v2.html`) — sebelumnya inline
-# heredoc, di-extract supaya hadolint <=2.12 yang belum support heredoc
-# syntax tidak gagal parse Dockerfile.
-COPY antarmuka/perlengkapan/redirect-to-v2.html /usr/share/nginx/html/perlengkapan/index.html
-COPY antarmuka/perlengkapan/redirect-to-v2.html /usr/share/nginx/html/perlengkapan/simpel/index.html
 
 # Change ownership so the entrypoint (uid 101) can write config.json and
 # substitute the upstream placeholders in nginx.conf in place.

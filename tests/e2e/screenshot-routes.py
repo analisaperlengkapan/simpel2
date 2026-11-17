@@ -16,7 +16,7 @@ reason. This script does the same, for BOTH frontends, and emits one JSON
 document the capture script consumes:
 
     { "portal":       { "base": "/portal",              "routes": [...] },
-      "perlengkapan": { "base": "/perlengkapan/simpel/v2","routes": [...] } }
+      "perlengkapan": { "base": "/perlengkapan/simpel","routes": [...] } }
 
 Routes whose path contains a `:param` segment are emitted with the placeholder
 intact and `"parameterised": true`; the capture script resolves those against
@@ -207,14 +207,14 @@ def main() -> int:
     doc = {
         "portal": {"base": "/portal", "routes": portal_routes()},
         "perlengkapan": {
-            "base": "/perlengkapan/simpel/v2",
+            "base": "/perlengkapan/simpel",
             "routes": perlengkapan_routes(),
         },
     }
     # Router paths are written RELATIVE to `<Router base=…>`; the browser URL is
     # base + path. A path already carrying the base is left alone (routes.rs
     # consts are absolute, lib.rs/app.rs literals are not) — joining twice would
-    # yield `/perlengkapan/simpel/v2/perlengkapan/simpel/v2/dashboard`, a URL
+    # yield `/perlengkapan/simpel/perlengkapan/simpel/dashboard`, a URL
     # whose 404 page screenshots fine and proves nothing.
     for fe, meta in doc.items():
         base = meta["base"]

@@ -2,7 +2,7 @@
 target = "index.html"
 dist = "dist"
 release = false
-public_url = "/perlengkapan/simpel/v2/"
+public_url = "/perlengkapan/simpel/"
 
 # Pin the tailwindcss binary trunk fetches for `rel="tailwind-css"`. Left
 # implicit, the version is whatever the installed trunk defaults to, which a

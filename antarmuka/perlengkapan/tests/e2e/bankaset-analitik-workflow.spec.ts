@@ -70,7 +70,7 @@ import {
   formatThousands,
 } from "./helpers/real-auth";
 
-const BASE = "/perlengkapan/simpel/v2";
+const BASE = "/perlengkapan/simpel";
 const API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan`;
 
 /** Seeded notifikasi UUIDs (seed-perlengkapan-workflow.sql section 9). */

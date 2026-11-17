@@ -16,7 +16,7 @@
 import { test, expect } from '@playwright/test';
 import { storageStatePath } from './helpers/real-auth';
 
-const BASE = '/perlengkapan/simpel/v2';
+const BASE = '/perlengkapan/simpel';
 
 // Feature modules every authenticated user can open (role-gating, where it
 // applies, renders inside the shell — it does not redirect away).

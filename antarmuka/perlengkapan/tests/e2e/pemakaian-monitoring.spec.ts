@@ -33,7 +33,7 @@ import {
 
 const MON_API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/pemakaian-bmn/monitoring`;
 /** App base path, same convention as pengelolaan-workflow.spec.ts. */
-const BASE = '/perlengkapan/simpel/v2';
+const BASE = '/perlengkapan/simpel';
 
 const userFor = (key: string) => {
   const u = TEST_USERS.find((t) => t.key === key);

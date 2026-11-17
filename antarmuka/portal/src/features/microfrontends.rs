@@ -146,7 +146,7 @@ impl MicrofrontendRegistry {
             name: "SIMPEL".to_string(),
             description: "Manajemen Aset dan Logistik".to_string(),
             icon: "📦".to_string(),
-            url: "/perlengkapan/simpel/v2".to_string(),
+            url: "/perlengkapan/simpel".to_string(),
             color: AppColor::Orange,
             category: AppCategory::Asset,
             required_role: None,

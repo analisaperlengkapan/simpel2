@@ -89,7 +89,7 @@ const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * The set of route paths a spec bundle actually visits. Specs build paths from
- * file-local string consts (e.g. `const BASE = '/perlengkapan/simpel/v2'` then
+ * file-local string consts (e.g. `const BASE = '/perlengkapan/simpel'` then
  * `` `${BASE}/dashboard` ``), so we (1) resolve `${IDENT}` from string consts,
  * then (2) extract `base`-prefixed path tokens as WHOLE tokens and match them
  * exactly (so `/dashboard` never counts `/dashboard/search`, and vice-versa).

@@ -623,7 +623,7 @@ async function main() {
   for (const [fe, path] of [
     ['portal', '/portal/login'],
     ['portal', '/portal/logged-out'],
-    ['perlengkapan', '/perlengkapan/simpel/v2/login'],
+    ['perlengkapan', '/perlengkapan/simpel/login'],
   ]) {
     const file = join(OUT, `${fe}__anon__${slug(path)}.png`);
     await shoot(anonPage, `${APP_ORIGIN}${path}`, file, findings);
@@ -638,9 +638,9 @@ async function main() {
   await seedSession(opCtx, opTokens);
   const opPage = await opCtx.newPage();
   await opPage
-    .goto(`${APP_ORIGIN}/perlengkapan/simpel/v2/`, { waitUntil: 'domcontentloaded' })
+    .goto(`${APP_ORIGIN}/perlengkapan/simpel/`, { waitUntil: 'domcontentloaded' })
     .catch(() => {});
-  for (const path of ['/perlengkapan/simpel/v2/admin/roles', '/portal/admin/users']) {
+  for (const path of ['/perlengkapan/simpel/admin/roles', '/portal/admin/users']) {
     const file = join(OUT, `guard__operator__${slug(path)}.png`);
     await shoot(opPage, `${APP_ORIGIN}${path}`, file, findings, { expectDenied: true });
     capturedRoutes.push({ fe: path.startsWith('/portal') ? 'portal' : 'perlengkapan', route: `${path} (operator)`, path, file: file.split('/').pop() });
