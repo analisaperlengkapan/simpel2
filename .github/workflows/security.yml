@@ -772,8 +772,12 @@ jobs:
       # yang tercetak di source tree; `validate_token` menerima `token_type:"root"`
       # tanpa memeriksa policy store, sehingga siapa pun yang bisa menjangkau port
       # HTTP dapat menempa token root. `SECRETON_JWT_SECRET` didokumentasikan tetapi
-      # tak pernah dibaca. Pagar ini membaca render, dan self-test-nya memastikan
-      # ia MENOLAK render yang rusak.
+      # tak pernah dibaca. Pagar ini membaca render dalam DUA mode dan self-test-nya
+      # memastikan ia MENOLAK render yang rusak:
+      #   * steady (bootstrap=false) — Secret `secreton-jwt` HARUS absen; kunci root
+      #     tak boleh ikut masuk Secret rilis Helm (akses bacanya lebih luas).
+      #   * bootstrap=true — Secret dirender, 64 hex, `resource-policy: keep`, dan
+      #     nilainya dari operator (chart tak mengundi kunci root sendiri).
       - name: secreton memakai satu kunci JWT bersama dari Secret yang bertahan
         if: steps.filter.outputs.helm == 'true'
         run: |
@@ -782,7 +786,19 @@ jobs:
           for f in staging production; do
             docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
               < "rendered/${f}.yaml" \
-              | python3 ./infra/scripts/check-secreton-jwt-wiring.py "$f"
+              | python3 ./infra/scripts/check-secreton-jwt-wiring.py "$f" steady
+          done
+          # Render bootstrap terpisah: satu-satunya mode yang boleh memuat kunci root.
+          # Kunci + password postgres disuplai dari sini supaya template tak perlu
+          # mengundi/mengarang nilai sendiri (bootstrap-secrets.yaml menuntut password).
+          for f in staging production; do
+            helm template simpel infra/helm/simpel \
+              -f "infra/helm/simpel/values-${f}.yaml" \
+              --set secrets.bootstrap=true \
+              --set secrets.postgresCredentials.password=bootstrap-only \
+              --set secrets.secretonJwtSecret=0000000000000000000000000000000000000000000000000000000000000000 \
+              | docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
+              | python3 ./infra/scripts/check-secreton-jwt-wiring.py "${f}-bootstrap" bootstrap
           done
       - name: Setiap emptyDir dikecualikan dari backup Velero
         if: steps.filter.outputs.helm == 'true'

@@ -57,6 +57,14 @@ Production menggunakan tag immutable (`vX.Y.Z`) dan
 lihat [`layanan/secreton/crates/k8s-operator/README.md`](../../layanan/secreton/crates/k8s-operator/README.md).
 Bootstrap (`secrets.bootstrap=true`) hanya untuk first-install.
 
+> **Kunci root Secreton.** `secretonJwtSecret` menandatangani token **root**
+> Secreton, jadi chart tidak mengundinya sendiri: nilainya WAJIB dari
+> `values-secrets.yaml` saat bootstrap (64 hex, `openssl rand -hex 32`), dan
+> Secret `secreton-jwt` hanya dirender saat `secrets.bootstrap=true`. Setelah
+> bootstrap, sediakan/rotasi kunci itu di luar chart (Sealed Secrets, Secreton
+> SecretSync) — dengan begitu kunci root tidak ikut tersimpan di Secret rilis
+> Helm (`sh.helm.release.v1.*`), yang akses bacanya lebih luas.
+
 ### MetalLB (sekali per cluster)
 
 ```bash
