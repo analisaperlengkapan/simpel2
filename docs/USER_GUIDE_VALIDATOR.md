@@ -190,7 +190,11 @@ Menampilkan:
 2. **Review Data Pegawai**
    - Cek kelengkapan data ukuran
    - Verifikasi data pegawai (eselon, pangkat, jabatan)
-   - Cek konsistensi dengan MySIMKARI
+   - Halaman menampilkan **tanggal pembekuan daftar pegawai** untuk periode ini
+     dalam WIB ("Data pegawai dikunci per pengajuan ini: per <tanggal> WIB"),
+     tanggal yang sama yang tercetak di header ekspor PDF/Excel. Daftar orangnya
+     adalah yang dibekukan saat validator pusat membuat periode, sehingga angka
+     yang Anda review sama dengan yang dilihat operator dan wilayah.
 
 3. **Ambil Keputusan**
    - **Approve**: Forward ke Kejagung

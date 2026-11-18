@@ -118,6 +118,11 @@ pub struct PengajuanPakaianDinas {
     pub total_satker: Option<i64>,
     #[serde(default)]
     pub satker_selesai: Option<i64>,
+    /// When the campaign's employee roster was frozen (V018, RFC3339). `None`
+    /// for a campaign created before the freeze. Shown to every role as
+    /// "data pegawai per <tanggal>".
+    #[serde(default)]
+    pub roster_snapshot_at: Option<String>,
     /// Derived on the backend from `is_reguler` + `tgl_selesai`; see the entity.
     pub is_open: bool,
     /// `belum_dibuka` / `terbuka` / `ditutup`, from the backend (WIB). Empty from an
@@ -1557,6 +1562,10 @@ pub struct RosterPengisian {
     pub satker_nama: Option<String>,
     pub aktivitas_id: i32,
     pub dapat_diubah: bool,
+    /// When the campaign's employee list was frozen (V018, RFC3339). `None`
+    /// when the roster is read live (a campaign from before the freeze).
+    #[serde(default)]
+    pub roster_snapshot_at: Option<String>,
     #[serde(default)]
     pub pakaian: Vec<PengajuanPakaianItem>,
     #[serde(default)]

@@ -119,6 +119,12 @@ Jika pengajuan dikembalikan untuk revisi:
 
 2. **Input Ukuran Pegawai**
    - Sistem akan menampilkan daftar pegawai dari MySIMKARI
+   - Daftar ini **dikunci per pengajuan**: validator pusat membekukannya saat
+     membuat periode, dan halaman menampilkan tanggalnya dalam WIB ("Data
+     pegawai dikunci per pengajuan ini: per <tanggal> WIB") — tanggal yang sama
+     yang tercetak di header ekspor PDF/Excel. Pegawai yang pindah masuk atau keluar
+     *setelah* tanggal itu tidak mengubah daftar periode tersebut — supaya semua
+     pihak melihat daftar orang yang sama sepanjang periode berjalan.
    - Untuk setiap pegawai, input:
      - Ukuran baju (S, M, L, XL, XXL, XXXL)
      - Ukuran celana (28, 30, 32, 34, 36, 38, 40)

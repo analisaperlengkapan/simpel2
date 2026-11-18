@@ -950,6 +950,16 @@ impl PakaianDinasService {
         if let Some(eselon) = &filter.eselon {
             filters.push(("Eselon".to_string(), eselon.clone()));
         }
+        // V018: the as-of date of the frozen employee roster, so an exported
+        // report says which snapshot of the personnel list it reflects — the
+        // same fact the on-screen roster shows to every role.
+        if let Some(snapshot_at) = pengajuan.roster_snapshot_at {
+            let tanggal = (snapshot_at + chrono::Duration::hours(7)).date_naive();
+            filters.push((
+                "Data Pegawai".to_string(),
+                format!("per {}", tanggal_indo(Some(tanggal))),
+            ));
+        }
         let inst_nama = self.repository.get_laporan_inst_nama(filter, scope).await?;
         Ok(ReportHeader {
             judul: pengajuan.nama,

@@ -345,6 +345,40 @@ pub fn format_iso_local_opt(iso: Option<&str>) -> String {
     }
 }
 
+/// `"2026-08-28T16:30:00+00:00"` → `"28 Agu 2026, 23:30 WIB"`.
+///
+/// Same shape as [`format_iso_local`] but pinned to WIB (UTC+7) instead of the
+/// reader's clock, and tagged with the zone. Use it wherever a timestamp is
+/// stated as a FACT that another surface states too: the roster snapshot's
+/// as-of date is shown on screen *and* printed into the PDF/Excel header, and
+/// the export pins WIB. A reader in WITA would otherwise see the banner date as
+/// the next day while the export says the previous one — the same campaign
+/// frozen on two different dates.
+///
+/// The zone suffix is deliberate: a pinned zone the reader cannot see is just a
+/// wrong time with extra confidence.
+///
+/// A value that will not parse is returned unchanged, like [`format_iso_local`].
+pub fn format_iso_wib(iso: &str) -> String {
+    use chrono::{Datelike, FixedOffset, Timelike};
+    // WIB has no daylight saving, so a fixed +07:00 is exact.
+    let wib = FixedOffset::east_opt(7 * 3600).expect("+07:00 is a valid offset");
+    match DateTime::parse_from_rfc3339(iso) {
+        Ok(dt) => {
+            let wib = dt.with_timezone(&wib);
+            format!(
+                "{} {} {}, {:02}:{:02} WIB",
+                wib.day(),
+                BULAN_SINGKAT[(wib.month() as usize).saturating_sub(1).min(11)],
+                wib.year(),
+                wib.hour(),
+                wib.minute(),
+            )
+        }
+        Err(_) => iso.to_string(),
+    }
+}
+
 /// Turn a raw `User-Agent` header into a short, human label.
 ///
 /// The header is a protocol artifact — `Mozilla/5.0 (X11; Linux x86_64)
@@ -430,6 +464,45 @@ mod iso_local_tests {
         assert_eq!(format_iso_local("kemarin"), "kemarin");
         assert_eq!(format_iso_local_opt(None), "—");
         assert_eq!(format_iso_local_opt(Some("  ")), "—");
+    }
+}
+
+#[cfg(test)]
+mod iso_wib_tests {
+    use super::format_iso_wib;
+
+    /// The point of the pinned formatter: the hour is WIB regardless of where
+    /// the reader is, and the zone is stated. The `Local`-based sibling cannot
+    /// assert an hour; this one must.
+    #[test]
+    fn the_hour_is_wib_not_the_readers_clock() {
+        assert_eq!(
+            format_iso_wib("2026-08-28T09:26:04.708688+00:00"),
+            "28 Agu 2026, 16:26 WIB"
+        );
+        // `Z` and `+00:00` spell the same instant and must render the same.
+        assert_eq!(
+            format_iso_wib("2026-08-28T09:26:04Z"),
+            "28 Agu 2026, 16:26 WIB"
+        );
+    }
+
+    /// The export header pins WIB too, so the *date* the screen prints must be
+    /// the WIB date — the case a reader in WITA used to see a day ahead. 16:30
+    /// UTC is 23:30 WIB (same day) but 00:30 WITA (next day).
+    #[test]
+    fn the_date_matches_the_wib_export_header() {
+        let out = format_iso_wib("2026-11-17T16:30:00+00:00");
+        assert!(
+            out.starts_with("17 Nov 2026"),
+            "must stay 17 Nov in WIB: {out}"
+        );
+        assert!(out.ends_with("WIB"), "the zone must be stated: {out}");
+    }
+
+    #[test]
+    fn an_unparseable_value_is_passed_through_not_hidden() {
+        assert_eq!(format_iso_wib("kemarin"), "kemarin");
     }
 }
 
