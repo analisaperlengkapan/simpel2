@@ -180,7 +180,7 @@ async fn main() -> anyhow::Result<()> {
     // secrets-engine role; absent → keep the static DATABASE_URL above. The
     // returned lease is renewed by a background task so the issued Postgres
     // role stays valid without a credential change (see below).
-    let app_env_for_db = std::env::var("APP_ENV").unwrap_or_else(|_| "dev".to_string());
+    let app_env_for_db = resolve_app_environment();
     let is_production_db = app_env_for_db.eq_ignore_ascii_case("production");
     let mut db_lease: Option<layanan_perlengkapan::shared::grpc::clients::DynamicDbCredentials> =
         None;
@@ -216,12 +216,13 @@ async fn main() -> anyhow::Result<()> {
     let database_url = database_url.expect("DATABASE_URL must be set (env, secreton, or dynamic)");
 
     // Initialize Authenc Client with Retry Logic (optional for dev)
-    // `APP_ENV=production` flips Authenc connectivity from "best-effort" to
-    // "required". In dev/staging we still allow the dummy fallback so the
-    // service is usable when authenc is intentionally offline. In production
-    // a missing IdP is a hard failure — a service that silently accepts every
-    // token is worse than one that refuses to start.
-    let app_env = std::env::var("APP_ENV").unwrap_or_else(|_| "dev".to_string());
+    // `APP_ENVIRONMENT=production` gates the security controls below: the
+    // accept-all dummy authenticator is refused, CORS becomes deny-by-default,
+    // and a failed Secreton-backed init (dynamic DB creds, EmailService) is a
+    // hard failure instead of a warning. The client itself connects LAZILY —
+    // see below — so a temporarily unreachable authenc is not a boot failure;
+    // it fails the individual call (401) and recovers on its own.
+    let app_env = resolve_app_environment();
     let is_production = app_env.eq_ignore_ascii_case("production");
     let skip_authenc = std::env::var("SKIP_AUTHENC").unwrap_or_default() == "true";
 
@@ -232,7 +233,7 @@ async fn main() -> anyhow::Result<()> {
     // deny-listing the real one.
     if skip_authenc && !skip_authenc_allowed(&app_env) {
         return Err(anyhow::anyhow!(
-            "SKIP_AUTHENC=true is only allowed when APP_ENV is one of dev/development/local/test (got '{app_env}')"
+            "SKIP_AUTHENC=true is only allowed when APP_ENVIRONMENT is one of dev/development/local/test (got '{app_env}')"
         ));
     }
 
@@ -534,7 +535,30 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// May the accept-all dummy authenticator be used in this `APP_ENV`?
+/// The deployment environment, read from the environment.
+///
+/// `APP_ENVIRONMENT` is the canonical name — the Helm chart, authenc, integrasi
+/// and secreton all set and read it. This service read `APP_ENV` instead, which
+/// nothing ever sets: every production/staging pod therefore fell through to the
+/// `"dev"` default, so the environment-gated controls below never engaged — the
+/// accept-all dummy authenticator stayed permitted, CORS stayed permissive, and
+/// a failed Secreton-backed init (dynamic DB creds, EmailService) degraded to a
+/// warning instead of aborting start-up. Read the canonical name first and keep
+/// `APP_ENV` as a legacy fallback for local runs.
+fn resolve_app_environment() -> String {
+    resolve_app_environment_from(|name| std::env::var(name).ok())
+}
+
+/// Pure core of [`resolve_app_environment`], so the precedence is testable
+/// without mutating process state.
+fn resolve_app_environment_from(get: impl Fn(&str) -> Option<String>) -> String {
+    get("APP_ENVIRONMENT")
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| get("APP_ENV").filter(|v| !v.trim().is_empty()))
+        .unwrap_or_else(|| "dev".to_string())
+}
+
+/// May the accept-all dummy authenticator be used in this environment?
 ///
 /// Only the local environments. Everything else — production, staging, an
 /// unrecognised name, a typo — refuses to start with it.
@@ -555,7 +579,7 @@ enum CorsPolicy {
     SameOriginOnly,
 }
 
-/// Decide the CORS policy from `CORS_ALLOWED_ORIGINS` and `APP_ENV`.
+/// Decide the CORS policy from `CORS_ALLOWED_ORIGINS` and `APP_ENVIRONMENT`.
 ///
 /// The default used to be `*` regardless of environment, so a deployment that
 /// forgot to set the variable (the Helm chart does not) answered every origin on
@@ -579,12 +603,12 @@ fn cors_policy(configured: Option<&str>, app_env: &str) -> CorsPolicy {
 }
 
 fn build_router(state: AppState) -> Router {
-    let app_env = std::env::var("APP_ENV").unwrap_or_else(|_| "dev".to_string());
+    let app_env = resolve_app_environment();
     let configured_origins = std::env::var("CORS_ALLOWED_ORIGINS").ok();
     let policy = cors_policy(configured_origins.as_deref(), &app_env);
     if policy == CorsPolicy::Any && !skip_authenc_allowed(&app_env) {
         tracing::warn!(
-            "CORS_ALLOWED_ORIGINS=* in APP_ENV={app_env}: every origin may call this API"
+            "CORS_ALLOWED_ORIGINS=* in APP_ENVIRONMENT={app_env}: every origin may call this API"
         );
     }
 
@@ -681,6 +705,69 @@ fn build_router(state: AppState) -> Router {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The chart sets `APP_ENVIRONMENT`; nothing ever set `APP_ENV`. Reading the
+    /// wrong name silently downgraded production to "dev", disabling every
+    /// production-only gate. Pin the canonical name and the legacy fallback.
+    #[test]
+    fn app_environment_prefers_the_canonical_name() {
+        fn env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> {
+            let map: std::collections::HashMap<String, String> = pairs
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect();
+            move |name: &str| map.get(name).cloned()
+        }
+
+        // The name the Helm chart (and authenc/integrasi/secreton) actually set.
+        assert_eq!(
+            resolve_app_environment_from(env(&[("APP_ENVIRONMENT", "production")])),
+            "production"
+        );
+        assert_eq!(
+            resolve_app_environment_from(env(&[("APP_ENVIRONMENT", "staging")])),
+            "staging"
+        );
+
+        // Canonical wins when both are present; the legacy name is only a fallback.
+        assert_eq!(
+            resolve_app_environment_from(env(&[
+                ("APP_ENVIRONMENT", "production"),
+                ("APP_ENV", "dev"),
+            ])),
+            "production"
+        );
+
+        // Legacy name still honoured for local runs.
+        assert_eq!(
+            resolve_app_environment_from(env(&[("APP_ENV", "dev")])),
+            "dev"
+        );
+
+        // Absent or blank → local default.
+        assert_eq!(resolve_app_environment_from(env(&[])), "dev");
+        assert_eq!(
+            resolve_app_environment_from(env(&[("APP_ENVIRONMENT", "   ")])),
+            "dev"
+        );
+        assert_eq!(
+            resolve_app_environment_from(env(&[("APP_ENVIRONMENT", ""), ("APP_ENV", "test")])),
+            "test"
+        );
+    }
+
+    /// The deployment value (`APP_ENVIRONMENT=production`) must resolve to
+    /// "production" and must refuse the accept-all dummy authenticator. This
+    /// pins only the resolver and `skip_authenc_allowed`; it does not exercise
+    /// start-up (Authenc connects lazily, so there is no boot-time IdP check).
+    /// If this regressed to reading `APP_ENV`, the value would resolve to "dev".
+    #[test]
+    fn production_environment_enables_the_production_gates() {
+        let map = std::collections::HashMap::from([("APP_ENVIRONMENT", "production")]);
+        let resolved = resolve_app_environment_from(|name| map.get(name).map(|v| v.to_string()));
+        assert!(resolved.eq_ignore_ascii_case("production"));
+        assert!(!skip_authenc_allowed(&resolved));
+    }
 
     #[test]
     fn the_dummy_authenticator_is_only_allowed_locally() {

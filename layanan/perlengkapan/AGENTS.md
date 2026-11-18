@@ -322,7 +322,7 @@ sendiri bila dipasang tanpa middleware (tes).
   wajib cocok, `Content-Type` diturunkan server, ≤ 10 MiB & ≤ 20 file/permintaan. Tautan dokumen
   yang dikirim klien hanya `http(s)://` atau path situs (`validate_document_url`).
 - **CORS deny-by-default** di luar dev (`CORS_ALLOWED_ORIGINS` tak diset ⇒ same-origin saja);
-  `SKIP_AUTHENC=true` hanya bila `APP_ENV` ∈ dev/development/local/test.
+  `SKIP_AUTHENC=true` hanya bila `APP_ENVIRONMENT` ∈ dev/development/local/test.
 - **IP klien** (`ClientIp`) dari `lib_backend::client_ip`: header `X-Forwarded-For`/`X-Real-IP`
   hanya dipercaya dari peer di `TRUSTED_PROXY_CIDRS` (dibaca dari kanan). Server harus jalan
   dgn `into_make_service_with_connect_info` (sudah).
@@ -572,7 +572,7 @@ let email = EmailService::new_with_secreton(
     "perlengkapan/notifikasi/smtp", // bundle with `username` + `password` keys
 ).await?;
 
-// 2. Production hardening: under `APP_ENV=production` the Err arm
+// 2. Production hardening: under `APP_ENVIRONMENT=production` the Err arm
 //    must abort start-up (anyhow::bail!) instead of degrading silently.
 ```
 
