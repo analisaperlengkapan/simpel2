@@ -335,9 +335,16 @@ impl PakaianDinasRepository {
         tx.execute(
             r#"
                 INSERT INTO perlengkapan.pengajuan_pakaian_dinas_pegawai_snapshot
-                    (pengajuan_id, satker_id, nip, nama, pangkat, jabatan, eselon,
+                    (pengajuan_id, satker_id, nip, nama_pegawai, pangkat, jabatan, eselon,
                      jenis_kelamin, gol_kd, jenis, foto, snapshot_at)
-                SELECT $1::uuid, ms.kode_satker, p.nip, p.nama, p.golpang, p.jabatan,
+                -- `COALESCE(p.nama, p.nip)`: MySIMKARI mengizinkan nama NULL dan
+                -- penyimpanannya memang menulis NULL saat nama tak tersedia.
+                -- Kolom snapshot NOT NULL, jadi menyalin NULL apa adanya
+                -- menggagalkan seluruh transaksi — dan karena ini satu
+                -- INSERT..SELECT untuk semua satker target, satu pegawai tanpa
+                -- nama memblokir pembuatan periode untuk SELURUH satker.
+                -- Pegawai tetap ikut serta; NIP dipakai sebagai label pengganti.
+                SELECT $1::uuid, ms.kode_satker, p.nip, COALESCE(p.nama, p.nip), p.golpang, p.jabatan,
                        p.eselon, p.jk, p.gol_kd, p.jenis_jabatan_terakhir, p.foto, $2
                 FROM integrasi.mysimkari_pegawai p
                 JOIN integrasi.mysimkari_satker ms ON ms.api_id = p.satker_id

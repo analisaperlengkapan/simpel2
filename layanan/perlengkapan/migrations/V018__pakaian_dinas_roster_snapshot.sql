@@ -38,7 +38,14 @@ CREATE TABLE IF NOT EXISTS perlengkapan.pengajuan_pakaian_dinas_pegawai_snapshot
     -- seperti `_satker.satker_id` setelah V006. BUKAN surrogate bigint.
     satker_id character varying(20) NOT NULL,
     nip character varying(30) NOT NULL,
-    nama text NOT NULL,
+    -- `nama_pegawai`, bukan `nama` generik: standar penamaan kolom F5-B
+    -- (layanan/AGENTS.md) meminta kualifikasi domainnya.
+    --
+    -- NOT NULL, tetapi penulisnya menyalin `COALESCE(p.nama, p.nip)`:
+    -- MySIMKARI mengizinkan nama NULL, dan satu pegawai tanpa nama tidak boleh
+    -- menggagalkan pembuatan periode untuk SELURUH satker (transaksi snapshot
+    -- adalah satu INSERT..SELECT untuk semua satker target).
+    nama_pegawai text NOT NULL,
     pangkat text,
     jabatan text,
     eselon text,

@@ -121,11 +121,11 @@ impl PakaianDinasRepository {
             client
                 .query(
                     r#"
-                    SELECT nip, nama, jabatan, pangkat AS golpang, gol_kd, eselon,
+                    SELECT nip, nama_pegawai AS nama, jabatan, pangkat AS golpang, gol_kd, eselon,
                            jenis_kelamin AS jk, jenis AS jenis_jabatan_terakhir, foto
                     FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_snapshot
                     WHERE pengajuan_id = $1 AND satker_id = $2
-                    ORDER BY nama ASC
+                    ORDER BY nama_pegawai ASC
                     "#,
                     &[&pengajuan_id, &satker_code],
                 )
@@ -334,7 +334,7 @@ impl PakaianDinasRepository {
             client
                 .query_opt(
                     r#"
-                    SELECT nip, nama, jabatan, pangkat AS golpang, gol_kd, eselon,
+                    SELECT nip, nama_pegawai AS nama, jabatan, pangkat AS golpang, gol_kd, eselon,
                            jenis_kelamin AS jk, jenis AS jenis_jabatan_terakhir
                     FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_snapshot
                     WHERE pengajuan_id = $1 AND satker_id = $2 AND nip = $3

@@ -33,7 +33,7 @@ use crate::api::pakaian_dinas::{
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
 use lib_ui::components::icon::AppIcon;
-use lib_ui::utils::formatters::format_iso_local;
+use lib_ui::utils::formatters::{format_iso_local, format_iso_wib};
 use phosphor_leptos::{
     ARROW_LEFT, CHECK_CIRCLE, PAPER_PLANE_TILT, PENCIL_SIMPLE, WARNING_CIRCLE, X,
 };
@@ -316,7 +316,7 @@ fn halaman(
                             <span>
                                 "Data pegawai dikunci per pengajuan ini: "
                                 <span class="font-semibold">
-                                    {format!("per {}", format_iso_local(&iso))}
+                                    {format!("per {}", format_iso_wib(&iso))}
                                 </span>
                                 ". Daftar ini tidak berubah walau data kepegawaian berubah setelah tanggal tersebut."
                             </span>

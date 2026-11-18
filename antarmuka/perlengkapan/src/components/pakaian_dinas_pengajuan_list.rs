@@ -19,7 +19,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
-use lib_ui::utils::formatters::format_iso_local;
+use lib_ui::utils::formatters::format_iso_wib;
 use phosphor_leptos::{
     BUILDING, CALENDAR_CHECK, CALENDAR_X, PENCIL_SIMPLE, PLUS, TRASH, WARNING_CIRCLE,
 };
@@ -571,7 +571,7 @@ fn render_pengajuan_cards(
                     let snapshot_line = item
                         .roster_snapshot_at
                         .clone()
-                        .map(|iso| format!("Data pegawai per {}", format_iso_local(&iso)));
+                        .map(|iso| format!("Data pegawai per {}", format_iso_wib(&iso)));
                     let has_snapshot = snapshot_line.is_some();
                     view! {
                         <div class="rounded-2xl border border-white/[0.06] bg-surface-panel p-5 transition hover:border-white/10">

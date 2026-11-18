@@ -15,7 +15,7 @@ use crate::components::layout::{
 use leptos::prelude::*;
 use leptos_fetch::QueryClient;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
-use lib_ui::utils::formatters::format_iso_local;
+use lib_ui::utils::formatters::format_iso_wib;
 use phosphor_leptos::{CHART_PIE, FILE_PDF, FILE_XLS, INFO, USERS};
 
 /// Filter-option queries — both keyed `()` because the dropdowns
@@ -546,7 +546,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                             <span>
                                 "Data pegawai laporan ini dikunci per pengajuan: "
                                 <span class="font-semibold">
-                                    {format!("per {}", format_iso_local(&iso))}
+                                    {format!("per {}", format_iso_wib(&iso))}
                                 </span>
                                 "."
                             </span>

@@ -29,6 +29,7 @@ const SATKER_A: &str = "SKR001";
 const SATKER_B: &str = "SKR002";
 const NIP_A: &str = "19800101000000001";
 const NIP_BARU: &str = "19990101000000099";
+const NIP_TANPA_NAMA: &str = "19750101000000077";
 
 type Headers = Vec<(reqwest::header::HeaderName, reqwest::header::HeaderValue)>;
 
@@ -280,6 +281,47 @@ async fn tanggal_snapshot_terlihat_untuk_semua_role() {
             "role {role} harus melihat tanggal snapshot yang sama: {data}"
         );
     }
+
+    teardown_test_db(&db_name).await;
+}
+
+/// MySIMKARI mengizinkan `nama` NULL (dan `storage.rs` memang menulis NULL saat
+/// nama tak tersedia), sedangkan kolom snapshot NOT NULL. Menyalin NULL apa
+/// adanya menggagalkan SELURUH transaksi pembuatan pengajuan — dan karena
+/// snapshot adalah satu INSERT..SELECT untuk semua satker target, satu pegawai
+/// tanpa nama pada SATU satker memblokir pembuatan periode untuk SEMUA satker
+/// (termasuk yang datanya lengkap). Pegawai itu tetap harus ikut ke daftar.
+#[tokio::test]
+async fn pegawai_tanpa_nama_tidak_memblokir_pembuatan_pengajuan() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+
+    // Satu pegawai tanpa nama di SKR001 SEBELUM kampanye dibuat.
+    let client = db.pool().get().await.unwrap();
+    client
+        .execute(
+            "INSERT INTO integrasi.mysimkari_pegawai (nip, nama, satker_id, nama_satker, jabatan, jk)
+             VALUES ($1, NULL, 'api-skr001', 'KEJAKSAAN NEGERI UJI A', 'Staf', 'L')",
+            &[&NIP_TANPA_NAMA],
+        )
+        .await
+        .unwrap();
+
+    // Pembuatan pengajuan harus berhasil (dulu gagal karena NOT NULL).
+    let (pengajuan_id, _, _) = buat_kampanye(&server).await;
+
+    // Pegawai tanpa nama tetap muncul, dilabeli NIP sebagai pengganti nama.
+    let data = roster(&server, &pengajuan_id, SATKER_A).await;
+    let orang = data["pegawai"].as_array().unwrap();
+    let tanpa_nama = orang
+        .iter()
+        .find(|p| p["nip"] == NIP_TANPA_NAMA)
+        .unwrap_or_else(|| panic!("pegawai tanpa nama harus tetap ada di roster: {data}"));
+    assert_eq!(
+        tanpa_nama["nama"].as_str(),
+        Some(NIP_TANPA_NAMA),
+        "nama NULL diganti NIP, bukan dikosongkan atau dihilangkan: {tanpa_nama}"
+    );
 
     teardown_test_db(&db_name).await;
 }
