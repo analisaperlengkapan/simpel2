@@ -216,11 +216,12 @@ async fn main() -> anyhow::Result<()> {
     let database_url = database_url.expect("DATABASE_URL must be set (env, secreton, or dynamic)");
 
     // Initialize Authenc Client with Retry Logic (optional for dev)
-    // `APP_ENVIRONMENT=production` flips Authenc connectivity from "best-effort"
-    // to "required". In dev/staging we still allow the dummy fallback so the
-    // service is usable when authenc is intentionally offline. In production
-    // a missing IdP is a hard failure — a service that silently accepts every
-    // token is worse than one that refuses to start.
+    // `APP_ENVIRONMENT=production` gates the security controls below: the
+    // accept-all dummy authenticator is refused, CORS becomes deny-by-default,
+    // and a failed Secreton-backed init (dynamic DB creds, EmailService) is a
+    // hard failure instead of a warning. The client itself connects LAZILY —
+    // see below — so a temporarily unreachable authenc is not a boot failure;
+    // it fails the individual call (401) and recovers on its own.
     let app_env = resolve_app_environment();
     let is_production = app_env.eq_ignore_ascii_case("production");
     let skip_authenc = std::env::var("SKIP_AUTHENC").unwrap_or_default() == "true";
@@ -539,10 +540,11 @@ async fn main() -> anyhow::Result<()> {
 /// `APP_ENVIRONMENT` is the canonical name — the Helm chart, authenc, integrasi
 /// and secreton all set and read it. This service read `APP_ENV` instead, which
 /// nothing ever sets: every production/staging pod therefore fell through to the
-/// `"dev"` default, so the production-only gates below (refuse-to-start on a
-/// missing IdP, refuse-to-start on failed secret/DB init, deny-all CORS) never
-/// fired in a real environment. Read the canonical name first and keep `APP_ENV`
-/// as a legacy fallback for local runs.
+/// `"dev"` default, so the environment-gated controls below never engaged — the
+/// accept-all dummy authenticator stayed permitted, CORS stayed permissive, and
+/// a failed Secreton-backed init (dynamic DB creds, EmailService) degraded to a
+/// warning instead of aborting start-up. Read the canonical name first and keep
+/// `APP_ENV` as a legacy fallback for local runs.
 fn resolve_app_environment() -> String {
     resolve_app_environment_from(|name| std::env::var(name).ok())
 }
@@ -755,9 +757,11 @@ mod tests {
     }
 
     /// A real environment must flip the production gates on: `resolve_app_environment`
-    /// feeding `is_production` is what makes "refuse to start without an IdP"
-    /// actually fire in production. If this regressed to reading `APP_ENV`, the
-    /// deployment value below would resolve to "dev" and every gate would be off.
+    /// feeding `is_production`/`is_production_db` is what makes a failed
+    /// Secreton-backed init (dynamic DB creds, EmailService) abort start-up, and
+    /// what keeps the accept-all dummy authenticator refused. If this regressed to
+    /// reading `APP_ENV`, the deployment value below would resolve to "dev" and
+    /// every gate would be off.
     #[test]
     fn production_environment_enables_the_production_gates() {
         let map = std::collections::HashMap::from([("APP_ENVIRONMENT", "production")]);
