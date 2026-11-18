@@ -303,6 +303,27 @@ fn halaman(
             {(data.aktivitas_id == STATUS_REVISI_PELAKSANA)
                 .then(|| view! { <CatatanRevisi pengajuan_satker_id=id_catatan_revisi.clone() /> })}
 
+            {data
+                .roster_snapshot_at
+                .clone()
+                .map(|iso| {
+                    view! {
+                        <p
+                            data-testid="pengisian-snapshot-info"
+                            class="mt-4 flex items-start gap-2 rounded-lg border border-info-500/20 bg-info-500/10 px-3 py-2 text-sm text-info-300"
+                        >
+                            <AppIcon icon=WARNING_CIRCLE />
+                            <span>
+                                "Data pegawai dikunci per pengajuan ini: "
+                                <span class="font-semibold">
+                                    {format!("per {}", format_iso_local(&iso))}
+                                </span>
+                                ". Daftar ini tidak berubah walau data kepegawaian berubah setelah tanggal tersebut."
+                            </span>
+                        </p>
+                    }
+                })}
+
             <Show when=move || !boleh_isi>
                 <p
                     data-testid="pengisian-pemantau"

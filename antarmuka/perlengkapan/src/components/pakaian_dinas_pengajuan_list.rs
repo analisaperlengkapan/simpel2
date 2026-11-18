@@ -19,6 +19,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
+use lib_ui::utils::formatters::format_iso_local;
 use phosphor_leptos::{
     BUILDING, CALENDAR_CHECK, CALENDAR_X, PENCIL_SIMPLE, PLUS, TRASH, WARNING_CIRCLE,
 };
@@ -567,6 +568,11 @@ fn render_pengajuan_cards(
                     let periode = item.periode.clone();
                     let keterangan = item.deskripsi.clone();
                     let has_keterangan = keterangan.is_some();
+                    let snapshot_line = item
+                        .roster_snapshot_at
+                        .clone()
+                        .map(|iso| format!("Data pegawai per {}", format_iso_local(&iso)));
+                    let has_snapshot = snapshot_line.is_some();
                     view! {
                         <div class="rounded-2xl border border-white/[0.06] bg-surface-panel p-5 transition hover:border-white/10">
                             <div class="flex items-start justify-between mb-3">
@@ -601,6 +607,15 @@ fn render_pengajuan_cards(
                             <Show when=move || has_keterangan>
                                 <p class="mt-2 text-xs italic text-slate-500">
                                     {keterangan.clone()}
+                                </p>
+                            </Show>
+
+                            <Show when=move || has_snapshot>
+                                <p
+                                    data-testid="kampanye-snapshot-info"
+                                    class="mt-2 text-xs text-info-300"
+                                >
+                                    {snapshot_line.clone()}
                                 </p>
                             </Show>
 

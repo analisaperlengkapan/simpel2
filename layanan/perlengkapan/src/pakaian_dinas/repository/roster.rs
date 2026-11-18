@@ -9,6 +9,7 @@
 
 use std::collections::HashMap;
 
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use super::PakaianDinasRepository;
@@ -56,12 +57,16 @@ impl PakaianDinasRepository {
     /// Di-scope seperti pembacaan satker lain: di luar lingkup menjawab
     /// NotFound, bukan Forbidden, supaya keberadaan baris satker lain tidak
     /// bisa disimpulkan dari kode status (#93).
+    ///
+    /// Kembarannya `roster_snapshot_at` ikut dibawa karena setiap pemakaian
+    /// baris ini menentukan apakah daftar pegawai dibaca dari snapshot atau
+    /// live (V018).
     async fn pengajuan_satker_row(
         &self,
         pengajuan_id: Uuid,
         satker_code: &str,
         scope: &SatkerScope,
-    ) -> AppResult<(Uuid, i32, Option<String>, String)> {
+    ) -> AppResult<SatkerRow> {
         if !self.satker_code_in_scope(scope, satker_code).await? {
             return Err(AppError::NotFound(format!(
                 "Satker tidak ditemukan: {satker_code}"
@@ -75,7 +80,8 @@ impl PakaianDinasRepository {
         let row = client
             .query_opt(
                 r#"
-                SELECT ps.id, ps.aktivitas_id, s.nama_satker, p.nama AS pengajuan_nama
+                SELECT ps.id, ps.aktivitas_id, s.nama_satker, p.nama AS pengajuan_nama,
+                       p.roster_snapshot_at
                 FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
                 JOIN perlengkapan.pengajuan_pakaian_dinas p ON p.id = ps.pengajuan_id
                 LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.kode_satker
@@ -88,12 +94,64 @@ impl PakaianDinasRepository {
             .ok_or_else(|| {
                 AppError::NotFound("Satker tidak terdaftar pada pengajuan ini".to_string())
             })?;
-        Ok((
-            row.get("id"),
-            row.get("aktivitas_id"),
-            row.try_get("nama_satker").ok().flatten(),
-            row.get("pengajuan_nama"),
-        ))
+        Ok(SatkerRow {
+            id: row.get("id"),
+            aktivitas_id: row.get("aktivitas_id"),
+            nama_satker: row.try_get("nama_satker").ok().flatten(),
+            pengajuan_nama: row.get("pengajuan_nama"),
+            roster_snapshot_at: row.try_get("roster_snapshot_at").ok().flatten(),
+        })
+    }
+
+    /// Daftar pegawai satu satker pada satu pengajuan: dari snapshot beku
+    /// (V018) bila kampanye punya `roster_snapshot_at`, selain itu live dari
+    /// kepegawaian.
+    ///
+    /// Bentuk barisnya SENGAJA sama pada kedua cabang supaya pemanggil tak
+    /// perlu tahu asalnya; hanya `roster_snapshot_at` yang membedakannya.
+    async fn daftar_pegawai_satker(
+        &self,
+        client: &tokio_postgres::Client,
+        pengajuan_id: Uuid,
+        satker_code: &str,
+        snapshot_at: Option<DateTime<Utc>>,
+    ) -> AppResult<Vec<tokio_postgres::Row>> {
+        let rows = if snapshot_at.is_some() {
+            // Snapshot beku: orangnya persis seperti saat kampanye dibuat.
+            client
+                .query(
+                    r#"
+                    SELECT nip, nama, jabatan, pangkat AS golpang, gol_kd, eselon,
+                           jenis_kelamin AS jk, jenis AS jenis_jabatan_terakhir, foto
+                    FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_snapshot
+                    WHERE pengajuan_id = $1 AND satker_id = $2
+                    ORDER BY nama ASC
+                    "#,
+                    &[&pengajuan_id, &satker_code],
+                )
+                .await
+                .map_err(|e| bad_request(&e.to_string()))?
+        } else {
+            client
+                .query(
+                    &format!(
+                        r#"
+                        SELECT p.nip, p.nama, p.jabatan, p.golpang, p.gol_kd, p.eselon,
+                               p.jk, p.jenis_jabatan_terakhir, p.foto
+                        FROM integrasi.mysimkari_pegawai p
+                        {join}
+                        WHERE {kode_satker} = $1
+                        ORDER BY p.nama ASC
+                        "#,
+                        join = PEGAWAI_SATKER_JOIN_SQL,
+                        kode_satker = PEGAWAI_KODE_SATKER_SQL,
+                    ),
+                    &[&satker_code],
+                )
+                .await
+                .map_err(|e| bad_request(&e.to_string()))?
+        };
+        Ok(rows)
     }
 
     /// Daftar pengisian: kolom kampanye + seluruh pegawai satker + ukuran yang
@@ -104,9 +162,11 @@ impl PakaianDinasRepository {
         satker_code: &str,
         scope: &SatkerScope,
     ) -> AppResult<RosterPengisian> {
-        let (pengajuan_satker_id, aktivitas_id, satker_nama, pengajuan_nama) = self
+        let satker = self
             .pengajuan_satker_row(pengajuan_id, satker_code, scope)
             .await?;
+        let pengajuan_satker_id = satker.id;
+        let aktivitas_id = satker.aktivitas_id;
         let pakaian = self.list_pakaian_pengajuan(pengajuan_id).await?;
 
         let client = self
@@ -146,27 +206,18 @@ impl PakaianDinasRepository {
             }
         }
 
-        // Orangnya sendiri datang dari kepegawaian, bukan dari tabel pengajuan:
-        // pegawai yang baru masuk satker harus muncul tanpa perlu ditambahkan
-        // manual, dan yang sudah pindah tidak lagi ditawarkan.
-        let pegawai_rows = client
-            .query(
-                &format!(
-                    r#"
-                    SELECT p.nip, p.nama, p.jabatan, p.golpang, p.gol_kd, p.eselon,
-                           p.jk, p.jenis_jabatan_terakhir, p.foto
-                    FROM integrasi.mysimkari_pegawai p
-                    {join}
-                    WHERE {kode_satker} = $1
-                    ORDER BY p.nama ASC
-                    "#,
-                    join = PEGAWAI_SATKER_JOIN_SQL,
-                    kode_satker = PEGAWAI_KODE_SATKER_SQL,
-                ),
-                &[&satker_code],
+        // Orangnya: dari snapshot beku bila kampanye punya satu, selain itu
+        // dari kepegawaian. Sebelum V018 ini SELALU live, jadi pegawai yang
+        // mutasi masuk/keluar mengubah kampanye lama. Pegawai yang baru masuk
+        // satker tetap muncul pada kampanye tanpa snapshot.
+        let pegawai_rows = self
+            .daftar_pegawai_satker(
+                &client,
+                pengajuan_id,
+                satker_code,
+                satker.roster_snapshot_at,
             )
-            .await
-            .map_err(|e| bad_request(&e.to_string()))?;
+            .await?;
 
         // Ukuran yang sudah tercatat di profil tiap pegawai (halaman Ukuran),
         // diambil sekali untuk seluruh satker. Operator tidak mengetik ulang data
@@ -232,11 +283,12 @@ impl PakaianDinasRepository {
 
         Ok(RosterPengisian {
             pengajuan_satker_id,
-            pengajuan_nama,
+            pengajuan_nama: satker.pengajuan_nama,
             satker_kode: satker_code.to_string(),
-            satker_nama,
+            satker_nama: satker.nama_satker,
             aktivitas_id,
             dapat_diubah: STATUS_DAPAT_DIUBAH.contains(&aktivitas_id),
+            roster_snapshot_at: satker.roster_snapshot_at,
             pakaian,
             pegawai,
         })
@@ -256,9 +308,11 @@ impl PakaianDinasRepository {
         request: &SimpanUkuranPegawaiRequest,
         scope: &SatkerScope,
     ) -> AppResult<()> {
-        let (pengajuan_satker_id, aktivitas_id, _, _) = self
+        let satker = self
             .pengajuan_satker_row(pengajuan_id, satker_code, scope)
             .await?;
+        let pengajuan_satker_id = satker.id;
+        let aktivitas_id = satker.aktivitas_id;
         if !STATUS_DAPAT_DIUBAH.contains(&aktivitas_id) {
             return Err(bad_request(
                 "Pengajuan satker ini sudah diajukan, ukurannya tidak dapat diubah lagi",
@@ -272,29 +326,47 @@ impl PakaianDinasRepository {
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
-        // Identitas dibekukan dari SoT, bukan dari badan permintaan.
-        let identitas = client
-            .query_opt(
-                &format!(
+        // Identitas dibekukan dari SoT, bukan dari badan permintaan. Bila
+        // kampanye punya snapshot (V018), identitasnya datang dari snapshot itu
+        // supaya baris pengajuan sejalan dengan daftar yang sudah dibekukan —
+        // bukan dari MySIMKARI yang mungkin sudah berubah sejak kampanye dibuat.
+        let identitas = if satker.roster_snapshot_at.is_some() {
+            client
+                .query_opt(
                     r#"
-                    SELECT p.nip, p.nama, p.jabatan, p.golpang, p.gol_kd, p.eselon,
-                           p.jk, p.jenis_jabatan_terakhir
-                    FROM integrasi.mysimkari_pegawai p
-                    {join}
-                    WHERE {kode_satker} = $1 AND p.nip = $2
+                    SELECT nip, nama, jabatan, pangkat AS golpang, gol_kd, eselon,
+                           jenis_kelamin AS jk, jenis AS jenis_jabatan_terakhir
+                    FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_snapshot
+                    WHERE pengajuan_id = $1 AND satker_id = $2 AND nip = $3
                     "#,
-                    join = PEGAWAI_SATKER_JOIN_SQL,
-                    kode_satker = PEGAWAI_KODE_SATKER_SQL,
-                ),
-                &[&satker_code, &nip],
-            )
-            .await
-            .map_err(|e| bad_request(&e.to_string()))?
-            .ok_or_else(|| {
-                AppError::NotFound(format!(
-                    "Pegawai {nip} tidak terdaftar pada satker {satker_code}"
-                ))
-            })?;
+                    &[&pengajuan_id, &satker_code, &nip],
+                )
+                .await
+                .map_err(|e| bad_request(&e.to_string()))?
+        } else {
+            client
+                .query_opt(
+                    &format!(
+                        r#"
+                        SELECT p.nip, p.nama, p.jabatan, p.golpang, p.gol_kd, p.eselon,
+                               p.jk, p.jenis_jabatan_terakhir
+                        FROM integrasi.mysimkari_pegawai p
+                        {join}
+                        WHERE {kode_satker} = $1 AND p.nip = $2
+                        "#,
+                        join = PEGAWAI_SATKER_JOIN_SQL,
+                        kode_satker = PEGAWAI_KODE_SATKER_SQL,
+                    ),
+                    &[&satker_code, &nip],
+                )
+                .await
+                .map_err(|e| bad_request(&e.to_string()))?
+        }
+        .ok_or_else(|| {
+            AppError::NotFound(format!(
+                "Pegawai {nip} tidak terdaftar pada satker {satker_code}"
+            ))
+        })?;
 
         let jk: String = identitas.try_get("jk").unwrap_or_else(|_| String::new());
         if jk != "L" && jk != "P" {
@@ -443,9 +515,11 @@ impl PakaianDinasRepository {
         nip: &str,
         scope: &SatkerScope,
     ) -> AppResult<()> {
-        let (pengajuan_satker_id, aktivitas_id, _, _) = self
+        let satker = self
             .pengajuan_satker_row(pengajuan_id, satker_code, scope)
             .await?;
+        let pengajuan_satker_id = satker.id;
+        let aktivitas_id = satker.aktivitas_id;
         if !STATUS_DAPAT_DIUBAH.contains(&aktivitas_id) {
             return Err(bad_request(
                 "Pengajuan satker ini sudah diajukan, isinya tidak dapat diubah lagi",
@@ -483,6 +557,18 @@ impl PakaianDinasRepository {
         tx.commit().await.map_err(|e| bad_request(&e.to_string()))?;
         Ok(())
     }
+}
+
+/// Baris satker satu pengajuan, apa yang dibutuhkan pemanggilnya.
+///
+/// `roster_snapshot_at` menentukan dari mana daftar pegawai dibaca (V018):
+/// `Some` = snapshot beku kampanye, `None` = live dari MySIMKARI.
+struct SatkerRow {
+    id: Uuid,
+    aktivitas_id: i32,
+    nama_satker: Option<String>,
+    pengajuan_nama: String,
+    roster_snapshot_at: Option<DateTime<Utc>>,
 }
 
 /// What a pegawai's own profile (the Ukuran page) already says about their sizes.

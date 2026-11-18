@@ -150,6 +150,10 @@ pub struct PengajuanPakaianDinas {
     pub aktivitas_label: Option<String>,
     pub total_satker: Option<i64>,
     pub satker_selesai: Option<i64>,
+    /// When this campaign's employee roster was frozen (V018). `None` for a
+    /// campaign created before the freeze existed, or one still reading the
+    /// live MySIMKARI list. Every role displays it as "data pegawai per …".
+    pub roster_snapshot_at: Option<DateTime<Utc>>,
     /// Derived from `is_reguler` + `tgl_selesai`, not stored. Serialised so the
     /// period rule stays here: the campaign list renders an open/closed badge,
     /// and the rule was previously only reachable through `is_open()`, which no
@@ -185,6 +189,7 @@ impl PengajuanPakaianDinas {
             aktivitas_label: row.try_get("aktivitas_label").ok(),
             total_satker: row.try_get("total_satker").ok(),
             satker_selesai: row.try_get("satker_selesai").ok(),
+            roster_snapshot_at: row.try_get("roster_snapshot_at").ok().flatten(),
             is_open: Self::period_is_open(is_reguler, tgl_mulai, tgl_selesai),
             periode: Self::periode_label(is_reguler, tgl_mulai, tgl_selesai),
         }
@@ -652,6 +657,10 @@ pub struct RosterPengisian {
     /// dua status yang sama yang mengizinkan operator menekan "Ajukan"
     /// (`services.rs` transition table).
     pub dapat_diubah: bool,
+    /// Kapan daftar pegawai kampanye ini dibekukan (V018). `None` berarti
+    /// daftar dibaca live dari MySIMKARI (kampanye lama). Ditampilkan ke semua
+    /// role sebagai "data pegawai per <tanggal>".
+    pub roster_snapshot_at: Option<DateTime<Utc>>,
     pub pakaian: Vec<PengajuanPakaianItem>,
     pub pegawai: Vec<RosterPegawai>,
 }

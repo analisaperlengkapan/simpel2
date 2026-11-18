@@ -15,7 +15,8 @@ use crate::components::layout::{
 use leptos::prelude::*;
 use leptos_fetch::QueryClient;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
-use phosphor_leptos::{CHART_PIE, FILE_PDF, FILE_XLS, USERS};
+use lib_ui::utils::formatters::format_iso_local;
+use phosphor_leptos::{CHART_PIE, FILE_PDF, FILE_XLS, INFO, USERS};
 
 /// Filter-option queries — both keyed `()` because the dropdowns
 /// always show "first 100 active items" regardless of context.
@@ -516,6 +517,43 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                     )}
                 </div>
             </SectionCard>
+
+            // V018: which frozen snapshot of the employee list this report
+            // reflects. Shown for whichever pengajuan is selected, to every
+            // role, so the exported as-of date is not a surprise.
+            {move || {
+                let id = selected_pengajuan.get();
+                let at = id
+                    .as_ref()
+                    .and_then(|id| {
+                        pengajuan_options.get().and_then(|r| {
+                            r.ok().and_then(|opts| {
+                                opts.into_iter()
+                                    .find(|p| &p.id == id)
+                                    .and_then(|p| p.roster_snapshot_at)
+                            })
+                        })
+                    });
+                at.map(|iso| {
+                    view! {
+                        <div
+                            data-testid="laporan-snapshot-info"
+                            class="mt-4 flex items-start gap-2 rounded-lg border border-info-500/20 bg-info-500/10 px-3 py-2 text-sm text-info-300"
+                        >
+                            <span class="text-xs">
+                                <AppIcon icon=INFO />
+                            </span>
+                            <span>
+                                "Data pegawai laporan ini dikunci per pengajuan: "
+                                <span class="font-semibold">
+                                    {format!("per {}", format_iso_local(&iso))}
+                                </span>
+                                "."
+                            </span>
+                        </div>
+                    }
+                })
+            }}
 
             // Export buttons
             //

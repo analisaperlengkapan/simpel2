@@ -165,68 +165,14 @@ impl PakaianDinasRepository {
         request: CreatePengajuanRequest,
         user_id: Option<Uuid>,
     ) -> AppResult<PengajuanPakaianDinas> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| bad_request(&e.to_string()))?;
         let id = Uuid::new_v4();
         let now = chrono::Utc::now();
         let tahun = request.tahun.unwrap_or_else(|| chrono::Local::now().year());
 
-        // Insert main pengajuan
-        client
-            .execute(
-                r#"
-                INSERT INTO perlengkapan.pengajuan_pakaian_dinas
-                    (id, nama, deskripsi, tgl_mulai, tgl_selesai, is_reguler, tahun,
-                     pilihan_satker, dengan_unit_kerja, jenis_pakaian_dinas_id, aktivitas_id,
-                     created_by, created_at, updated_at, scope_satker, wilayah_id)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, $14, $15)
-                "#,
-                &[
-                    &id,
-                    &request.nama,
-                    &request.deskripsi,
-                    &request.tgl_mulai,
-                    &request.tgl_selesai,
-                    &request.is_reguler,
-                    &tahun,
-                    &request.pilihan_satker,
-                    &request.dengan_unit_kerja,
-                    &request.jenis_pakaian_dinas_id,
-                    &1000i32, // Initial status: Input
-                    &user_id,
-                    &now,
-                    // V031: scope_satker mirror pilihan_satker; wilayah_id (#19)
-                    &request.pilihan_satker,
-                    &request.wilayah_id,
-                ],
-            )
-            .await
-            .map_err(|e| bad_request(&e.to_string()))?;
-
-        // Insert selected pakaian (specifications)
-        for spec_id in &request.spesifikasi_ids {
-            let pakaian_id = Uuid::new_v4();
-            client
-                .execute(
-                    r#"
-                    INSERT INTO perlengkapan.pengajuan_pakaian_dinas_pakaian
-                        (id, pengajuan_id, jenis_pakaian_id, jenis_pakaian_nama,
-                         spesifikasi_id, spesifikasi_nama, spesifikasi_ukuran_group)
-                    SELECT $1, $2, s.jenis_pakaian_dinas_id, j.nama, s.id, s.nama, s.ukuran_group
-                    FROM perlengkapan.ms_spesifikasi_pakaian_dinas s
-                    LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON s.jenis_pakaian_dinas_id = j.id
-                    WHERE s.id = $3
-                    "#,
-                    &[&pakaian_id, &id, spec_id],
-                )
-                .await
-                .map_err(|e| bad_request(&e.to_string()))?;
-        }
-
-        // Resolve & insert selected satkers.
+        // Resolve target satkers up front. A read on its own connection, and it
+        // must happen before the transaction so a wilayah lookup failure cannot
+        // leave a half-written campaign behind.
+        //
         // - "wilayah" (#19): auto-resolve dari integrasi.v_satker_wilayah
         //   (satker di bawah satu Kejaksaan Tinggi).
         // - "sebagian": pakai satker_ids dari operator.
@@ -244,19 +190,85 @@ impl PakaianDinasRepository {
             request.satker_ids.clone().unwrap_or_default()
         };
 
+        // One transaction: the campaign header, its clothing columns, its
+        // per-satker workflow rows, and the frozen employee roster land together
+        // or not at all. Before the roster snapshot this ran statement by
+        // statement, so a failure partway left a campaign with columns but no
+        // satker rows — nothing to open, nothing to fill.
+        let mut client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let tx = client
+            .transaction()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+
+        // Insert main pengajuan. `roster_snapshot_at = $13` records WHEN the
+        // employee list below was frozen; every role shows it as the as-of date.
+        tx.execute(
+            r#"
+                INSERT INTO perlengkapan.pengajuan_pakaian_dinas
+                    (id, nama, deskripsi, tgl_mulai, tgl_selesai, is_reguler, tahun,
+                     pilihan_satker, dengan_unit_kerja, jenis_pakaian_dinas_id, aktivitas_id,
+                     created_by, created_at, updated_at, scope_satker, wilayah_id,
+                     roster_snapshot_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, $14, $15, $13)
+                "#,
+            &[
+                &id,
+                &request.nama,
+                &request.deskripsi,
+                &request.tgl_mulai,
+                &request.tgl_selesai,
+                &request.is_reguler,
+                &tahun,
+                &request.pilihan_satker,
+                &request.dengan_unit_kerja,
+                &request.jenis_pakaian_dinas_id,
+                &1000i32, // Initial status: Input
+                &user_id,
+                &now,
+                // V031: scope_satker mirror pilihan_satker; wilayah_id (#19)
+                &request.pilihan_satker,
+                &request.wilayah_id,
+            ],
+        )
+        .await
+        .map_err(|e| bad_request(&e.to_string()))?;
+
+        // Insert selected pakaian (specifications)
+        for spec_id in &request.spesifikasi_ids {
+            let pakaian_id = Uuid::new_v4();
+            tx.execute(
+                r#"
+                    INSERT INTO perlengkapan.pengajuan_pakaian_dinas_pakaian
+                        (id, pengajuan_id, jenis_pakaian_id, jenis_pakaian_nama,
+                         spesifikasi_id, spesifikasi_nama, spesifikasi_ukuran_group)
+                    SELECT $1, $2, s.jenis_pakaian_dinas_id, j.nama, s.id, s.nama, s.ukuran_group
+                    FROM perlengkapan.ms_spesifikasi_pakaian_dinas s
+                    LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON s.jenis_pakaian_dinas_id = j.id
+                    WHERE s.id = $3
+                    "#,
+                &[&pakaian_id, &id, spec_id],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        }
+
         for satker_id in &resolved_satker_codes {
-            client
-                .execute(
-                    r#"
+            tx.execute(
+                r#"
                     INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_terpilih
                         (pengajuan_id, satker_id, is_show_in_form)
                     VALUES ($1, $2, true)
                     ON CONFLICT (pengajuan_id, satker_id) DO NOTHING
                     "#,
-                    &[&id, satker_id],
-                )
-                .await
-                .map_err(|e| bad_request(&e.to_string()))?;
+                &[&id, satker_id],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
         }
 
         // Baris workflow per satker. Tanpa ini kampanye lahir tanpa satu pun
@@ -272,18 +284,17 @@ impl PakaianDinasRepository {
         let satker_workflow: Vec<String> = if resolved_satker_codes.is_empty() {
             // "semua": seluruh satker MySIMKARI. Daftarnya diambil dari SoT,
             // bukan dikirim klien.
-            client
-                .query(
-                    "SELECT kode_satker FROM integrasi.mysimkari_satker
+            tx.query(
+                "SELECT kode_satker FROM integrasi.mysimkari_satker
                      WHERE kode_satker IS NOT NULL AND btrim(kode_satker) <> ''
                      ORDER BY kode_satker",
-                    &[],
-                )
-                .await
-                .map_err(|e| bad_request(&e.to_string()))?
-                .iter()
-                .map(|row| row.get::<_, String>("kode_satker"))
-                .collect()
+                &[],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?
+            .iter()
+            .map(|row| row.get::<_, String>("kode_satker"))
+            .collect()
         } else {
             resolved_satker_codes.clone()
         };
@@ -292,9 +303,8 @@ impl PakaianDinasRepository {
             // Tak ada unique constraint pada (pengajuan_id, satker_id), jadi
             // penjagaannya di predikat — `ON CONFLICT` akan diam-diam tidak
             // melakukan apa pun karena tak ada konflik yang bisa dideteksi.
-            client
-                .execute(
-                    r#"
+            tx.execute(
+                r#"
                     INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker
                         (pengajuan_id, satker_id, aktivitas_id, created_by)
                     -- Cast eksplisit, bukan hiasan: tanpa itu Postgres
@@ -310,11 +320,36 @@ impl PakaianDinasRepository {
                         WHERE pengajuan_id = $1::uuid AND satker_id = $2::varchar
                     )
                     "#,
-                    &[&id, satker_id, &user_id],
-                )
-                .await
-                .map_err(|e| bad_request(&e.to_string()))?;
+                &[&id, satker_id, &user_id],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
         }
+
+        // BEKUKAN daftar pegawai per satker target (V018). Satu INSERT..SELECT
+        // untuk seluruh satker: `satker_workflow` adalah daftar kode_satker yang
+        // barisnya baru saja dibuat. Identitasnya dari `integrasi.mysimkari_pegawai`
+        // apa adanya saat ini, lalu tidak pernah disentuh lagi — inilah yang
+        // membuat "data pegawai per <tanggal>" yang sama berlaku untuk semua
+        // role, dan tidak berubah walau MySIMKARI berubah esok hari.
+        tx.execute(
+            r#"
+                INSERT INTO perlengkapan.pengajuan_pakaian_dinas_pegawai_snapshot
+                    (pengajuan_id, satker_id, nip, nama, pangkat, jabatan, eselon,
+                     jenis_kelamin, gol_kd, jenis, foto, snapshot_at)
+                SELECT $1::uuid, ms.kode_satker, p.nip, p.nama, p.golpang, p.jabatan,
+                       p.eselon, p.jk, p.gol_kd, p.jenis_jabatan_terakhir, p.foto, $2
+                FROM integrasi.mysimkari_pegawai p
+                JOIN integrasi.mysimkari_satker ms ON ms.api_id = p.satker_id
+                WHERE ms.kode_satker = ANY($3)
+                ON CONFLICT (pengajuan_id, satker_id, nip) DO NOTHING
+                "#,
+            &[&id, &now, &satker_workflow],
+        )
+        .await
+        .map_err(|e| bad_request(&e.to_string()))?;
+
+        tx.commit().await.map_err(|e| bad_request(&e.to_string()))?;
 
         self.get_pengajuan_by_id(id).await
     }
