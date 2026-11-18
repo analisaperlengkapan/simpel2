@@ -95,6 +95,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
     })?;
 
+    // Refuse to serve with the compiled-in JWT placeholder in production or
+    // staging: it is public, so every token (including root) could be forged.
+    let app_environment = std::env::var("APP_ENVIRONMENT").unwrap_or_default();
+    config.validate_secrets(&app_environment).map_err(|e| {
+        error!("Insecure JWT configuration: {}", e);
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
+    })?;
+
     info!("Creating transit engine...");
     // Create transit engine (shared between REST and gRPC)
     let transit_engine = Arc::new(TransitEngine::new());

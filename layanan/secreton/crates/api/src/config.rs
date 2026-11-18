@@ -62,9 +62,25 @@ impl ApiConfig {
     /// Create ApiConfig from BootstrapConfig and ApplicationConfig
     pub fn from_bootstrap_and_application(
         bootstrap: &secreton_core::config::BootstrapConfig,
-        _app: &secreton_core::config::ApplicationConfig,
+        app: &secreton_core::config::ApplicationConfig,
     ) -> Result<Self, String> {
         let mut config = Self::default();
+
+        // Map the authentication secrets. This used to be skipped ("Map other
+        // fields as needed (simplified for now)"), so `auth.jwt` stayed at the
+        // `JwtConfig::default()` value — the literal string
+        // `change-this-secret-in-production`. Every deployment then validated
+        // and signed tokens with a secret published in the source tree, so
+        // anyone who could reach the HTTP port could mint a `token_type:"root"`
+        // / `policies:["root"]` token and read or overwrite every secret.
+        // `ApplicationConfig` carries the real values (loaded, encrypted, from
+        // storage); map them here and let `validate_secrets` refuse the
+        // placeholder in production/staging.
+        if let Some(secret) = app.auth.jwt_secret.as_ref()
+            && !secret.is_empty()
+        {
+            config.auth.jwt.secret = secret.clone();
+        }
 
         // Map HTTP config
         config.http.bind_address = bootstrap
@@ -1329,6 +1345,42 @@ impl ApiConfig {
             self.logging.level = level;
         }
 
+        // JWT signing secret. Documented as `SECRETON_JWT_SECRET` but never
+        // read anywhere, so an operator following the docs changed nothing:
+        // the API kept signing with the compiled-in default. Read it here, and
+        // let `validate_secrets` refuse the placeholder in production/staging.
+        if let Ok(secret) = std::env::var("SECRETON_JWT_SECRET")
+            && !secret.is_empty()
+        {
+            self.auth.jwt.secret = secret;
+        }
+
+        Ok(())
+    }
+
+    /// Refuse to start with the compiled-in JWT placeholder in a real
+    /// environment.
+    ///
+    /// The placeholder is public (it is the `JwtConfig::default()` literal), so
+    /// a deployment that keeps it accepts tokens anyone can forge — including
+    /// `token_type:"root"` tokens, which `AuthService::validate_token` trusts
+    /// without consulting the policy store. Development and test may keep the
+    /// default; `APP_ENVIRONMENT=production|staging` may not. Same gate and
+    /// same variable as authenc's `signing_key::resolve`.
+    pub fn validate_secrets(&self, environment: &str) -> Result<(), String> {
+        let environment = environment.trim();
+        let is_production = environment.eq_ignore_ascii_case("production")
+            || environment.eq_ignore_ascii_case("staging");
+
+        if is_production && self.auth.jwt.secret == JwtConfig::default().secret {
+            return Err(format!(
+                "refusing to start with the default JWT secret in APP_ENVIRONMENT={environment}: \
+                 it is published in the source tree, so anyone who can reach the HTTP port can \
+                 forge a root token. Set SECRETON_JWT_SECRET (or auth.jwt_secret in the encrypted \
+                 application config) to a strong, unique value."
+            ));
+        }
+
         Ok(())
     }
 }
@@ -1507,5 +1559,28 @@ mod tests {
         assert!(cookie.secure);
         assert!(cookie.http_only);
         assert_eq!(cookie.same_site, "Lax");
+    }
+
+    #[test]
+    fn application_jwt_secret_reaches_the_api_config() {
+        let bootstrap = secreton_core::config::BootstrapConfig::from_file(std::path::Path::new(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/../../secreton.toml"),
+        ))
+        .expect("shipped bootstrap config parses");
+        let mut app = secreton_core::config::ApplicationConfig::default();
+        app.auth.jwt_secret = Some("a-real-unique-secret".to_string());
+
+        let config =
+            ApiConfig::from_bootstrap_and_application(&bootstrap, &app).expect("config builds");
+
+        assert_eq!(config.auth.jwt.secret, "a-real-unique-secret");
+    }
+
+    #[test]
+    fn validate_secrets_refuses_the_placeholder_in_production() {
+        let config = ApiConfig::default();
+        assert!(config.validate_secrets("production").is_err());
+        assert!(config.validate_secrets("staging").is_err());
+        assert!(config.validate_secrets("development").is_ok());
     }
 }

@@ -198,9 +198,14 @@ pub async fn get_pengajuan_satkers(
 pub async fn list_bmn_referensi_handler(
     State(service): State<KebutuhanBmnService>,
     Path(pengajuan_id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<PengajuanBmnReferensi>>>, AppError> {
-    let items = service.list_bmn_referensi(pengajuan_id).await?;
+    // Scope the read to campaigns the caller can see: without it any
+    // authenticated user could enumerate the allowed-BMN list of ANY pengajuan
+    // id (an existence oracle plus cross-satker reference data).
+    let items = service
+        .list_bmn_referensi(pengajuan_id, &SatkerScope::from_claims(&claims))
+        .await?;
     Ok(Json(ApiResponse::success(
         items,
         "Daftar BMN referensi (allowed-list) berhasil diambil".to_string(),

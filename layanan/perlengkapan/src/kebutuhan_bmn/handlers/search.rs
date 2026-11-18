@@ -6,6 +6,7 @@ use axum::{
 
 use crate::shared::error::{AppError, bad_request};
 use crate::shared::middleware::Claims;
+use crate::shared::satker_scope::SatkerScope;
 use lib_perlengkapan::response::{ApiResponse, PaginatedResponse};
 
 use crate::kebutuhan_bmn::models::*;
@@ -16,7 +17,7 @@ use crate::kebutuhan_bmn::services::KebutuhanBmnService;
 pub async fn search_kebutuhan(
     State(service): State<KebutuhanBmnService>,
     Query(params): Query<SearchQueryParams>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<PaginatedResponse<KebutuhanBmnSummary>>, AppError> {
     use lib_perlengkapan::search::{
         Pagination, SearchFilters, SearchQuery, SortDirection, SortField, SortOptions,
@@ -69,7 +70,9 @@ pub async fn search_kebutuhan(
     };
 
     // Execute search
-    let results = service.search_kebutuhan(search_query).await?;
+    let results = service
+        .search_kebutuhan(search_query, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(PaginatedResponse::new(
         results.results.into_iter().map(|r| r.item).collect(),
@@ -82,14 +85,14 @@ pub async fn search_kebutuhan(
 pub async fn get_search_suggestions(
     State(service): State<KebutuhanBmnService>,
     Query(params): Query<SuggestionsQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<String>>>, AppError> {
     if params.q.len() < 2 {
         return Err(bad_request("Query must be at least 2 characters"));
     }
 
     let suggestions = service
-        .get_search_suggestions(&params.q, params.limit)
+        .get_search_suggestions(&params.q, params.limit, &SatkerScope::from_claims(&claims))
         .await?;
 
     Ok(Json(ApiResponse::success(

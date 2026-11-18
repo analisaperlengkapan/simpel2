@@ -136,8 +136,11 @@ impl KebutuhanBmnService {
     pub async fn list_bmn_referensi(
         &self,
         pengajuan_id: Uuid,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<PengajuanBmnReferensi>> {
-        self.repository.list_bmn_referensi(pengajuan_id).await
+        self.repository
+            .list_bmn_referensi(pengajuan_id, scope)
+            .await
     }
 
     /// Update barang approval (jml_setuju)

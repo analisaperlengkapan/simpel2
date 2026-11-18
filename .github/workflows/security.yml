@@ -766,6 +766,24 @@ jobs:
               < "rendered/${f}.yaml" \
               | python3 ./infra/scripts/check-authenc-jwt-wiring.py "$f"
           done
+      # secreton menandatangani dan memverifikasi token dengan satu kunci juga.
+      # `from_bootstrap_and_application` dulu hanya memetakan listener+storage,
+      # jadi `auth.jwt.secret` tetap literal default `change-this-secret-in-production`
+      # yang tercetak di source tree; `validate_token` menerima `token_type:"root"`
+      # tanpa memeriksa policy store, sehingga siapa pun yang bisa menjangkau port
+      # HTTP dapat menempa token root. `SECRETON_JWT_SECRET` didokumentasikan tetapi
+      # tak pernah dibaca. Pagar ini membaca render, dan self-test-nya memastikan
+      # ia MENOLAK render yang rusak.
+      - name: secreton memakai satu kunci JWT bersama dari Secret yang bertahan
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
+          python3 ./infra/scripts/check-secreton-jwt-wiring.py --self-test
+          for f in staging production; do
+            docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
+              < "rendered/${f}.yaml" \
+              | python3 ./infra/scripts/check-secreton-jwt-wiring.py "$f"
+          done
       - name: Setiap emptyDir dikecualikan dari backup Velero
         if: steps.filter.outputs.helm == 'true'
         run: |

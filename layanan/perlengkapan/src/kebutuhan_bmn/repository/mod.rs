@@ -269,8 +269,11 @@ pub trait KebutuhanBmnRepository: Send + Sync {
     ) -> AppResult<PengajuanBmnReferensi>;
 
     /// List semua allowed BMN utk pengajuan.
-    async fn list_bmn_referensi(&self, pengajuan_id: Uuid)
-    -> AppResult<Vec<PengajuanBmnReferensi>>;
+    async fn list_bmn_referensi(
+        &self,
+        pengajuan_id: Uuid,
+        scope: &SatkerScope,
+    ) -> AppResult<Vec<PengajuanBmnReferensi>>;
 
     /// Cek apakah kode_barang ada dlm allowed-list pengajuan.
     /// Return `true` jika allowed-list kosong (legacy mode: no whitelist

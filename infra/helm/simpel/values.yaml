@@ -190,6 +190,11 @@ secrets:
   # Kunci JWT authenc, 64 hex (`openssl rand -hex 32`). KOSONG = chart menerbitkan
   # sendiri dan mempertahankannya antar upgrade (templates/secrets/authenc-jwt.yaml).
   authencJwtSecret: ""
+  # Kunci JWT secreton (menandatangani token REST/root), 64 hex. KOSONG = chart
+  # menerbitkan sendiri dan mempertahankannya antar upgrade
+  # (templates/secrets/secreton-jwt.yaml). secreton MENOLAK start di
+  # APP_ENVIRONMENT=staging|production tanpa kunci ini.
+  secretonJwtSecret: ""
   integration: {}                          # MONSAKTI_*, MYSIMKARI_*, SIMAN_* sebagai key→value
 
 # Konfigurasi simpelv2-config ConfigMap.
@@ -502,6 +507,13 @@ secreton:
     # GRPC_TLS_CERT_PATH / GRPC_TLS_KEY_PATH / GRPC_TLS_CA_PATH here.
     - name: GRPC_ALLOW_INSECURE
       valueFrom: { configMapKeyRef: { name: backend-config, key: GRPC_ALLOW_INSECURE } }
+    # JWT signing secret: ONE value for every replica (templates/secrets/
+    # secreton-jwt.yaml issues it). Without it the API keeps the compiled-in
+    # default `change-this-secret-in-production`, so anyone who can reach the
+    # HTTP port can forge a `token_type:"root"` token and read every secret.
+    # secreton refuses to start in APP_ENVIRONMENT=staging|production without it.
+    - name: SECRETON_JWT_SECRET
+      valueFrom: { secretKeyRef: { name: secreton-jwt, key: JWT_SECRET } }
   volumeMounts:
     - { name: secreton-data, mountPath: /data }
   volumeClaimTemplates:

@@ -130,9 +130,19 @@ impl ServiceContainer {
     ) -> Result<Self> {
         // Create minimal ApiConfig from bootstrap (using defaults for application settings)
         let app_config = secreton_core::config::ApplicationConfig::default();
-        let api_config =
+        let mut api_config =
             crate::config::ApiConfig::from_bootstrap_and_application(bootstrap, &app_config)
                 .map_err(|e| anyhow::anyhow!("Failed to create API config: {}", e))?;
+
+        // Fold in the process environment (SECRETON_JWT_SECRET, ports, …) BEFORE
+        // the container is built. The auth service clones `config.auth` into its
+        // own lock at construction, and the seal handler signs root tokens from
+        // `config.auth.jwt.secret`, so applying overrides afterwards would leave
+        // both signing with the compiled-in default while the caller believed the
+        // env var had taken effect.
+        api_config
+            .apply_env_overrides()
+            .map_err(|e| anyhow::anyhow!("Failed to apply environment overrides: {}", e))?;
 
         // Use the standard new() method
         Self::new(&api_config).await
