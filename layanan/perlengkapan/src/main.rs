@@ -554,7 +554,7 @@ fn resolve_app_environment() -> String {
 fn resolve_app_environment_from(get: impl Fn(&str) -> Option<String>) -> String {
     get("APP_ENVIRONMENT")
         .filter(|v| !v.trim().is_empty())
-        .or_else(|| get("APP_ENV"))
+        .or_else(|| get("APP_ENV").filter(|v| !v.trim().is_empty()))
         .unwrap_or_else(|| "dev".to_string())
 }
 
@@ -756,12 +756,11 @@ mod tests {
         );
     }
 
-    /// A real environment must flip the production gates on: `resolve_app_environment`
-    /// feeding `is_production`/`is_production_db` is what makes a failed
-    /// Secreton-backed init (dynamic DB creds, EmailService) abort start-up, and
-    /// what keeps the accept-all dummy authenticator refused. If this regressed to
-    /// reading `APP_ENV`, the deployment value below would resolve to "dev" and
-    /// every gate would be off.
+    /// The deployment value (`APP_ENVIRONMENT=production`) must resolve to
+    /// "production" and must refuse the accept-all dummy authenticator. This
+    /// pins only the resolver and `skip_authenc_allowed`; it does not exercise
+    /// start-up (Authenc connects lazily, so there is no boot-time IdP check).
+    /// If this regressed to reading `APP_ENV`, the value would resolve to "dev".
     #[test]
     fn production_environment_enables_the_production_gates() {
         let map = std::collections::HashMap::from([("APP_ENVIRONMENT", "production")]);
