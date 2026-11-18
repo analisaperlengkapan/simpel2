@@ -30,13 +30,14 @@ impl KebutuhanBmnService {
     pub async fn search_kebutuhan(
         &self,
         query: lib_perlengkapan::search::SearchQuery,
+        scope: &SatkerScope,
     ) -> AppResult<lib_perlengkapan::search::SearchResults<KebutuhanBmnSummary>> {
         use crate::shared::search_db::SearchEngineDb;
 
         let search_engine = SearchEngineDb::new(self.repository.pool().clone());
 
         search_engine
-            .search_kebutuhan(query)
+            .search_kebutuhan(query, scope)
             .await
             .map_err(|e| AppError::Internal(format!("Search failed: {}", e)))
     }
@@ -49,13 +50,14 @@ impl KebutuhanBmnService {
         &self,
         partial_query: &str,
         limit: i32,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<String>> {
         use crate::shared::search_db::SearchEngineDb;
 
         let search_engine = SearchEngineDb::new(self.repository.pool().clone());
 
         search_engine
-            .get_suggestions(partial_query, limit)
+            .get_suggestions(partial_query, limit, scope)
             .await
             .map_err(|e| AppError::Internal(format!("Suggestions failed: {}", e)))
     }

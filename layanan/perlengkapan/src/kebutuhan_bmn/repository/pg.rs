@@ -1314,17 +1314,36 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
     async fn list_bmn_referensi(
         &self,
         pengajuan_id: Uuid,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<PengajuanBmnReferensi>> {
         let client = self.get_client().await?;
+
+        // Gate the read on campaign visibility. Without this the handler answered
+        // for ANY pengajuan id a caller could guess, disclosing another
+        // campaign's allowed-BMN list (an existence oracle plus cross-satker
+        // reference data). The predicate is the same one the list endpoint uses
+        // (#66), reused verbatim so the two cannot drift.
+        let mut params: Vec<BoxedParam> = vec![Box::new(pengajuan_id)];
+        let visibility =
+            crate::kebutuhan_bmn::scope::campaign_visibility_condition(scope, &mut params);
+        let visibility_clause = match visibility {
+            Some(cond) => format!(
+                " AND pengajuan_id IN (SELECT vis.id FROM perlengkapan.pengajuan_kebutuhan_bmn vis WHERE {cond})"
+            ),
+            None => String::new(),
+        };
+
         let rows = client
             .query(
-                r#"
+                &format!(
+                    r#"
                 SELECT id, pengajuan_id, kode_barang, nama_barang, keterangan, created_at
                 FROM perlengkapan.pengajuan_bmn_referensi_diizinkan
-                WHERE pengajuan_id = $1
+                WHERE pengajuan_id = $1{visibility_clause}
                 ORDER BY kode_barang
-                "#,
-                &[&pengajuan_id],
+                "#
+                ),
+                &as_refs(&params),
             )
             .await
             .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;

@@ -190,6 +190,14 @@ secrets:
   # Kunci JWT authenc, 64 hex (`openssl rand -hex 32`). KOSONG = chart menerbitkan
   # sendiri dan mempertahankannya antar upgrade (templates/secrets/authenc-jwt.yaml).
   authencJwtSecret: ""
+  # Kunci JWT secreton (menandatangani token REST/root), 64 hex. Kunci ini
+  # menandatangani token ROOT, jadi chart TIDAK mengundinya sendiri: hanya
+  # dirender saat `secrets.bootstrap=true` dan nilainya WAJIB dari operator
+  # (templates/secrets/secreton-jwt.yaml). Di luar bootstrap, sediakan Secret
+  # `secreton-jwt` di luar chart (Sealed Secrets, Secreton SecretSync — ADR-0001)
+  # supaya kunci root tak ikut masuk Secret rilis Helm. secreton MENOLAK start di
+  # APP_ENVIRONMENT=staging|production tanpa kunci ini.
+  secretonJwtSecret: ""
   integration: {}                          # MONSAKTI_*, MYSIMKARI_*, SIMAN_* sebagai key→value
 
 # Konfigurasi simpelv2-config ConfigMap.
@@ -491,6 +499,12 @@ secreton:
   env:
     - name: RUST_LOG
       valueFrom: { configMapKeyRef: { name: simpelv2-config, key: RUST_LOG } }
+    # Gerbang `validate_secrets`: tanpa APP_ENVIRONMENT bernilai staging/production,
+    # kunci JWT default yang tercetak di source tree lolos dan token root dapat
+    # ditempa. Chart menyetel APP_ENVIRONMENT di simpelv2-config; tanpa baris ini
+    # pod melihatnya kosong dan gerbangnya tak pernah menyala.
+    - name: APP_ENVIRONMENT
+      valueFrom: { configMapKeyRef: { name: simpelv2-config, key: APP_ENVIRONMENT, optional: true } }
     - name: DATABASE_URL
       valueFrom: { secretKeyRef: { name: postgres-credentials, key: secreton-url } }
     - name: POD_NAMESPACE
@@ -502,6 +516,13 @@ secreton:
     # GRPC_TLS_CERT_PATH / GRPC_TLS_KEY_PATH / GRPC_TLS_CA_PATH here.
     - name: GRPC_ALLOW_INSECURE
       valueFrom: { configMapKeyRef: { name: backend-config, key: GRPC_ALLOW_INSECURE } }
+    # JWT signing secret: ONE value for every replica (templates/secrets/
+    # secreton-jwt.yaml issues it). Without it the API keeps the compiled-in
+    # default `change-this-secret-in-production`, so anyone who can reach the
+    # HTTP port can forge a `token_type:"root"` token and read every secret.
+    # secreton refuses to start in APP_ENVIRONMENT=staging|production without it.
+    - name: SECRETON_JWT_SECRET
+      valueFrom: { secretKeyRef: { name: secreton-jwt, key: JWT_SECRET } }
   volumeMounts:
     - { name: secreton-data, mountPath: /data }
   volumeClaimTemplates:

@@ -1861,13 +1861,16 @@ fn is_whitelisted(path: &str) -> bool {
     let check_path = path.strip_prefix("/v1").unwrap_or(path);
 
     // Standard system endpoints that must be available without authentication
-    let system_paths = [
-        "/sys/init",
-        "/sys/seal-status",
-        "/sys/unseal",
-        "/sys/rekey/init",
-        "/sys/rekey/update",
-    ];
+    // while the engine is sealed and before any token exists.
+    //
+    // `/sys/rekey/init` and `/sys/rekey/update` are deliberately NOT here. They
+    // were, and that made a privileged operation reachable anonymously: the
+    // handlers took no identity, and the drift guard in
+    // `tests/policy_enforcement.rs` recorded the omission rather than fixing it.
+    // Rekey is a normal authenticated operation (a root token is required), so
+    // it flows through `auth_middleware` + `policy_check_middleware` like every
+    // other privileged route.
+    let system_paths = ["/sys/init", "/sys/seal-status", "/sys/unseal"];
 
     for sys_path in system_paths {
         if check_path == sys_path {

@@ -42,8 +42,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("  gRPC listener: {}", bootstrap.grpc.address);
 
     info!("Initializing service container with bootstrap config...");
-    // Create service container (includes SealService, storage, crypto, etc.)
-    let services = Arc::new(ServiceContainer::new_from_bootstrap(&bootstrap).await?);
+    // Create service container (includes SealService, storage, crypto, etc.).
+    // Built from the bootstrap config alone, so its auth/namespace services
+    // start on the placeholder JWT secret; `reconfigure` below re-points them
+    // at the validated config before the container is shared.
+    let mut services = ServiceContainer::new_from_bootstrap(&bootstrap).await?;
 
     // CRITICAL SECURITY: Check seal status at startup
     if services.seal.is_sealed().await {
@@ -94,6 +97,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         error!("Failed to apply environment overrides: {}", e);
         std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
     })?;
+
+    // Refuse to serve with the compiled-in JWT placeholder in production or
+    // staging: it is public, so every token (including root) could be forged.
+    let app_environment = std::env::var("APP_ENVIRONMENT").unwrap_or_default();
+    config.validate_secrets(&app_environment).map_err(|e| {
+        error!("Insecure JWT configuration: {}", e);
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
+    })?;
+
+    // Adopt the validated config. `new_from_bootstrap` built the auth service and
+    // the namespace hierarchy from a config that predates the application config,
+    // so both are still on the placeholder secret until this runs. Without it the
+    // guard above would approve one key while root tokens were signed and
+    // validated with another — the forgery hole it exists to close.
+    services.reconfigure(config.clone()).await.map_err(|e| {
+        error!("Failed to apply the validated configuration: {}", e);
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, e.to_string())
+    })?;
+    let services = Arc::new(services);
 
     info!("Creating transit engine...");
     // Create transit engine (shared between REST and gRPC)

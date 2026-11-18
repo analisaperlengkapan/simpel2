@@ -9,6 +9,7 @@
 use deadpool_postgres::Pool;
 use tokio_postgres::Row;
 
+use crate::shared::satker_scope::SatkerScope;
 use lib_perlengkapan::search::{SearchQuery, SearchResult, SearchResults};
 
 /// Search engine with database operations (PostgreSQL Indonesian full-text).
@@ -37,6 +38,7 @@ impl SearchEngineDb {
     pub async fn search_kebutuhan<T>(
         &self,
         query: SearchQuery,
+        scope: &SatkerScope,
     ) -> Result<SearchResults<T>, Box<dyn std::error::Error + Send + Sync>>
     where
         T: for<'a> TryFrom<&'a Row, Error = Box<dyn std::error::Error + Send + Sync>>,
@@ -55,7 +57,22 @@ impl SearchEngineDb {
         let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> =
             vec![Box::new(query.query.clone())];
         let mut filters = String::new();
-        let mut param_idx = 2;
+
+        // Campaign-visibility predicate (#66). The search endpoint used to read
+        // `vw_kebutuhan_bmn_summary` with no scope at all, so ANY authenticated
+        // caller could full-text-search every campaign in the country — the
+        // same leak the list endpoint already closed. The helper emits a bare
+        // `id IN (…)`; wrap it in a subquery so the inner `id` resolves to the
+        // campaign table unambiguously (this query joins `v` and `k`).
+        if let Some(cond) =
+            crate::kebutuhan_bmn::scope::campaign_visibility_condition(scope, &mut params)
+        {
+            filters.push_str(&format!(
+                " AND k.id IN (SELECT id FROM perlengkapan.pengajuan_kebutuhan_bmn WHERE {})",
+                cond
+            ));
+        }
+        let mut param_idx = params.len() + 1;
 
         // A campaign has no satker column of its own — it is nationwide and the
         // satkers hang off it. `k.satker_id` named nothing, and the filter was
@@ -337,26 +354,50 @@ impl SearchEngineDb {
         &self,
         partial_query: &str,
         limit: i32,
+        scope: &SatkerScope,
     ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
         let client = self.db_pool.get().await?;
 
-        let sql = r#"
-            SELECT nama
-            FROM perlengkapan.pengajuan_kebutuhan_bmn
-            WHERE nama ILIKE $1
-            GROUP BY nama
-            ORDER BY similarity(nama, $2) DESC, nama ASC
-            LIMIT $3
-        "#;
-
-        let pattern = format!("%{}%", partial_query);
+        // Scope the suggestion source (#66). Autocomplete over every campaign
+        // name in the country is the same disclosure the search/list endpoints
+        // guard against: a caller would learn the names of campaigns they may
+        // not read. `campaign_visibility_condition` emits a bare `id IN (…)`,
+        // which resolves directly here (single table).
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = vec![
+            Box::new(format!("%{}%", partial_query)),
+            Box::new(partial_query.to_string()),
+        ];
+        let mut where_clause = String::from("nama ILIKE $1");
+        if let Some(cond) =
+            crate::kebutuhan_bmn::scope::campaign_visibility_condition(scope, &mut params)
+        {
+            where_clause.push_str(&format!(
+                " AND id IN (SELECT id FROM perlengkapan.pengajuan_kebutuhan_bmn WHERE {cond})"
+            ));
+        }
         // LIMIT is int8. Binding the i32 straight through is the second fault
         // in this one query, and it could never surface while the first one
         // stopped the statement at parse time.
         let limit = i64::from(limit);
-        let rows = client
-            .query(sql, &[&pattern, &partial_query, &limit])
-            .await?;
+        let limit_idx = params.len() + 1;
+        params.push(Box::new(limit));
+
+        let sql = format!(
+            r#"
+            SELECT nama
+            FROM perlengkapan.pengajuan_kebutuhan_bmn
+            WHERE {where_clause}
+            GROUP BY nama
+            ORDER BY similarity(nama, $2) DESC, nama ASC
+            LIMIT ${limit_idx}
+            "#
+        );
+
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
+        let rows = client.query(&sql, &param_refs).await?;
 
         let suggestions: Vec<String> = rows.iter().map(|row| row.get("nama")).collect();
 

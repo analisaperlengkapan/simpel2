@@ -130,16 +130,77 @@ impl ServiceContainer {
     ) -> Result<Self> {
         // Create minimal ApiConfig from bootstrap (using defaults for application settings)
         let app_config = secreton_core::config::ApplicationConfig::default();
-        let api_config =
+        let mut api_config =
             crate::config::ApiConfig::from_bootstrap_and_application(bootstrap, &app_config)
                 .map_err(|e| anyhow::anyhow!("Failed to create API config: {}", e))?;
 
-        // Use the standard new() method
-        Self::new(&api_config).await
+        // Fold in the process environment (SECRETON_JWT_SECRET, ports, …) BEFORE
+        // the container is built. The auth service clones `config.auth` into its
+        // own lock at construction, and the seal handler signs root tokens from
+        // `config.auth.jwt.secret`, so applying overrides afterwards would leave
+        // both signing with the compiled-in default while the caller believed the
+        // env var had taken effect.
+        api_config
+            .apply_env_overrides()
+            .map_err(|e| anyhow::anyhow!("Failed to apply environment overrides: {}", e))?;
+
+        // The namespace hierarchy is encrypted under a key derived from the JWT
+        // secret, so it cannot be loaded here: the real secret only arrives with
+        // the application config (loaded after unsealing). Defer it to
+        // [`ServiceContainer::reconfigure`], which runs once the caller has
+        // assembled and validated the final config.
+        Self::new_inner(&api_config, false).await
     }
 
     /// Create new service container
     pub async fn new(config: &ApiConfig) -> Result<Self> {
+        Self::new_inner(config, true).await
+    }
+
+    /// Adopt the final, validated configuration after construction.
+    ///
+    /// [`ServiceContainer::new_from_bootstrap`] builds every service from a
+    /// config that predates the application config, so `auth.jwt.secret` can
+    /// still be the compiled-in placeholder there. The caller must therefore
+    /// call this with the config it validated (`ApiConfig::validate_secrets`)
+    /// before serving traffic; otherwise the auth service and the seal handler
+    /// would keep signing and validating root tokens with the placeholder while
+    /// the guard approved a different key — a root-token forgery hole.
+    pub async fn reconfigure(&mut self, config: ApiConfig) -> Result<()> {
+        // AuthService cloned `config.auth` at construction; re-point it at the
+        // validated value so token validation uses the key the guard approved.
+        self.auth.update_config(config.auth.clone());
+
+        // Reload the namespace hierarchy under the final key. It is derived from
+        // the JWT secret (not the seal master key), so this works while sealed.
+        match namespace_persistence::load_hierarchy(
+            &self.storage,
+            &self.crypto,
+            &config.auth.jwt.secret,
+        )
+        .await
+        {
+            Ok(Some(hierarchy)) => {
+                self.namespace.update_hierarchy(hierarchy);
+                tracing::info!("✅ Namespace hierarchy reloaded with the validated JWT secret");
+            }
+            Ok(None) => {}
+            Err(e) => {
+                // Fail closed: a hierarchy that exists but cannot be decrypted
+                // with the validated key means the key is wrong, and serving
+                // would corrupt namespace state on the next write.
+                return Err(anyhow::anyhow!(
+                    "Failed to load namespace hierarchy with the validated JWT secret: {:?}",
+                    e
+                ));
+            }
+        }
+
+        self.config = config;
+        Ok(())
+    }
+
+    async fn new_inner(config: &ApiConfig, load_namespace: bool) -> Result<Self> {
         // Initialize core infrastructure
         let (storage, pool, crypto, audit) = Self::initialize_core_services(config).await?;
 
@@ -162,6 +223,7 @@ impl ServiceContainer {
             storage.clone(),
             crypto.clone(),
             audit.clone(),
+            load_namespace,
         )
         .await?;
 
@@ -269,6 +331,7 @@ impl ServiceContainer {
         storage: Arc<dyn StorageBackend + Send + Sync>,
         crypto: Arc<CryptoEngine>,
         audit: Arc<AuditLogger>,
+        load_namespace: bool,
     ) -> Result<(
         Arc<engine::SecretService>,
         Arc<SealService>,
@@ -344,20 +407,25 @@ impl ServiceContainer {
             "system".to_string(),
         ));
 
-        // Load namespace hierarchy from storage
-        match namespace_persistence::load_hierarchy(&storage, &crypto, &config.auth.jwt.secret)
-            .await
-        {
-            Ok(Some(hierarchy)) => {
-                namespace.update_hierarchy(hierarchy);
-                tracing::info!("✅ Namespace hierarchy loaded from storage");
-            }
-            Ok(None) => {
-                tracing::info!("✅ Namespace service initialized with default root namespace");
-            }
-            Err(e) => {
-                tracing::error!("❌ Failed to load namespace hierarchy: {:?}", e);
-                panic!("Failed to load namespace hierarchy from storage: {:?}", e);
+        // Load namespace hierarchy from storage. Skipped when the caller built
+        // this container from the bootstrap config: the hierarchy is encrypted
+        // under a key derived from the JWT secret, and that secret is not known
+        // yet. `reconfigure` loads it once the validated config is in hand.
+        if load_namespace {
+            match namespace_persistence::load_hierarchy(&storage, &crypto, &config.auth.jwt.secret)
+                .await
+            {
+                Ok(Some(hierarchy)) => {
+                    namespace.update_hierarchy(hierarchy);
+                    tracing::info!("✅ Namespace hierarchy loaded from storage");
+                }
+                Ok(None) => {
+                    tracing::info!("✅ Namespace service initialized with default root namespace");
+                }
+                Err(e) => {
+                    tracing::error!("❌ Failed to load namespace hierarchy: {:?}", e);
+                    panic!("Failed to load namespace hierarchy from storage: {:?}", e);
+                }
             }
         }
 

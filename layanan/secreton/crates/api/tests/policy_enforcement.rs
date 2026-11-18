@@ -104,13 +104,7 @@ async fn an_unauthenticated_caller_is_refused() {
 /// reintroducing a second copy.
 #[tokio::test]
 async fn auth_whitelisted_paths_are_not_refused_by_the_policy_check() {
-    for path in [
-        "/v1/sys/seal-status",
-        "/v1/sys/init",
-        "/v1/sys/unseal",
-        "/v1/sys/rekey/init",
-        "/v1/sys/rekey/update",
-    ] {
+    for path in ["/v1/sys/seal-status", "/v1/sys/init", "/v1/sys/unseal"] {
         let router = create_api_router(unsealed_state().await);
         let response = router
             .oneshot(
@@ -134,6 +128,37 @@ async fn auth_whitelisted_paths_are_not_refused_by_the_policy_check() {
             response.status(),
             StatusCode::FORBIDDEN,
             "{path} is auth-whitelisted but the policy check denied it"
+        );
+    }
+}
+
+/// Rekey is a privileged operation and must NOT be reachable anonymously.
+///
+/// It used to be on the auth whitelist, so `rekey_init`/`rekey_update` were
+/// dispatched with no identity at all — the only thing in front of them was the
+/// seal check. Now that they are ordinary authenticated routes, an anonymous
+/// caller is stopped by the auth middleware before either handler runs.
+#[tokio::test]
+async fn rekey_is_not_reachable_without_a_token() {
+    for path in ["/v1/sys/rekey/init", "/v1/sys/rekey/update"] {
+        let router = create_api_router(unsealed_state().await);
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(path)
+                    .header("content-type", "application/json")
+                    .body(Body::from("{}"))
+                    .expect("build request"),
+            )
+            .await
+            .expect("router responds");
+
+        assert_eq!(
+            response.status(),
+            StatusCode::UNAUTHORIZED,
+            "{path} must require authentication, got {}",
+            response.status()
         );
     }
 }
