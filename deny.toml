@@ -58,6 +58,17 @@ ignore = [
   # crypto-bigint 0.5 (it is optional there, behind sigv4a) — the stale-ignore
   # guard fails this entry the day the advisory stops firing.
   "RUSTSEC-2026-0387",
+  # chrono + chrono-tz unmaintained (RUSTSEC-2026-0543 / -0555, 2026-09-14):
+  # maintenance-status only — no vulnerability, and RustSec ships
+  # `patched = []` (recommending jiff/time). chrono is this workspace's
+  # date/time type (chrono::DateTime/Utc/NaiveDate) across ~530 source files
+  # and is also reached transitively (tokio-cron-scheduler, aws-sdk,
+  # rust_decimal, ...); chrono-tz is used by layanan-integrasi for IANA
+  # timezones. Moving to jiff/time is a workspace-wide project, not a PR
+  # change. The stale-ignore guard (`-D advisory-not-detected`) fails these
+  # entries the day chrono/chrono-tz is replaced and the advisory stops firing.
+  "RUSTSEC-2026-0543",
+  "RUSTSEC-2026-0555",
 ]
 
 [licenses]
