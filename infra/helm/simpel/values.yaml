@@ -723,6 +723,12 @@ layananPerlengkapan:
   env:
     - { name: SERVER_HOST, value: "0.0.0.0" }
     - { name: SERVER_PORT, value: "3020" }
+    # The deployment environment. This pod was the only backend without it, so
+    # `resolve_app_environment()` fell back to "dev" and the production-only
+    # gates (refuse-to-start without an IdP, on failed secret/DB init, deny-all
+    # CORS) never fired in production/staging.
+    - name: APP_ENVIRONMENT
+      valueFrom: { configMapKeyRef: { name: simpelv2-config, key: APP_ENVIRONMENT, optional: true } }
     - name: RUST_LOG
       valueFrom: { configMapKeyRef: { name: simpelv2-config, key: RUST_LOG } }
     - name: AUTHENC_GRPC_URL
