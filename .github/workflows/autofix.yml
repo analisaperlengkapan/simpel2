@@ -82,14 +82,63 @@ jobs:
           fi
 
   # ─────────────────────────────────────────────────────────
+  # Does this pull request touch anything the Rust fixer can change?
+  # `cargo fix --workspace --all-targets` + `clippy --fix` is a full workspace
+  # build (~27 min on average, 44 at worst) and can only rewrite Rust sources and
+  # Cargo manifests, so a PR that touches neither has nothing for it to fix.
+  # ─────────────────────────────────────────────────────────
+  changes:
+    name: Detect Rust changes
+    runs-on: arc-simpel
+    timeout-minutes: 10
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    outputs:
+      rust: ${{ steps.scope.outputs.rust }}
+    steps:
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          list-files: json
+          filters: |
+            rust:
+              - '**/*.rs'
+              - '**/Cargo.toml'
+              - 'Cargo.lock'
+              - 'rust-toolchain*'
+              - '.cargo/**'
+              - '.github/workflows/autofix.yml'
+              - '.github/actions/setup-rust/**'
+              - 'infra/scripts/check-cargo-versioning.py'
+            all:
+              - '**'
+      - id: scope
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          RUST: ${{ steps.filter.outputs.rust }}
+          ALL_FILES: ${{ steps.filter.outputs.all_files }}
+        run: |
+          set -euo pipefail
+          # Doubt resolves to "run it": a file list that may have been truncated.
+          # (Every run of this workflow is a pull request.)
+          full=false
+          if [ "$EVENT" != "pull_request" ]; then
+            full=true
+          else
+            n=$(printf '%s' "${ALL_FILES:-[]}" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')
+            if [ "$n" -ge 2900 ]; then full=true; fi
+          fi
+          echo "rust=$([ "$full" = true ] || [ "${RUST:-false}" = true ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  # ─────────────────────────────────────────────────────────
   # Rust: cargo fmt + cargo fix + clippy --fix + Cargo versioning
   # ─────────────────────────────────────────────────────────
   rust:
     name: Autofix (Rust)
-    needs: guard
+    needs: [guard, changes]
     runs-on: arc-simpel
     timeout-minutes: 120
-    if: github.event.pull_request.head.repo.full_name == github.repository && needs.guard.outputs.is_autofix != 'true'
+    if: github.event.pull_request.head.repo.full_name == github.repository && needs.guard.outputs.is_autofix != 'true' && needs.changes.outputs.rust == 'true'
     concurrency:
       group: autofix-rust-${{ github.ref }}
       cancel-in-progress: true

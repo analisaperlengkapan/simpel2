@@ -99,6 +99,27 @@ affect, and nothing else. The decision is made once, in the `detect` job, by
 - **Reading a run:** the `detect` job's summary lists every unit and suite with why it
   ran or was skipped.
 
+## Rust-only security and autofix jobs
+
+`cargo-audit`, `cargo-deny`, Verus (`security.yml`) and the Rust autofixer (`autofix.yml`)
+cost about 7, 7, 7 and 27 runner-minutes per pull-request push (measured over five runs;
+the autofixer peaked at 44) and can only react to Rust sources, Cargo manifests, their own
+config and the workflow that runs them. A small `changes` job in each workflow decides
+from the paths the pull request touches (`dorny/paths-filter`), and the jobs are skipped
+when it finds none.
+
+- **Always full:** push to `main`, the daily schedule and `workflow_dispatch`, and any pull
+  request whose file list may have been truncated (2,900 files). A newly published advisory
+  against an unchanged lockfile therefore surfaces in the scheduled run, no longer on an
+  unrelated pull request; that run is the one to watch.
+- **Gated per job, not per workflow:** a workflow-level `paths:` filter would stop the
+  workflow from reporting, and a required check that never reports blocks the pull request.
+- **`changes` is blocking in the Security Summary:** if it fails, the three jobs are skipped
+  and the summary would otherwise be green with nothing checked.
+- **Guard:** `infra/scripts/check-rust-job-gating.py` derives what the jobs read (workspace
+  manifests, files that contain `verus!`, crate sources) and fails if a filter does not cover
+  it or a gate stops failing closed; it has a mutation self-test.
+
 ## Image builds and the BuildKit cache
 
 - **Pull requests** build the six images once, in `e2e-build-images`
