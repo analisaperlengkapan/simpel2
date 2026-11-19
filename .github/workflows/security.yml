@@ -65,6 +65,8 @@ jobs:
               - '.github/workflows/security.yml'
               - '.github/actions/setup-rust/**'
               - 'infra/scripts/retry-dependency-check.py'
+              - 'infra/scripts/install-cargo-audit.sh'
+              - 'infra/scripts/check-audit-ignores-live.py'
             rust-source:
               - '**/*.rs'
               - '**/Cargo.toml'

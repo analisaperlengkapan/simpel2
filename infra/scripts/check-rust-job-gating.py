@@ -16,8 +16,12 @@ caught here:
     have been truncated.
 
 What each job reads is DERIVED, not listed: the workspace manifests, the files that
-contain `verus!`, the crates' sources. A hand-written list would go stale the day a
-crate is added, which is the failure this guard exists to catch.
+contain `verus!`, the crates' sources, and every `infra/scripts/*` file and local
+action (`./.github/actions/*`) the job's own steps invoke. A hand-written list would
+go stale the day a crate is added or a step starts calling one more script, which is
+the failure this guard exists to catch (review of #1120: cargo-audit ran
+install-cargo-audit.sh and check-audit-ignores-live.py, and neither was in the filter,
+while this guard passed because it listed only retry-dependency-check.py).
 
 STDLIB ONLY (the ARC runner image has no PyYAML); workflows are scanned as text.
 """
@@ -98,6 +102,18 @@ def reads(filter_name: str, graph: dict) -> set[str]:
     return paths
 
 
+SCRIPT_REF = re.compile(r"infra/scripts/[A-Za-z0-9_.-]+\.(?:py|sh)")
+ACTION_REF = re.compile(r"\./\.github/actions/([A-Za-z0-9_-]+)")
+
+
+def invoked_by(job_body: str) -> set[str]:
+    """Repo files a job's own steps call: scripts under infra/scripts and local actions."""
+    code = "\n".join(ln for ln in job_body.splitlines() if not ln.lstrip().startswith("#"))
+    out = set(SCRIPT_REF.findall(code))
+    out |= {f".github/actions/{name}/action.yml" for name in ACTION_REF.findall(code)}
+    return out
+
+
 def check(texts: dict[str, str], graph: dict, exists=lambda p: (ROOT / p).exists()) -> list[str]:
     problems: list[str] = []
     for wf, gated in GATES.items():
@@ -135,7 +151,7 @@ def check(texts: dict[str, str], graph: dict, exists=lambda p: (ROOT / p).exists
             for must in MUST_EXIST.get(flt, []):
                 if not exists(must):
                     err(f"`{must}` no longer exists; update MUST_EXIST in check-rust-job-gating.py")
-            for path in sorted(reads(flt, graph) | {f".github/workflows/{wf}"}):
+            for path in sorted(reads(flt, graph) | invoked_by(body) | {f".github/workflows/{wf}"}):
                 if exists(path) and not any(rx.match(path) for rx in compiled):
                     err(f"`{job}` reads `{path}`, but no pattern of the `{flt}` filter matches it: a pull request that "
                         "changes only that file would skip the job that depends on it")
@@ -172,6 +188,10 @@ def self_test(texts: dict[str, str], graph: dict) -> int:
 
     expect("`.cargo/**` drops out of rust-deps (cargo-audit reads .cargo/audit.toml)", "audit.toml",
            "security.yml", "              - '.cargo/**'\n              - 'rust-toolchain*'\n", "              - 'rust-toolchain*'\n")
+    expect("cargo-audit's installer drops out of rust-deps (the miss found in review)", "install-cargo-audit.sh",
+           "security.yml", "              - 'infra/scripts/install-cargo-audit.sh'\n", "")
+    expect("cargo-audit's ignore checker drops out of rust-deps", "check-audit-ignores-live.py",
+           "security.yml", "              - 'infra/scripts/check-audit-ignores-live.py'\n", "")
     expect("a Verus source is no longer matched by rust-source", ".rs",
            "security.yml", "              - '**/*.rs'\n", "")
     expect("cargo-deny loses its gate", "cargo-deny",
