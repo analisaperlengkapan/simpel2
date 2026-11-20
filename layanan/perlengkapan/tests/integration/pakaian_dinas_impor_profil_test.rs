@@ -5,7 +5,7 @@
 //! yang buruk SENDIRI-SENDIRI, tak pernah menimpa isian orangnya sendiri, dan tak membawa NIP utuh
 //! pada galat.
 
-use super::pakaian_dinas_pengisian_test::{OPERATOR, SATKER_A, post};
+use super::pakaian_dinas_pengisian_test::{OPERATOR, SATKER_A, post, put};
 use crate::common::{setup_test_app, teardown_test_db};
 use axum_test::TestServer;
 use serde_json::{Value, json};
@@ -413,6 +413,89 @@ async fn hanya_admin_dan_satu_lot_paling_banyak_2000_baris() {
     let res = impor(&server, true, banyak).await;
     assert_eq!(res.status_code(), 400, "{}", res.text());
     assert!(res.text().contains("2000"), "{}", res.text());
+
+    teardown_test_db(&db_name).await;
+}
+
+#[tokio::test]
+async fn nama_spesifikasi_ganda_ditolak_sebagai_ambigu_bukan_dipilih_yang_tertua() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let nip = "198001010000000019";
+
+    // Pembuatan menolak nama ganda pada satu jenis, tetapi MENGGANTI NAMA tidak memeriksanya:
+    // spesifikasi kedua dibuat dengan nama lain lalu diganti menjadi "Celana".
+    let pdh: String = {
+        let client = db.pool().get().await.unwrap();
+        let id: uuid::Uuid = client
+            .query_one(
+                "SELECT id FROM perlengkapan.ms_jenis_pakaian_dinas WHERE upper(nama) = 'PDH'",
+                &[],
+            )
+            .await
+            .unwrap()
+            .get("id");
+        id.to_string()
+    };
+    let badan = |nama: &str| json!({"jenis_pakaian_dinas_id": pdh, "nama": nama, "gender": "SEMUA", "ukuran_group": "CELANA", "is_active": true});
+    let res = post(
+        &server,
+        "/pakaian-dinas/spesifikasi",
+        "admin",
+        ADMIN,
+        SATKER_A,
+        badan("Celana Cadangan"),
+    )
+    .await;
+    assert_eq!(res.status_code(), 201, "{}", res.text());
+    let kedua = res.json::<Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let res = put(
+        &server,
+        &format!("/pakaian-dinas/spesifikasi/{kedua}"),
+        "admin",
+        ADMIN,
+        SATKER_A,
+        badan("Celana"),
+    )
+    .await;
+    assert_eq!(
+        res.status_code(),
+        200,
+        "ganti nama menjadi yang sudah ada tak dicegah: {}",
+        res.text()
+    );
+
+    let res = impor(
+        &server,
+        false,
+        vec![
+            baris("uji:1", nip, "Ambigu", vec![ukuran("PDH", "Celana", "32")]),
+            baris(
+                "uji:2",
+                "198001010000000020",
+                "Tak Ambigu",
+                vec![ukuran("PDH", "Pakaian Dinas", "L")],
+            ),
+        ],
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{}", res.text());
+    let h = &res.json::<Value>()["data"];
+    assert_eq!(h["baris_dimuat"], 1, "{h}");
+    let ditolak = h["ditolak"].as_array().unwrap();
+    assert_eq!(ditolak.len(), 1, "{h}");
+    assert!(
+        ditolak[0]["alasan"].as_str().unwrap().contains("ambigu"),
+        "{h}"
+    );
+    assert_eq!(
+        jumlah_profil(&db, nip).await,
+        0,
+        "baris ambigu tak menulis apa pun"
+    );
 
     teardown_test_db(&db_name).await;
 }

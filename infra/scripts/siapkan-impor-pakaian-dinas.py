@@ -309,6 +309,11 @@ def siapkan(rekam: list[dict], rujukan: dict[str, str] | None = None, terima_dig
         if kategori not in KATEGORI_JELAS:
             usul = usulan_nip(kategori, d, r["nama"], rujukan or {})
             if usul and len(usul) == 1 and muat_pemulihan:
+                # Kandidat pemulihan lewat pemeriksaan jenis kelamin yang SAMA dengan NIP bersih:
+                # satu-satunya pengecualian adalah --terima-digit-jk-beda.
+                if digit_jk_beda(usul[0], r["jk"]) and not terima_digit_jk:
+                    tahan(r, "digit_jk_tidak_cocok", usul)
+                    continue
                 calon[usul[0]].append({**r, "nip": usul[0], "pulih": True})
                 jumlah["pulih:dimuat"] += 1
             else:
@@ -411,7 +416,22 @@ def tulis_keluaran(keluaran: Path, jelas, karantina, jumlah, ukuran_lot: int, dr
 
 
 # ───────────────────────── mengirim ke aplikasi ─────────────────────────
+def url_aman(url: str) -> bool:
+    """HTTPS, atau HTTP hanya ke mesin ini (uji lokal). Permintaan membawa token admin dan NIP serta
+    nama pegawai: lewat HTTP biasa ia terbaca penyadap, dan pengalihan ke HTTPS tak melindungi
+    permintaan pertama."""
+    from urllib.parse import urlsplit
+
+    u = urlsplit(url)
+    return u.scheme == "https" or (u.scheme == "http" and u.hostname in ("localhost", "127.0.0.1", "::1"))
+
+
 def kirim(url: str, lot_file: list[Path], keluaran: Path, muat: bool) -> int:
+    if not url_aman(url):
+        raise SystemExit(
+            f"--kirim {url!r} ditolak: harus https:// (http:// hanya untuk localhost). "
+            "Permintaan membawa token admin dan data pegawai."
+        )
     token = os.environ.get("SIMPEL_TOKEN", "")
     if not token:
         raise SystemExit("--kirim butuh token admin di environment SIMPEL_TOKEN (jangan lewat argumen).")
@@ -539,6 +559,25 @@ def self_test() -> int:
         jelas3, _, j3 = siapkan(rekam, r, muat_pemulihan=True)
         ok(any(x["nip"] == "199103142014031009" for x in jelas3) and j3["pulih:dimuat"] == 1, "--muat-pemulihan memuat yang unik dan sama namanya")
 
+        # Pemulihan tak boleh melewati pemeriksaan jenis kelamin: NIP terpotong, kandidat unik dari
+        # rujukan dengan nama sama, tetapi digit ke-15 kandidat (2 = perempuan) bertentangan dengan gender L.
+        kj2 = t / "kejagung2.xlsx"
+        _xlsx(kj2, [["No", "Nama", "NIP", "Gender", "Hijab", "Sepatu PDH"],
+                    ["1", "Pegawai Uji", "19920314201403200", "L", "Tidak", "42"]])
+        ruj2 = t / "ruj2.csv"
+        ruj2.write_text("199203142014032001,Pegawai Uji\n", encoding="utf-8")
+        rek2 = baca_berkas(str(kj2), "kejagung")
+        j_a, k_a, c_a = siapkan(rek2, baca_rujukan(str(ruj2)), muat_pemulihan=True)
+        ok(not j_a and k_a and k_a[0]["alasan"] == "digit_jk_tidak_cocok" and k_a[0]["usulan"] == "199203142014032001",
+           f"pemulihan dengan jenis kelamin bertentangan harus tertahan: {k_a}")
+        j_b, _, c_b = siapkan(rek2, baca_rujukan(str(ruj2)), terima_digit_jk=True, muat_pemulihan=True)
+        ok(len(j_b) == 1 and c_b["pulih:dimuat"] == 1, "--terima-digit-jk-beda adalah satu-satunya pengecualian")
+
+        # --kirim hanya lewat HTTPS (localhost dikecualikan)
+        ok(url_aman("https://simpel.kejaksaan.go.id/api/v1/perlengkapan") and url_aman("http://127.0.0.1:3020/api")
+           and url_aman("http://localhost:3020") and not url_aman("http://simpel.kejaksaan.go.id/api")
+           and not url_aman("ftp://x") and not url_aman("simpel.kejaksaan.go.id"), "hanya https atau localhost")
+
         # Keluaran: izin 0600, laporan tanpa data pribadi, lot sesuai ukuran, dan ditolak di dalam repo
         keluar = t / "keluar"
         lots = tulis_keluaran(keluar, jelas, karantina, jumlah, 2, True)
@@ -578,6 +617,8 @@ def main() -> int:
         ap.error("butuh --keluaran dan minimal satu dari --kejagung/--kejati")
     if not 1 <= a.lot <= 2000:
         ap.error("--lot harus 1..2000")
+    if a.kirim and not url_aman(a.kirim):
+        ap.error("--kirim harus https:// (http:// hanya untuk localhost): permintaan membawa token admin dan data pegawai")
     keluaran = Path(a.keluaran)
     tolak_di_dalam_repo(keluaran)
     rekam: list[dict] = []

@@ -62,15 +62,24 @@ impl PakaianDinasRepository {
             )
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
-        let mut spesifikasi: HashMap<(String, String), (Uuid, String)> = HashMap::new();
+        // `None` = pasangan nama yang menunjuk LEBIH DARI SATU spesifikasi aktif: pembuatan
+        // spesifikasi tidak melarang nama ganda, dan ukuran profil disimpan per ID. Memilih yang
+        // tertua akan menulis ke kolom yang bisa jadi bukan yang dipakai kampanye, tanpa
+        // memberi tahu pengirim; baris yang menyebutnya ditolak sebagai ambigu.
+        let mut spesifikasi: HashMap<(String, String), Option<(Uuid, String)>> = HashMap::new();
         for r in &spek_rows {
             spesifikasi
                 .entry((r.get("jenis"), r.get("spek")))
-                .or_insert_with(|| (r.get("id"), r.get("ukuran_group")));
+                .and_modify(|v| *v = None)
+                .or_insert_with(|| Some((r.get("id"), r.get("ukuran_group"))));
         }
         // Daftar ukuran dibaca di bawah kunci bersama grupnya: ukuran tak bisa dihapus admin di
         // antara validasi dan penulisan (protokol yang sama dengan penyimpanan profil).
-        let mut kode_grup: Vec<String> = spesifikasi.values().map(|(_, g)| g.clone()).collect();
+        let mut kode_grup: Vec<String> = spesifikasi
+            .values()
+            .flatten()
+            .map(|(_, g)| g.clone())
+            .collect();
         kode_grup.sort();
         kode_grup.dedup();
         kunci_grup_bersama(&tx, &kode_grup).await?;
@@ -107,9 +116,18 @@ impl PakaianDinasRepository {
                     u.jenis.trim().to_uppercase(),
                     u.spesifikasi.trim().to_uppercase(),
                 );
-                let Some((id, grup_kode)) = spesifikasi.get(&kunci) else {
-                    galat = Some(format!("Spesifikasi tidak dikenal: {nama_kolom}"));
-                    break;
+                let (id, grup_kode) = match spesifikasi.get(&kunci) {
+                    Some(Some(s)) => s,
+                    Some(None) => {
+                        galat = Some(format!(
+                            "Spesifikasi ambigu: ada lebih dari satu {nama_kolom} aktif"
+                        ));
+                        break;
+                    }
+                    None => {
+                        galat = Some(format!("Spesifikasi tidak dikenal: {nama_kolom}"));
+                        break;
+                    }
                 };
                 if !dipakai.insert(*id) {
                     galat = Some(format!("Kolom {nama_kolom} muncul dua kali"));

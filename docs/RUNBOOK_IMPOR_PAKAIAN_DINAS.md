@@ -42,6 +42,7 @@ export SIMPEL_TOKEN=...   # token admin; JANGAN lewat argumen perintah
 python3 infra/scripts/siapkan-impor-pakaian-dinas.py ... --kirim https://simpel.kejaksaan.go.id/api/v1/perlengkapan
 ```
 
+`--kirim` **menolak `http://`** (kecuali localhost): permintaan membawa token admin dan data pegawai.
 Tanpa `--muat` ini hanya **pemeriksaan** (`dry_run`): server memvalidasi dengan aturan yang sama dengan
 setiap jalur penyimpan ukuran dan menghitung apa yang akan terjadi. Baca angkanya (`baris_dimuat`,
 `profil_baru`, `ukuran_ditulis`, dan alasan penolakan server) sebelum lanjut. `ditolak-server.csv` memuat
@@ -55,6 +56,7 @@ Ulangi perintah di atas dengan `--muat`. Aturan server:
 - ukuran yang **diisi orangnya sendiri** lewat aplikasi tidak ditimpa (dihitung `ukuran_dilewati_sudah_diisi`);
 - hanya ukuran hasil impor sebelumnya (`sumber = IMPOR`) yang diganti, jadi mengulang impor **aman**;
 - baris yang gagal validasi ditolak sendiri-sendiri; sisanya satu transaksi per lot;
+- pasangan jenis + nama spesifikasi yang menunjuk **lebih dari satu** spesifikasi aktif ditolak sebagai *ambigu* (bukan dipilih yang tertua);
 - jejak audit mencatat **jumlah** (tak ada NIP atau nama pada log maupun audit).
 
 ## 4. Baris yang tertahan (karantina)
