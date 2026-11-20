@@ -428,7 +428,25 @@ global:
   # berhenti; empat endpoint monitoring integrasi tanpa autentikasi dihapus (#1096); halaman admin membaca
   # `integrasi.sync_status` (#1099). Ikut pula bump dependensi simpelv1 (Laravel #1097, phpspreadsheet #1098).
   # rc48 jangan dipromosikan.
-  imageTag: v0.1.0-rc49
+  #
+  # rc50 = rc49 + 28 commit. rc49 lolos staging (e2e 221/221) TETAPI v1 tanpa JavaScript di image (#1100) dan
+  # kemudian v1 dihapus seluruhnya, jadi kandidat go-live adalah rc50; rc48 dan rc49 jangan dipromosikan.
+  # Isi: SIMPEL v1 (monolith, gateway, chart, CI) dihapus (#1109), tak ada yang dimigrasi. Helm menghapus
+  # objek v1 saat upgrade; `dbsimpelv1` TETAP di PVC postgres dan perlu DROP terpisah; overlay dari
+  # `helm get values` masih membawa `secrets.simpelv1` dan `postgresCredentials.databases.simpelv1`, buang
+  # keduanya. Aplikasi dilayani di `/perlengkapan/simpel/` tanpa segmen `/v2` dan tanpa pengalihan dari
+  # path lama (#1116). Daftar pegawai pakaian dinas dibekukan per pengajuan, migrasi V018 aditif sehingga
+  # `helm rollback` aman (#1117). Keamanan (#1118): daftar BMN referensi dan pencarian kebutuhan BMN kini
+  # dibatasi scope satker; `/sys/rekey/*` Secreton butuh token; kunci JWT Secreton tak lagi literal default.
+  # PRASYARAT UPGRADE: Secret `secreton-jwt` (key `JWT_SECRET`, 64 hex) HARUS ada di namespace sebelum
+  # `helm upgrade`: pod secreton membacanya lewat `secretKeyRef` (tidak opsional) dan menolak start dengan
+  # kunci placeholder di staging/production. Di staging dibuat di luar Helm pada 2026-11-19 (nilai acak,
+  # tak pernah dicetak); produksi: `secrets.secretonJwtSecret` di values-secrets-production.yaml.
+  # `layanan-perlengkapan` kini membaca `APP_ENVIRONMENT` (#1119); sebelumnya selalu jatuh ke "dev" sehingga
+  # kontrol yang bergantung pada lingkungan (CORS deny-by-default, penolakan authenticator tiruan,
+  # kegagalan init Secreton) tak pernah aktif. Sisanya: bump dependensi (quinn-udp RUSTSEC-2026-0538 #1108)
+  # dan perubahan CI (#1110, #1113, #1114, #1115) yang tak mengubah isi image.
+  imageTag: v0.1.0-rc50
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`

@@ -32,6 +32,71 @@ env:
   DEP_CHECK_HANG_IS_RED: ${{ github.event_name == 'schedule' && '1' || '0' }}
 
 jobs:
+  # ── Which pull requests need the Rust checks ─────────
+  # cargo-audit, cargo-deny and Verus read Cargo manifests, the lockfile, their
+  # own config and Rust sources. A pull request that touches none of them (a
+  # chart values file, docs, a workflow that is not this one) cannot change their
+  # answer, and each costs ~7 runner-minutes on a pool that queues for hours.
+  # Push to main, the daily schedule and workflow_dispatch are ALWAYS full: that
+  # is where a newly published advisory against an unchanged lockfile is caught.
+  # Gated per JOB, not with a workflow-level `paths:`: a filtered-out workflow
+  # never reports, and a required check that never reports blocks the PR forever.
+  # infra/scripts/check-rust-job-gating.py keeps the filters and the gates honest.
+  changes:
+    name: Detect Rust changes
+    runs-on: arc-simpel
+    timeout-minutes: 10
+    outputs:
+      rust-deps: ${{ steps.scope.outputs.rust-deps }}
+      rust-source: ${{ steps.scope.outputs.rust-source }}
+    steps:
+      - uses: dorny/paths-filter@v4
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          list-files: json
+          filters: |
+            rust-deps:
+              - 'Cargo.lock'
+              - '**/Cargo.toml'
+              - 'deny.toml'
+              - '.cargo/**'
+              - 'rust-toolchain*'
+              - '.github/workflows/security.yml'
+              - '.github/actions/setup-rust/**'
+              - 'infra/scripts/retry-dependency-check.py'
+              - 'infra/scripts/install-cargo-audit.sh'
+              - 'infra/scripts/check-audit-ignores-live.py'
+            rust-source:
+              - '**/*.rs'
+              - '**/Cargo.toml'
+              - 'Cargo.lock'
+              - '.github/workflows/security.yml'
+              - '.github/actions/setup-rust/**'
+            all:
+              - '**'
+      - id: scope
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          DEPS: ${{ steps.filter.outputs.rust-deps }}
+          SOURCE: ${{ steps.filter.outputs.rust-source }}
+          ALL_FILES: ${{ steps.filter.outputs.all_files }}
+        run: |
+          set -euo pipefail
+          # Doubt resolves to "run it": anything that is not a pull request (push to
+          # main, the daily schedule, a manual dispatch) is always full, and so is a
+          # pull request whose file list may have been truncated.
+          full=false
+          if [ "$EVENT" != "pull_request" ]; then
+            full=true
+          else
+            n=$(printf '%s' "${ALL_FILES:-[]}" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')
+            if [ "$n" -ge 2900 ]; then full=true; fi
+          fi
+          echo "rust-deps=$([ "$full" = true ] || [ "${DEPS:-false}" = true ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "rust-source=$([ "$full" = true ] || [ "${SOURCE:-false}" = true ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
   # ── Blocking checks ─────────────────────────────────
   # Kegagalan di sini akan membuat Security Summary gagal.
 
@@ -144,6 +209,8 @@ jobs:
 
   cargo-audit:
     name: cargo-audit
+    needs: changes
+    if: needs.changes.outputs.rust-deps == 'true'
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
@@ -271,6 +338,8 @@ jobs:
 
   cargo-deny:
     name: cargo-deny
+    needs: changes
+    if: needs.changes.outputs.rust-deps == 'true'
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
@@ -423,6 +492,8 @@ jobs:
   # sisanya — tanpa bedah workflow lagi.
   verus-verify:
     name: Verus Formal Verification
+    needs: changes
+    if: needs.changes.outputs.rust-source == 'true'
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
@@ -843,6 +914,7 @@ jobs:
     name: Security Summary
     if: always()
     needs:
+      - changes
       - cargo-audit
       - cargo-deny
       - gitleaks
@@ -873,7 +945,9 @@ jobs:
           #                regression (probe/limit/securityContext hilang, tag
           #                latest, dll). Path-gated → skip bila tak ada
           #                perubahan infra/helm/** (job tetap success).
-          BLOCKING="gitleaks helm-lint"
+          #   changes    — pemindai cakupan; bila gagal, cargo-audit/cargo-deny/verus
+          #                ter-SKIP dan Summary hijau palsu, jadi kegagalannya memblokir.
+          BLOCKING="gitleaks helm-lint changes"
           block_fail=0
           block_failed_jobs=""
           advisory_fail=0

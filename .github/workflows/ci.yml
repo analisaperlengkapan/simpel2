@@ -552,6 +552,13 @@ jobs:
       - name: Image builds are reachable from a PR, and releases use no shared cache
         shell: bash
         run: python3 ./infra/scripts/check-image-build-scope.py
+      # The Rust-only jobs of security.yml and autofix.yml are skipped on a pull request
+      # that touches no Rust. A filter that misses something they read, or a scope job
+      # whose failure leaves them skipped under a green summary, would turn that saving
+      # into a check that silently never runs.
+      - name: Rust-only security and autofix jobs are gated honestly
+        shell: bash
+        run: python3 ./infra/scripts/check-rust-job-gating.py
       # Staging proves a route table; production serves a different one. Production's
       # was a pre-F5 copy with no authenc route at all, so login was impossible on
       # day one and nothing could have noticed before the first real deploy.
