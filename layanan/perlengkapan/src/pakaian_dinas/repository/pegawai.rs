@@ -422,6 +422,7 @@ impl PakaianDinasRepository {
         nip: &str,
         nama: Option<&str>,
         items: &[UkuranProfilInput],
+        with_hijab: Option<bool>,
     ) -> AppResult<Vec<UkuranProfilItem>> {
         let mut client = self
             .pool
@@ -462,6 +463,15 @@ impl PakaianDinasRepository {
         )
         .await
         .map_err(|e| bad_request(&e.to_string()))?;
+
+        if let Some(hijab) = with_hijab {
+            tx.execute(
+                "UPDATE perlengkapan.pegawai_pakaian_dinas SET with_hijab = $2, updated_at = now() WHERE nip = $1",
+                &[&nip, &hijab],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        }
 
         for item in items {
             let (nama_spek, grup_kode) = per_spek.get(&item.spesifikasi_id).ok_or_else(|| {

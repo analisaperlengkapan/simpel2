@@ -26,6 +26,7 @@ use components::app_chrome::{AppFooter, AppHeader, IntegrasiHealthBanner};
 use components::guards::{AdminLayout, AuthenticatedLayout};
 use components::sidebar::Sidebar;
 use features::auth::AuthService;
+use features::pakaian_dinas::ReferensiUkuranPage;
 use lib_ui::components::app_shell::AppShell;
 use pages::admin::{AdminAuditPage, AdminMasterDataPage, AdminSyncStatusPage, AdminTemplatesPage};
 use pages::bank_aset::{
@@ -322,6 +323,10 @@ pub fn App() -> impl IntoView {
                                             <Route
                                                 path=path!("/pakaian-dinas/ukuran")
                                                 view=UkuranPegawaiCurrentUser
+                                            />
+                                            <Route
+                                                path=path!("/pakaian-dinas/referensi-ukuran")
+                                                view=ReferensiUkuranPage
                                             />
                                             <Route
                                                 path=path!("/pakaian-dinas/laporan")

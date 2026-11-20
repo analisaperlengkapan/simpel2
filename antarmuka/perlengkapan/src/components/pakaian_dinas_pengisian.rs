@@ -18,7 +18,7 @@
 //!   semuanya di hidden input lalu satu tombol Simpan — bagian itu tidak
 //!   diikuti.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -27,11 +27,12 @@ use leptos_router::hooks::use_params_map;
 
 use crate::api::pakaian_dinas::{
     PengajuanPakaianItem, PengajuanSatkerAktivitas, RosterPegawai, RosterPengisian,
-    SimpanUkuranPegawaiRequest, Ukuran, UkuranPegawaiItem, ValidatorActionRequest,
-    fetch_master_ukuran, fetch_pakaian_satker_aktivitas, fetch_roster_pengisian,
-    keluarkan_pegawai_dari_pengajuan, process_validator_action, simpan_ukuran_pegawai,
+    SimpanUkuranPegawaiRequest, UkuranPegawaiItem, ValidatorActionRequest, fetch_master_ukuran,
+    fetch_pakaian_satker_aktivitas, fetch_roster_pengisian, keluarkan_pegawai_dari_pengajuan,
+    process_validator_action, simpan_ukuran_pegawai,
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
+use crate::features::pakaian_dinas::api::{fetch_ukuran_grup, kelompokkan_ukuran};
 use lib_ui::components::icon::AppIcon;
 use lib_ui::utils::formatters::{format_iso_local, format_iso_wib};
 use phosphor_leptos::{
@@ -52,26 +53,44 @@ async fn query_aktivitas(
     fetch_pakaian_satker_aktivitas(pengajuan_satker_id).await
 }
 
-/// Seluruh master ukuran sekali, lalu dikelompokkan per grup di memori. Daftar
-/// ini kecil (puluhan baris) dan sama untuk setiap baris tabel, jadi satu
-/// permintaan mengalahkan satu-per-kolom.
-async fn query_ukuran(_key: ()) -> Result<Vec<Ukuran>, crate::api::AppError> {
-    fetch_master_ukuran(None).await.map(|r| r.data)
+/// Daftar ukuran per grup, dan grup mana yang isiannya teks bebas (tanpa daftar).
+#[derive(Clone, Debug, Default, PartialEq)]
+struct DaftarUkuran {
+    per_grup: HashMap<String, Vec<String>>,
+    /// Kode grup (huruf besar) bertipe `TEKS`: kolomnya berupa kotak teks, bukan pilihan.
+    teks: HashSet<String>,
 }
 
-fn kelompokkan(ukuran: &[Ukuran]) -> HashMap<String, Vec<String>> {
-    let mut map: HashMap<String, Vec<(i32, String)>> = HashMap::new();
-    for u in ukuran {
-        map.entry(u.group.to_uppercase())
-            .or_default()
-            .push((u.urutan, u.ukuran.clone()));
+impl DaftarUkuran {
+    fn is_teks(&self, grup: &str) -> bool {
+        self.teks.contains(&grup.to_uppercase())
     }
-    map.into_iter()
-        .map(|(k, mut v)| {
-            v.sort_by_key(|(urutan, _)| *urutan);
-            (k, v.into_iter().map(|(_, u)| u).collect())
-        })
-        .collect()
+
+    fn opsi(&self, grup: &str) -> Vec<String> {
+        self.per_grup
+            .get(&grup.to_uppercase())
+            .cloned()
+            .unwrap_or_default()
+    }
+}
+
+/// Seluruh master ukuran sekali, ditambah tipe tiap grup dari referensi. Daftar ini kecil
+/// (puluhan baris) dan sama untuk setiap baris tabel, jadi satu pasang permintaan mengalahkan
+/// satu-per-kolom; keduanya berjalan paralel.
+async fn query_ukuran(_key: ()) -> Result<DaftarUkuran, crate::api::AppError> {
+    let (ukuran, grup) = futures::future::try_join(
+        async { fetch_master_ukuran(None).await.map(|r| r.data) },
+        fetch_ukuran_grup(false),
+    )
+    .await?;
+    Ok(DaftarUkuran {
+        per_grup: kelompokkan_ukuran(&ukuran),
+        teks: grup
+            .into_iter()
+            .filter(|g| g.is_teks())
+            .map(|g| g.kode.to_uppercase())
+            .collect(),
+    })
 }
 
 #[component]
@@ -127,8 +146,10 @@ pub fn PakaianDinasPengisian() -> impl IntoView {
                         Ok(d) => d,
                         Err(e) => return view! { <ErrorState error=e /> }.into_any(),
                     };
-                    let grup = kelompokkan(&daftar_ukuran.unwrap_or_default());
-                    halaman(data, pengajuan_id(), grup, sedang_diisi, pesan, sibuk, refresh, ajukan)
+                    if let Err(e) = daftar_ukuran {
+                        return view! { <ErrorState error=e /> }.into_any();
+                    }
+                    halaman(data, pengajuan_id(), sedang_diisi, pesan, sibuk, refresh, ajukan)
                 }}
             </Suspense>
 
@@ -143,7 +164,7 @@ pub fn PakaianDinasPengisian() -> impl IntoView {
                                 <DialogUkuran
                                     pegawai=pegawai.clone()
                                     pakaian=d.pakaian.clone()
-                                    grup=kelompokkan(&daftar_ukuran)
+                                    grup=daftar_ukuran.clone()
                                     pengajuan_id=d.pengajuan_satker_id.clone()
                                     kode_pengajuan=params
                                         .with(|p| {
@@ -226,14 +247,12 @@ fn halaman(
     // `pengajuan_pakaian_dinas.id` dari URL — respons membawa id BARIS satker,
     // bukan id kampanyenya, jadi tautan kembali mengambilnya dari rute.
     pengajuan_id_url: String,
-    grup: HashMap<String, Vec<String>>,
     sedang_diisi: RwSignal<Option<RosterPegawai>>,
     pesan: RwSignal<Option<String>>,
     sibuk: RwSignal<bool>,
     refresh: RwSignal<i32>,
     ajukan: Callback<String>,
 ) -> AnyView {
-    let _ = grup;
     let total = data.pegawai.len();
     let terisi = data.pegawai.iter().filter(|p| p.sudah_diisi).count();
     // Only the satker's own operator edits; a validator or administrator who opens
@@ -484,7 +503,18 @@ fn baris(
                             } else {
                                 match nilai {
                                     Some(v) => {
-                                        view! { <span class="text-slate-100">{v}</span> }.into_any()
+                                        // Isian teks (nama dada) bisa sampai 100 karakter:
+                                        // dipotong di sel, utuhnya ada di tooltip.
+                                        let utuh = v.clone();
+                                        view! {
+                                            <span
+                                                class="block max-w-[14rem] truncate text-slate-100"
+                                                title=utuh
+                                            >
+                                                {v}
+                                            </span>
+                                        }
+                                            .into_any()
                                     }
                                     None => {
                                         view! {
@@ -522,7 +552,7 @@ fn baris(
 fn DialogUkuran(
     pegawai: RosterPegawai,
     pakaian: Vec<PengajuanPakaianItem>,
-    grup: HashMap<String, Vec<String>>,
+    grup: DaftarUkuran,
     /// `pengajuan_pakaian_dinas_satker.id` — dipakai hanya untuk pembeda DOM.
     pengajuan_id: String,
     /// `pengajuan_pakaian_dinas.id` pada URL.
@@ -555,8 +585,11 @@ fn DialogUkuran(
             let saran = pegawai
                 .saran_untuk(&item.id)
                 .filter(|s| {
-                    grup.get(&item.spesifikasi_ukuran_group)
-                        .is_some_and(|opsi| opsi.iter().any(|o| o == s))
+                    grup.is_teks(&item.spesifikasi_ukuran_group)
+                        || grup
+                            .opsi(&item.spesifikasi_ukuran_group)
+                            .iter()
+                            .any(|o| o == s)
                 })
                 .map(str::to_string);
             let (nilai, otomatis) = match (tersimpan, saran) {
@@ -667,10 +700,8 @@ fn DialogUkuran(
                         .map(|item| {
                             let id_select = format!("ukuran-{}", item.id);
                             let pakaian_id = item.id.clone();
-                            let opsi = grup
-                                .get(&item.spesifikasi_ukuran_group.to_uppercase())
-                                .cloned()
-                                .unwrap_or_default();
+                            let teks = grup.is_teks(&item.spesifikasi_ukuran_group);
+                            let opsi = grup.opsi(&item.spesifikasi_ukuran_group);
                             let judul = item.judul();
                             view! {
                                 <div class="flex flex-col gap-1.5">
@@ -680,34 +711,68 @@ fn DialogUkuran(
                                     >
                                         {judul}
                                     </label>
-                                    <select
-                                        id=id_select
-                                        class=FIELD
-                                        prop:value={
-                                            let pakaian_id = pakaian_id.clone();
-                                            move || {
-                                                pilihan.get().get(&pakaian_id).cloned().unwrap_or_default()
-                                            }
+                                    {if teks {
+                                        // Grup bertipe TEKS (mis. nama dada): isian bebas, tanpa daftar.
+                                        view! {
+                                            <input
+                                                id=id_select
+                                                type="text"
+                                                data-testid="ukuran-teks"
+                                                class=FIELD
+                                                maxlength="100"
+                                                placeholder="Tulis isiannya"
+                                                prop:value={
+                                                    let pakaian_id = pakaian_id.clone();
+                                                    move || {
+                                                        pilihan.get().get(&pakaian_id).cloned().unwrap_or_default()
+                                                    }
+                                                }
+                                                on:input={
+                                                    let pakaian_id = pakaian_id.clone();
+                                                    move |ev| {
+                                                        let v = event_target_value(&ev);
+                                                        pilihan
+                                                            .update(|m| {
+                                                                m.insert(pakaian_id.clone(), v);
+                                                            });
+                                                    }
+                                                }
+                                            />
                                         }
-                                        on:change={
-                                            let pakaian_id = pakaian_id.clone();
-                                            move |ev| {
-                                                let v = event_target_value(&ev);
-                                                pilihan
-                                                    .update(|m| {
-                                                        m.insert(pakaian_id.clone(), v);
-                                                    });
-                                            }
+                                            .into_any()
+                                    } else {
+                                        view! {
+                                            <select
+                                                id=id_select
+                                                class=FIELD
+                                                prop:value={
+                                                    let pakaian_id = pakaian_id.clone();
+                                                    move || {
+                                                        pilihan.get().get(&pakaian_id).cloned().unwrap_or_default()
+                                                    }
+                                                }
+                                                on:change={
+                                                    let pakaian_id = pakaian_id.clone();
+                                                    move |ev| {
+                                                        let v = event_target_value(&ev);
+                                                        pilihan
+                                                            .update(|m| {
+                                                                m.insert(pakaian_id.clone(), v);
+                                                            });
+                                                    }
+                                                }
+                                            >
+                                                <option value="">"— Pilih Ukuran —"</option>
+                                                {opsi
+                                                    .into_iter()
+                                                    .map(|u| {
+                                                        view! { <option value=u.clone()>{u.clone()}</option> }
+                                                    })
+                                                    .collect_view()}
+                                            </select>
                                         }
-                                    >
-                                        <option value="">"— Pilih Ukuran —"</option>
-                                        {opsi
-                                            .into_iter()
-                                            .map(|u| {
-                                                view! { <option value=u.clone()>{u.clone()}</option> }
-                                            })
-                                            .collect_view()}
-                                    </select>
+                                            .into_any()
+                                    }}
                                 // Daftar ukurannya datang dari master
                                 // `ms_ukuran`, jadi tidak ada panduan yang
                                 // ditulis mati untuk ikut basi.

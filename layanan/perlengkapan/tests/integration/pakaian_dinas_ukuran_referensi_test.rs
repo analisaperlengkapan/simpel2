@@ -935,3 +935,156 @@ async fn ukuran_dan_grup_berisi_spasi_saja_ditolak() {
 
     teardown_test_db(&db_name).await;
 }
+
+#[tokio::test]
+async fn profil_baru_membawa_bendera_hijab_dan_tak_menimpanya_bila_tak_dikirim() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let kaos = spek_id(&db, "PDL", "Kaos").await;
+    let nip = "199203142014031002";
+
+    let simpan = |body: Value| {
+        server
+            .put("/pakaian-dinas/ukuran-profil")
+            .add_header(reqwest::header::AUTHORIZATION, bearer(nip))
+            .json(&body)
+    };
+    let hijab = || async {
+        let res = server
+            .get("/pakaian-dinas/ukuran-pakaian-pegawai")
+            .add_header(reqwest::header::AUTHORIZATION, bearer(nip))
+            .await;
+        assert_eq!(res.status_code(), 200, "{}", res.text());
+        res.json::<Value>()["data"]["with_hijab"].as_bool()
+    };
+
+    // Halaman Ukuran lama menyimpan bendera ini bersama tiga ukuran; halaman baru tak bisa memakai
+    // endpoint itu (menimpa ukuran per spesifikasi), jadi bendera ikut di endpoint profil.
+    let res =
+        simpan(json!({"ukuran": [{"spesifikasi_id": kaos, "ukuran": "M"}], "with_hijab": true}))
+            .await;
+    assert_eq!(res.status_code(), 200, "{}", res.text());
+    assert_eq!(hijab().await, Some(true));
+
+    // Tak dikirim = tak diubah.
+    let res = simpan(json!({"ukuran": [{"spesifikasi_id": kaos, "ukuran": "L"}]})).await;
+    assert_eq!(res.status_code(), 200, "{}", res.text());
+    assert_eq!(
+        hijab().await,
+        Some(true),
+        "bendera yang tak dikirim tak boleh terhapus"
+    );
+
+    let res = simpan(json!({"ukuran": [], "with_hijab": false})).await;
+    assert_eq!(res.status_code(), 200, "{}", res.text());
+    assert_eq!(hijab().await, Some(false));
+
+    teardown_test_db(&db_name).await;
+}
+
+#[tokio::test]
+async fn urutan_ukuran_disusun_ulang_sekaligus_dan_basi_ditolak_tanpa_mengubah_apa_pun() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+
+    let res = admin_post(
+        &server,
+        "/pakaian-dinas/ukuran-grup",
+        json!({"kode": "URUT_UJI", "nama": "Uji"}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 201, "{}", res.text());
+    for u in ["a", "b", "c"] {
+        let res = admin_post(
+            &server,
+            "/pakaian-dinas/ukuran",
+            json!({"group": "URUT_UJI", "ukuran": u}),
+        )
+        .await;
+        assert_eq!(res.status_code(), 201, "{}", res.text());
+    }
+    let urutan = || async {
+        let res = get(
+            &server,
+            "/pakaian-dinas/ukuran?group=URUT_UJI",
+            "admin",
+            ADMIN,
+            SATKER_A,
+        )
+        .await;
+        let mut daftar: Vec<(i64, String)> = res.json::<Value>()["data"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|u| {
+                (
+                    u["urutan"].as_i64().unwrap(),
+                    u["ukuran"].as_str().unwrap().to_string(),
+                )
+            })
+            .collect();
+        daftar.sort();
+        daftar.into_iter().map(|(_, u)| u).collect::<Vec<_>>()
+    };
+    let susun = |body: Value| {
+        put(
+            &server,
+            "/pakaian-dinas/ukuran-grup/URUT_UJI/urutan-ukuran",
+            "admin",
+            ADMIN,
+            SATKER_A,
+            body,
+        )
+    };
+
+    // Satu permintaan menyusun semuanya.
+    let res = susun(json!({"ukuran": ["c", "a", "b"]})).await;
+    assert_eq!(res.status_code(), 200, "{}", res.text());
+    assert_eq!(urutan().await, ["c", "a", "b"]);
+
+    // Daftar yang basi atau cacat ditolak UTUH: tak ada urutan yang separuh berubah.
+    for salah in [
+        json!({"ukuran": ["a", "b"]}),
+        json!({"ukuran": ["a", "b", "c", "d"]}),
+        json!({"ukuran": ["a", "a", "b"]}),
+        json!({"ukuran": ["a", "b", "x"]}),
+    ] {
+        let res = susun(salah.clone()).await;
+        assert_ne!(res.status_code(), 200, "{salah} harus ditolak");
+        assert!(
+            res.text().contains("berbeda dari yang ada"),
+            "{}",
+            res.text()
+        );
+        assert_eq!(
+            urutan().await,
+            ["c", "a", "b"],
+            "ditolak tanpa mengubah apa pun: {salah}"
+        );
+    }
+
+    // Hanya admin.
+    let res = put(
+        &server,
+        "/pakaian-dinas/ukuran-grup/URUT_UJI/urutan-ukuran",
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+        json!({"ukuran": ["a", "b", "c"]}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 403);
+    // Grup yang tak ada.
+    let res = put(
+        &server,
+        "/pakaian-dinas/ukuran-grup/TIDAK_ADA/urutan-ukuran",
+        "admin",
+        ADMIN,
+        SATKER_A,
+        json!({"ukuran": []}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 404, "{}", res.text());
+
+    teardown_test_db(&db_name).await;
+}

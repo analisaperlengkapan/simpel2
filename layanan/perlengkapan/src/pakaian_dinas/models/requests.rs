@@ -268,6 +268,17 @@ pub struct UpdateUkuranUrutanRequest {
     pub urutan: i32,
 }
 
+/// Request DTO untuk menyusun ulang SELURUH daftar ukuran sebuah grup dalam satu permintaan.
+/// Satu klik panah di layar mengubah urutan beberapa ukuran sekaligus; mengirimnya satu per
+/// satu membiarkan separuhnya tersimpan bila salah satu gagal.
+#[derive(Debug, Deserialize)]
+pub struct UrutkanUkuranRequest {
+    /// Seluruh ukuran grup itu dalam urutan yang diinginkan: harus persis himpunan yang ada
+    /// (tanpa ganda, tanpa kurang, tanpa lebih), supaya daftar yang sudah berubah di server
+    /// tak ditimpa susunan dari layar yang basi.
+    pub ukuran: Vec<String>,
+}
+
 /// Satu isian ukuran pada profil pegawai (V019).
 #[derive(Debug, Clone, Deserialize)]
 pub struct UkuranProfilInput {
@@ -281,4 +292,9 @@ pub struct UkuranProfilInput {
 pub struct SimpanUkuranProfilRequest {
     #[serde(default)]
     pub ukuran: Vec<UkuranProfilInput>,
+    /// Pakaian muslimah. `None` = tidak mengubah yang tercatat: halaman Ukuran lama menyimpan
+    /// bendera ini bersama tiga ukuran, jadi halaman baru yang tak bisa memakai endpoint itu
+    /// (menimpa ukuran per spesifikasi) membutuhkannya di sini.
+    #[serde(default)]
+    pub with_hijab: Option<bool>,
 }

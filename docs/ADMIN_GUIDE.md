@@ -283,6 +283,32 @@
 - Kendaraan: 1 per satker + 1 per eselon II
 - Printer: 1 per 10 pegawai
 
+### Referensi Ukuran Pakaian Dinas
+
+Menu **Pakaian Dinas → Referensi Ukuran** mengatur grup ukuran dan daftar
+ukurannya. Jenis atau atribut pakaian baru (kaos, topi, sepatu PDL, nama dada)
+cukup ditambahkan di sini, tanpa migrasi dan tanpa rilis.
+
+1. **Grup** — kelompok ukuran yang dipakai sebuah spesifikasi pakaian.
+   - **Pilihan dari daftar**: nilainya harus salah satu ukuran grup itu
+     (mis. `BAJU`: S, M, L, 2XL ...). Ejaan yang tersimpan adalah ejaan daftar.
+   - **Teks bebas**: isian bebas paling banyak 100 karakter, tanpa daftar
+     (mis. `NAMA_DADA`).
+   - Kode ditulis huruf besar, angka, dan garis bawah (mis. `SEPATU_PDL`);
+     kode dan jenis isian **tidak bisa diubah** setelah dibuat.
+   - Grup yang dinonaktifkan tidak ditawarkan untuk spesifikasi baru; yang
+     sudah memakainya tetap berjalan.
+2. **Ukuran** — tambahkan ukuran ke daftar grup pilihan, atur urutannya dengan
+   tombol panah (urutan itu menjadi urutan pilihan di layar pengisian), atau
+   hapus. Ukuran yang masih dipakai profil pegawai atau isian pengajuan **tidak
+   bisa dihapus**; pesannya menyebut jumlahnya.
+3. **Memakainya** — buka **Pakaian Dinas → Jenis → Spesifikasi**, tambah
+   spesifikasi, lalu pilih grupnya di **Grup Ukuran**. Kolom baru langsung
+   muncul di halaman **Ukuran** pegawai dan di pengisian pengajuan berikutnya.
+   Grup sebuah spesifikasi tidak bisa diganti bila pegawai sudah mengisinya.
+
+Peran selain admin hanya dapat melihat halaman ini.
+
 ### Mapping Kodefikasi
 
 **Akses:** Menu **"Admin"** → **"Master Data"** → **"Mapping Kodefikasi"**
