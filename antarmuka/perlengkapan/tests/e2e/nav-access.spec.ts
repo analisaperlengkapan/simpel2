@@ -26,6 +26,7 @@ const CORE_ROUTES = [
   `${BASE}/bank-aset/daftar`,
   `${BASE}/kebutuhan-bmn/daftar`,
   `${BASE}/pakaian-dinas/pengajuan`,
+  `${BASE}/pakaian-dinas/referensi-ukuran`,
   `${BASE}/pengelolaan/pemakaian`,
   `${BASE}/pengelolaan/penghapusan`,
 ];

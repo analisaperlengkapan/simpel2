@@ -930,6 +930,16 @@ impl PakaianDinasService {
             .await
     }
 
+    pub async fn get_laporan_daftar_kolom(
+        &self,
+        pengajuan_id: Uuid,
+        filter: LaporanFilter,
+    ) -> AppResult<Vec<String>> {
+        self.repository
+            .get_laporan_daftar_columns(pengajuan_id, &filter)
+            .await
+    }
+
     // ── Rich report view-models (shared by Excel & PDF exporters) ──
 
     /// Build the document header (judul/periode/filters) for a pengajuan's
@@ -1311,6 +1321,20 @@ impl PakaianDinasService {
             .await
     }
 
+    pub async fn urutkan_ukuran(
+        &self,
+        kode: &str,
+        request: UrutkanUkuranRequest,
+    ) -> AppResult<Vec<Ukuran>> {
+        let kode =
+            super::validasi_ukuran::normalisasi_kode_grup(kode).map_err(|e| bad_request(&e))?;
+        self.repository
+            .get_ukuran_grup(&kode)
+            .await?
+            .ok_or_else(|| AppError::NotFound(format!("Grup ukuran \"{kode}\" tidak ada")))?;
+        self.repository.urutkan_ukuran(&kode, &request.ukuran).await
+    }
+
     pub async fn update_ukuran_urutan(
         &self,
         group: &str,
@@ -1398,7 +1422,7 @@ impl PakaianDinasService {
         request: SimpanUkuranProfilRequest,
     ) -> AppResult<Vec<UkuranProfilItem>> {
         self.repository
-            .simpan_ukuran_profil(nip, nama, &request.ukuran)
+            .simpan_ukuran_profil(nip, nama, &request.ukuran, request.with_hijab)
             .await
     }
 }

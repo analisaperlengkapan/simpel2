@@ -217,9 +217,17 @@ mod report_tests {
             gol_kd: Some("33".to_string()),
             jenis: Some("0".to_string()),
             eselon: None,
-            ukuran_baju: Some("L".to_string()),
-            ukuran_celana: Some("32".to_string()),
-            ukuran_sepatu: Some("42".to_string()),
+            // Per kolom pakaian: baju dan kaos (sama-sama grup BAJU) dua isian terpisah.
+            ukuran: vec![
+                LaporanUkuranPegawai {
+                    pakaian_nama: "Baju".to_string(),
+                    ukuran: "L".to_string(),
+                },
+                LaporanUkuranPegawai {
+                    pakaian_nama: "Kaos".to_string(),
+                    ukuran: "M".to_string(),
+                },
+            ],
             with_hijab: false,
         };
 
@@ -227,7 +235,9 @@ mod report_tests {
         assert_eq!(pegawai.nama, "John Doe");
         assert_eq!(pegawai.satker_nama, "Kejaksaan Tinggi DKI Jakarta");
         assert_eq!(pegawai.jabatan, Some("Jaksa".to_string()));
-        assert_eq!(pegawai.ukuran_baju, Some("L".to_string()));
+        assert_eq!(pegawai.ukuran.len(), 2);
+        assert_eq!(pegawai.ukuran[0].ukuran, "L");
+        assert_eq!(pegawai.ukuran[1].pakaian_nama, "Kaos");
     }
 }
 

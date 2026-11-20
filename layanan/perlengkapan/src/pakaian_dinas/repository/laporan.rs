@@ -135,6 +135,11 @@ pub(crate) fn push_laporan_filters(
     }
 }
 
+/// Grup yang isiannya daftar ukuran. Rekap menghitung orang per ukuran, jadi hanya grup ini yang
+/// punya arti di sana: isian TEKS (nama dada) tak punya daftar, dan setiap nama berbeda akan
+/// menjadi satu kolom (ratusan kolom, satu orang tiap kolom). Isian teks tampil di daftar pegawai.
+const GRUP_PILIHAN: &str = "SELECT kode FROM perlengkapan.ms_ukuran_group WHERE tipe = 'PILIHAN'";
+
 impl PakaianDinasRepository {
     pub async fn get_laporan_rekap_ukuran(
         &self,
@@ -163,6 +168,7 @@ impl PakaianDinasRepository {
             JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
             WHERE ps.pengajuan_id = $1
               AND ps.aktivitas_id = {AKTIVITAS_SELESAI}
+              AND pp.spesifikasi_ukuran_group IN ({GRUP_PILIHAN})
         "#
         );
 
@@ -216,15 +222,9 @@ impl PakaianDinasRepository {
             scope,
         );
         let idx = built.next_idx;
-        // The COUNT below shares `where_clause` but joins neither `pu` nor `pp`,
-        // which is why the clothing-type filter above is an EXISTS rather than a
-        // `pp.` predicate. The data query additionally narrows what the per-group
-        // MAX(CASE …) columns see, so a pengajuan carrying two clothing types
-        // does not report one type's size under the other's column.
-        let pakaian_join_filter = match built.jenis_pakaian_idx {
-            Some(i) => format!(" AND pp.jenis_pakaian_id = ${i}"),
-            None => String::new(),
-        };
+        // The page of pegawai is selected WITHOUT the size tables: the clothing-type filter is
+        // an EXISTS, so neither the COUNT nor the page query joins `pu` or `pp`. The sizes of
+        // the people on the page come from one second query below, per garment column.
 
         let count_query = format!(
             r#"
@@ -250,23 +250,17 @@ impl PakaianDinasRepository {
         let data_query = format!(
             r#"
             SELECT
+                psp.id AS pegawai_row_id,
                 psp.nip, psp.nama, s.nama_satker as satker_nama, psp.jabatan, psp.pangkat,
-                psp.jenis_kelamin, psp.gol_kd, psp.jenis, psp.eselon, psp.with_hijab,
-                MAX(CASE WHEN pp.spesifikasi_ukuran_group = 'BAJU' THEN pu.ukuran END) as ukuran_baju,
-                MAX(CASE WHEN pp.spesifikasi_ukuran_group = 'CELANA' THEN pu.ukuran END) as ukuran_celana,
-                MAX(CASE WHEN pp.spesifikasi_ukuran_group = 'SEPATU' THEN pu.ukuran END) as ukuran_sepatu
+                psp.jenis_kelamin, psp.gol_kd, psp.jenis, psp.eselon, psp.with_hijab
             FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai psp
             JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
             LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.kode_satker
-            LEFT JOIN perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran pu ON psp.id = pu.pegawai_id
-            LEFT JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id{}
             {}
-            GROUP BY psp.id, psp.nip, psp.nama, s.nama_satker, psp.jabatan, psp.pangkat,
-                     psp.jenis_kelamin, psp.gol_kd, psp.jenis, psp.eselon, psp.with_hijab
-            ORDER BY s.nama_satker, psp.nama
+            ORDER BY s.nama_satker, psp.nama, psp.id
             LIMIT ${} OFFSET ${}
             "#,
-            pakaian_join_filter, where_clause, limit_idx, offset_idx
+            where_clause, limit_idx, offset_idx
         );
 
         params.push(Box::new(per_page as i64));
@@ -278,8 +272,51 @@ impl PakaianDinasRepository {
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
-        let items: Vec<LaporanDaftarPegawai> =
+        let mut items: Vec<LaporanDaftarPegawai> =
             rows.iter().map(LaporanDaftarPegawai::from_row).collect();
+
+        // Ukuran per KOLOM pakaian untuk orang-orang di halaman ini, satu kueri. Sebelumnya
+        // `MAX(CASE WHEN group = 'BAJU' …)` mengumpulkan per grup: baju dan kaos (sama-sama
+        // BAJU) saling menimpa dengan nilai terbesar menurut abjad, dan topi serta nama dada
+        // (grup lain) tak pernah tampil.
+        let ids: Vec<Uuid> = rows.iter().map(|r| r.get("pegawai_row_id")).collect();
+        let mut sql = String::from(
+            "SELECT pu.pegawai_id, pp.spesifikasi_nama AS pakaian_nama, pu.ukuran \
+             FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran pu \
+             JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id \
+             WHERE pu.pegawai_id = ANY($1)",
+        );
+        let mut ukuran_params: Vec<Box<dyn ToSql + Sync + Send>> = vec![Box::new(ids)];
+        if let Some(jenis_pakaian_id) = filter.jenis_pakaian_id {
+            sql.push_str(" AND pp.jenis_pakaian_id = $2");
+            ukuran_params.push(Box::new(jenis_pakaian_id));
+        }
+        sql.push_str(" ORDER BY pp.spesifikasi_nama, pu.pakaian_id");
+        let ukuran_refs: Vec<&(dyn ToSql + Sync)> = ukuran_params
+            .iter()
+            .map(|b| &**b as &(dyn ToSql + Sync))
+            .collect();
+        let ukuran_rows = client
+            .query(&sql, &ukuran_refs[..])
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let mut per_pegawai: std::collections::HashMap<Uuid, Vec<LaporanUkuranPegawai>> =
+            std::collections::HashMap::new();
+        for r in &ukuran_rows {
+            let daftar = per_pegawai.entry(r.get("pegawai_id")).or_default();
+            let nama: String = r.get("pakaian_nama");
+            // Dua baris pakaian bernama sama (mis. satu per gender) satu kolom: yang pertama.
+            if !daftar.iter().any(|u| u.pakaian_nama == nama) {
+                daftar.push(LaporanUkuranPegawai {
+                    pakaian_nama: nama,
+                    ukuran: r.get("ukuran"),
+                });
+            }
+        }
+        for (item, row) in items.iter_mut().zip(rows.iter()) {
+            let id: Uuid = row.get("pegawai_row_id");
+            item.ukuran = per_pegawai.remove(&id).unwrap_or_default();
+        }
         Ok((items, total))
     }
 
@@ -395,11 +432,12 @@ impl PakaianDinasRepository {
             .get()
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
-        let mut sql = "SELECT DISTINCT spesifikasi_nama, spesifikasi_ukuran_group, \
-                       COALESCE(subspesifikasi_gender, '') AS gender \
-                       FROM perlengkapan.pengajuan_pakaian_dinas_pakaian \
-                       WHERE pengajuan_id = $1"
-            .to_string();
+        let mut sql = format!(
+            "SELECT DISTINCT spesifikasi_nama, spesifikasi_ukuran_group, \
+             COALESCE(subspesifikasi_gender, '') AS gender \
+             FROM perlengkapan.pengajuan_pakaian_dinas_pakaian \
+             WHERE pengajuan_id = $1 AND spesifikasi_ukuran_group IN ({GRUP_PILIHAN})"
+        );
         let mut params: Vec<Box<dyn ToSql + Sync + Send>> = vec![Box::new(pengajuan_id)];
         if let Some(jenis_pakaian_id) = filter.jenis_pakaian_id {
             sql.push_str(" AND jenis_pakaian_id = $2");
@@ -632,6 +670,7 @@ impl PakaianDinasRepository {
             JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
             WHERE ps.pengajuan_id = $1
               AND ps.aktivitas_id = {AKTIVITAS_SELESAI}
+              AND pp.spesifikasi_ukuran_group IN ({GRUP_PILIHAN})
         "#
         );
 

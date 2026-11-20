@@ -125,10 +125,15 @@ Jika pengajuan dikembalikan untuk revisi:
      yang tercetak di header ekspor PDF/Excel. Pegawai yang pindah masuk atau keluar
      *setelah* tanggal itu tidak mengubah daftar periode tersebut — supaya semua
      pihak melihat daftar orang yang sama sepanjang periode berjalan.
-   - Untuk setiap pegawai, input:
-     - Ukuran baju (XS, S, M, L, XL, 2XL, 3XL, dan seterusnya sampai 8XL)
-     - Ukuran celana (28, 30, 32, 34, 36, 38, 40)
-     - Ukuran sepatu (38, 39, 40, 41, 42, 43, 44, 45)
+   - Klik **"Isi Ukuran"** pada baris pegawai. Kolom yang tampil mengikuti
+     pakaian yang diminta pada periode itu, bukan tiga isian tetap: misalnya
+     baju, celana, sepatu, kaos, atau topi. Daftar pilihannya (mis. XS, S, M, L,
+     XL, 2XL, 3XL sampai 8XL untuk baju) diatur admin di **Pakaian Dinas →
+     Referensi Ukuran**.
+   - Beberapa kolom berupa **isian teks**, bukan pilihan, misalnya **Nama Dada**
+     (paling banyak 100 karakter). Tulis persis seperti yang akan dicetak.
+   - Bila pegawai sudah mengisi ukurannya sendiri di **Pakaian Dinas → Ukuran**,
+     kolom terisi otomatis dari situ; periksa lalu simpan.
    - Untuk pegawai perempuan, centang **"Dengan Hijab"** jika diperlukan
 
 3. **Simpan Data**

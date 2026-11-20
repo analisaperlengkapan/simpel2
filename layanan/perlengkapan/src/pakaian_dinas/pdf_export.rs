@@ -21,7 +21,7 @@ use printpdf::{
 };
 use uuid::Uuid;
 
-use super::models::{DaftarReport, LaporanFilter, RekapReport, ReportHeader};
+use super::models::{DaftarReport, LaporanFilter, RekapBlock, RekapReport, ReportHeader};
 use super::services::PakaianDinasService;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::satker_scope::SatkerScope;
@@ -341,133 +341,336 @@ pub async fn generate_daftar_pdf(
     render_daftar_pdf(&report)
 }
 
+// ─── Fitting a table to the page ─────────────────────────────────────────
+//
+// The legacy geometry above is exact for the tables the legacy templates printed: a few size
+// columns, eight fixed daftar columns and a handful of garments. Since V019 the content is data: a
+// trouser table has 27 sizes (26..52), a PDL campaign has six garments, a chest name is up to 100
+// characters. Where the content fits, nothing below changes a single coordinate. Where it does not,
+// the table adapts instead of running off the page: tighter cell padding first, then the columns
+// that do not fit continue on further pages (the identifying columns repeat), never a figure drawn
+// outside its cell.
+
+/// Air on each side of a figure when the legacy 7.5 pt cell padding cannot be afforded.
+const COMPACT_PAD: f32 = 2.5;
+
+/// How much of the page the columns' MINIMUM widths may take before another column is moved to a
+/// further page. Filling the page to its minimums leaves the text columns (Nama, Jabatan, a chest
+/// name) at one word per line, six to eleven lines a row: valid, and nearly unreadable. The share
+/// that is left is what those columns grow into.
+const FIT_SHARE: f32 = 0.85;
+
+/// Share `total` between columns that each want `want[i]` and can give up to `want[i] - min[i]`.
+/// All columns' wishes fit: they are stretched to fill the page, as an auto-layout HTML table settles
+/// (the legacy behaviour). Otherwise everyone starts at their minimum and the slack is shared in
+/// proportion to what each can still give up. The result always sums to `total` and no column goes
+/// below its minimum, so callers must only ask when `sum(min) <= total`.
+fn share_width(want: &[f32], min: &[f32], total: f32) -> Vec<f32> {
+    let sum_want: f32 = want.iter().sum();
+    if sum_want <= total {
+        let scale = total / sum_want;
+        return want.iter().map(|w| w * scale).collect();
+    }
+    let sum_min: f32 = min.iter().sum();
+    let room: f32 = want.iter().zip(min).map(|(w, m)| (w - m).max(0.0)).sum();
+    let slack = (total - sum_min).max(0.0);
+    if room <= f32::EPSILON {
+        let extra = slack / want.len() as f32;
+        return min.iter().map(|m| m + extra).collect();
+    }
+    let f = (slack / room).min(1.0);
+    want.iter()
+        .zip(min)
+        .map(|(w, m)| m + f * (w - m).max(0.0))
+        .collect()
+}
+
+/// Which columns of the daftar table go on which page, and how wide each is there.
+///
+/// `fixed` columns (0..fixed) lead the first part and the first `repeat` of them lead every later
+/// part. Garment columns are added to a part while their minimum widths still fit the page; the rest
+/// continue on the next part. Everything that fits one part is a single part (the common case).
+fn plan_columns(
+    want: &[f32],
+    min: &[f32],
+    fixed: usize,
+    repeat: usize,
+    total: f32,
+) -> Vec<(Vec<usize>, Vec<f32>)> {
+    let n = want.len();
+    let fits = |cols: &[usize]| cols.iter().map(|&i| min[i]).sum::<f32>() <= total * FIT_SHARE;
+    let all: Vec<usize> = (0..n).collect();
+    let layout = |cols: Vec<usize>| {
+        let w: Vec<f32> = cols.iter().map(|&i| want[i]).collect();
+        let m: Vec<f32> = cols.iter().map(|&i| min[i]).collect();
+        let widths = share_width(&w, &m, total);
+        (cols, widths)
+    };
+    if fits(&all) {
+        return vec![layout(all)];
+    }
+    let mut parts: Vec<Vec<usize>> = Vec::new();
+    let mut current: Vec<usize> = (0..fixed).collect();
+    for i in fixed..n {
+        let mut trial = current.clone();
+        trial.push(i);
+        if fits(&trial) || current.len() <= repeat.min(fixed) {
+            current = trial;
+        } else {
+            parts.push(std::mem::replace(&mut current, (0..repeat).collect()));
+            current.push(i);
+        }
+    }
+    parts.push(current);
+    parts.into_iter().map(layout).collect()
+}
+
+/// `text` cut to one line of at most `max_w`, ending in an ellipsis when it had to be shortened.
+fn one_line(c: &Canvas, text: &str, max_w: f32, bold: bool) -> String {
+    if c.width(text, BODY_PT, bold) <= max_w {
+        return text.to_string();
+    }
+    let mut out = String::new();
+    for ch in text.chars() {
+        let candidate = format!("{out}{ch}…");
+        if c.width(&candidate, BODY_PT, bold) > max_w {
+            break;
+        }
+        out.push(ch);
+    }
+    format!("{out}…")
+}
+
+/// The first of `candidates` that fits `max_w` on one line (the last one, cut, if none does): a column
+/// heading that must stay one word-width short ("Jumlah", then "Jml") rather than run past its cell.
+fn fit_label(c: &Canvas, candidates: &[&str], max_w: f32, bold: bool) -> String {
+    for cand in candidates {
+        if c.width(cand, BODY_PT, bold) <= max_w {
+            return (*cand).to_string();
+        }
+    }
+    one_line(c, candidates[candidates.len() - 1], max_w, bold)
+}
+
+/// The longest unbreakable word of `text`: how narrow a wrapping column can be before it must split a word.
+fn longest_word(c: &Canvas, text: &str, bold: bool) -> f32 {
+    text.split_whitespace()
+        .map(|w| c.width(w, BODY_PT, bold))
+        .fold(0.0, f32::max)
+}
+
 // ─── Rekap ───────────────────────────────────────────────────────────────
+
+/// How many of a block's size columns one page can hold: all of them (the legacy table) unless the
+/// widest figure any of them carries does not fit the column the legacy split would give it.
+fn rekap_cols_per_page(c: &Canvas, block: &RekapBlock) -> usize {
+    let n = block.ukuran_labels.len();
+    if n == 0 {
+        return 0;
+    }
+    let figure = |v: i64, bold: bool| c.width(&v.to_string(), BODY_PT, bold);
+    let widest_size = block
+        .ukuran_labels
+        .iter()
+        .map(|l| c.width(l, BODY_PT, true))
+        .chain(
+            block
+                .satkers
+                .iter()
+                .flat_map(|s| s.counts.iter().map(|&v| figure(v, false))),
+        )
+        .chain(block.summary.iter().map(|&v| figure(v, true)))
+        .fold(0.0, f32::max);
+    let widest_total = block
+        .satkers
+        .iter()
+        .map(|s| figure(s.total, true))
+        .chain(std::iter::once(figure(block.summary_total, true)))
+        .fold(0.0, f32::max);
+    // The total column is 1.2 units wide, so its need is shared by 1.2.
+    let needed = (widest_size + 2.0 * COMPACT_PAD).max((widest_total + 2.0 * COMPACT_PAD) / 1.2);
+    let avail = TABLE_W * 0.75;
+    let fit = (avail / needed - 1.2).floor();
+    (fit.max(1.0) as usize).min(n)
+}
 
 pub fn render_rekap_pdf(report: &RekapReport) -> AppResult<Vec<u8>> {
     let mut c = Canvas::new(&report.header.judul)?;
     let mut y_start = heading(&mut c, &report.header);
+    let mut first = true;
 
-    for (bi, block) in report.blocks.iter().enumerate() {
-        if bi > 0 {
-            // Every table starts a page of its own, with no title above it.
-            c.new_page();
-            y_start = MARGIN;
-        }
-        let n = block.ukuran_labels.len();
-        // No = 5 %, Satker = 20 % (the legacy `width` attributes); the rest is
-        // shared by the size columns and Jumlah, which is a little wider.
-        let w_no = TABLE_W * 0.05;
-        let w_satker = TABLE_W * 0.20;
-        let unit = TABLE_W * 0.75 / (n as f32 + 1.2);
-        let w_size = unit;
-        let w_total = unit * 1.2;
-        let x_size = MARGIN + w_no + w_satker;
-
-        let draw_head = |c: &mut Canvas, y: f32| -> f32 {
-            let h = TH_REKAP_1 + TH_REKAP_2;
-            let at = |x: f32, y: f32, w: f32, h: f32| Rect { x, y, w, h };
-            c.cell(at(MARGIN, y, w_no, h), &["No".to_string()], TH);
-            c.cell(
-                at(MARGIN + w_no, y, w_satker, h),
-                &["Satker".to_string()],
-                TH,
-            );
-            let title = format!("{} - {}", block.pakaian_nama, block.gender);
-            c.cell(at(x_size, y, w_size * n as f32, TH_REKAP_1), &[title], TH);
-            for (i, label) in block.ukuran_labels.iter().enumerate() {
-                let cell = at(
-                    x_size + w_size * i as f32,
-                    y + TH_REKAP_1,
-                    w_size,
-                    TH_REKAP_2,
-                );
-                c.cell(cell, std::slice::from_ref(label), TH);
-            }
-            c.cell(
-                at(x_size + w_size * n as f32, y, w_total, h),
-                &["Jumlah".to_string()],
-                TH,
-            );
-            y + h
+    for block in &report.blocks {
+        // One page-run per slice of size columns; a block that fits is a single slice.
+        let per_page = rekap_cols_per_page(&c, block).max(1);
+        let n_all = block.ukuran_labels.len();
+        let slices: Vec<std::ops::Range<usize>> = if n_all == 0 {
+            std::iter::once(0..0).collect()
+        } else {
+            (0..n_all)
+                .step_by(per_page)
+                .map(|s| s..(s + per_page).min(n_all))
+                .collect()
         };
-
-        let row_h = LINE_H + 2.0 * TD_PAD;
-        let mut y = draw_head(&mut c, y_start);
-        for (i, s) in block.satkers.iter().enumerate() {
-            let name_lines = c.wrap(&s.satker_nama, w_satker - 2.0 * TD_PAD, false);
-            let h = (LINE_H * name_lines.len() as f32 + 2.0 * TD_PAD).max(row_h);
-            if y + h > bottom() {
+        for (si, slice) in slices.iter().enumerate() {
+            if !first {
+                // Every table starts a page of its own, with no title above it.
                 c.new_page();
-                y = draw_head(&mut c, MARGIN);
+                y_start = MARGIN;
             }
-            c.cell(
-                Rect {
-                    x: MARGIN,
-                    y,
-                    w: w_no,
-                    h,
-                },
-                &[(i + 1).to_string()],
-                TD_CENTER,
+            first = false;
+            draw_rekap_slice(
+                &mut c,
+                block,
+                slice.clone(),
+                (si + 1, slices.len()),
+                y_start,
             );
-            c.cell(
-                Rect {
-                    x: MARGIN + w_no,
-                    y,
-                    w: w_satker,
-                    h,
-                },
-                &name_lines,
-                TD_LEFT,
-            );
-            for (k, count) in s.counts.iter().enumerate() {
-                let cell = Rect {
-                    x: x_size + w_size * k as f32,
-                    y,
-                    w: w_size,
-                    h,
-                };
-                c.cell(cell, &[count.to_string()], TD_CENTER);
-            }
-            let total = Rect {
-                x: x_size + w_size * n as f32,
-                y,
-                w: w_total,
-                h,
-            };
-            c.cell(total, &[s.total.to_string()], TD_CENTER_BOLD);
-            y += h;
         }
-        if y + row_h > bottom() {
+    }
+    c.finish()
+}
+
+/// One table (or one slice of its size columns): No, Satker, the sizes in `cols`, and the satker's
+/// Jumlah, which is always the whole row's total, not the slice's.
+fn draw_rekap_slice(
+    c: &mut Canvas,
+    block: &RekapBlock,
+    cols: std::ops::Range<usize>,
+    (part, parts): (usize, usize),
+    y_start: f32,
+) {
+    let labels = &block.ukuran_labels[cols.clone()];
+    let n = labels.len();
+    // No = 5 %, Satker = 20 % (the legacy `width` attributes); the rest is
+    // shared by the size columns and Jumlah, which is a little wider.
+    let w_no = TABLE_W * 0.05;
+    let w_satker = TABLE_W * 0.20;
+    let unit = TABLE_W * 0.75 / (n as f32 + 1.2);
+    let w_size = unit;
+    let w_total = unit * 1.2;
+    let x_size = MARGIN + w_no + w_satker;
+
+    let title = if parts > 1 {
+        format!("{} - {} ({part}/{parts})", block.pakaian_nama, block.gender)
+    } else {
+        format!("{} - {}", block.pakaian_nama, block.gender)
+    };
+    let title = one_line(
+        c,
+        &title,
+        (w_size * n as f32 - 2.0 * TH_PAD).max(10.0),
+        true,
+    );
+
+    // The total column is 1.2 size columns wide: with many sizes "Jumlah" no longer fits it.
+    let total_label = fit_label(c, &["Jumlah", "Jml"], w_total - 2.0 * COMPACT_PAD, true);
+
+    let draw_head = |c: &mut Canvas, y: f32| -> f32 {
+        let h = TH_REKAP_1 + TH_REKAP_2;
+        let at = |x: f32, y: f32, w: f32, h: f32| Rect { x, y, w, h };
+        c.cell(at(MARGIN, y, w_no, h), &["No".to_string()], TH);
+        c.cell(
+            at(MARGIN + w_no, y, w_satker, h),
+            &["Satker".to_string()],
+            TH,
+        );
+        c.cell(
+            at(x_size, y, w_size * n as f32, TH_REKAP_1),
+            std::slice::from_ref(&title),
+            TH,
+        );
+        for (i, label) in labels.iter().enumerate() {
+            let cell = at(
+                x_size + w_size * i as f32,
+                y + TH_REKAP_1,
+                w_size,
+                TH_REKAP_2,
+            );
+            c.cell(cell, std::slice::from_ref(label), TH);
+        }
+        c.cell(
+            at(x_size + w_size * n as f32, y, w_total, h),
+            std::slice::from_ref(&total_label),
+            TH,
+        );
+        y + h
+    };
+
+    let row_h = LINE_H + 2.0 * TD_PAD;
+    let mut y = draw_head(c, y_start);
+    for (i, s) in block.satkers.iter().enumerate() {
+        let name_lines = c.wrap(&s.satker_nama, w_satker - 2.0 * TD_PAD, false);
+        let h = (LINE_H * name_lines.len() as f32 + 2.0 * TD_PAD).max(row_h);
+        if y + h > bottom() {
             c.new_page();
-            y = draw_head(&mut c, MARGIN);
+            y = draw_head(c, MARGIN);
         }
-        // "Jumlah" spans the No and Satker columns.
-        let label = Rect {
-            x: MARGIN,
-            y,
-            w: w_no + w_satker,
-            h: row_h,
-        };
-        c.cell(label, &["Jumlah".to_string()], TD_CENTER_BOLD);
-        for (k, total) in block.summary.iter().enumerate() {
+        c.cell(
+            Rect {
+                x: MARGIN,
+                y,
+                w: w_no,
+                h,
+            },
+            &[(i + 1).to_string()],
+            TD_CENTER,
+        );
+        c.cell(
+            Rect {
+                x: MARGIN + w_no,
+                y,
+                w: w_satker,
+                h,
+            },
+            &name_lines,
+            TD_LEFT,
+        );
+        for (k, count) in s.counts[cols.clone()].iter().enumerate() {
             let cell = Rect {
                 x: x_size + w_size * k as f32,
                 y,
                 w: w_size,
-                h: row_h,
+                h,
             };
-            c.cell(cell, &[total.to_string()], TD_CENTER_BOLD);
+            c.cell(cell, &[count.to_string()], TD_CENTER);
         }
-        let grand = Rect {
+        let total = Rect {
             x: x_size + w_size * n as f32,
             y,
             w: w_total,
+            h,
+        };
+        c.cell(total, &[s.total.to_string()], TD_CENTER_BOLD);
+        y += h;
+    }
+    if y + row_h > bottom() {
+        c.new_page();
+        y = draw_head(c, MARGIN);
+    }
+    // "Jumlah" spans the No and Satker columns.
+    let label = Rect {
+        x: MARGIN,
+        y,
+        w: w_no + w_satker,
+        h: row_h,
+    };
+    c.cell(label, &["Jumlah".to_string()], TD_CENTER_BOLD);
+    for (k, total) in block.summary[cols].iter().enumerate() {
+        let cell = Rect {
+            x: x_size + w_size * k as f32,
+            y,
+            w: w_size,
             h: row_h,
         };
-        c.cell(grand, &[block.summary_total.to_string()], TD_CENTER_BOLD);
+        c.cell(cell, &[total.to_string()], TD_CENTER_BOLD);
     }
-    c.finish()
+    let grand = Rect {
+        x: x_size + w_size * n as f32,
+        y,
+        w: w_total,
+        h: row_h,
+    };
+    c.cell(grand, &[block.summary_total.to_string()], TD_CENTER_BOLD);
 }
 
 // ─── Daftar ──────────────────────────────────────────────────────────────
@@ -487,6 +690,43 @@ const DAFTAR_FIXED: [(&str, Align); 8] = [
 ];
 /// Widest a text column is allowed to ask for before its text wraps.
 const MAX_COL_W: f32 = 150.0;
+/// The identifying columns (No, NIP, Nama) that lead every page when the garment columns continue.
+const DAFTAR_REPEAT: usize = 3;
+
+/// What a daftar column asks for and the least it can live with, at cell padding `pad`: its widest
+/// text (heading included, capped at [`MAX_COL_W`]) and its longest unbreakable word.
+fn daftar_needs(
+    c: &Canvas,
+    heads: &[(String, Align)],
+    report: &DaftarReport,
+    pad: f32,
+) -> (Vec<f32>, Vec<f32>) {
+    let mut want: Vec<f32> = heads
+        .iter()
+        .map(|(h, _)| c.width(h, BODY_PT, true) + 2.0 * TH_PAD)
+        .collect();
+    let mut min: Vec<f32> = heads
+        .iter()
+        .map(|(h, _)| longest_word(c, h, true) + 2.0 * TH_PAD)
+        .collect();
+    for g in &report.satkers {
+        for r in &g.rows {
+            for (i, text) in daftar_cells(r).iter().enumerate() {
+                let w = (c.width(text, BODY_PT, false) + 2.0 * pad).min(MAX_COL_W);
+                want[i] = want[i].max(w);
+                min[i] = min[i].max(longest_word(c, text, false) + 2.0 * pad);
+            }
+        }
+    }
+    // The running-number column never narrows below what mPDF gives it (30 pt
+    // after scaling), whatever its content: measured, not derived.
+    want[0] = want[0].max(23.0);
+    min[0] = min[0].max(c.width("000", BODY_PT, false) + 2.0 * pad);
+    for (m, w) in min.iter_mut().zip(&want) {
+        *m = m.min(*w);
+    }
+    (want, min)
+}
 
 pub fn render_daftar_pdf(report: &DaftarReport) -> AppResult<Vec<u8>> {
     let mut c = Canvas::new(&report.header.judul)?;
@@ -499,114 +739,135 @@ pub fn render_daftar_pdf(report: &DaftarReport) -> AppResult<Vec<u8>> {
         .collect();
 
     // Column widths: what the content asks for, scaled so the table fills the
-    // page, which is how an auto-layout HTML table settles.
-    let mut want: Vec<f32> = heads
-        .iter()
-        .map(|(h, _)| c.width(h, BODY_PT, true) + 2.0 * TH_PAD)
-        .collect();
-    for g in &report.satkers {
-        for r in &g.rows {
-            let cells = daftar_cells(r);
-            for (i, text) in cells.iter().enumerate() {
-                let w = (c.width(text, BODY_PT, false) + 2.0 * TD_PAD).min(MAX_COL_W);
-                if w > want[i] {
-                    want[i] = w;
-                }
-            }
-        }
+    // page, which is how an auto-layout HTML table settles. When the wishes do not
+    // fit the page at the legacy padding, the table is measured again at a tighter
+    // padding and, if even the narrowest widths do not fit, the garment columns that
+    // do not fit continue on further pages.
+    let (mut want, mut min) = daftar_needs(&c, &heads, report, TD_PAD);
+    let mut pad = TD_PAD;
+    if want.iter().sum::<f32>() > TABLE_W {
+        pad = COMPACT_PAD;
+        (want, min) = daftar_needs(&c, &heads, report, pad);
     }
-    // The running-number column never narrows below what mPDF gives it (30 pt
-    // after scaling), whatever its content: measured, not derived.
-    want[0] = want[0].max(23.0);
-    let scale = TABLE_W / want.iter().sum::<f32>();
-    let widths: Vec<f32> = want.iter().map(|w| w * scale).collect();
-    let xs: Vec<f32> = widths
-        .iter()
-        .scan(MARGIN, |x, w| {
-            let at = *x;
-            *x += w;
-            Some(at)
-        })
-        .collect();
-
-    let draw_head = |c: &mut Canvas, y: f32| -> f32 {
-        for (i, (h, _)) in heads.iter().enumerate() {
-            c.cell(
-                Rect {
-                    x: xs[i],
-                    y,
-                    w: widths[i],
-                    h: TH_DAFTAR,
-                },
-                std::slice::from_ref(h),
-                TH,
-            );
-        }
-        y + TH_DAFTAR
-    };
+    let parts = plan_columns(&want, &min, DAFTAR_FIXED.len(), DAFTAR_REPEAT, TABLE_W);
+    let n_parts = parts.len();
 
     for (si, group) in report.satkers.iter().enumerate() {
-        // The satker's name sits above its table; each satker starts a page.
-        let top = if si == 0 {
-            y_start
-        } else {
-            c.new_page();
-            MARGIN
-        };
-        // On the first page the heading follows the filter lines; on a page of
-        // its own it sits where the legacy page puts it (measured).
-        let (heading_baseline, table_top) = if si == 0 {
-            (top + H3_PT + 6.5, top + H3_PT + 6.5 + 9.3)
-        } else {
-            (37.0, 51.4)
-        };
-        c.text(&group.satker_nama, MARGIN, heading_baseline, H3_PT, true);
-        y_start = table_top;
-        let mut y = draw_head(&mut c, y_start);
-
-        if group.rows.is_empty() {
-            let h = LINE_H + 2.0 * TD_PAD;
-            let whole = Rect {
-                x: MARGIN,
-                y,
-                w: TABLE_W,
-                h,
-            };
-            c.cell(whole, &["Data Kosong".to_string()], TD_CENTER);
-            continue;
-        }
-        for (ri, r) in group.rows.iter().enumerate() {
-            let mut cells = daftar_cells(r);
-            cells[0] = (ri + 1).to_string();
-            let wrapped: Vec<Vec<String>> = cells
+        // An empty satker has nothing to continue: one "Data Kosong" table.
+        let n_here = if group.rows.is_empty() { 1 } else { n_parts };
+        for (pi, (cols, widths)) in parts.iter().enumerate().take(n_here) {
+            let xs: Vec<f32> = widths
+                .iter()
+                .scan(MARGIN, |x, w| {
+                    let at = *x;
+                    *x += w;
+                    Some(at)
+                })
+                .collect();
+            // Head cells may wrap (a garment name in a narrow column): the row grows to its tallest.
+            let head_lines: Vec<Vec<String>> = cols
                 .iter()
                 .enumerate()
-                .map(|(i, t)| c.wrap(t, widths[i] - 2.0 * TD_PAD, false))
+                .map(|(k, &i)| {
+                    let wrapped = c.wrap(&heads[i].0, widths[k] - 2.0 * TH_PAD, true);
+                    if wrapped
+                        .iter()
+                        .any(|l| c.width(l, BODY_PT, true) > widths[k])
+                    {
+                        vec![one_line(&c, &heads[i].0, widths[k] - 2.0 * TH_PAD, true)]
+                    } else {
+                        wrapped
+                    }
+                })
                 .collect();
-            let lines = wrapped.iter().map(Vec::len).max().unwrap_or(1);
-            let h = LINE_H * lines as f32 + 2.0 * TD_PAD;
-            if y + h > bottom() {
+            let head_h = head_lines
+                .iter()
+                .map(|l| LINE_H * l.len() as f32 + 2.0 * TH_PAD)
+                .fold(TH_DAFTAR, f32::max);
+            let draw_head = |c: &mut Canvas, y: f32| -> f32 {
+                for (k, lines) in head_lines.iter().enumerate() {
+                    c.cell(
+                        Rect {
+                            x: xs[k],
+                            y,
+                            w: widths[k],
+                            h: head_h,
+                        },
+                        lines,
+                        TH,
+                    );
+                }
+                y + head_h
+            };
+
+            // The satker's name sits above its table; each satker (and each continuation of its
+            // columns) starts a page.
+            let top = if si == 0 && pi == 0 {
+                y_start
+            } else {
                 c.new_page();
-                y = draw_head(&mut c, MARGIN);
-            }
-            for (i, lines) in wrapped.iter().enumerate() {
-                let style = Style {
-                    align: heads[i].1,
-                    bold: false,
-                    pad: TD_PAD,
+                MARGIN
+            };
+            // On the first page the heading follows the filter lines; on a page of
+            // its own it sits where the legacy page puts it (measured).
+            let (heading_baseline, table_top) = if si == 0 && pi == 0 {
+                (top + H3_PT + 6.5, top + H3_PT + 6.5 + 9.3)
+            } else {
+                (37.0, 51.4)
+            };
+            let title = if n_here > 1 {
+                format!("{} (kolom {}/{})", group.satker_nama, pi + 1, n_parts)
+            } else {
+                group.satker_nama.clone()
+            };
+            c.text(&title, MARGIN, heading_baseline, H3_PT, true);
+            y_start = table_top;
+            let mut y = draw_head(&mut c, y_start);
+
+            if group.rows.is_empty() {
+                let h = LINE_H + 2.0 * TD_PAD;
+                let whole = Rect {
+                    x: MARGIN,
+                    y,
+                    w: TABLE_W,
+                    h,
                 };
-                c.cell(
-                    Rect {
-                        x: xs[i],
-                        y,
-                        w: widths[i],
-                        h,
-                    },
-                    lines,
-                    style,
-                );
+                c.cell(whole, &["Data Kosong".to_string()], TD_CENTER);
+                continue;
             }
-            y += h;
+            for (ri, r) in group.rows.iter().enumerate() {
+                let mut cells = daftar_cells(r);
+                cells[0] = (ri + 1).to_string();
+                let wrapped: Vec<Vec<String>> = cols
+                    .iter()
+                    .enumerate()
+                    .map(|(k, &i)| c.wrap(&cells[i], widths[k] - 2.0 * pad, false))
+                    .collect();
+                let lines = wrapped.iter().map(Vec::len).max().unwrap_or(1);
+                let h = LINE_H * lines as f32 + 2.0 * TD_PAD;
+                if y + h > bottom() {
+                    c.new_page();
+                    y = draw_head(&mut c, MARGIN);
+                }
+                for (k, lines) in wrapped.iter().enumerate() {
+                    let style = Style {
+                        align: heads[cols[k]].1,
+                        bold: false,
+                        pad,
+                    };
+                    c.cell(
+                        Rect {
+                            x: xs[k],
+                            y,
+                            w: widths[k],
+                            h,
+                        },
+                        lines,
+                        style,
+                    );
+                }
+                y += h;
+            }
         }
     }
     c.finish()
@@ -732,5 +993,186 @@ mod tests {
             "a proportional face: W is much wider than i"
         );
         assert!(c.width("Jumlah", BODY_PT, true) > c.width("Jumlah", BODY_PT, false));
+    }
+
+    // ── content that does not fit the legacy geometry ──────────────────────
+
+    /// A rekap block with `n` size columns and counts up to `max_count`.
+    fn blok_lebar(n: usize, satkers: usize, max_count: i64) -> RekapReport {
+        RekapReport {
+            header: header(),
+            blocks: vec![RekapBlock {
+                pakaian_nama: "Celana Panjang PDL".to_string(),
+                ukuran_group: "CELANA".to_string(),
+                gender: "L".to_string(),
+                ukuran_labels: (0..n).map(|i| (26 + i).to_string()).collect(),
+                satkers: (0..satkers)
+                    .map(|k| RekapSatkerRow {
+                        satker_nama: format!("Satker {k}"),
+                        counts: vec![max_count; n],
+                        total: max_count * n as i64,
+                    })
+                    .collect(),
+                summary: vec![max_count * satkers as i64; n],
+                summary_total: max_count * (n * satkers) as i64,
+            }],
+        }
+    }
+
+    #[test]
+    fn a_rekap_that_fits_is_not_split_a_wide_one_continues_on_another_page() {
+        let c = Canvas::new("t").unwrap();
+        let kecil = &rekap(1, 2).blocks[0];
+        assert_eq!(
+            rekap_cols_per_page(&c, kecil),
+            kecil.ukuran_labels.len(),
+            "the legacy table is untouched"
+        );
+        // 27 trouser sizes (26..52) with ordinary counts still fit one page.
+        assert_eq!(
+            rekap_cols_per_page(&c, &blok_lebar(27, 3, 120).blocks[0]),
+            27
+        );
+        // 90 columns cannot: the table is cut into slices that each hold their figures.
+        let lebar = blok_lebar(90, 3, 120);
+        let per_page = rekap_cols_per_page(&c, &lebar.blocks[0]);
+        assert!((1..90).contains(&per_page), "split into slices: {per_page}");
+        // Every slice's column is wide enough for the widest figure it carries.
+        let unit = TABLE_W * 0.75 / (per_page as f32 + 1.2);
+        let widest = c
+            .width("120", BODY_PT, false)
+            .max(c.width("10800", BODY_PT, true) / 1.2);
+        assert!(unit >= widest, "{unit} must hold {widest}");
+
+        let sepotong = page_count(&render_rekap_pdf(&lebar).unwrap());
+        let utuh = page_count(&render_rekap_pdf(&blok_lebar(27, 3, 120)).unwrap());
+        assert_eq!(utuh, 1, "27 sizes, 3 satker: the legacy single page");
+        assert!(
+            sepotong >= 2,
+            "90 sizes continue on further pages: {sepotong}"
+        );
+    }
+
+    #[test]
+    fn a_heading_that_does_not_fit_falls_back_to_its_short_form() {
+        let c = Canvas::new("t").unwrap();
+        assert_eq!(fit_label(&c, &["Jumlah", "Jml"], 80.0, true), "Jumlah");
+        let sempit = c.width("Jml", BODY_PT, true) + 1.0;
+        assert_eq!(fit_label(&c, &["Jumlah", "Jml"], sempit, true), "Jml");
+        // Nothing fits: cut, never drawn past the cell.
+        let cut = fit_label(&c, &["Jumlah", "Jml"], 3.0, true);
+        assert!(
+            c.width(&cut, BODY_PT, true) <= 3.0 + c.width("…", BODY_PT, true),
+            "{cut}"
+        );
+    }
+
+    #[test]
+    fn share_width_fills_the_page_and_never_goes_below_a_minimum() {
+        // Wishes that fit are stretched to the page (the legacy behaviour).
+        let w = share_width(&[10.0, 30.0], &[5.0, 10.0], 80.0);
+        assert!((w.iter().sum::<f32>() - 80.0).abs() < 0.01);
+        assert!((w[1] / w[0] - 3.0).abs() < 0.01, "proportional: {w:?}");
+        // Wishes that do not fit shrink toward the minimums, which stay respected.
+        let w = share_width(&[100.0, 100.0, 100.0], &[20.0, 40.0, 60.0], 200.0);
+        assert!((w.iter().sum::<f32>() - 200.0).abs() < 0.01, "{w:?}");
+        assert!(w[0] >= 20.0 && w[1] >= 40.0 && w[2] >= 60.0, "{w:?}");
+        // Exactly the minimums.
+        let w = share_width(&[100.0, 100.0], &[30.0, 70.0], 100.0);
+        assert!(
+            (w[0] - 30.0).abs() < 0.01 && (w[1] - 70.0).abs() < 0.01,
+            "{w:?}"
+        );
+    }
+
+    #[test]
+    fn plan_columns_keeps_a_fitting_table_whole_and_splits_one_that_cannot_fit() {
+        let fixed = 8;
+        // 8 fixed columns of 40 pt each plus `n` garment columns of 30 pt, on a 785 pt page.
+        let plan = |garments: usize| {
+            let n = fixed + garments;
+            let want: Vec<f32> = (0..n)
+                .map(|i| if i < fixed { 60.0 } else { 40.0 })
+                .collect();
+            let min: Vec<f32> = (0..n)
+                .map(|i| if i < fixed { 40.0 } else { 30.0 })
+                .collect();
+            plan_columns(&want, &min, fixed, 3, 785.0)
+        };
+        let uno = plan(6);
+        assert_eq!(uno.len(), 1, "six garments fit one page");
+        assert_eq!(uno[0].0, (0..14).collect::<Vec<_>>());
+        assert!((uno[0].1.iter().sum::<f32>() - 785.0).abs() < 0.01);
+
+        let banyak = plan(30);
+        assert!(banyak.len() >= 2, "30 garments cannot share one page");
+        // The first page carries every fixed column; later pages repeat No, NIP and Nama.
+        assert_eq!(&banyak[0].0[..8], &(0..8).collect::<Vec<_>>()[..]);
+        for (cols, _) in &banyak[1..] {
+            assert_eq!(&cols[..3], &[0, 1, 2], "identifying columns repeat");
+        }
+        // Each garment column is printed exactly once, and every page's columns fit its minimums.
+        let mut digambar: Vec<usize> = banyak
+            .iter()
+            .flat_map(|(cols, _)| cols.iter().copied().filter(|&i| i >= fixed))
+            .collect();
+        digambar.sort_unstable();
+        assert_eq!(digambar, (fixed..fixed + 30).collect::<Vec<_>>());
+        for (cols, widths) in &banyak {
+            let min_sum: f32 = cols
+                .iter()
+                .map(|&i| if i < fixed { 40.0 } else { 30.0 })
+                .sum();
+            assert!(min_sum <= 785.0, "a part must fit its minimums: {min_sum}");
+            assert!((widths.iter().sum::<f32>() - 785.0).abs() < 0.01);
+        }
+    }
+
+    fn daftar_dengan(garments: usize, nama_dada: &str) -> DaftarReport {
+        DaftarReport {
+            header: header(),
+            columns: (0..garments).map(|i| format!("Pakaian {i}")).collect(),
+            satkers: vec![DaftarSatkerGroup {
+                satker_nama: "KEJAKSAAN NEGERI A".to_string(),
+                rows: (0..3)
+                    .map(|k| DaftarRow {
+                        nip: format!("20000000000000000{k}"),
+                        nama: format!("Pegawai {k}"),
+                        jabatan: "Operator Satker".to_string(),
+                        golongan: "III/a".to_string(),
+                        status: "J".to_string(),
+                        gender: "L".to_string(),
+                        hijab: "T".to_string(),
+                        sizes: (0..garments)
+                            .map(|g| {
+                                if g == 0 {
+                                    nama_dada.to_string()
+                                } else {
+                                    "2XL".to_string()
+                                }
+                            })
+                            .collect(),
+                    })
+                    .collect(),
+            }],
+        }
+    }
+
+    #[test]
+    fn a_daftar_with_many_garments_and_a_long_chest_name_stays_on_the_page() {
+        // A chest name of 100 characters wraps inside its column instead of widening the table.
+        let panjang = "ABCDEFGHIJ ".repeat(9) + "ABCDEFGHI";
+        assert_eq!(panjang.chars().count(), 108.min(panjang.chars().count()));
+        let satu = page_count(&render_daftar_pdf(&daftar_dengan(2, &panjang)).unwrap());
+        assert_eq!(satu, 1, "two garments and a long text still fit one page");
+
+        // Twelve garments do not fit one page of columns: they continue (and still print).
+        let banyak = daftar_dengan(40, "AGUS");
+        let bytes = render_daftar_pdf(&banyak).unwrap();
+        assert!(bytes.starts_with(b"%PDF-"));
+        assert!(
+            page_count(&bytes) >= 2,
+            "40 garment columns continue on further pages"
+        );
     }
 }

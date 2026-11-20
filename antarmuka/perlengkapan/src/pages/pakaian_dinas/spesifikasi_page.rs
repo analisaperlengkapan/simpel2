@@ -27,13 +27,9 @@ use crate::components::layout::{
     EmptyState, ErrorState, FormField, LoadingState, PageLayout, SectionCard,
 };
 use crate::features::auth::AuthService;
+use crate::features::pakaian_dinas::api::{UkuranGrup, fetch_ukuran_grup};
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{CARET_DOWN, CARET_RIGHT, LIST, PLUS, TRASH, WARNING_CIRCLE};
-
-/// The three size families the server accepts (`services.rs` rejects anything
-/// else with 400), so they are offered rather than typed.
-const UKURAN_GROUPS: [(&str, &str); 3] =
-    [("BAJU", "Baju"), ("CELANA", "Celana"), ("SEPATU", "Sepatu")];
 
 /// Likewise for gender. `SEMUA` means the item applies to everyone; `L`/`P`
 /// narrow it, which is what lets the size form show a person only the items
@@ -42,6 +38,13 @@ const GENDERS: [(&str, &str); 3] = [("SEMUA", "Semua"), ("L", "Laki-laki"), ("P"
 
 const FIELD: &str = "focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] \
                      px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500";
+
+/// Active size groups, from the reference table (V019): the server accepts only a group that
+/// exists there, so they are offered rather than typed, and a group an admin adds shows up
+/// here without a release. All groups, active or not, label the table below.
+async fn query_grup(_key: ()) -> Result<Vec<UkuranGrup>, crate::api::AppError> {
+    fetch_ukuran_grup(false).await
+}
 
 fn label_of(table: &[(&str, &str)], code: &str) -> String {
     table
@@ -76,7 +79,7 @@ pub fn SpesifikasiPage() -> impl IntoView {
     let refresh = RwSignal::new(0);
     let (show_form, set_show_form) = signal(false);
     let (form_nama, set_form_nama) = signal(String::new());
-    let form_group = RwSignal::new("BAJU".to_string());
+    let form_group = RwSignal::new(String::new());
     let form_gender = RwSignal::new("SEMUA".to_string());
     let (form_deskripsi, set_form_deskripsi) = signal(String::new());
     let (saving, set_saving) = signal(false);
@@ -87,6 +90,18 @@ pub fn SpesifikasiPage() -> impl IntoView {
 
     let client: QueryClient = expect_context();
     let data = client.local_resource(query_spesifikasi, move || (jenis_id(), refresh.get()));
+    let grup_ukuran = client.local_resource(query_grup, || ());
+    // Grup pertama yang aktif menjadi pilihan awal begitu daftarnya tiba, seperti BAJU dulu.
+    Effect::new(move || {
+        if !form_group.with_untracked(String::is_empty) {
+            return;
+        }
+        if let Some(Ok(daftar)) = grup_ukuran.get()
+            && let Some(pertama) = daftar.iter().find(|g| g.is_active)
+        {
+            form_group.set(pertama.kode.clone());
+        }
+    });
 
     let on_submit = move |ev: leptos::ev::SubmitEvent| {
         ev.prevent_default();
@@ -170,10 +185,23 @@ pub fn SpesifikasiPage() -> impl IntoView {
                                     prop:value=move || form_group.get()
                                     on:change=move |ev| form_group.set(event_target_value(&ev))
                                 >
-                                    {UKURAN_GROUPS
-                                        .iter()
-                                        .map(|(k, v)| view! { <option value=*k>{*v}</option> })
-                                        .collect_view()}
+                                    {move || {
+                                        grup_ukuran
+                                            .get()
+                                            .and_then(|r| r.ok())
+                                            .unwrap_or_default()
+                                            .into_iter()
+                                            .filter(|g| g.is_active)
+                                            .map(|g| {
+                                                let keterangan = if g.is_teks() {
+                                                    format!("{} (isian teks)", g.nama)
+                                                } else {
+                                                    g.nama.clone()
+                                                };
+                                                view! { <option value=g.kode.clone()>{keterangan}</option> }
+                                            })
+                                            .collect_view()
+                                    }}
                                 </select>
                             </FormField>
                             <FormField
@@ -235,6 +263,15 @@ pub fn SpesifikasiPage() -> impl IntoView {
                     Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
                     Some(Ok(response)) => {
                         let items = response.data;
+                        // Nama grup dari referensi (semua, aktif atau tidak): yang tak dikenal
+                        // jatuh ke kodenya, bukan baris kosong.
+                        let nama_grup: std::collections::HashMap<String, String> = grup_ukuran
+                            .get()
+                            .and_then(|r| r.ok())
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|g| (g.kode, g.nama))
+                            .collect();
                         if items.is_empty() {
                             view! {
                                 <EmptyState
@@ -283,7 +320,11 @@ pub fn SpesifikasiPage() -> impl IntoView {
                                                     {items
                                                         .into_iter()
                                                         .map(|item| {
-                                                            baris_spesifikasi(item, is_admin, terbuka, refresh)
+                                                            let grup = nama_grup
+                                                                .get(&item.ukuran_group)
+                                                                .cloned()
+                                                                .unwrap_or_else(|| item.ukuran_group.clone());
+                                                            baris_spesifikasi(item, grup, is_admin, terbuka, refresh)
                                                         })
                                                         .collect_view()}
                                                 </tbody>
@@ -304,6 +345,7 @@ pub fn SpesifikasiPage() -> impl IntoView {
 /// One spesifikasi row, plus the subspesifikasi drawer it opens.
 fn baris_spesifikasi(
     item: SpesifikasiPakaianDinas,
+    grup_label: String,
     is_admin: bool,
     terbuka: RwSignal<Option<String>>,
     refresh: RwSignal<i32>,
@@ -349,7 +391,7 @@ fn baris_spesifikasi(
                 </button>
             </td>
             <td class="px-4 py-3 text-sm text-slate-300">
-                {label_of(&UKURAN_GROUPS, &item.ukuran_group)}
+                {grup_label}
             </td>
             <td class="px-4 py-3 text-sm text-slate-300">{label_of(&GENDERS, &item.gender)}</td>
             <td class="px-4 py-3 text-sm text-slate-400">

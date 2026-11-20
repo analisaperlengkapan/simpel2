@@ -363,13 +363,29 @@ test.describe('Pakaian Dinas — ukuran pegawai', () => {
   // Locator note (#117): `getByText('Isi Ukuran')` is NOT usable as proof that the form card
   // rendered. Playwright's default text matching is substring + case-insensitive, so it also
   // matches the PageLayout description "Isi ukuran pakaian dinas Anda untuk keperluan
-  // pengajuan" (pakaian_dinas_ukuran.rs:85) — which renders unconditionally, OUTSIDE the
-  // <Suspense>. That is precisely why the original failure read as "the section header
-  // renders but its children do not": the header never rendered at all and the assertion was
-  // matching the description. Assert on the form itself.
-  const sizeForm = (page: Page) => page.locator('form').filter({ has: page.locator('select') });
+  // pengajuan", which renders unconditionally, OUTSIDE the <Suspense>. Assert on the form itself.
+  const sizeForm = (page: Page) => page.getByTestId('ukuran-profil-form');
+  const kolom = (page: Page) => page.getByTestId('ukuran-profil-kolom');
 
-  test('operator saves personal sizes and they persist across reload', async ({ page }) => {
+  // Since V019 the page offers one field per active specification (PDH shoes and PDL shoes are
+  // different fields), so nothing below counts "three selects".
+  interface ProfilItem {
+    spesifikasi_id: string;
+    jenis_pakaian_nama: string;
+    spesifikasi_nama: string;
+    ukuran_group: string;
+    tipe: string;
+    ukuran: string | null;
+  }
+  async function profilServer(request: APIRequestContext, token: string): Promise<ProfilItem[]> {
+    const res = await request.get(`${API}/pakaian-dinas/ukuran-profil`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(res.ok(), await res.text()).toBeTruthy();
+    return (await res.json()).data as ProfilItem[];
+  }
+
+  test('operator saves personal sizes and they persist across reload', async ({ page, request }) => {
     await page.goto(`${BASE}/dashboard`);
     await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await clickSidebarLink(page, 'Pakaian Dinas', `${BASE}/pakaian-dinas/ukuran`);
@@ -377,11 +393,19 @@ test.describe('Pakaian Dinas — ukuran pegawai', () => {
     await expect(page.getByText('Ukuran Pakaian Dinas').first()).toBeVisible();
     await expect(sizeForm(page)).toBeVisible({ timeout: 20000 });
 
-    // Pick the first real size in each dropdown (options come from ms_ukuran).
-    const selects = page.locator('select');
-    await expect(selects).toHaveCount(3);
+    // The PDH garments simpelv1 has always carried are there, each as its own field.
+    const pdh = page.locator('[data-testid="ukuran-profil-jenis"][data-jenis="PDH"]');
+    for (const nama of ['Pakaian Dinas', 'Celana', 'Sepatu Dinas']) {
+      await expect(pdh.locator(`[data-spesifikasi="${nama}"]`), `PDH ${nama}`).toHaveCount(1);
+    }
+
+    // Pick the first real size in every dropdown (options come from ms_ukuran) and fill the text
+    // field (nama dada) of the PDL group.
+    const selects = sizeForm(page).locator('select');
+    const total = await selects.count();
+    expect(total, 'one dropdown per choice-type specification').toBeGreaterThanOrEqual(3);
     const chosen: string[] = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < total; i++) {
       const values = await selects
         .nth(i)
         .locator('option')
@@ -392,86 +416,148 @@ test.describe('Pakaian Dinas — ukuran pegawai', () => {
       await selects.nth(i).selectOption(values[0]);
       chosen.push(values[0]);
     }
+    const teks = sizeForm(page).locator('input[type="text"]');
+    const jumlahTeks = await teks.count();
+    for (let i = 0; i < jumlahTeks; i++) await teks.nth(i).fill(`E2E NAMA ${i + 1}`);
     // `with_hijab` belongs to the same record and had its own bug (saving sizes used to
     // reset it), so drive it here instead of leaving it at the default.
-    await page.getByRole('checkbox').check();
-    await page.getByRole('button', { name: /Simpan/ }).click();
-    await expect(page.getByText('Ukuran berhasil disimpan!').first()).toBeVisible({
+    await page.getByTestId('ukuran-profil-hijab').check();
+    await page.getByTestId('simpan-ukuran-profil').click();
+    await expect(page.getByTestId('ukuran-profil-sukses')).toContainText('Ukuran berhasil disimpan!', {
       timeout: 15000,
     });
+
+    // The server holds exactly what the screen showed.
+    const token = await tokenFor(request, 'operator_a');
+    const server = await profilServer(request, token);
+    // Compared sorted: the DOM groups by jenis, the server lists by its own order.
+    expect(
+      server
+        .filter((s) => s.tipe === 'PILIHAN')
+        .map((s) => s.ukuran)
+        .sort(),
+    ).toEqual([...chosen].sort());
 
     // Round-trip: a fresh load must show the persisted values.
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(sizeForm(page)).toBeVisible({ timeout: 20000 });
-    for (let i = 0; i < 3; i++) {
-      await expect(page.locator('select').nth(i)).toHaveValue(chosen[i], { timeout: 15000 });
+    for (let i = 0; i < total; i++) {
+      await expect(sizeForm(page).locator('select').nth(i)).toHaveValue(chosen[i], { timeout: 15000 });
     }
-    await expect(page.getByRole('checkbox')).toBeChecked({ timeout: 15000 });
+    for (let i = 0; i < jumlahTeks; i++) {
+      await expect(sizeForm(page).locator('input[type="text"]').nth(i)).toHaveValue(`E2E NAMA ${i + 1}`);
+    }
+    await expect(page.getByTestId('ukuran-profil-hijab')).toBeChecked({ timeout: 15000 });
   });
 
-  test('an incomplete size form is refused before it reaches the backend', async ({ page }) => {
+  // Every field is optional since V019 (a person may have no hat size, or no chest name), so the old
+  // "wajib diisi semua" refusal is gone. What replaces it: only what changed is sent, saving
+  // nothing says so without a request, and clearing a field removes the stored value.
+  test('an untouched form sends nothing; clearing a field removes the stored size', async ({
+    page,
+    request,
+  }) => {
+    const token = await tokenFor(request, 'operator_a');
+    // Known starting point: one PDH baju size stored.
+    const awal = await profilServer(request, token);
+    const baju = awal.find((s) => s.jenis_pakaian_nama === 'PDH' && s.spesifikasi_nama === 'Pakaian Dinas');
+    expect(baju, 'PDH / Pakaian Dinas is seeded').toBeTruthy();
+    const seeded = await request.put(`${API}/pakaian-dinas/ukuran-profil`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { ukuran: [{ spesifikasi_id: baju!.spesifikasi_id, ukuran: 'L' }] },
+    });
+    expect(seeded.ok(), await seeded.text()).toBeTruthy();
+
+    const puts: string[] = [];
+    await page.route('**/pakaian-dinas/ukuran-profil', async (route) => {
+      if (route.request().method() === 'PUT') puts.push(route.request().postData() ?? '');
+      await route.continue();
+    });
     await page.goto(`${BASE}/pakaian-dinas/ukuran`);
     await expect(sizeForm(page)).toBeVisible({ timeout: 20000 });
+    const kolomBaju = page.locator(
+      '[data-testid="ukuran-profil-jenis"][data-jenis="PDH"] [data-spesifikasi="Pakaian Dinas"]',
+    );
+    await expect(kolomBaju.locator('select')).toHaveValue('L');
 
-    // All three sizes are required server-side (`length(min = 1)`). Submitting with the
-    // placeholder still selected must produce a readable message, not a raw 400 body.
-    await page.locator('select').nth(0).selectOption('');
-    await page.getByRole('button', { name: /Simpan/ }).click();
-    await expect(page.getByText(/wajib diisi semua/i).first()).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Ukuran berhasil disimpan!')).toHaveCount(0);
+    await page.getByTestId('simpan-ukuran-profil').click();
+    await expect(page.getByTestId('ukuran-profil-sukses')).toContainText('Tidak ada perubahan');
+    expect(puts, 'an untouched form must not send a request').toHaveLength(0);
+
+    await kolomBaju.locator('select').selectOption('');
+    await page.getByTestId('simpan-ukuran-profil').click();
+    await expect(page.getByTestId('ukuran-profil-sukses')).toContainText('Ukuran berhasil disimpan!', {
+      timeout: 15000,
+    });
+    expect(puts, 'exactly one request, carrying only the changed field').toHaveLength(1);
+    expect(JSON.parse(puts[0]).ukuran).toEqual([{ spesifikasi_id: baju!.spesifikasi_id, ukuran: '' }]);
+
+    const sesudah = await profilServer(request, token);
+    expect(
+      sesudah.find((s) => s.spesifikasi_id === baju!.spesifikasi_id)?.ukuran,
+      'the empty value deleted the stored size',
+    ).toBeNull();
   });
 
-  // The form used to be drawn as soon as the size LISTS arrived, while the
-  // employee's STORED sizes were still on their way. When that second answer came
-  // in after the operator had already chosen, it replaced the choice with the
-  // stored value, and "Simpan" then saved the old sizes under a success message.
-  // The first test here never noticed: it chooses the first option each time, and
-  // after one run the stored value IS the first option, so the overwrite changed
-  // nothing. This one stores sizes that differ from what it will pick and holds the
-  // stored-sizes answer back, so the order of arrival is fixed instead of lucky.
-  test('a slow answer with the stored sizes cannot overwrite what the operator picked', async ({
+  // The form used to be drawn as soon as the size LISTS arrived, while the employee's STORED sizes
+  // were still on their way. When that second answer came in after the operator had already chosen,
+  // it replaced the choice with the stored value, and "Simpan" then saved the old sizes under a
+  // success message. The form is now not drawn until ALL answers are in; this holds the stored-sizes
+  // answer back so the order of arrival is fixed instead of lucky.
+  test('the form is not offered until the stored sizes arrive, then shows them and saves what is picked', async ({
     page,
     request,
   }) => {
     const token = await tokenFor(request, 'operator_a');
     const auth = { Authorization: `Bearer ${token}` };
-    const url = `${API}/pakaian-dinas/ukuran-pakaian-pegawai`;
-    const seeded = await request.post(url, {
+    const awal = await profilServer(request, token);
+    const baju = awal.find((s) => s.jenis_pakaian_nama === 'PDH' && s.spesifikasi_nama === 'Pakaian Dinas')!;
+    const celana = awal.find((s) => s.jenis_pakaian_nama === 'PDH' && s.spesifikasi_nama === 'Celana')!;
+    const seeded = await request.put(`${API}/pakaian-dinas/ukuran-profil`, {
       headers: auth,
-      data: { ukuran_baju: 'L', ukuran_celana: '30', ukuran_sepatu: '40', with_hijab: false },
+      data: {
+        ukuran: [
+          { spesifikasi_id: baju.spesifikasi_id, ukuran: 'L' },
+          { spesifikasi_id: celana.spesifikasi_id, ukuran: '30' },
+        ],
+      },
     });
     expect(seeded.ok(), await seeded.text()).toBeTruthy();
 
     // Hold ONLY the stored-sizes read for 4 s (a slow link); the size lists are not held.
-    await page.route('**/pakaian-dinas/ukuran-pakaian-pegawai', async (route) => {
+    await page.route('**/pakaian-dinas/ukuran-profil', async (route) => {
       if (route.request().method() !== 'GET') return route.continue();
       await new Promise((resolve) => setTimeout(resolve, 4000));
       await route.continue();
     });
     const storedAnswered = page.waitForResponse(
-      (r) => r.url().endsWith('/pakaian-dinas/ukuran-pakaian-pegawai') && r.request().method() === 'GET',
+      (r) => r.url().endsWith('/pakaian-dinas/ukuran-profil') && r.request().method() === 'GET',
     );
-
     await page.goto(`${BASE}/pakaian-dinas/ukuran`);
+
+    // While the answer is held there is no form to choose in (and so nothing to be overwritten).
+    await page.waitForTimeout(1500);
+    await expect(sizeForm(page), 'no form before the stored sizes are known').toHaveCount(0);
+    await storedAnswered;
     await expect(sizeForm(page)).toBeVisible({ timeout: 20000 });
 
-    // Choose a baju that is not the stored one, then let the held-back answer land.
-    await page.locator('select').nth(0).selectOption('XS');
-    await storedAnswered;
-    await page.waitForTimeout(500); // time for the page to apply it, if it is going to
-
-    await expect(page.locator('select').nth(0)).toHaveValue('XS');
-    // The stored sizes the operator did not touch are in the form.
-    await expect(page.locator('select').nth(1)).toHaveValue('30');
-    await expect(page.locator('select').nth(2)).toHaveValue('40');
+    const kolomBaju = page.locator(
+      '[data-testid="ukuran-profil-jenis"][data-jenis="PDH"] [data-spesifikasi="Pakaian Dinas"] select',
+    );
+    const kolomCelana = page.locator(
+      '[data-testid="ukuran-profil-jenis"][data-jenis="PDH"] [data-spesifikasi="Celana"] select',
+    );
+    await expect(kolomBaju).toHaveValue('L');
+    await expect(kolomCelana).toHaveValue('30');
 
     // And what the screen shows is what gets saved.
-    await page.getByRole('button', { name: /Simpan/ }).click();
-    await expect(page.getByText('Ukuran berhasil disimpan!').first()).toBeVisible({
+    await kolomBaju.selectOption('XS');
+    await page.getByTestId('simpan-ukuran-profil').click();
+    await expect(page.getByTestId('ukuran-profil-sukses')).toContainText('Ukuran berhasil disimpan!', {
       timeout: 15000,
     });
-    const stored = await request.get(url, { headers: auth });
-    expect(stored.ok(), await stored.text()).toBeTruthy();
-    expect((await stored.json()).data.ukuran_baju).toBe('XS');
+    const sesudah = await profilServer(request, token);
+    expect(sesudah.find((s) => s.spesifikasi_id === baju.spesifikasi_id)?.ukuran).toBe('XS');
+    expect(sesudah.find((s) => s.spesifikasi_id === celana.spesifikasi_id)?.ukuran).toBe('30');
   });
 });
