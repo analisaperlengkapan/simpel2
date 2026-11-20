@@ -63,6 +63,13 @@ impl LaporanRekapUkuran {
         }
     }
 }
+/// Satu ukuran pegawai pada satu kolom pakaian pengajuan (nama kolom = `spesifikasi_nama`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LaporanUkuranPegawai {
+    pub pakaian_nama: String,
+    pub ukuran: String,
+}
+
 /// Detail list report
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LaporanDaftarPegawai {
@@ -75,9 +82,10 @@ pub struct LaporanDaftarPegawai {
     pub gol_kd: Option<String>,
     pub jenis: Option<String>,
     pub eselon: Option<String>,
-    pub ukuran_baju: Option<String>,
-    pub ukuran_celana: Option<String>,
-    pub ukuran_sepatu: Option<String>,
+    /// Ukuran per kolom pakaian, bukan per grup: baju dan kaos sama-sama grup BAJU, dan
+    /// mengumpulkannya per grup membuat salah satunya menimpa yang lain. Kolom yang tak
+    /// diisi pegawai ini tidak ada di sini.
+    pub ukuran: Vec<LaporanUkuranPegawai>,
     pub with_hijab: bool,
 }
 impl LaporanDaftarPegawai {
@@ -92,9 +100,8 @@ impl LaporanDaftarPegawai {
             gol_kd: row.try_get("gol_kd").ok(),
             jenis: row.try_get("jenis").ok(),
             eselon: row.try_get("eselon").ok(),
-            ukuran_baju: row.try_get("ukuran_baju").ok(),
-            ukuran_celana: row.try_get("ukuran_celana").ok(),
-            ukuran_sepatu: row.try_get("ukuran_sepatu").ok(),
+            // Diisi oleh repositori dengan satu kueri untuk seluruh halaman.
+            ukuran: Vec::new(),
             with_hijab: row.try_get("with_hijab").unwrap_or(false),
         }
     }

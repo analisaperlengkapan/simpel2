@@ -629,16 +629,14 @@ impl Database {
 
         let limit = query.limit.unwrap_or(50000).min(50000);
 
-        // `perlengkapan.ukuran_pakaian_pegawai` exists in no environment,
-        // so this export 500'd exactly like the kebutuhan one above. The
-        // real table is `pegawai_pakaian_dinas`, and it does not model
-        // sizes as `jenis_pakaian_id`/`ukuran_id` foreign keys at all —
-        // it stores three text sizes per employee on a single row.
+        // `perlengkapan.ukuran_pakaian_pegawai` exists in no environment, so this export 500'd
+        // exactly like the kebutuhan one above.
         //
-        // The LATERAL unpivots those three columns into one export row
-        // per recorded size, which is what the "Jenis Pakaian"/"Ukuran"
-        // column pair was always asking for. Unset sizes are dropped
-        // rather than exported blank.
+        // Since V019 the profile is stored PER SPECIFICATION (`pegawai_pakaian_dinas_ukuran`):
+        // one export row per recorded size, named by the garment ("PDH Sepatu Dinas", "PDL Kaos",
+        // "PDL Nama Dada"). The three legacy columns it used to unpivot as "Baju/Celana/Sepatu"
+        // could not tell PDH shoes from PDL shoes, and never held a hat or a chest name.
+        // Unset sizes are dropped rather than exported blank.
         //
         // `nama` and `status` are nullable and are COALESCEd here
         // because the readers below decode them as bare `String`, which
@@ -655,20 +653,17 @@ impl Database {
                 SELECT
                     p.nip,
                     COALESCE(p.nama, '')       AS nama_pegawai,
-                    v.jenis_pakaian,
-                    v.ukuran,
+                    (j.nama || ' ' || s.nama)  AS jenis_pakaian,
+                    u.ukuran,
                     1                          AS jumlah,
                     EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER AS tahun_anggaran,
                     COALESCE(p.status, 'ACTIVE') AS status
                 FROM perlengkapan.pegawai_pakaian_dinas p
-                CROSS JOIN LATERAL (
-                    VALUES
-                        ('Baju',   p.ukuran_baju),
-                        ('Celana', p.ukuran_celana),
-                        ('Sepatu', p.ukuran_sepatu)
-                ) AS v(jenis_pakaian, ukuran)
-                WHERE v.ukuran IS NOT NULL AND v.ukuran <> ''{scope_sql}
-                ORDER BY p.nip, v.jenis_pakaian
+                JOIN perlengkapan.pegawai_pakaian_dinas_ukuran u ON u.nip = p.nip
+                JOIN perlengkapan.ms_spesifikasi_pakaian_dinas s ON s.id = u.spesifikasi_id
+                JOIN perlengkapan.ms_jenis_pakaian_dinas j ON j.id = s.jenis_pakaian_dinas_id
+                WHERE u.ukuran <> ''{scope_sql}
+                ORDER BY p.nip, j.nama, s.nama
                 LIMIT ${limit_idx}
                 "#,
             limit_idx = params.len() + 1,

@@ -308,6 +308,10 @@ pub fn create_routes(state: AppState) -> Router {
             get(pakaian_dinas::get_laporan_daftar_pegawai),
         )
         .route(
+            "/pakaian-dinas/laporan/daftar-kolom",
+            get(pakaian_dinas::get_laporan_daftar_kolom),
+        )
+        .route(
             "/pakaian-dinas/laporan/cetak",
             get(pakaian_dinas::cetak_laporan),
         )

@@ -287,6 +287,13 @@ pub struct LaporanRekapUkuran {
     pub jumlah_total: i64,
 }
 
+/// Satu ukuran pegawai pada satu kolom pakaian pengajuan.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct LaporanUkuranPegawai {
+    pub pakaian_nama: String,
+    pub ukuran: String,
+}
+
 /// Report: Daftar Pegawai (Employee list)
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct LaporanDaftarPegawai {
@@ -298,10 +305,34 @@ pub struct LaporanDaftarPegawai {
     pub gol_kd: Option<String>,
     pub jenis: Option<String>,
     pub eselon: Option<String>,
-    pub ukuran_baju: Option<String>,
-    pub ukuran_celana: Option<String>,
-    pub ukuran_sepatu: Option<String>,
+    /// Ukuran per kolom pakaian (bukan tiga grup tetap): baju dan kaos adalah kolom berbeda.
+    #[serde(default)]
+    pub ukuran: Vec<LaporanUkuranPegawai>,
     pub with_hijab: Option<bool>,
+}
+
+impl LaporanDaftarPegawai {
+    /// Ukuran pegawai ini pada kolom `pakaian_nama`, atau `None` bila belum diisi.
+    pub fn ukuran_untuk(&self, pakaian_nama: &str) -> Option<&str> {
+        self.ukuran
+            .iter()
+            .find(|u| u.pakaian_nama == pakaian_nama)
+            .map(|u| u.ukuran.as_str())
+    }
+}
+
+/// Nama kolom pakaian sebuah pengajuan, urut seperti ekspor daftar: tabel berhalaman harus
+/// berkolom sama di setiap halaman.
+pub async fn fetch_laporan_daftar_kolom(
+    pengajuan_id: String,
+    jenis_pakaian_id: Option<String>,
+) -> Result<Vec<String>, crate::api::AppError> {
+    let mut url = format!("/pakaian-dinas/laporan/daftar-kolom?pengajuan_id={pengajuan_id}");
+    if let Some(j) = jenis_pakaian_id {
+        url.push_str(&format!("&jenis_pakaian_id={j}"));
+    }
+    let r: ApiResponse<Vec<String>> = crate::api::client::api_get(&url).await?;
+    Ok(r.data)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

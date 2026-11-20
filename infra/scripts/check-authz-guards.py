@@ -75,6 +75,7 @@ WRITE_ALLOWLIST: dict[tuple[str, str], str] = {
 
 READ_ALLOWLIST: dict[tuple[str, str], str] = {
     ("GET", "/bank-aset/kodefikasi"): "kodefikasi SIMAN: data referensi nasional, bukan data satker",
+    ("GET", "/pakaian-dinas/laporan/daftar-kolom"): "nama kolom pakaian sebuah pengajuan: konfigurasi kampanye (sama dengan master spesifikasi yang dibaca semua peran), bukan data satker atau pegawai",
     ("GET", "/pakaian-dinas/jenis"): "master referensi pakaian dinas",
     ("GET", "/pakaian-dinas/jenis/{id}"): "master referensi pakaian dinas",
     ("GET", "/pakaian-dinas/spesifikasi"): "master referensi pakaian dinas",
