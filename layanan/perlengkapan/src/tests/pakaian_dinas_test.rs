@@ -35,25 +35,6 @@ mod model_tests {
     }
 
     #[test]
-    fn test_ukuran_group_display() {
-        assert_eq!(UkuranGroup::Baju.to_db_string(), "BAJU");
-        assert_eq!(UkuranGroup::Celana.to_db_string(), "CELANA");
-        assert_eq!(UkuranGroup::Sepatu.to_db_string(), "SEPATU");
-    }
-
-    #[test]
-    fn test_ukuran_group_from_str() {
-        assert_eq!(UkuranGroup::from_str("BAJU"), UkuranGroup::Baju);
-        assert_eq!(UkuranGroup::from_str("baju"), UkuranGroup::Baju);
-        assert_eq!(UkuranGroup::from_str("CELANA"), UkuranGroup::Celana);
-        assert_eq!(UkuranGroup::from_str("celana"), UkuranGroup::Celana);
-        assert_eq!(UkuranGroup::from_str("SEPATU"), UkuranGroup::Sepatu);
-        assert_eq!(UkuranGroup::from_str("sepatu"), UkuranGroup::Sepatu);
-        // Default to Baju for unknown
-        assert_eq!(UkuranGroup::from_str("unknown"), UkuranGroup::Baju);
-    }
-
-    #[test]
     fn test_aktivitas_status_display() {
         assert_eq!(AktivitasStatus::Input.label(), "Input");
         assert_eq!(AktivitasStatus::Selesai.label(), "Selesai");

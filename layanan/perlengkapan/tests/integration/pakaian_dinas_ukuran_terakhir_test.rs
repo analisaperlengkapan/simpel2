@@ -41,7 +41,9 @@ async fn ukuran_di_profil_menjadi_saran_untuk_yang_belum_diisi_dan_tidak_menimpa
     assert_eq!(kosong["sudah_diisi"], false);
     assert!(kosong["saran"].as_array().unwrap().is_empty(), "{kosong}");
 
-    // Profil pegawai mencatat baju L, celana 32, sepatu 41, berhijab.
+    // Profil pegawai mencatat baju L, celana 32, sepatu 41, berhijab. Sejak V019 ukuran profil
+    // tersimpan PER SPESIFIKASI: yang dibaca saran adalah baris untuk spesifikasi kolom
+    // kampanye ini, bukan kolom grup di tabel profil.
     let client = db.pool().get().await.unwrap();
     client
         .execute(
@@ -49,6 +51,15 @@ async fn ukuran_di_profil_menjadi_saran_untuk_yang_belum_diisi_dan_tidak_menimpa
              (nip, nama, ukuran_baju, ukuran_celana, ukuran_sepatu, with_hijab) \
              VALUES ($1, 'Pegawai A', 'L', '32', '41', true)",
             &[&NIP_A],
+        )
+        .await
+        .unwrap();
+    client
+        .execute(
+            "INSERT INTO perlengkapan.pegawai_pakaian_dinas_ukuran (nip, spesifikasi_id, ukuran) \
+             SELECT $1, spesifikasi_id, 'L' \
+             FROM perlengkapan.pengajuan_pakaian_dinas_pakaian WHERE id = $2::text::uuid",
+            &[&NIP_A, &pakaian],
         )
         .await
         .unwrap();

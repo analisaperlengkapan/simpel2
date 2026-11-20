@@ -126,7 +126,7 @@ Jika pengajuan dikembalikan untuk revisi:
      *setelah* tanggal itu tidak mengubah daftar periode tersebut — supaya semua
      pihak melihat daftar orang yang sama sepanjang periode berjalan.
    - Untuk setiap pegawai, input:
-     - Ukuran baju (S, M, L, XL, XXL, XXXL)
+     - Ukuran baju (XS, S, M, L, XL, 2XL, 3XL, dan seterusnya sampai 8XL)
      - Ukuran celana (28, 30, 32, 34, 36, 38, 40)
      - Ukuran sepatu (38, 39, 40, 41, 42, 43, 44, 45)
    - Untuk pegawai perempuan, centang **"Dengan Hijab"** jika diperlukan

@@ -126,6 +126,66 @@ impl Ukuran {
         }
     }
 }
+
+/// Master table: Grup Ukuran (V019). Satu grup = satu daftar ukuran yang bisa dipakai
+/// beberapa spesifikasi (BAJU dipakai baju dan kaos), atau satu isian teks bebas.
+///
+/// `tipe`: `PILIHAN` (nilainya harus salah satu dari `ms_ukuran` untuk grup ini) atau
+/// `TEKS` (isian bebas, mis. nama dada). Grup baru adalah DATA: tak perlu migrasi.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UkuranGrup {
+    pub kode: String,
+    pub nama: String,
+    pub tipe: String,
+    pub urutan: i32,
+    pub is_active: bool,
+}
+impl UkuranGrup {
+    pub const TIPE_PILIHAN: &'static str = "PILIHAN";
+    pub const TIPE_TEKS: &'static str = "TEKS";
+
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            kode: row.get("kode"),
+            nama: row.get("nama"),
+            tipe: row.get("tipe"),
+            urutan: row.try_get("urutan").unwrap_or(0),
+            is_active: row.try_get("is_active").unwrap_or(true),
+        }
+    }
+
+    pub fn is_teks(&self) -> bool {
+        self.tipe == Self::TIPE_TEKS
+    }
+}
+
+/// Satu kolom pakaian pada profil ukuran seorang pegawai (V019): spesifikasinya dan
+/// ukuran yang tercatat untuknya, kosong bila belum pernah diisi.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UkuranProfilItem {
+    pub spesifikasi_id: Uuid,
+    pub jenis_pakaian_nama: String,
+    pub spesifikasi_nama: String,
+    pub ukuran_group: String,
+    /// `PILIHAN` atau `TEKS`, dari grupnya: menentukan apakah layar menampilkan
+    /// pilihan atau kotak teks.
+    pub tipe: String,
+    pub gender: String,
+    pub ukuran: Option<String>,
+}
+impl UkuranProfilItem {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            spesifikasi_id: row.get("spesifikasi_id"),
+            jenis_pakaian_nama: row.get("jenis_pakaian_nama"),
+            spesifikasi_nama: row.get("spesifikasi_nama"),
+            ukuran_group: row.get("ukuran_group"),
+            tipe: row.get("tipe"),
+            gender: row.get("gender"),
+            ukuran: row.try_get("ukuran").ok().flatten(),
+        }
+    }
+}
 // ============ Transaction Models ============
 
 /// Main request header for uniform procurement

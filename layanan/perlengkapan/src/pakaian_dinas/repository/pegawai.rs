@@ -1,8 +1,11 @@
 use super::PakaianDinasRepository;
 use crate::pakaian_dinas::models::*;
-use crate::shared::error::{AppResult, bad_request};
+use crate::pakaian_dinas::validasi_ukuran::validasi_ukuran;
+use crate::shared::error::{AppError, AppResult, bad_request};
 use crate::shared::pegawai_ref::{PEGAWAI_KODE_SATKER_SQL, PEGAWAI_SATKER_JOIN_SQL};
 use crate::shared::satker_scope::{BoxedParam, SatkerScope, as_refs};
+use std::collections::HashMap;
+use uuid::Uuid;
 
 /// `scope` as an extra `AND` over the SoT row's satker column.
 ///
@@ -85,6 +88,83 @@ fn upsert_profile_sql(scope_sql: &str) -> String {
     )
 }
 
+/// Aturan ukuran untuk sekumpulan kode grup: grupnya dan, untuk grup `PILIHAN`, daftar ukuran
+/// yang sah. Satu kueri untuk grup dan satu untuk daftar, berapa pun banyaknya kode.
+///
+/// Dipakai SEMUA jalur yang menyimpan ukuran (profil pegawai, pengisian kampanye), supaya
+/// aturannya tidak bisa menyimpang antar jalur.
+pub(super) async fn aturan_grup<C: deadpool_postgres::GenericClient>(
+    client: &C,
+    kode: &[String],
+) -> AppResult<HashMap<String, (UkuranGrup, Vec<String>)>> {
+    if kode.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let grup = client
+        .query(
+            "SELECT kode, nama, tipe, urutan, is_active
+             FROM perlengkapan.ms_ukuran_group WHERE kode = ANY($1)",
+            &[&kode],
+        )
+        .await
+        .map_err(|e| bad_request(&e.to_string()))?;
+    let daftar = client
+        .query(
+            "SELECT \"group\", ukuran FROM perlengkapan.ms_ukuran
+             WHERE \"group\" = ANY($1) ORDER BY urutan, ukuran",
+            &[&kode],
+        )
+        .await
+        .map_err(|e| bad_request(&e.to_string()))?;
+    let mut per_grup: HashMap<String, Vec<String>> = HashMap::new();
+    for r in &daftar {
+        per_grup
+            .entry(r.get("group"))
+            .or_default()
+            .push(r.get("ukuran"));
+    }
+    Ok(grup
+        .iter()
+        .map(|r| {
+            let g = UkuranGrup::from_row(r);
+            let l = per_grup.remove(&g.kode).unwrap_or_default();
+            (g.kode.clone(), (g, l))
+        })
+        .collect())
+}
+
+/// Tulis ukuran dari penulis LAMA (tiga kolom profil, satu ukuran per grup) ke tabel per
+/// spesifikasi, untuk SETIAP spesifikasi dalam grup itu, seperti makna kolom itu sejak awal:
+/// "ukuran baju" berlaku untuk semua kolom ber-grup BAJU. Tanpa ini, apa pun yang masih
+/// menulis kolom lama (halaman Ukuran lama, impor massal admin) tak lagi menjadi saran
+/// pengisian, yang kini dibaca per spesifikasi. Nilai kosong dilewati: tak menghapus apa pun.
+///
+/// Penulis baru (profil per spesifikasi, impor data awal) menulis tabel itu langsung.
+async fn sinkron_ukuran_per_spesifikasi<C: deadpool_postgres::GenericClient>(
+    client: &C,
+    nip: &str,
+    baju: Option<&str>,
+    celana: Option<&str>,
+    sepatu: Option<&str>,
+) -> AppResult<()> {
+    client
+        .execute(
+            "INSERT INTO perlengkapan.pegawai_pakaian_dinas_ukuran (nip, spesifikasi_id, ukuran, sumber)
+             SELECT $1::varchar, s.id, btrim(v.ukuran), 'PROFIL'
+             FROM perlengkapan.ms_spesifikasi_pakaian_dinas s
+             JOIN (VALUES ('BAJU', $2::text), ('CELANA', $3::text), ('SEPATU', $4::text)) AS v(grup, ukuran)
+               ON v.grup = s.ukuran_group
+             WHERE btrim(COALESCE(v.ukuran, '')) <> ''
+               AND EXISTS (SELECT 1 FROM perlengkapan.pegawai_pakaian_dinas WHERE nip = $1)
+             ON CONFLICT (nip, spesifikasi_id) DO UPDATE
+                SET ukuran = EXCLUDED.ukuran, sumber = EXCLUDED.sumber, updated_at = now()",
+            &[&nip, &baju, &celana, &sepatu],
+        )
+        .await
+        .map_err(|e| bad_request(&e.to_string()))?;
+    Ok(())
+}
+
 impl PakaianDinasRepository {
     pub async fn get_pegawai_pakaian_dinas(
         &self,
@@ -150,6 +230,15 @@ impl PakaianDinasRepository {
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
+        sinkron_ukuran_per_spesifikasi(
+            &client,
+            nip,
+            Some(request.ukuran_baju.as_str()),
+            Some(request.ukuran_celana.as_str()),
+            Some(request.ukuran_sepatu.as_str()),
+        )
+        .await?;
+
         self.get_pegawai_pakaian_dinas(nip)
             .await?
             .ok_or_else(|| bad_request("Gagal menyimpan data ukuran"))
@@ -185,6 +274,15 @@ impl PakaianDinasRepository {
                 request.nip
             )));
         }
+
+        sinkron_ukuran_per_spesifikasi(
+            &client,
+            &request.nip,
+            request.ukuran_baju.as_deref(),
+            request.ukuran_celana.as_deref(),
+            request.ukuran_sepatu.as_deref(),
+        )
+        .await?;
 
         self.get_pegawai_pakaian_dinas(&request.nip)
             .await?
@@ -226,6 +324,16 @@ impl PakaianDinasRepository {
                 .execute(&upsert_profile_sql(&scope_sql), &as_refs(&params))
                 .await
                 .map_err(|e| bad_request(&e.to_string()))?;
+            if affected > 0 {
+                sinkron_ukuran_per_spesifikasi(
+                    &client,
+                    &req.nip,
+                    req.ukuran_baju.as_deref(),
+                    req.ukuran_celana.as_deref(),
+                    req.ukuran_sepatu.as_deref(),
+                )
+                .await?;
+            }
             count += affected as usize;
         }
 
@@ -311,6 +419,116 @@ impl PakaianDinasRepository {
     }
 
     // ============ Reports ============
+}
+
+// ============ Profil ukuran per spesifikasi (V019) ============
+impl PakaianDinasRepository {
+    /// Semua kolom pakaian yang aktif beserta ukuran yang tercatat untuk `nip`, kosong bila
+    /// belum pernah diisi. Spesifikasi yang grupnya dinonaktifkan tidak ditawarkan lagi.
+    pub async fn get_ukuran_profil(&self, nip: &str) -> AppResult<Vec<UkuranProfilItem>> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let rows = client
+            .query(
+                "SELECT s.id AS spesifikasi_id, j.nama AS jenis_pakaian_nama, s.nama AS spesifikasi_nama,
+                        s.ukuran_group, g.tipe, s.gender, u.ukuran
+                 FROM perlengkapan.ms_spesifikasi_pakaian_dinas s
+                 JOIN perlengkapan.ms_jenis_pakaian_dinas j ON j.id = s.jenis_pakaian_dinas_id
+                 JOIN perlengkapan.ms_ukuran_group g ON g.kode = s.ukuran_group
+                 LEFT JOIN perlengkapan.pegawai_pakaian_dinas_ukuran u
+                        ON u.spesifikasi_id = s.id AND u.nip = $1
+                 WHERE COALESCE(s.is_active, true) AND g.is_active AND COALESCE(j.is_active, true)
+                 ORDER BY j.nama, g.urutan, s.nama",
+                &[&nip],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        Ok(rows.iter().map(UkuranProfilItem::from_row).collect())
+    }
+
+    /// Simpan ukuran profil per spesifikasi. Setiap nilai diperiksa terhadap aturan grup
+    /// spesifikasinya (pilihan dari daftar, atau teks bebas); nilai kosong menghapus isian.
+    /// Satu transaksi: atau semuanya tersimpan, atau tak satu pun.
+    pub async fn simpan_ukuran_profil(
+        &self,
+        nip: &str,
+        nama: Option<&str>,
+        items: &[UkuranProfilInput],
+    ) -> AppResult<Vec<UkuranProfilItem>> {
+        let mut client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let tx = client
+            .transaction()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+
+        let spek_ids: Vec<Uuid> = items.iter().map(|i| i.spesifikasi_id).collect();
+        let spek = tx
+            .query(
+                "SELECT s.id, s.nama, s.ukuran_group
+                 FROM perlengkapan.ms_spesifikasi_pakaian_dinas s WHERE s.id = ANY($1)",
+                &[&spek_ids],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let per_spek: HashMap<Uuid, (String, String)> = spek
+            .iter()
+            .map(|r| (r.get("id"), (r.get("nama"), r.get("ukuran_group"))))
+            .collect();
+        let kode: Vec<String> = per_spek.values().map(|(_, g)| g.clone()).collect();
+        let aturan = aturan_grup(&tx, &kode).await?;
+
+        // Baris profil bagi pemiliknya sendiri (FK dari tabel per spesifikasi). Tak membuat
+        // apa pun untuk NIP orang lain: NIP berasal dari klaim pemanggil, bukan dari isi permintaan.
+        tx.execute(
+            "INSERT INTO perlengkapan.pegawai_pakaian_dinas (nip, nama, updated_at)
+             VALUES ($1, $2, now()) ON CONFLICT (nip) DO NOTHING",
+            &[&nip, &nama],
+        )
+        .await
+        .map_err(|e| bad_request(&e.to_string()))?;
+
+        for item in items {
+            let (nama_spek, grup_kode) = per_spek.get(&item.spesifikasi_id).ok_or_else(|| {
+                AppError::NotFound(format!(
+                    "Spesifikasi {} tidak ditemukan",
+                    item.spesifikasi_id
+                ))
+            })?;
+            if item.ukuran.trim().is_empty() {
+                tx.execute(
+                    "DELETE FROM perlengkapan.pegawai_pakaian_dinas_ukuran
+                     WHERE nip = $1 AND spesifikasi_id = $2",
+                    &[&nip, &item.spesifikasi_id],
+                )
+                .await
+                .map_err(|e| bad_request(&e.to_string()))?;
+                continue;
+            }
+            let (grup, daftar) = aturan
+                .get(grup_kode)
+                .ok_or_else(|| bad_request(&format!("Grup ukuran \"{grup_kode}\" tidak ada")))?;
+            let nilai = validasi_ukuran(grup, daftar, &item.ukuran)
+                .map_err(|e| bad_request(&format!("{nama_spek}: {e}")))?;
+            tx.execute(
+                "INSERT INTO perlengkapan.pegawai_pakaian_dinas_ukuran (nip, spesifikasi_id, ukuran, sumber)
+                 VALUES ($1, $2, $3, 'APLIKASI')
+                 ON CONFLICT (nip, spesifikasi_id) DO UPDATE
+                    SET ukuran = EXCLUDED.ukuran, sumber = EXCLUDED.sumber, updated_at = now()",
+                &[&nip, &item.spesifikasi_id, &nilai],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        }
+        tx.commit().await.map_err(|e| bad_request(&e.to_string()))?;
+        self.get_ukuran_profil(nip).await
+    }
 }
 
 #[cfg(test)]

@@ -610,3 +610,260 @@ impl PakaianDinasRepository {
         Ok(row.get("ada"))
     }
 }
+
+// ============ Master: Grup Ukuran dan daftar ukuran (V019) ============
+//
+// Grup ukuran adalah data referensi: menambah jenis isian baru (topi, nama dada, ...)
+// berarti menambah baris di sini, bukan migrasi. Semua penjaga di bawah menolak yang
+// membuat isian tersimpan menjadi tak sesuai lagi dengan aturan grupnya.
+impl PakaianDinasRepository {
+    pub async fn get_all_ukuran_grup(&self, hanya_aktif: bool) -> AppResult<Vec<UkuranGrup>> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let rows = client
+            .query(
+                "SELECT kode, nama, tipe, urutan, is_active
+                 FROM perlengkapan.ms_ukuran_group
+                 WHERE ($1::boolean = false OR is_active)
+                 ORDER BY urutan, kode",
+                &[&hanya_aktif],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        Ok(rows.iter().map(UkuranGrup::from_row).collect())
+    }
+
+    pub async fn get_ukuran_grup(&self, kode: &str) -> AppResult<Option<UkuranGrup>> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let row = client
+            .query_opt(
+                "SELECT kode, nama, tipe, urutan, is_active
+                 FROM perlengkapan.ms_ukuran_group WHERE kode = $1",
+                &[&kode],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        Ok(row.as_ref().map(UkuranGrup::from_row))
+    }
+
+    pub async fn create_ukuran_grup(
+        &self,
+        kode: &str,
+        nama: &str,
+        tipe: &str,
+        urutan: Option<i32>,
+    ) -> AppResult<UkuranGrup> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        // `ON CONFLICT DO NOTHING` + pemeriksaan baris: dua permintaan serentak dengan kode
+        // yang sama menghasilkan satu yang menang dan satu pesan yang jelas, bukan galat
+        // constraint mentah.
+        let row = client
+            .query_opt(
+                "INSERT INTO perlengkapan.ms_ukuran_group (kode, nama, tipe, urutan)
+                 VALUES ($1, $2, $3,
+                         COALESCE($4, (SELECT COALESCE(MAX(urutan), 0) + 1 FROM perlengkapan.ms_ukuran_group)))
+                 ON CONFLICT (kode) DO NOTHING
+                 RETURNING kode, nama, tipe, urutan, is_active",
+                &[&kode, &nama, &tipe, &urutan],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        row.as_ref()
+            .map(UkuranGrup::from_row)
+            .ok_or_else(|| bad_request(&format!("Grup ukuran \"{kode}\" sudah ada")))
+    }
+
+    pub async fn update_ukuran_grup(
+        &self,
+        kode: &str,
+        nama: &str,
+        urutan: Option<i32>,
+        is_active: bool,
+    ) -> AppResult<UkuranGrup> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let row = client
+            .query_opt(
+                "UPDATE perlengkapan.ms_ukuran_group
+                 SET nama = $2, urutan = COALESCE($3, urutan), is_active = $4, updated_at = now()
+                 WHERE kode = $1
+                 RETURNING kode, nama, tipe, urutan, is_active",
+                &[&kode, &nama, &urutan, &is_active],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        row.as_ref()
+            .map(UkuranGrup::from_row)
+            .ok_or_else(|| AppError::NotFound("Grup ukuran tidak ditemukan".to_string()))
+    }
+
+    /// Hapus grup yang tak dipakai siapa pun. Yang masih dirujuk spesifikasi atau punya
+    /// daftar ukuran ditolak dengan alasan yang menyebut jumlahnya, bukan dengan galat FK.
+    pub async fn delete_ukuran_grup(&self, kode: &str) -> AppResult<()> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let pakai = client
+            .query_one(
+                "SELECT (SELECT count(*) FROM perlengkapan.ms_spesifikasi_pakaian_dinas WHERE ukuran_group = $1) AS spesifikasi,
+                        (SELECT count(*) FROM perlengkapan.ms_ukuran WHERE \"group\" = $1) AS ukuran",
+                &[&kode],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let spesifikasi: i64 = pakai.get("spesifikasi");
+        let ukuran: i64 = pakai.get("ukuran");
+        if spesifikasi > 0 {
+            return Err(bad_request(&format!(
+                "Grup \"{kode}\" masih dipakai {spesifikasi} spesifikasi; ganti grup spesifikasinya dulu atau nonaktifkan grup ini"
+            )));
+        }
+        if ukuran > 0 {
+            return Err(bad_request(&format!(
+                "Grup \"{kode}\" masih punya {ukuran} ukuran; hapus ukurannya dulu atau nonaktifkan grup ini"
+            )));
+        }
+        let n = client
+            .execute(
+                "DELETE FROM perlengkapan.ms_ukuran_group WHERE kode = $1",
+                &[&kode],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        if n == 0 {
+            return Err(AppError::NotFound(
+                "Grup ukuran tidak ditemukan".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    /// Ukuran yang sah untuk sebuah grup, urut. Untuk grup `TEKS` kosong.
+    pub async fn daftar_ukuran_grup(&self, kode: &str) -> AppResult<Vec<String>> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let rows = client
+            .query(
+                "SELECT ukuran FROM perlengkapan.ms_ukuran WHERE \"group\" = $1 ORDER BY urutan, ukuran",
+                &[&kode],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        Ok(rows.iter().map(|r| r.get::<_, String>("ukuran")).collect())
+    }
+
+    pub async fn create_ukuran(
+        &self,
+        group: &str,
+        ukuran: &str,
+        urutan: Option<i32>,
+    ) -> AppResult<Ukuran> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let row = client
+            .query_opt(
+                // Casts eksplisit: `$2` dipakai dua kali, dan tanpa tipe Postgres menyimpulkannya
+                // berbeda di VALUES dan di subkueri ("inconsistent types deduced for parameter $2").
+                "INSERT INTO perlengkapan.ms_ukuran (ukuran, \"group\", urutan)
+                 VALUES ($1::varchar, $2::varchar,
+                         COALESCE($3::int4, (SELECT COALESCE(MAX(urutan), 0) + 1 FROM perlengkapan.ms_ukuran WHERE \"group\" = $2::varchar)))
+                 ON CONFLICT (ukuran, \"group\") DO NOTHING
+                 RETURNING ukuran, \"group\", urutan",
+                &[&ukuran, &group, &urutan],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        row.as_ref()
+            .map(Ukuran::from_row)
+            .ok_or_else(|| bad_request(&format!("Ukuran \"{ukuran}\" sudah ada di grup {group}")))
+    }
+
+    pub async fn update_ukuran_urutan(
+        &self,
+        group: &str,
+        ukuran: &str,
+        urutan: i32,
+    ) -> AppResult<Ukuran> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let row = client
+            .query_opt(
+                "UPDATE perlengkapan.ms_ukuran SET urutan = $3
+                 WHERE \"group\" = $1 AND ukuran = $2
+                 RETURNING ukuran, \"group\", urutan",
+                &[&group, &ukuran, &urutan],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        row.as_ref()
+            .map(Ukuran::from_row)
+            .ok_or_else(|| AppError::NotFound("Ukuran tidak ditemukan".to_string()))
+    }
+
+    /// Hapus satu ukuran dari daftar sebuah grup, kecuali masih dipakai isian yang
+    /// tersimpan: ukuran yang hilang dari daftar membuat isian itu tak bisa lagi dipilih
+    /// dan tak lolos validasi bila disimpan ulang.
+    pub async fn delete_ukuran(&self, group: &str, ukuran: &str) -> AppResult<()> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let pakai = client
+            .query_one(
+                "SELECT
+                   (SELECT count(*) FROM perlengkapan.pegawai_pakaian_dinas_ukuran u
+                      JOIN perlengkapan.ms_spesifikasi_pakaian_dinas s ON s.id = u.spesifikasi_id
+                     WHERE s.ukuran_group = $1 AND u.ukuran = $2) AS profil,
+                   (SELECT count(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran su
+                      JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pk ON pk.id = su.pakaian_id
+                     WHERE pk.spesifikasi_ukuran_group = $1 AND su.ukuran = $2) AS kampanye",
+                &[&group, &ukuran],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let profil: i64 = pakai.get("profil");
+        let kampanye: i64 = pakai.get("kampanye");
+        if profil + kampanye > 0 {
+            return Err(bad_request(&format!(
+                "Ukuran \"{ukuran}\" di grup {group} masih dipakai {profil} profil pegawai dan {kampanye} isian kampanye"
+            )));
+        }
+        let n = client
+            .execute(
+                "DELETE FROM perlengkapan.ms_ukuran WHERE \"group\" = $1 AND ukuran = $2",
+                &[&group, &ukuran],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        if n == 0 {
+            return Err(AppError::NotFound("Ukuran tidak ditemukan".to_string()));
+        }
+        Ok(())
+    }
+}
