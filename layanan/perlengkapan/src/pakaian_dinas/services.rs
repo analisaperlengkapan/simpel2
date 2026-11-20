@@ -248,7 +248,7 @@ impl PakaianDinasService {
 
     pub async fn create_spesifikasi(
         &self,
-        request: CreateSpesifikasiRequest,
+        mut request: CreateSpesifikasiRequest,
     ) -> AppResult<SpesifikasiPakaianDinas> {
         use validator::Validate;
         request
@@ -261,11 +261,11 @@ impl PakaianDinasService {
             return Err(bad_request("Gender harus L, P, atau SEMUA"));
         }
 
-        // Validate ukuran_group value
-        let group = request.ukuran_group.to_uppercase();
-        if !["BAJU", "CELANA", "SEPATU"].contains(&group.as_str()) {
-            return Err(bad_request("Ukuran group harus BAJU, CELANA, atau SEPATU"));
-        }
+        // Grup ukuran adalah data referensi (V019), bukan daftar tetap di kode: harus ada
+        // dan aktif. Dinormalkan ke kodenya, supaya "baju" tersimpan sebagai "BAJU".
+        request.ukuran_group = self
+            .grup_spesifikasi_sah(&request.ukuran_group, true)
+            .await?;
 
         // Verify jenis exists
         self.repository
@@ -294,12 +294,33 @@ impl PakaianDinasService {
     pub async fn update_spesifikasi(
         &self,
         id: Uuid,
-        request: CreateSpesifikasiRequest,
+        mut request: CreateSpesifikasiRequest,
     ) -> AppResult<SpesifikasiPakaianDinas> {
         use validator::Validate;
         request
             .validate()
             .map_err(|e| bad_request(&e.to_string()))?;
+
+        // Spesifikasi yang sudah memakai grup yang kemudian dinonaktifkan tetap bisa
+        // disunting; yang tak boleh adalah menunjuk grup yang tidak ada.
+        request.ukuran_group = self
+            .grup_spesifikasi_sah(&request.ukuran_group, false)
+            .await?;
+
+        // Profil menyimpan ukuran per spesifikasi, bukan per grup: mengganti grup spesifikasi yang
+        // sudah punya isian membuat ukuran "L" milik BAJU terbaca sebagai ukuran SEPATU, dan
+        // menyimpan ulangnya ditolak. Ditolak di sini, dengan jumlahnya, bukan dibiarkan rusak.
+        let sekarang = self.repository.get_spesifikasi_by_id(id).await?;
+        if sekarang.ukuran_group != request.ukuran_group {
+            let n = self.repository.jumlah_isian_profil_spesifikasi(id).await?;
+            if n > 0 {
+                return Err(bad_request(&format!(
+                    "Spesifikasi ini sudah punya {n} isian ukuran pada profil pegawai dengan grup \"{}\"; \
+                     mengganti grupnya membuat isian itu tak sah. Buat spesifikasi baru untuk grup yang lain",
+                    sekarang.ukuran_group
+                )));
+            }
+        }
 
         self.repository.update_spesifikasi(id, request).await
     }
@@ -1186,6 +1207,141 @@ fn alasan_untuk_pengguna(e: &AppError) -> String {
         | AppError::Authorization(m)
         | AppError::WorkflowError(m) => m.clone(),
         _ => "Terjadi kesalahan di server saat memproses satker ini".to_string(),
+    }
+}
+
+// ============ Master: Grup Ukuran dan daftar ukuran (V019) ============
+impl PakaianDinasService {
+    /// Kode grup yang sah untuk sebuah spesifikasi: ada di `ms_ukuran_group` dan (bila
+    /// `harus_aktif`) aktif. Mengembalikan kode kanoniknya.
+    async fn grup_spesifikasi_sah(&self, kode: &str, harus_aktif: bool) -> AppResult<String> {
+        let kode =
+            super::validasi_ukuran::normalisasi_kode_grup(kode).map_err(|e| bad_request(&e))?;
+        match self.repository.get_ukuran_grup(&kode).await? {
+            Some(g) if g.is_active || !harus_aktif => Ok(g.kode),
+            Some(_) => Err(bad_request(&format!("Grup ukuran \"{kode}\" tidak aktif"))),
+            None => Err(bad_request(&format!(
+                "Grup ukuran \"{kode}\" tidak ada; tambahkan dulu di referensi grup ukuran"
+            ))),
+        }
+    }
+
+    pub async fn get_all_ukuran_grup(&self, hanya_aktif: bool) -> AppResult<Vec<UkuranGrup>> {
+        self.repository.get_all_ukuran_grup(hanya_aktif).await
+    }
+
+    pub async fn create_ukuran_grup(
+        &self,
+        request: CreateUkuranGrupRequest,
+    ) -> AppResult<UkuranGrup> {
+        use validator::Validate;
+        request
+            .validate()
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let kode = super::validasi_ukuran::normalisasi_kode_grup(&request.kode)
+            .map_err(|e| bad_request(&e))?;
+        let tipe = request
+            .tipe
+            .as_deref()
+            .map(|t| t.trim().to_uppercase())
+            .unwrap_or_else(|| UkuranGrup::TIPE_PILIHAN.to_string());
+        if tipe != UkuranGrup::TIPE_PILIHAN && tipe != UkuranGrup::TIPE_TEKS {
+            return Err(bad_request("Tipe grup harus PILIHAN atau TEKS"));
+        }
+        let nama = request.nama.trim();
+        if nama.is_empty() {
+            return Err(bad_request("Nama harus diisi"));
+        }
+        self.repository
+            .create_ukuran_grup(&kode, nama, &tipe, request.urutan)
+            .await
+    }
+
+    pub async fn update_ukuran_grup(
+        &self,
+        kode: &str,
+        request: UpdateUkuranGrupRequest,
+    ) -> AppResult<UkuranGrup> {
+        use validator::Validate;
+        request
+            .validate()
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let kode =
+            super::validasi_ukuran::normalisasi_kode_grup(kode).map_err(|e| bad_request(&e))?;
+        let nama = request.nama.trim();
+        if nama.is_empty() {
+            return Err(bad_request("Nama harus diisi"));
+        }
+        self.repository
+            .update_ukuran_grup(&kode, nama, request.urutan, request.is_active)
+            .await
+    }
+
+    pub async fn delete_ukuran_grup(&self, kode: &str) -> AppResult<()> {
+        let kode =
+            super::validasi_ukuran::normalisasi_kode_grup(kode).map_err(|e| bad_request(&e))?;
+        self.repository.delete_ukuran_grup(&kode).await
+    }
+
+    pub async fn create_ukuran(&self, request: CreateUkuranRequest) -> AppResult<Ukuran> {
+        use validator::Validate;
+        request
+            .validate()
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let kode = super::validasi_ukuran::normalisasi_kode_grup(&request.group)
+            .map_err(|e| bad_request(&e))?;
+        let grup = self
+            .repository
+            .get_ukuran_grup(&kode)
+            .await?
+            .ok_or_else(|| bad_request(&format!("Grup ukuran \"{kode}\" tidak ada")))?;
+        if grup.is_teks() {
+            return Err(bad_request(&format!(
+                "Grup \"{kode}\" bertipe TEKS: isiannya bebas, tak punya daftar ukuran"
+            )));
+        }
+        // `validate()` memeriksa panjang SEBELUM dipangkas: "   " lolos, lalu menjadi string kosong,
+        // dan ukuran kosong tak pernah bisa disimpan (dianggap penghapusan isian).
+        let ukuran = request.ukuran.trim();
+        if ukuran.is_empty() {
+            return Err(bad_request("Ukuran harus diisi"));
+        }
+        self.repository
+            .create_ukuran(&kode, ukuran, request.urutan)
+            .await
+    }
+
+    pub async fn update_ukuran_urutan(
+        &self,
+        group: &str,
+        ukuran: &str,
+        request: UpdateUkuranUrutanRequest,
+    ) -> AppResult<Ukuran> {
+        self.repository
+            .update_ukuran_urutan(group, ukuran, request.urutan)
+            .await
+    }
+
+    pub async fn delete_ukuran(&self, group: &str, ukuran: &str) -> AppResult<()> {
+        self.repository.delete_ukuran(group, ukuran).await
+    }
+}
+
+// ============ Profil ukuran per spesifikasi (V019) ============
+impl PakaianDinasService {
+    pub async fn get_ukuran_profil(&self, nip: &str) -> AppResult<Vec<UkuranProfilItem>> {
+        self.repository.get_ukuran_profil(nip).await
+    }
+
+    pub async fn simpan_ukuran_profil(
+        &self,
+        nip: &str,
+        nama: Option<&str>,
+        request: SimpanUkuranProfilRequest,
+    ) -> AppResult<Vec<UkuranProfilItem>> {
+        self.repository
+            .simpan_ukuran_profil(nip, nama, &request.ukuran)
+            .await
     }
 }
 

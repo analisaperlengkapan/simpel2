@@ -212,7 +212,7 @@ async fn an_operator_cannot_write_another_satkers_employee() {
             "nip": "19800101000000002",
             "nama": "DITULIS OLEH OPERATOR SATKER LAIN",
             "kode_satker": "SKR002",
-            "ukuran_baju": "XXL",
+            "ukuran_baju": "2XL",
             "with_hijab": false
         }),
     )

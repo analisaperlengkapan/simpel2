@@ -469,7 +469,7 @@ test.describe('Pakaian dinas employee scoping — server-side', () => {
         // The body used to decide which satker the row belonged to. Claiming
         // the victim's satker is exactly what made the staging probe land.
         kode_satker: foreignSatker,
-        ukuran_baju: 'XXL',
+        ukuran_baju: '2XL',
         with_hijab: false,
       },
     });

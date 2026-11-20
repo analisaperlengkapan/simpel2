@@ -192,8 +192,24 @@ pub fn create_routes(state: AppState) -> Router {
             get(pakaian_dinas::get_subspesifikasi_by_id)
                 .delete(pakaian_dinas::delete_subspesifikasi_handler),
         )
-        // Master: Ukuran
-        .route("/pakaian-dinas/ukuran", get(pakaian_dinas::get_all_ukuran))
+        // Master: Grup Ukuran + daftar ukuran per grup (V019). Dibaca semua peran,
+        // diubah admin saja (dijaga di handler, seperti jenis dan spesifikasi).
+        .route(
+            "/pakaian-dinas/ukuran-grup",
+            get(pakaian_dinas::get_all_ukuran_grup).post(pakaian_dinas::create_ukuran_grup),
+        )
+        .route(
+            "/pakaian-dinas/ukuran-grup/{kode}",
+            put(pakaian_dinas::update_ukuran_grup).delete(pakaian_dinas::delete_ukuran_grup),
+        )
+        .route(
+            "/pakaian-dinas/ukuran",
+            get(pakaian_dinas::get_all_ukuran).post(pakaian_dinas::create_ukuran),
+        )
+        .route(
+            "/pakaian-dinas/ukuran/{group}/{ukuran}",
+            put(pakaian_dinas::update_ukuran_urutan).delete(pakaian_dinas::delete_ukuran),
+        )
         // Pengajuan Pakaian Dinas
         .route(
             "/pakaian-dinas/pengajuan",
@@ -249,6 +265,11 @@ pub fn create_routes(state: AppState) -> Router {
         .route(
             "/pakaian-dinas/ukuran-pakaian-pegawai",
             get(pakaian_dinas::get_personal_ukuran).post(pakaian_dinas::update_personal_ukuran),
+        )
+        // Profil ukuran per spesifikasi (V019): pengganti tiga kolom tetap di atas.
+        .route(
+            "/pakaian-dinas/ukuran-profil",
+            get(pakaian_dinas::get_ukuran_profil).put(pakaian_dinas::simpan_ukuran_profil),
         )
         // Pegawai Profile (reporting fields + sizes)
         .route(

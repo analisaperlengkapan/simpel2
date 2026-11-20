@@ -12,14 +12,6 @@ fn test_gender_conversion() {
 }
 
 #[test]
-fn test_ukuran_group_conversion() {
-    assert_eq!(UkuranGroup::from_str("BAJU"), UkuranGroup::Baju);
-    assert_eq!(UkuranGroup::from_str("CELANA"), UkuranGroup::Celana);
-    assert_eq!(UkuranGroup::from_str("SEPATU"), UkuranGroup::Sepatu);
-    assert_eq!(UkuranGroup::from_str("baju"), UkuranGroup::Baju);
-}
-
-#[test]
 fn test_aktivitas_status_conversion() {
     assert_eq!(
         AktivitasStatus::from_i32(1000),

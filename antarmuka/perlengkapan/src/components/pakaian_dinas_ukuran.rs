@@ -198,7 +198,7 @@ pub fn UkuranPegawai(
                                                     baju_sizes,
                                                     ukuran_baju,
                                                     set_ukuran_baju,
-                                                    "Ukuran standar: S, M, L, XL, XXL, XXXL",
+                                                    "Ukuran standar: S, M, L, XL, 2XL, 3XL",
                                                 )}
                                                 {render_size_select(
                                                     "Ukuran Celana",

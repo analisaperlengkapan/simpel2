@@ -207,3 +207,78 @@ pub struct UkuranPegawaiInput {
     pub pakaian_id: Uuid,
     pub ukuran: String,
 }
+
+/// Request DTO untuk membuat grup ukuran (V019). `kode` dinormalkan menjadi HURUF BESAR
+/// tanpa spasi; `tipe` bawaannya `PILIHAN`.
+#[derive(Debug, Deserialize, Validate)]
+pub struct CreateUkuranGrupRequest {
+    #[validate(length(
+        min = 1,
+        max = 50,
+        message = "Kode harus diisi dan maksimal 50 karakter"
+    ))]
+    pub kode: String,
+    #[validate(length(
+        min = 1,
+        max = 100,
+        message = "Nama harus diisi dan maksimal 100 karakter"
+    ))]
+    pub nama: String,
+    /// `PILIHAN` (bawaan) atau `TEKS`.
+    pub tipe: Option<String>,
+    pub urutan: Option<i32>,
+}
+
+/// Request DTO untuk mengubah grup ukuran. `tipe` TIDAK bisa diubah: mengubah grup
+/// berdaftar menjadi teks (atau sebaliknya) membuat isian yang sudah tersimpan tidak
+/// lagi sesuai dengan aturan grupnya.
+#[derive(Debug, Deserialize, Validate)]
+pub struct UpdateUkuranGrupRequest {
+    #[validate(length(
+        min = 1,
+        max = 100,
+        message = "Nama harus diisi dan maksimal 100 karakter"
+    ))]
+    pub nama: String,
+    pub urutan: Option<i32>,
+    #[serde(default = "default_true")]
+    pub is_active: bool,
+}
+
+/// Request DTO untuk menambah satu ukuran ke daftar sebuah grup `PILIHAN`.
+#[derive(Debug, Deserialize, Validate)]
+pub struct CreateUkuranRequest {
+    #[validate(length(
+        min = 1,
+        max = 20,
+        message = "Ukuran harus diisi dan maksimal 20 karakter"
+    ))]
+    pub ukuran: String,
+    #[validate(length(min = 1, max = 50, message = "Grup harus diisi"))]
+    pub group: String,
+    /// Kosong = ditaruh di akhir daftar.
+    pub urutan: Option<i32>,
+}
+
+/// Request DTO untuk mengubah urutan sebuah ukuran. Nilainya sendiri tidak diganti:
+/// mengganti nama berarti membuat yang baru dan menghapus yang lama, supaya isian yang
+/// memakainya tidak berubah diam-diam.
+#[derive(Debug, Deserialize)]
+pub struct UpdateUkuranUrutanRequest {
+    pub urutan: i32,
+}
+
+/// Satu isian ukuran pada profil pegawai (V019).
+#[derive(Debug, Clone, Deserialize)]
+pub struct UkuranProfilInput {
+    pub spesifikasi_id: Uuid,
+    /// Kosong = hapus isian untuk spesifikasi ini.
+    pub ukuran: String,
+}
+
+/// Request DTO untuk menyimpan profil ukuran per spesifikasi.
+#[derive(Debug, Deserialize)]
+pub struct SimpanUkuranProfilRequest {
+    #[serde(default)]
+    pub ukuran: Vec<UkuranProfilInput>,
+}

@@ -29,34 +29,6 @@ impl Gender {
         }
     }
 }
-/// Ukuran group for clothing categories
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum UkuranGroup {
-    Baju,
-    Celana,
-    Sepatu,
-}
-impl UkuranGroup {
-    // Infallible parse (defaults on unknown) → named ctor, not FromStr.
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Self {
-        match s.to_uppercase().as_str() {
-            "BAJU" => UkuranGroup::Baju,
-            "CELANA" => UkuranGroup::Celana,
-            "SEPATU" => UkuranGroup::Sepatu,
-            _ => UkuranGroup::Baju,
-        }
-    }
-
-    pub fn to_db_string(&self) -> &'static str {
-        match self {
-            UkuranGroup::Baju => "BAJU",
-            UkuranGroup::Celana => "CELANA",
-            UkuranGroup::Sepatu => "SEPATU",
-        }
-    }
-}
 /// Workflow status codes for pakaian dinas requests
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AktivitasStatus {

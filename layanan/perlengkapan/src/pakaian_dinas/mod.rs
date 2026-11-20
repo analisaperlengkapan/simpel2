@@ -16,6 +16,7 @@ pub mod pdf_export;
 pub mod repository;
 pub mod scope;
 pub mod services;
+pub mod validasi_ukuran;
 pub mod xlsx_export;
 
 pub use handlers::*;

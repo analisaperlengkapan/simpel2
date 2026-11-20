@@ -13,7 +13,9 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use super::PakaianDinasRepository;
+use super::pegawai::{aturan_grup, kunci_grup_bersama};
 use crate::pakaian_dinas::models::*;
+use crate::pakaian_dinas::validasi_ukuran::validasi_ukuran;
 use crate::shared::error::{AppError, AppResult, bad_request};
 use crate::shared::pegawai_ref::{PEGAWAI_KODE_SATKER_SQL, PEGAWAI_SATKER_JOIN_SQL};
 use crate::shared::satker_scope::SatkerScope;
@@ -223,28 +225,43 @@ impl PakaianDinasRepository {
         // diambil sekali untuk seluruh satker. Operator tidak mengetik ulang data
         // yang sudah ada di database; ia memeriksa lalu menyimpan.
         let nips: Vec<String> = pegawai_rows.iter().map(|r| r.get("nip")).collect();
+        // Ukuran profil DIBACA PER SPESIFIKASI (V019): sepatu PDH dan sepatu PDL, kaos dan
+        // baju, masing-masing punya ukurannya sendiri. Sebelumnya hanya satu ukuran per grup,
+        // jadi kolom-kolom dalam grup yang sama mendapat saran yang sama.
         let profil_rows = client
             .query(
-                "SELECT nip, ukuran_baju, ukuran_celana, ukuran_sepatu, with_hijab \
+                "SELECT nip, with_hijab \
                  FROM perlengkapan.pegawai_pakaian_dinas WHERE nip = ANY($1)",
                 &[&nips],
             )
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
-        let profil: HashMap<String, ProfilUkuran> = profil_rows
+        let ukuran_rows = client
+            .query(
+                "SELECT nip, spesifikasi_id, ukuran \
+                 FROM perlengkapan.pegawai_pakaian_dinas_ukuran WHERE nip = ANY($1)",
+                &[&nips],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let mut profil: HashMap<String, ProfilUkuran> = profil_rows
             .iter()
             .map(|r| {
                 (
                     r.get::<_, String>("nip"),
                     ProfilUkuran {
-                        baju: r.try_get("ukuran_baju").ok().flatten(),
-                        celana: r.try_get("ukuran_celana").ok().flatten(),
-                        sepatu: r.try_get("ukuran_sepatu").ok().flatten(),
+                        per_spesifikasi: HashMap::new(),
                         with_hijab: r.try_get("with_hijab").unwrap_or(false),
                     },
                 )
             })
             .collect();
+        for r in &ukuran_rows {
+            if let Some(p) = profil.get_mut(r.get::<_, &str>("nip")) {
+                p.per_spesifikasi
+                    .insert(r.get("spesifikasi_id"), r.get("ukuran"));
+            }
+        }
 
         let pegawai = pegawai_rows
             .iter()
@@ -460,28 +477,44 @@ impl PakaianDinasRepository {
         .await
         .map_err(|e| bad_request(&e.to_string()))?;
 
+        // Aturan grup, dimuat sekali per grup yang muncul di permintaan ini.
+        let mut aturan: HashMap<String, (UkuranGrup, Vec<String>)> = HashMap::new();
+
         for item in &request.ukuran {
             if item.ukuran.trim().is_empty() {
                 continue;
             }
             // Kolom harus milik pengajuan ini. Tanpa penjagaan ini sebuah
             // `pakaian_id` dari kampanye lain akan tersimpan dan muncul di
-            // laporan kampanye yang salah.
+            // laporan kampanye yang salah. Grup ukuran kolom itu (yang DISALIN ke kolom
+            // kampanye saat dibuat) ikut dibaca di sini untuk memeriksa nilainya.
             let milik = tx
-                .query_one(
-                    "SELECT EXISTS(
-                        SELECT 1 FROM perlengkapan.pengajuan_pakaian_dinas_pakaian
-                        WHERE id = $1 AND pengajuan_id = $2
-                     ) AS ada",
+                .query_opt(
+                    "SELECT spesifikasi_nama, spesifikasi_ukuran_group
+                     FROM perlengkapan.pengajuan_pakaian_dinas_pakaian
+                     WHERE id = $1 AND pengajuan_id = $2",
                     &[&item.pakaian_id, &pengajuan_id],
                 )
                 .await
-                .map_err(|e| bad_request(&e.to_string()))?;
-            if !milik.get::<_, bool>("ada") {
-                return Err(bad_request(
-                    "Ada ukuran yang menunjuk jenis pakaian di luar pengajuan ini",
-                ));
+                .map_err(|e| bad_request(&e.to_string()))?
+                .ok_or_else(|| {
+                    bad_request("Ada ukuran yang menunjuk jenis pakaian di luar pengajuan ini")
+                })?;
+            let nama_kolom: String = milik.get("spesifikasi_nama");
+            let grup_kolom: String = milik.get("spesifikasi_ukuran_group");
+            // Aturan yang sama dengan profil: pilihan harus dari daftar grupnya, teks dibatasi
+            // panjangnya. Grup yang sudah tak ada (kolom kampanye lama) dilewati, bukan ditolak:
+            // kampanye itu sah ketika dibuat.
+            if !aturan.contains_key(&grup_kolom) {
+                // Kunci bersama sebelum daftar dibaca: lihat `kunci_grup_bersama`.
+                kunci_grup_bersama(&tx, std::slice::from_ref(&grup_kolom)).await?;
+                aturan.extend(aturan_grup(&tx, std::slice::from_ref(&grup_kolom)).await?);
             }
+            let ukuran_sah = match aturan.get(&grup_kolom) {
+                Some((grup, daftar)) => validasi_ukuran(grup, daftar, &item.ukuran)
+                    .map_err(|e| bad_request(&format!("{nama_kolom}: {e}")))?,
+                None => item.ukuran.trim().to_string(),
+            };
             tx.execute(
                 r#"
                 INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran
@@ -492,7 +525,7 @@ impl PakaianDinasRepository {
                     &pengajuan_satker_id,
                     &pegawai_id,
                     &item.pakaian_id,
-                    &item.ukuran.trim(),
+                    &ukuran_sah,
                 ],
             )
             .await
@@ -571,29 +604,21 @@ struct SatkerRow {
     roster_snapshot_at: Option<DateTime<Utc>>,
 }
 
-/// What a pegawai's own profile (the Ukuran page) already says about their sizes.
+/// What a pegawai's own profile (the Ukuran page) already says about their sizes: one size
+/// per pakaian SPESIFIKASI (V019), not one per size group.
 struct ProfilUkuran {
-    baju: Option<String>,
-    celana: Option<String>,
-    sepatu: Option<String>,
+    per_spesifikasi: HashMap<Uuid, String>,
     with_hijab: bool,
 }
 
 impl ProfilUkuran {
-    /// The profile's size for each campaign column, by the column's size group.
-    /// A column whose group the profile has no size for gets no suggestion, and
-    /// so does an empty size.
+    /// The profile's size for each campaign column, by the column's spesifikasi. A column whose
+    /// spesifikasi the profile has no size for gets no suggestion, and so does an empty size.
     fn saran_untuk(&self, kolom: &[PengajuanPakaianItem]) -> Vec<UkuranPegawaiItem> {
         kolom
             .iter()
             .filter_map(|item| {
-                let ukuran = match item.spesifikasi_ukuran_group.to_uppercase().as_str() {
-                    "BAJU" => self.baju.as_deref(),
-                    "CELANA" => self.celana.as_deref(),
-                    "SEPATU" => self.sepatu.as_deref(),
-                    _ => None,
-                }?
-                .trim();
+                let ukuran = self.per_spesifikasi.get(&item.spesifikasi_id)?.trim();
                 (!ukuran.is_empty()).then(|| UkuranPegawaiItem {
                     pakaian_id: item.id,
                     ukuran: ukuran.to_string(),

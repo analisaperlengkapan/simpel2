@@ -70,6 +70,7 @@ WRITE_ALLOWLIST: dict[tuple[str, str], str] = {
     ("POST", "/bantuan/tiket/{id}/komentar"): "pemilik tiket atau staf; diputuskan TicketActor.access()",
     ("PUT", "/bantuan/tiket/{id}/status"): "khusus staf helpdesk; TicketActor.require_staff() di repository/service",
     ("POST", "/pakaian-dinas/ukuran-pakaian-pegawai"): "swalayan: NIP diambil dari klaim, bukan dari body",
+    ("PUT", "/pakaian-dinas/ukuran-profil"): "swalayan: NIP diambil dari klaim, bukan dari body (V019)",
 }
 
 READ_ALLOWLIST: dict[tuple[str, str], str] = {
@@ -81,8 +82,10 @@ READ_ALLOWLIST: dict[tuple[str, str], str] = {
     ("GET", "/pakaian-dinas/subspesifikasi"): "master referensi pakaian dinas",
     ("GET", "/pakaian-dinas/subspesifikasi/{id}"): "master referensi pakaian dinas",
     ("GET", "/pakaian-dinas/ukuran"): "master referensi ukuran",
+    ("GET", "/pakaian-dinas/ukuran-grup"): "master referensi grup ukuran (V019)",
     ("GET", "/pakaian-dinas/jenis/{jenis_id}/spesifikasi"): "master referensi pakaian dinas",
     ("GET", "/pakaian-dinas/ukuran-pakaian-pegawai"): "swalayan: NIP dari klaim",
+    ("GET", "/pakaian-dinas/ukuran-profil"): "swalayan: NIP dari klaim (profil ukuran per spesifikasi, V019)",
     ("GET", "/kebutuhan-bmn/laporan/status-options"): "daftar opsi status (referensi)",
     ("GET", "/kebutuhan-bmn/wilayah"): "daftar Kejati (referensi)",
     ("GET", "/kebutuhan-bmn/pengajuan/{id}/export"): "stub (belum menghasilkan berkas); tak mengembalikan data",

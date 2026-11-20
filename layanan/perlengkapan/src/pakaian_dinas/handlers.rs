@@ -354,6 +354,126 @@ pub async fn get_all_ukuran(
     )))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UkuranGrupFilterQuery {
+    /// `true` = hanya yang aktif (yang ditawarkan saat membuat spesifikasi baru).
+    pub aktif: Option<bool>,
+}
+
+// ============ Master: Grup Ukuran (V019) ============
+
+pub async fn get_all_ukuran_grup(
+    State(service): State<PakaianDinasService>,
+    Query(query): Query<UkuranGrupFilterQuery>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<UkuranGrup>>>, AppError> {
+    let items = service
+        .get_all_ukuran_grup(query.aktif.unwrap_or(false))
+        .await?;
+
+    Ok(Json(ApiResponse::success(
+        items,
+        "Daftar grup ukuran berhasil diambil".to_string(),
+    )))
+}
+
+pub async fn create_ukuran_grup(
+    State(service): State<PakaianDinasService>,
+    claims: Claims,
+    Json(request): Json<CreateUkuranGrupRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<UkuranGrup>>), AppError> {
+    // RBAC: referensi hanya boleh diubah admin, sama seperti jenis dan spesifikasi.
+    claims.require_admin()?;
+    let item = service.create_ukuran_grup(request).await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiResponse::success(
+            item,
+            "Grup ukuran berhasil dibuat".to_string(),
+        )),
+    ))
+}
+
+pub async fn update_ukuran_grup(
+    State(service): State<PakaianDinasService>,
+    Path(kode): Path<String>,
+    claims: Claims,
+    Json(request): Json<UpdateUkuranGrupRequest>,
+) -> Result<Json<ApiResponse<UkuranGrup>>, AppError> {
+    claims.require_admin()?;
+    let item = service.update_ukuran_grup(&kode, request).await?;
+
+    Ok(Json(ApiResponse::success(
+        item,
+        "Grup ukuran berhasil diubah".to_string(),
+    )))
+}
+
+pub async fn delete_ukuran_grup(
+    State(service): State<PakaianDinasService>,
+    Path(kode): Path<String>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<()>>, AppError> {
+    claims.require_admin()?;
+    service.delete_ukuran_grup(&kode).await?;
+
+    Ok(Json(ApiResponse::success(
+        (),
+        "Grup ukuran berhasil dihapus".to_string(),
+    )))
+}
+
+// ============ Master: daftar ukuran per grup (V019) ============
+
+pub async fn create_ukuran(
+    State(service): State<PakaianDinasService>,
+    claims: Claims,
+    Json(request): Json<CreateUkuranRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<Ukuran>>), AppError> {
+    claims.require_admin()?;
+    let item = service.create_ukuran(request).await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiResponse::success(
+            item,
+            "Ukuran berhasil ditambahkan".to_string(),
+        )),
+    ))
+}
+
+pub async fn update_ukuran_urutan(
+    State(service): State<PakaianDinasService>,
+    Path((group, ukuran)): Path<(String, String)>,
+    claims: Claims,
+    Json(request): Json<UpdateUkuranUrutanRequest>,
+) -> Result<Json<ApiResponse<Ukuran>>, AppError> {
+    claims.require_admin()?;
+    let item = service
+        .update_ukuran_urutan(&group, &ukuran, request)
+        .await?;
+
+    Ok(Json(ApiResponse::success(
+        item,
+        "Urutan ukuran berhasil diubah".to_string(),
+    )))
+}
+
+pub async fn delete_ukuran(
+    State(service): State<PakaianDinasService>,
+    Path((group, ukuran)): Path<(String, String)>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<()>>, AppError> {
+    claims.require_admin()?;
+    service.delete_ukuran(&group, &ukuran).await?;
+
+    Ok(Json(ApiResponse::success(
+        (),
+        "Ukuran berhasil dihapus".to_string(),
+    )))
+}
+
 // ============ Pengajuan ============
 
 pub async fn get_all_pengajuan_pakaian(
@@ -621,6 +741,45 @@ pub async fn get_personal_ukuran(
     Ok(Json(ApiResponse::success(
         item,
         "Data ukuran pakaian berhasil diambil".to_string(),
+    )))
+}
+
+/// Profil ukuran seorang pegawai per kolom pakaian (V019): semua spesifikasi aktif beserta
+/// ukuran yang tercatat, dari NIP pemanggil sendiri. Layar Ukuran memakai ini, bukan tiga
+/// kolom tetap.
+pub async fn get_ukuran_profil(
+    State(service): State<PakaianDinasService>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<Vec<UkuranProfilItem>>>, AppError> {
+    let nip = claims
+        .nip
+        .as_deref()
+        .ok_or_else(|| bad_request("NIP tidak ditemukan"))?;
+    let items = service.get_ukuran_profil(nip).await?;
+
+    Ok(Json(ApiResponse::success(
+        items,
+        "Profil ukuran berhasil diambil".to_string(),
+    )))
+}
+
+/// Simpan profil ukuran per spesifikasi untuk NIP pemanggil sendiri. NIP datang dari klaim,
+/// bukan dari badan permintaan: seseorang hanya bisa menulis profilnya sendiri.
+pub async fn simpan_ukuran_profil(
+    State(service): State<PakaianDinasService>,
+    claims: Claims,
+    Json(request): Json<SimpanUkuranProfilRequest>,
+) -> Result<Json<ApiResponse<Vec<UkuranProfilItem>>>, AppError> {
+    let nip = claims
+        .nip
+        .as_deref()
+        .ok_or_else(|| bad_request("NIP tidak ditemukan"))?;
+    let nama = claims.name.as_deref();
+    let items = service.simpan_ukuran_profil(nip, nama, request).await?;
+
+    Ok(Json(ApiResponse::success(
+        items,
+        "Profil ukuran berhasil disimpan".to_string(),
     )))
 }
 
