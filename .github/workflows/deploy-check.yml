@@ -70,6 +70,6 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsS -o /dev/null -w "runner:    %{http_code}\n" "${BASE_URL}/health"
-          docker build -t simpel-e2e:check antarmuka/perlengkapan/tests/e2e
+          docker build -f antarmuka/perlengkapan/tests/e2e/Dockerfile.e2e -t simpel-e2e:check antarmuka/perlengkapan/tests/e2e
           docker run --rm -e "U=${BASE_URL}" simpel-e2e:check node -e \
             "fetch(process.env.U + '/health').then(r => { console.log('container:', r.status); process.exit(r.status === 200 ? 0 : 1); })"

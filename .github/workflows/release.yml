@@ -743,7 +743,7 @@ jobs:
       # against the dind daemon, not the checkout, which is why the specs are baked in (see Dockerfile.e2e).
       - name: Build the e2e runner image
         shell: bash
-        run: docker build -t simpel-e2e:${{ github.sha }} antarmuka/perlengkapan/tests/e2e
+        run: docker build -f antarmuka/perlengkapan/tests/e2e/Dockerfile.e2e -t simpel-e2e:${{ github.sha }} antarmuka/perlengkapan/tests/e2e
 
       - name: Deploy, verify, run the suite, scan the logs
         shell: bash
