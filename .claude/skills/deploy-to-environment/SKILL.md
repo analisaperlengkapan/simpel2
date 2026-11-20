@@ -24,6 +24,12 @@ guardrails; the values/specifics live there.
 
 ## Flow
 
+> **Automated since 2026-11-20** (`infra/AGENTS.md` → "Alur deploy WAJIB"): pushing `vX.Y.Z-rcN` builds and
+> deploys to staging with verification and automatic rollback; pushing `vX.Y.Z` on the commit of the rc that
+> passed staging promotes it and deploys production after the owner approves. The steps below are the same
+> ones done by hand; use them when the pipeline itself is broken, and read `infra/scripts/deploy/pipeline.py`
+> for what is verified.
+
 1. **Build & push** — push git tag `vX.Y.Z-rcN` → `release.yml` builds+pushes all
    images (immutable digest) + cosign + SBOM/provenance + Trivy.
 2. **Deploy STAGING** — `helm upgrade --install simpel infra/helm/simpel -f

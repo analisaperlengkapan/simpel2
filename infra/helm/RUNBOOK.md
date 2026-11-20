@@ -21,7 +21,7 @@
 
 > Pattern: **"build once, promote artifact"**. Image yang lulus QA staging =
 > image identik di-deploy production. Cegah cache miss / non-determinism.
-
+>
 > **Sekarang otomatis.** Mendorong tag `vX.Y.Z-rcN` membangun image DAN men-deploy-nya ke staging
 > dengan verifikasi dan rollback otomatis; mendorong tag `vX.Y.Z` (di commit RC yang lolos) memicu
 > promote lalu deploy production setelah persetujuan pemilik. Semuanya dijalankan
