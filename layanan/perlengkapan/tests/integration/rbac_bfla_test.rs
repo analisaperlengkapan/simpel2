@@ -798,10 +798,16 @@ async fn an_export_contains_only_the_callers_own_satker() {
         status: None,
         scope,
     };
+    // Distinct people, not rows: since V019 the export has one row per recorded size per garment,
+    // and the legacy `ukuran_baju` above fills every garment of the BAJU group.
     let nips = |rows: Vec<Value>| -> Vec<String> {
-        rows.iter()
+        let mut nips: Vec<String> = rows
+            .iter()
             .map(|r| r["nip"].as_str().unwrap().to_string())
-            .collect()
+            .collect();
+        nips.sort();
+        nips.dedup();
+        nips
     };
 
     // A satker-tier caller gets their own employees, and nobody else's.

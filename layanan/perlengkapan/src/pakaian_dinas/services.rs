@@ -930,6 +930,16 @@ impl PakaianDinasService {
             .await
     }
 
+    pub async fn get_laporan_daftar_kolom(
+        &self,
+        pengajuan_id: Uuid,
+        filter: LaporanFilter,
+    ) -> AppResult<Vec<String>> {
+        self.repository
+            .get_laporan_daftar_columns(pengajuan_id, &filter)
+            .await
+    }
+
     // ── Rich report view-models (shared by Excel & PDF exporters) ──
 
     /// Build the document header (judul/periode/filters) for a pengajuan's

@@ -83,6 +83,12 @@ pub struct LaporanDaftarQuery {
     pub jenis: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct LaporanKolomQuery {
+    pub pengajuan_id: Uuid,
+    pub jenis_pakaian_id: Option<Uuid>,
+}
+
 // ============ Master: Jenis Pakaian Dinas ============
 
 pub async fn get_all_jenis_pakaian(
@@ -1006,6 +1012,30 @@ pub async fn get_laporan_daftar_pegawai(
         query.pagination.page,
         query.pagination.per_page,
         "Laporan daftar pegawai berhasil diambil".to_string(),
+    )))
+}
+
+/// GET /pakaian-dinas/laporan/daftar-kolom
+/// Nama kolom pakaian sebuah pengajuan, dalam urutan yang dipakai ekspor daftar. Tabel daftar di
+/// layar berhalaman: kolomnya harus sama di setiap halaman, bukan gabungan dari yang kebetulan
+/// terisi di halaman itu.
+pub async fn get_laporan_daftar_kolom(
+    State(service): State<PakaianDinasService>,
+    Query(query): Query<LaporanKolomQuery>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<String>>>, AppError> {
+    let filter = LaporanFilter {
+        pengajuan_id: Some(query.pengajuan_id),
+        jenis_pakaian_id: query.jenis_pakaian_id,
+        ..Default::default()
+    };
+    let kolom = service
+        .get_laporan_daftar_kolom(query.pengajuan_id, filter)
+        .await?;
+
+    Ok(Json(ApiResponse::success(
+        kolom,
+        "Kolom laporan daftar pegawai berhasil diambil".to_string(),
     )))
 }
 

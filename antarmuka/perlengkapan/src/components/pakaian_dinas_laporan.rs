@@ -74,6 +74,17 @@ async fn query_laporan_rekap(query: LaporanQuery) -> Result<Vec<LaporanRekapUkur
 /// `get_laporan_daftar_pegawai` takes `Query<LaporanDaftarQuery>` with a plain
 /// `Uuid` `pengajuan_id`, so it 400s before the handler for a request that
 /// omits it — page and limit make no difference.
+/// Kolom pakaian tabel daftar. Tanpa pengajuan terpilih tak ada yang diminta (dan server menolak).
+async fn query_laporan_kolom(
+    key: (Option<String>, Option<String>),
+) -> Result<Vec<String>, AppError> {
+    let (pengajuan_id, jenis_pakaian_id) = key;
+    match pengajuan_id {
+        None => Ok(Vec::new()),
+        Some(id) => crate::api::fetch_laporan_daftar_kolom(id, jenis_pakaian_id).await,
+    }
+}
+
 async fn query_laporan_daftar(
     key: (LaporanQuery, i32),
 ) -> Result<PaginatedResponse<LaporanDaftarPegawai>, AppError> {
@@ -977,15 +988,19 @@ fn DaftarPegawaiTab(
         };
         (query, page.get())
     });
+    // Kolomnya sama di setiap halaman: dari pengajuan, bukan dari yang kebetulan terisi di halaman ini.
+    let kolom = client.local_resource(query_laporan_kolom, move || {
+        (pengajuan_id.get(), jenis_pakaian_id.get())
+    });
 
     view! {
         <Suspense fallback=move || {
             view! { <LoadingState message="Memuat daftar pegawai...".to_string() /> }
         }>
-            {move || match data.get() {
-                None => view! { <LoadingState /> }.into_any(),
-                Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
-                Some(Ok(response)) => {
+            {move || match (data.get(), kolom.get()) {
+                (None, _) | (_, None) => view! { <LoadingState /> }.into_any(),
+                (Some(Err(e)), _) | (_, Some(Err(e))) => view! { <ErrorState error=e /> }.into_any(),
+                (Some(Ok(response)), Some(Ok(kolom))) => {
                     if response.data.is_empty() {
                         // An empty result and an unselected pengajuan look
                         // identical here, but they are not the same thing:
@@ -1006,6 +1021,7 @@ fn DaftarPegawaiTab(
                     } else {
                         render_pegawai_table(
                             response.data,
+                            kolom,
                             response.page,
                             response.total,
                             response.total_pages,
@@ -1022,16 +1038,21 @@ fn DaftarPegawaiTab(
 /// Renders the pegawai list table matching legacy cetakDaftarTemplateV.
 fn render_pegawai_table(
     data: Vec<LaporanDaftarPegawai>,
+    kolom: Vec<String>,
     current_page: i32,
     total: i64,
     total_pages: i32,
     page: ReadSignal<i32>,
     set_page: WriteSignal<i32>,
 ) -> AnyView {
-    let headers = [
-        "No", "NIP", "Nama", "Jabatan", "Gol", "Status", "Gender", "Hijab", "Baju", "Celana",
-        "Sepatu",
-    ];
+    // Tetap + satu kolom per pakaian pengajuan (nama dari referensi, bukan tiga yang ditulis mati).
+    let headers: Vec<String> = [
+        "No", "NIP", "Nama", "Jabatan", "Gol", "Status", "Gender", "Hijab",
+    ]
+    .iter()
+    .map(|h| (*h).to_string())
+    .chain(kolom.iter().cloned())
+    .collect();
 
     view! {
         <div class="overflow-hidden rounded-2xl border border-white/[0.06] bg-surface-panel">
@@ -1044,7 +1065,7 @@ fn render_pegawai_table(
                                 .map(|h| {
                                     view! {
                                         <th class="px-3 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                            {*h}
+                                            {h.clone()}
                                         </th>
                                     }
                                 })
@@ -1067,6 +1088,16 @@ fn render_pegawai_table(
                                     None => "-",
                                 };
                                 let num = ((page.get() - 1) * 20 + idx as i32 + 1).to_string();
+                                // Dihitung sebelum `view!` memindahkan bagian-bagian `item`.
+                                let sel_ukuran: Vec<(String, String)> = kolom
+                                    .iter()
+                                    .map(|k| {
+                                        (
+                                            k.clone(),
+                                            item.ukuran_untuk(k).unwrap_or("-").to_string(),
+                                        )
+                                    })
+                                    .collect();
                                 let bg = if idx % 2 == 0 {
                                     "bg-transparent"
                                 } else {
@@ -1096,15 +1127,23 @@ fn render_pegawai_table(
                                         <td class="px-3 py-2.5 text-center text-xs text-slate-300">
                                             {hijab_label}
                                         </td>
-                                        <td class="px-3 py-2.5 text-center text-sm font-semibold text-slate-200">
-                                            {item.ukuran_baju.unwrap_or_else(|| "-".to_string())}
-                                        </td>
-                                        <td class="px-3 py-2.5 text-center text-sm font-semibold text-slate-200">
-                                            {item.ukuran_celana.unwrap_or_else(|| "-".to_string())}
-                                        </td>
-                                        <td class="px-3 py-2.5 text-center text-sm font-semibold text-slate-200">
-                                            {item.ukuran_sepatu.unwrap_or_else(|| "-".to_string())}
-                                        </td>
+                                        {sel_ukuran
+                                            .into_iter()
+                                            .map(|(k, nilai)| {
+                                                // Isian teks (nama dada) bisa panjang: dipotong di sel,
+                                                // utuhnya di tooltip.
+                                                let utuh = nilai.clone();
+                                                view! {
+                                                    <td
+                                                        data-kolom=k
+                                                        class="max-w-[14rem] truncate px-3 py-2.5 text-center text-sm font-semibold text-slate-200"
+                                                        title=utuh
+                                                    >
+                                                        {nilai}
+                                                    </td>
+                                                }
+                                            })
+                                            .collect_view()}
                                     </tr>
                                 }
                             })
