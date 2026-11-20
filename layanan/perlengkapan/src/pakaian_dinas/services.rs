@@ -279,7 +279,7 @@ impl PakaianDinasService {
         // kali menghasilkan baris kembar tanpa keberatan apa pun.
         if self
             .repository
-            .spesifikasi_nama_terpakai(request.jenis_pakaian_dinas_id, &request.nama)
+            .spesifikasi_nama_terpakai(request.jenis_pakaian_dinas_id, &request.nama, None)
             .await?
         {
             return Err(bad_request(&format!(
@@ -320,6 +320,24 @@ impl PakaianDinasService {
                     sekarang.ukuran_group
                 )));
             }
+        }
+
+        // Mengganti nama (atau memindahkan ke jenis lain) tidak boleh menghasilkan keadaan yang
+        // ditolak saat membuat: dua spesifikasi bernama sama pada satu jenis. Hanya pasangan
+        // (jenis, nama) yang BERUBAH diperiksa, supaya spesifikasi kembar yang sudah ada tetap
+        // bisa dinonaktifkan atau dirapikan oleh admin tanpa harus menamainya ulang dulu.
+        let pasangan_berubah = sekarang.jenis_pakaian_dinas_id != request.jenis_pakaian_dinas_id
+            || sekarang.nama.trim().to_uppercase() != request.nama.trim().to_uppercase();
+        if pasangan_berubah
+            && self
+                .repository
+                .spesifikasi_nama_terpakai(request.jenis_pakaian_dinas_id, &request.nama, Some(id))
+                .await?
+        {
+            return Err(bad_request(&format!(
+                "Spesifikasi \"{}\" sudah ada pada jenis ini",
+                request.nama.trim()
+            )));
         }
 
         self.repository.update_spesifikasi(id, request).await

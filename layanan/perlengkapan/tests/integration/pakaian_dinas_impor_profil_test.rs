@@ -5,7 +5,7 @@
 //! yang buruk SENDIRI-SENDIRI, tak pernah menimpa isian orangnya sendiri, dan tak membawa NIP utuh
 //! pada galat.
 
-use super::pakaian_dinas_pengisian_test::{OPERATOR, SATKER_A, post, put};
+use super::pakaian_dinas_pengisian_test::{OPERATOR, SATKER_A, get, post, put};
 use crate::common::{setup_test_app, teardown_test_db};
 use axum_test::TestServer;
 use serde_json::{Value, json};
@@ -423,8 +423,8 @@ async fn nama_spesifikasi_ganda_ditolak_sebagai_ambigu_bukan_dipilih_yang_tertua
     let server = TestServer::new(app);
     let nip = "198001010000000019";
 
-    // Pembuatan menolak nama ganda pada satu jenis, tetapi MENGGANTI NAMA tidak memeriksanya:
-    // spesifikasi kedua dibuat dengan nama lain lalu diganti menjadi "Celana".
+    // Pembuatan dan penggantian nama menolak nama ganda pada satu jenis, tetapi data lama bisa
+    // sudah kembar (dibuat sebelum penjaga itu ada). Keadaan itu dibuat langsung di basis data.
     let pdh: String = {
         let client = db.pool().get().await.unwrap();
         let id: uuid::Uuid = client
@@ -452,21 +452,17 @@ async fn nama_spesifikasi_ganda_ditolak_sebagai_ambigu_bukan_dipilih_yang_tertua
         .as_str()
         .unwrap()
         .to_string();
-    let res = put(
-        &server,
-        &format!("/pakaian-dinas/spesifikasi/{kedua}"),
-        "admin",
-        ADMIN,
-        SATKER_A,
-        badan("Celana"),
-    )
-    .await;
-    assert_eq!(
-        res.status_code(),
-        200,
-        "ganti nama menjadi yang sudah ada tak dicegah: {}",
-        res.text()
-    );
+    {
+        let client = db.pool().get().await.unwrap();
+        let kedua: uuid::Uuid = kedua.parse().unwrap();
+        client
+            .execute(
+                "UPDATE perlengkapan.ms_spesifikasi_pakaian_dinas SET nama = 'Celana' WHERE id = $1",
+                &[&kedua],
+            )
+            .await
+            .unwrap();
+    }
 
     let res = impor(
         &server,
@@ -496,6 +492,113 @@ async fn nama_spesifikasi_ganda_ditolak_sebagai_ambigu_bukan_dipilih_yang_tertua
         0,
         "baris ambigu tak menulis apa pun"
     );
+
+    teardown_test_db(&db_name).await;
+}
+
+#[tokio::test]
+async fn mengganti_nama_spesifikasi_menjadi_nama_yang_sudah_ada_pada_jenis_itu_ditolak() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+
+    let jenis = |nama: &'static str| {
+        let db = db.clone();
+        async move {
+            let client = db.pool().get().await.unwrap();
+            let id: uuid::Uuid = client
+                .query_one(
+                    "SELECT id FROM perlengkapan.ms_jenis_pakaian_dinas WHERE upper(nama) = $1",
+                    &[&nama],
+                )
+                .await
+                .unwrap()
+                .get("id");
+            id.to_string()
+        }
+    };
+    let pdh = jenis("PDH").await;
+    let pdl = jenis("PDL").await;
+    let badan = |jenis: &str, nama: &str, aktif: bool| json!({"jenis_pakaian_dinas_id": jenis, "nama": nama, "gender": "SEMUA", "ukuran_group": "CELANA", "is_active": aktif});
+
+    // Dua spesifikasi: "Celana" (sudah ada di data awal PDH) dan "Celana Cadangan".
+    let res = post(
+        &server,
+        "/pakaian-dinas/spesifikasi",
+        "admin",
+        ADMIN,
+        SATKER_A,
+        badan(&pdh, "Celana Cadangan", true),
+    )
+    .await;
+    assert_eq!(res.status_code(), 201, "{}", res.text());
+    let kedua = res.json::<Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let url = format!("/pakaian-dinas/spesifikasi/{kedua}");
+
+    // Nama yang sama pada jenis yang sama, juga bila beda huruf besar dan spasi: ditolak.
+    for nama in ["Celana", "  celana "] {
+        let res = put(
+            &server,
+            &url,
+            "admin",
+            ADMIN,
+            SATKER_A,
+            badan(&pdh, nama, true),
+        )
+        .await;
+        assert_eq!(res.status_code(), 400, "{nama:?}: {}", res.text());
+        assert!(
+            res.text().contains("sudah ada pada jenis ini"),
+            "{nama:?}: {}",
+            res.text()
+        );
+    }
+
+    // Tak ada yang berubah akibat penolakan itu.
+    let res = get(&server, &url, "admin", ADMIN, SATKER_A).await;
+    assert_eq!(res.status_code(), 200, "{}", res.text());
+    assert_eq!(res.json::<Value>()["data"]["nama"], "Celana Cadangan");
+
+    // Memindahkan ke jenis lain yang sudah punya nama itu: juga ditolak; ke jenis yang belum
+    // punya, diterima.
+    let res = put(
+        &server,
+        &url,
+        "admin",
+        ADMIN,
+        SATKER_A,
+        badan(&pdl, "Celana", true),
+    )
+    .await;
+    assert_eq!(
+        res.status_code(),
+        400,
+        "PDL sudah punya Celana: {}",
+        res.text()
+    );
+    let res = put(
+        &server,
+        &url,
+        "admin",
+        ADMIN,
+        SATKER_A,
+        badan(&pdl, "Celana Khusus", true),
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{}", res.text());
+
+    // Menyimpan dirinya sendiri tanpa mengubah nama, dan mengganti huruf besar namanya sendiri,
+    // tetap boleh; begitu juga menonaktifkannya.
+    for badan_ok in [
+        badan(&pdl, "Celana Khusus", true),
+        badan(&pdl, "CELANA KHUSUS", true),
+        badan(&pdl, "Celana Khusus", false),
+    ] {
+        let res = put(&server, &url, "admin", ADMIN, SATKER_A, badan_ok.clone()).await;
+        assert_eq!(res.status_code(), 200, "{badan_ok}: {}", res.text());
+    }
 
     teardown_test_db(&db_name).await;
 }
