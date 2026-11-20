@@ -446,7 +446,20 @@ global:
   # kontrol yang bergantung pada lingkungan (CORS deny-by-default, penolakan authenticator tiruan,
   # kegagalan init Secreton) tak pernah aktif. Sisanya: bump dependensi (quinn-udp RUSTSEC-2026-0538 #1108)
   # dan perubahan CI (#1110, #1113, #1114, #1115) yang tak mengubah isi image.
-  imageTag: v0.1.0-rc50
+  #
+  # rc51 = rc50 + pakaian dinas: ukuran menjadi DATA REFERENSI. Grup ukuran (BAJU/CELANA/SEPATU dan yang
+  # ditambah admin, termasuk isian TEKS seperti Nama Dada) dan profil ukuran per SPESIFIKASI, bukan per
+  # grup, sehingga sepatu PDH/PDL dan kaos/baju tak lagi saling menimpa (#1121, migrasi V019). V019
+  # ADITIF (tabel baru, trigger yang menyalin tiga kolom profil lama; dua CHECK diganti FK): `helm
+  # rollback` ke rc50 aman, runner migrasi perlengkapan mengabaikan versi yang tak dikenalnya.
+  # Layar: profil per garmen, referensi grup dan ukuran, urutan ukuran (#1122). Laporan dan ekspor
+  # (rincian, daftar, rekap; PDF dan XLSX) menyesuaikan kolom, baris dan ukuran kertas dengan isinya
+  # (#1123). Impor ukuran awal untuk admin, `POST /pakaian-dinas/impor-profil`, ditambah alat penyiap
+  # berkas satker `infra/scripts/siapkan-impor-pakaian-dinas.py` (#1124; panduan
+  # `docs/RUNBOOK_IMPOR_PAKAIAN_DINAS.md`). Data nyata diimpor HANYA di produksi, jangan di staging.
+  # Pengganti nama spesifikasi kini ditolak bila nama sudah ada pada jenis itu (#1125).
+  # rc48 dan rc49 jangan dipromosikan.
+  imageTag: v0.1.0-rc51
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
