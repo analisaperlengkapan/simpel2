@@ -330,31 +330,39 @@ def run(script: Path) -> int:
     check("psql" not in calls, "production never reseeds")
 
     print("S10 promote-guard")
-    def guard(tag, *, tags="v0.1.0 v0.1.0-rc51\n", live="v0.1.0-rc51", status="success", deployments=None):
+    SHA = "abc12345deadbeef"
+
+    def guard(tag, *, tags="v0.1.0 v0.1.0-rc51\n", status="success", deployments="default"):
+        if deployments == "default":
+            deployments = [{"id": 11, "sha": SHA, "ref": "v0.1.0-rc51"}]
         sc = {
-            "git": [{"match": ["rev-list"], "out": "abc12345deadbeef\n"}, {"match": ["--points-at"], "out": tags}],
-            "helm": [{"match": ["get", "values"], "out": json.dumps({"global": {"imageTag": live}})}],
+            "git": [{"match": ["rev-list"], "out": SHA + "\n"}, {"match": ["--points-at"], "out": tags}],
             "gh": [{"match": ["/statuses"], "out": json.dumps([{"state": status}])},
-                   {"match": ["/deployments?"], "out": json.dumps([{"id": 11}] if deployments is None else deployments)}],
-            "kubectl": [],
+                   {"match": ["/deployments?"], "out": json.dumps(deployments)}],
+            "helm": [], "kubectl": [],
         }
         return e.run(["promote-guard", "--tag", tag, "--repo", "o/r"], sc)
 
-    p, _ = guard("v0.1.0")
-    check(p.returncode == 0 and p.stdout.strip().splitlines()[-1] == "v0.1.0-rc51", "ok: same commit as an rc that passed staging and still runs there")
+    p, calls = guard("v0.1.0")
+    check(p.returncode == 0 and p.stdout.strip().splitlines()[-1] == "v0.1.0-rc51", "ok: the commit of an rc whose staging deployment is the newest and succeeded")
+    check("helm" not in calls and "kubectl" not in calls, "the guard never touches the cluster")
+    p, _ = guard("v0.1.0", deployments=[{"id": 11, "sha": SHA, "ref": "refs/tags/v0.1.0-rc51"}])
+    check(p.returncode == 0, "a deployment ref spelled refs/tags/<rc> is understood")
     p, _ = guard("v0.1.0-rc51")
     check(p.returncode == 2, "an rc tag is not a final tag")
     p, _ = guard("v0.1.0", tags="v0.1.0\n")
     check(p.returncode == 2, "refused: no rc on that commit")
-    # staging runs that other rc and it was verified, so only the version match can refuse it
-    p, _ = guard("v0.1.0", tags="v0.1.0 v0.2.0-rc1\n", live="v0.2.0-rc1")
-    check(p.returncode == 2, "refused: the rc belongs to another version, even if staging runs it")
+    # the newest staging deployment is that other rc at the same commit, so only the version match can refuse it
+    p, _ = guard("v0.1.0", tags="v0.1.0 v0.2.0-rc1\n", deployments=[{"id": 11, "sha": SHA, "ref": "v0.2.0-rc1"}])
+    check(p.returncode == 2, "refused: the rc belongs to another version")
     p, _ = guard("v0.1.0", status="failure")
     check(p.returncode == 2, "refused: the staging deployment did not succeed")
+    p, _ = guard("v0.1.0", status="in_progress")
+    check(p.returncode == 2, "refused: the staging deployment has not finished")
     p, _ = guard("v0.1.0", deployments=[])
-    check(p.returncode == 2, "refused: the rc was never deployed to staging")
-    p, _ = guard("v0.1.0", live="v0.1.0-rc52")
-    check(p.returncode == 2, "refused: staging has moved on to a different rc")
+    check(p.returncode == 2, "refused: staging has no recorded deployment")
+    p, _ = guard("v0.1.0", deployments=[{"id": 12, "sha": "ffff0000ffff0000", "ref": "v0.1.0-rc52"}, {"id": 11, "sha": SHA, "ref": "v0.1.0-rc51"}])
+    check(p.returncode == 2, "refused: a newer rc has been deployed to staging since")
 
     e.httpd.shutdown()
     if FAILS:

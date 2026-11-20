@@ -560,7 +560,9 @@ def cmd_run(a) -> int:
 
 def cmd_promote_guard(a) -> int:
     """A final tag may deploy to production only if it IS a release candidate that passed staging: the same
-    commit, a successful staging deployment of that rc, and staging still running it."""
+    commit, and the NEWEST staging deployment GitHub recorded is that commit and succeeded. The record is
+    GitHub's own deployment history (a job that names `environment: staging` writes one, with the result of
+    the job), so this needs no access to the cluster."""
     tag = a.tag
     if tag_key("production", tag) is None:
         log(f"REFUSED: {tag!r} is not a final tag")
@@ -570,23 +572,24 @@ def cmd_promote_guard(a) -> int:
     if not rcs:
         log(f"REFUSED: no {tag}-rcN tag points at {sha[:8]}; a final tag must sit on the commit that passed staging")
         return EXIT_REFUSED
-    rcs.sort(key=lambda t: tag_key("staging", t), reverse=True)
-    live = (helm_values(ENVS["staging"]["namespace"]).get("global") or {}).get("imageTag")
-    for rc in rcs:
-        deps = json.loads(sh(["gh", "api", f"repos/{a.repo}/deployments?environment=staging&ref={rc}&per_page=5"]).stdout or "[]")
-        ok = False
-        for d in deps:
-            sts = json.loads(sh(["gh", "api", f"repos/{a.repo}/deployments/{d['id']}/statuses?per_page=1"]).stdout or "[]")
-            if sts and sts[0].get("state") == "success":
-                ok = True
-                break
-        if ok and live == rc:
-            log(f"promote-guard ok: {tag} = {rc} at {sha[:8]}, deployed to staging with a successful verification, still running there")
-            print(rc)
-            return EXIT_OK
-        log(f"  {rc}: staging deployment {'verified' if ok else 'NOT verified'}; staging runs {live}")
-    log(f"REFUSED: none of {', '.join(rcs)} is both verified on staging and what staging runs now")
-    return EXIT_REFUSED
+    deps = json.loads(sh(["gh", "api", f"repos/{a.repo}/deployments?environment=staging&per_page=10"]).stdout or "[]")
+    if not deps:
+        log("REFUSED: staging has no recorded deployment")
+        return EXIT_REFUSED
+    latest = deps[0]
+    ref = str(latest.get("ref", "")).replace("refs/tags/", "")
+    if latest.get("sha") != sha or ref not in rcs:
+        log(f"REFUSED: the newest staging deployment is {ref or '?'} at {str(latest.get('sha'))[:8]}; {tag} sits on {sha[:8]} "
+            f"({', '.join(rcs)}). Staging has moved on, or this rc never ran there")
+        return EXIT_REFUSED
+    sts = json.loads(sh(["gh", "api", f"repos/{a.repo}/deployments/{latest['id']}/statuses?per_page=1"]).stdout or "[]")
+    state = sts[0].get("state") if sts else None
+    if state != "success":
+        log(f"REFUSED: the staging deployment of {ref} ended as {state or 'unknown'}, not success")
+        return EXIT_REFUSED
+    log(f"promote-guard ok: {tag} = {ref} at {sha[:8]}, the newest staging deployment, verified")
+    print(ref)
+    return EXIT_OK
 
 
 def main(argv=None) -> int:
