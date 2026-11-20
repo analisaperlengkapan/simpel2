@@ -88,6 +88,31 @@ fn upsert_profile_sql(scope_sql: &str) -> String {
     )
 }
 
+/// Nama kunci advisory untuk sebuah grup ukuran: satu ruang kunci bagi penulis ukuran dan
+/// penghapusan ukuran.
+const KUNCI_GRUP: &str = "ukuran_grup:";
+
+/// Kunci BERSAMA per grup, tertahan sampai transaksi selesai. Dipanggil jalur yang membaca
+/// daftar ukuran lalu menyimpan nilai terhadapnya; diambil berurut supaya tak ada siklus.
+pub(super) async fn kunci_grup_bersama<C: deadpool_postgres::GenericClient>(
+    client: &C,
+    kode: &[String],
+) -> AppResult<()> {
+    let mut urut: Vec<&String> = kode.iter().collect();
+    urut.sort();
+    urut.dedup();
+    for g in urut {
+        client
+            .execute(
+                "SELECT pg_advisory_xact_lock_shared(hashtext($1::text)::bigint)",
+                &[&format!("{KUNCI_GRUP}{g}")],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+    }
+    Ok(())
+}
+
 /// Aturan ukuran untuk sekumpulan kode grup: grupnya dan, untuk grup `PILIHAN`, daftar ukuran
 /// yang sah. Satu kueri untuk grup dan satu untuk daftar, berapa pun banyaknya kode.
 ///
@@ -131,38 +156,6 @@ pub(super) async fn aturan_grup<C: deadpool_postgres::GenericClient>(
             (g.kode.clone(), (g, l))
         })
         .collect())
-}
-
-/// Tulis ukuran dari penulis LAMA (tiga kolom profil, satu ukuran per grup) ke tabel per
-/// spesifikasi, untuk SETIAP spesifikasi dalam grup itu, seperti makna kolom itu sejak awal:
-/// "ukuran baju" berlaku untuk semua kolom ber-grup BAJU. Tanpa ini, apa pun yang masih
-/// menulis kolom lama (halaman Ukuran lama, impor massal admin) tak lagi menjadi saran
-/// pengisian, yang kini dibaca per spesifikasi. Nilai kosong dilewati: tak menghapus apa pun.
-///
-/// Penulis baru (profil per spesifikasi, impor data awal) menulis tabel itu langsung.
-async fn sinkron_ukuran_per_spesifikasi<C: deadpool_postgres::GenericClient>(
-    client: &C,
-    nip: &str,
-    baju: Option<&str>,
-    celana: Option<&str>,
-    sepatu: Option<&str>,
-) -> AppResult<()> {
-    client
-        .execute(
-            "INSERT INTO perlengkapan.pegawai_pakaian_dinas_ukuran (nip, spesifikasi_id, ukuran, sumber)
-             SELECT $1::varchar, s.id, btrim(v.ukuran), 'PROFIL'
-             FROM perlengkapan.ms_spesifikasi_pakaian_dinas s
-             JOIN (VALUES ('BAJU', $2::text), ('CELANA', $3::text), ('SEPATU', $4::text)) AS v(grup, ukuran)
-               ON v.grup = s.ukuran_group
-             WHERE btrim(COALESCE(v.ukuran, '')) <> ''
-               AND EXISTS (SELECT 1 FROM perlengkapan.pegawai_pakaian_dinas WHERE nip = $1)
-             ON CONFLICT (nip, spesifikasi_id) DO UPDATE
-                SET ukuran = EXCLUDED.ukuran, sumber = EXCLUDED.sumber, updated_at = now()",
-            &[&nip, &baju, &celana, &sepatu],
-        )
-        .await
-        .map_err(|e| bad_request(&e.to_string()))?;
-    Ok(())
 }
 
 impl PakaianDinasRepository {
@@ -230,15 +223,6 @@ impl PakaianDinasRepository {
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
-        sinkron_ukuran_per_spesifikasi(
-            &client,
-            nip,
-            Some(request.ukuran_baju.as_str()),
-            Some(request.ukuran_celana.as_str()),
-            Some(request.ukuran_sepatu.as_str()),
-        )
-        .await?;
-
         self.get_pegawai_pakaian_dinas(nip)
             .await?
             .ok_or_else(|| bad_request("Gagal menyimpan data ukuran"))
@@ -274,15 +258,6 @@ impl PakaianDinasRepository {
                 request.nip
             )));
         }
-
-        sinkron_ukuran_per_spesifikasi(
-            &client,
-            &request.nip,
-            request.ukuran_baju.as_deref(),
-            request.ukuran_celana.as_deref(),
-            request.ukuran_sepatu.as_deref(),
-        )
-        .await?;
 
         self.get_pegawai_pakaian_dinas(&request.nip)
             .await?
@@ -324,16 +299,6 @@ impl PakaianDinasRepository {
                 .execute(&upsert_profile_sql(&scope_sql), &as_refs(&params))
                 .await
                 .map_err(|e| bad_request(&e.to_string()))?;
-            if affected > 0 {
-                sinkron_ukuran_per_spesifikasi(
-                    &client,
-                    &req.nip,
-                    req.ukuran_baju.as_deref(),
-                    req.ukuran_celana.as_deref(),
-                    req.ukuran_sepatu.as_deref(),
-                )
-                .await?;
-            }
             count += affected as usize;
         }
 
@@ -482,6 +447,10 @@ impl PakaianDinasRepository {
             .map(|r| (r.get("id"), (r.get("nama"), r.get("ukuran_group"))))
             .collect();
         let kode: Vec<String> = per_spek.values().map(|(_, g)| g.clone()).collect();
+        // Kunci bersama per grup SEBELUM aturannya dibaca: penghapusan ukuran mengambil kunci
+        // eksklusif yang sama, jadi sebuah ukuran tak bisa lenyap dari daftar di antara validasi
+        // dan penyimpanan. Penulis tak saling menunggu (kunci bersama).
+        kunci_grup_bersama(&tx, &kode).await?;
         let aturan = aturan_grup(&tx, &kode).await?;
 
         // Baris profil bagi pemiliknya sendiri (FK dari tabel per spesifikasi). Tak membuat

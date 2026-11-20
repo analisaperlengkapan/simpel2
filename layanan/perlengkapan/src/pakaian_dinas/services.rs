@@ -307,6 +307,21 @@ impl PakaianDinasService {
             .grup_spesifikasi_sah(&request.ukuran_group, false)
             .await?;
 
+        // Profil menyimpan ukuran per spesifikasi, bukan per grup: mengganti grup spesifikasi yang
+        // sudah punya isian membuat ukuran "L" milik BAJU terbaca sebagai ukuran SEPATU, dan
+        // menyimpan ulangnya ditolak. Ditolak di sini, dengan jumlahnya, bukan dibiarkan rusak.
+        let sekarang = self.repository.get_spesifikasi_by_id(id).await?;
+        if sekarang.ukuran_group != request.ukuran_group {
+            let n = self.repository.jumlah_isian_profil_spesifikasi(id).await?;
+            if n > 0 {
+                return Err(bad_request(&format!(
+                    "Spesifikasi ini sudah punya {n} isian ukuran pada profil pegawai dengan grup \"{}\"; \
+                     mengganti grupnya membuat isian itu tak sah. Buat spesifikasi baru untuk grup yang lain",
+                    sekarang.ukuran_group
+                )));
+            }
+        }
+
         self.repository.update_spesifikasi(id, request).await
     }
 
@@ -1233,8 +1248,12 @@ impl PakaianDinasService {
         if tipe != UkuranGrup::TIPE_PILIHAN && tipe != UkuranGrup::TIPE_TEKS {
             return Err(bad_request("Tipe grup harus PILIHAN atau TEKS"));
         }
+        let nama = request.nama.trim();
+        if nama.is_empty() {
+            return Err(bad_request("Nama harus diisi"));
+        }
         self.repository
-            .create_ukuran_grup(&kode, request.nama.trim(), &tipe, request.urutan)
+            .create_ukuran_grup(&kode, nama, &tipe, request.urutan)
             .await
     }
 
@@ -1249,13 +1268,12 @@ impl PakaianDinasService {
             .map_err(|e| bad_request(&e.to_string()))?;
         let kode =
             super::validasi_ukuran::normalisasi_kode_grup(kode).map_err(|e| bad_request(&e))?;
+        let nama = request.nama.trim();
+        if nama.is_empty() {
+            return Err(bad_request("Nama harus diisi"));
+        }
         self.repository
-            .update_ukuran_grup(
-                &kode,
-                request.nama.trim(),
-                request.urutan,
-                request.is_active,
-            )
+            .update_ukuran_grup(&kode, nama, request.urutan, request.is_active)
             .await
     }
 
@@ -1282,8 +1300,14 @@ impl PakaianDinasService {
                 "Grup \"{kode}\" bertipe TEKS: isiannya bebas, tak punya daftar ukuran"
             )));
         }
+        // `validate()` memeriksa panjang SEBELUM dipangkas: "   " lolos, lalu menjadi string kosong,
+        // dan ukuran kosong tak pernah bisa disimpan (dianggap penghapusan isian).
+        let ukuran = request.ukuran.trim();
+        if ukuran.is_empty() {
+            return Err(bad_request("Ukuran harus diisi"));
+        }
         self.repository
-            .create_ukuran(&kode, request.ukuran.trim(), request.urutan)
+            .create_ukuran(&kode, ukuran, request.urutan)
             .await
     }
 

@@ -13,7 +13,7 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use super::PakaianDinasRepository;
-use super::pegawai::aturan_grup;
+use super::pegawai::{aturan_grup, kunci_grup_bersama};
 use crate::pakaian_dinas::models::*;
 use crate::pakaian_dinas::validasi_ukuran::validasi_ukuran;
 use crate::shared::error::{AppError, AppResult, bad_request};
@@ -506,6 +506,8 @@ impl PakaianDinasRepository {
             // panjangnya. Grup yang sudah tak ada (kolom kampanye lama) dilewati, bukan ditolak:
             // kampanye itu sah ketika dibuat.
             if !aturan.contains_key(&grup_kolom) {
+                // Kunci bersama sebelum daftar dibaca: lihat `kunci_grup_bersama`.
+                kunci_grup_bersama(&tx, std::slice::from_ref(&grup_kolom)).await?;
                 aturan.extend(aturan_grup(&tx, std::slice::from_ref(&grup_kolom)).await?);
             }
             let ukuran_sah = match aturan.get(&grup_kolom) {

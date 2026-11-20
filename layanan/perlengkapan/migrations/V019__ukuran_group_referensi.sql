@@ -70,15 +70,23 @@ FROM (VALUES ('XXL', '2XL'), ('XXXL', '3XL')) AS n(lama, baru)
 WHERE u."group" = 'BAJU' AND u.ukuran = n.lama
   AND NOT EXISTS (SELECT 1 FROM perlengkapan.ms_ukuran x WHERE x."group" = 'BAJU' AND x.ukuran = n.baru);
 
+-- Dicocokkan lewat btrim: nilai lama bisa berspasi (' XXL '), dan isi-balik di bawah memangkasnya;
+-- tanpa ini ukuran itu dipangkas menjadi XXL yang sudah tak ada di daftar, lalu tak pernah menjadi saran.
 UPDATE perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran su
-SET ukuran = CASE su.ukuran WHEN 'XXL' THEN '2XL' WHEN 'XXXL' THEN '3XL' END
+SET ukuran = CASE btrim(su.ukuran) WHEN 'XXL' THEN '2XL' WHEN 'XXXL' THEN '3XL' END
 FROM perlengkapan.pengajuan_pakaian_dinas_pakaian pk
 WHERE pk.id = su.pakaian_id AND pk.spesifikasi_ukuran_group = 'BAJU'
-  AND su.ukuran IN ('XXL', 'XXXL');
+  AND btrim(su.ukuran) IN ('XXL', 'XXXL');
 
 UPDATE perlengkapan.pegawai_pakaian_dinas
-SET ukuran_baju = CASE ukuran_baju WHEN 'XXL' THEN '2XL' WHEN 'XXXL' THEN '3XL' END
-WHERE ukuran_baju IN ('XXL', 'XXXL');
+SET ukuran_baju = CASE btrim(ukuran_baju) WHEN 'XXL' THEN '2XL' WHEN 'XXXL' THEN '3XL' END
+WHERE btrim(ukuran_baju) IN ('XXL', 'XXXL');
+
+-- Isian TEKS (nama dada) bisa sampai 100 karakter, sedangkan kolom ukuran kampanye hanya 20.
+-- Melebarkan varchar adalah perubahan metadata saja dan kode lama (menulis paling banyak 20)
+-- tak terpengaruh.
+ALTER TABLE perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran
+    ALTER COLUMN ukuran TYPE character varying(100);
 
 -- 4. Ukuran yang dipakai pegawai nyata tetapi belum ada di daftar. `urutan` untuk
 --    ukuran bernomor = angkanya, supaya daftar tetap terurut bila ditambah lagi.
@@ -154,6 +162,54 @@ BEGIN
         ON CONFLICT (nip, spesifikasi_id) DO NOTHING;
     END IF;
 END $$;
+
+-- 5b. Jembatan untuk penulis LAMA. Selama rolling upgrade, atau sesudah rollback lalu upgrade
+--     ulang, pod versi lama masih menulis HANYA tiga kolom profil, sedangkan versi baru membaca
+--     saran dari tabel per spesifikasi: perubahan yang berhasil disimpan versi lama tak akan
+--     pernah menjadi saran, dan isi-balik di atas hanya berjalan satu kali. Trigger ini
+--     menerjemahkan penulisan tiga kolom itu ke tabel per spesifikasi di transaksi yang sama,
+--     untuk SETIAP spesifikasi dalam grupnya (makna kolom itu sejak awal), dan hanya bila kolom
+--     itu benar-benar berubah supaya isian per spesifikasi yang ditulis kode baru tidak tertimpa.
+--     Penulis baru menulis tabel per spesifikasi langsung dan tidak menyentuh tiga kolom ini.
+CREATE OR REPLACE FUNCTION perlengkapan.sinkron_ukuran_profil_lama() RETURNS trigger
+LANGUAGE plpgsql AS $fn$
+DECLARE
+    baju_berubah   boolean;
+    celana_berubah boolean;
+    sepatu_berubah boolean;
+BEGIN
+    IF TG_OP = 'UPDATE' THEN
+        baju_berubah   := NEW.ukuran_baju   IS DISTINCT FROM OLD.ukuran_baju;
+        celana_berubah := NEW.ukuran_celana IS DISTINCT FROM OLD.ukuran_celana;
+        sepatu_berubah := NEW.ukuran_sepatu IS DISTINCT FROM OLD.ukuran_sepatu;
+    ELSE
+        baju_berubah := true; celana_berubah := true; sepatu_berubah := true;
+    END IF;
+
+    INSERT INTO perlengkapan.pegawai_pakaian_dinas_ukuran (nip, spesifikasi_id, ukuran, sumber)
+    -- Pod lama (sesudah rollback) masih menulis XXL/XXXL; daftar baru menamainya 2XL/3XL.
+    SELECT NEW.nip, s.id,
+           CASE WHEN v.grup = 'BAJU' THEN
+                    CASE upper(btrim(v.ukuran)) WHEN 'XXL' THEN '2XL' WHEN 'XXXL' THEN '3XL' ELSE btrim(v.ukuran) END
+                ELSE btrim(v.ukuran) END,
+           'PROFIL'
+    FROM perlengkapan.ms_spesifikasi_pakaian_dinas s
+    JOIN (VALUES ('BAJU',   NEW.ukuran_baju,   baju_berubah),
+                 ('CELANA', NEW.ukuran_celana, celana_berubah),
+                 ('SEPATU', NEW.ukuran_sepatu, sepatu_berubah)) AS v(grup, ukuran, berubah)
+      ON v.grup = s.ukuran_group
+    WHERE v.berubah AND btrim(COALESCE(v.ukuran, '')) <> ''
+    ON CONFLICT (nip, spesifikasi_id) DO UPDATE
+       SET ukuran = EXCLUDED.ukuran, sumber = EXCLUDED.sumber, updated_at = now();
+    RETURN NULL;
+END
+$fn$;
+
+DROP TRIGGER IF EXISTS trg_sinkron_ukuran_profil_lama ON perlengkapan.pegawai_pakaian_dinas;
+CREATE TRIGGER trg_sinkron_ukuran_profil_lama
+    AFTER INSERT OR UPDATE OF ukuran_baju, ukuran_celana, ukuran_sepatu
+    ON perlengkapan.pegawai_pakaian_dinas
+    FOR EACH ROW EXECUTE FUNCTION perlengkapan.sinkron_ukuran_profil_lama();
 
 -- 6. Spesifikasi pakaian lapangan yang selama ini tak punya tempat. PDL sudah ada
 --    (V011); hanya yang belum ada yang ditambahkan, dicocokkan lewat NAMA seperti V011.

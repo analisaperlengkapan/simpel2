@@ -828,13 +828,28 @@ impl PakaianDinasRepository {
     /// Hapus satu ukuran dari daftar sebuah grup, kecuali masih dipakai isian yang
     /// tersimpan: ukuran yang hilang dari daftar membuat isian itu tak bisa lagi dipilih
     /// dan tak lolos validasi bila disimpan ulang.
+    ///
+    /// Penghitungan pemakaian dan penghapusan terjadi di SATU transaksi di bawah kunci advisory
+    /// EKSKLUSIF grup itu. Penulis ukuran mengambil kunci bersama yang sama sebelum membaca
+    /// daftar, jadi tak ada penyimpanan yang lolos validasi terhadap ukuran yang sedang
+    /// dihapus; membungkus SELECT dan DELETE dalam transaksi saja tak cukup tanpa itu.
     pub async fn delete_ukuran(&self, group: &str, ukuran: &str) -> AppResult<()> {
-        let client = self
+        let mut client = self
             .pool
             .get()
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
-        let pakai = client
+        let tx = client
+            .transaction()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        tx.execute(
+            "SELECT pg_advisory_xact_lock(hashtext($1::text)::bigint)",
+            &[&format!("ukuran_grup:{group}")],
+        )
+        .await
+        .map_err(|e| bad_request(&e.to_string()))?;
+        let pakai = tx
             .query_one(
                 "SELECT
                    (SELECT count(*) FROM perlengkapan.pegawai_pakaian_dinas_ukuran u
@@ -854,7 +869,7 @@ impl PakaianDinasRepository {
                 "Ukuran \"{ukuran}\" di grup {group} masih dipakai {profil} profil pegawai dan {kampanye} isian kampanye"
             )));
         }
-        let n = client
+        let n = tx
             .execute(
                 "DELETE FROM perlengkapan.ms_ukuran WHERE \"group\" = $1 AND ukuran = $2",
                 &[&group, &ukuran],
@@ -864,6 +879,25 @@ impl PakaianDinasRepository {
         if n == 0 {
             return Err(AppError::NotFound("Ukuran tidak ditemukan".to_string()));
         }
+        tx.commit().await.map_err(|e| bad_request(&e.to_string()))?;
         Ok(())
+    }
+
+    /// Berapa isian profil pegawai yang memakai spesifikasi ini. Dipakai untuk menolak
+    /// pergantian grup spesifikasi yang membuat isian itu tak sah.
+    pub async fn jumlah_isian_profil_spesifikasi(&self, spesifikasi_id: Uuid) -> AppResult<i64> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let row = client
+            .query_one(
+                "SELECT count(*) AS n FROM perlengkapan.pegawai_pakaian_dinas_ukuran WHERE spesifikasi_id = $1",
+                &[&spesifikasi_id],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        Ok(row.get("n"))
     }
 }

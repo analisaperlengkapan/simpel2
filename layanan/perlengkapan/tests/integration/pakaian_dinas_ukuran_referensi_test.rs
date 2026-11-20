@@ -585,3 +585,353 @@ async fn pengisian_kampanye_menolak_ukuran_di_luar_daftar_dan_menyimpan_ejaan_da
 
     teardown_test_db(&db_name).await;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Temuan review #1121
+// ---------------------------------------------------------------------------------------------
+
+#[tokio::test]
+async fn nama_dada_21_sampai_100_karakter_tersimpan_di_kampanye_dan_101_ditolak() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+
+    // Kolom ukuran kampanye dulu varchar(20) sedangkan isian TEKS boleh 100: nilai yang sah di
+    // profil menggagalkan seluruh penyimpanan pegawai di kampanye.
+    let pdl = jenis_id(&db, "PDL").await;
+    let nama_dada = spek_id(&db, "PDL", "Nama Dada").await;
+    let (mulai, selesai) = periode_berjalan();
+    let res = post(
+        &server,
+        "/pakaian-dinas/pengajuan",
+        "validator_pusat",
+        PUSAT,
+        SATKER_A,
+        json!({"nama": "PDL nama dada", "tgl_mulai": mulai, "tgl_selesai": selesai, "is_reguler": true,
+               "tahun": 2026, "pilihan_satker": "sebagian", "jenis_pakaian_dinas_id": pdl,
+               "spesifikasi_ids": [nama_dada], "satker_ids": [SATKER_A]}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 201, "{}", res.text());
+    let pengajuan = res.json::<Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let jalan_roster = format!("/pakaian-dinas/pengajuan/{pengajuan}/satker/{SATKER_A}/pegawai");
+    let roster = get(
+        &server,
+        &jalan_roster,
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(roster.status_code(), 200, "{}", roster.text());
+    let pakaian = roster.json::<Value>()["data"]["pakaian"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let jalan = format!("{jalan_roster}/{NIP_A}");
+
+    for panjang in [21usize, 22, 100] {
+        let teks = "A".repeat(panjang);
+        let res = put(
+            &server,
+            &jalan,
+            "operator_satker",
+            OPERATOR,
+            SATKER_A,
+            json!({"with_hijab": false, "ukuran": [{"pakaian_id": pakaian, "ukuran": teks}]}),
+        )
+        .await;
+        assert_eq!(res.status_code(), 200, "{panjang} karakter: {}", res.text());
+    }
+    let roster = get(
+        &server,
+        &jalan_roster,
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    let pegawai = roster.json::<Value>()["data"]["pegawai"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["nip"] == NIP_A)
+        .unwrap()
+        .clone();
+    assert_eq!(
+        pegawai["ukuran"][0]["ukuran"].as_str().unwrap().len(),
+        100,
+        "tersimpan utuh, tak terpotong"
+    );
+
+    let res = put(
+        &server,
+        &jalan,
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+        json!({"with_hijab": false, "ukuran": [{"pakaian_id": pakaian, "ukuran": "A".repeat(101)}]}),
+    )
+    .await;
+    assert_ne!(res.status_code(), 200, "101 karakter melampaui batas");
+
+    teardown_test_db(&db_name).await;
+}
+
+#[tokio::test]
+async fn grup_spesifikasi_tak_bisa_diganti_bila_profil_pegawai_sudah_memakainya() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let pdl = jenis_id(&db, "PDL").await;
+
+    // Spesifikasi baru di grup BAJU, satu pegawai mengisinya dengan L.
+    let res = admin_post(
+        &server,
+        "/pakaian-dinas/spesifikasi",
+        json!({"jenis_pakaian_dinas_id": pdl, "nama": "Rompi", "gender": "SEMUA", "ukuran_group": "BAJU", "is_active": true}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 201, "{}", res.text());
+    let rompi = res.json::<Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let res = server
+        .put("/pakaian-dinas/ukuran-profil")
+        .add_header(reqwest::header::AUTHORIZATION, bearer(NIP_A))
+        .json(&json!({"ukuran": [{"spesifikasi_id": rompi, "ukuran": "L"}]}))
+        .await;
+    assert_eq!(res.status_code(), 200, "{}", res.text());
+
+    let ubah = |grup: &str| {
+        let jalan = format!("/pakaian-dinas/spesifikasi/{rompi}");
+        let badan = json!({"jenis_pakaian_dinas_id": pdl, "nama": "Rompi", "gender": "SEMUA", "ukuran_group": grup, "is_active": true});
+        let server = &server;
+        async move { put(server, &jalan, "admin", ADMIN, SATKER_A, badan).await }
+    };
+    // Ukuran "L" milik BAJU akan terbaca sebagai ukuran SEPATU dan tak bisa disimpan ulang.
+    let res = ubah("SEPATU").await;
+    assert_ne!(
+        res.status_code(),
+        200,
+        "grup diganti padahal ada isian profil"
+    );
+    assert!(res.text().contains("1 isian ukuran"), "{}", res.text());
+    // Menyunting hal lain dengan grup yang SAMA tetap boleh.
+    let res = ubah("BAJU").await;
+    assert_eq!(res.status_code(), 200, "{}", res.text());
+
+    // Spesifikasi tanpa isian bebas berganti grup.
+    let res = admin_post(
+        &server,
+        "/pakaian-dinas/spesifikasi",
+        json!({"jenis_pakaian_dinas_id": pdl, "nama": "Kosong", "gender": "SEMUA", "ukuran_group": "BAJU", "is_active": true}),
+    )
+    .await;
+    let kosong = res.json::<Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let res = put(
+        &server,
+        &format!("/pakaian-dinas/spesifikasi/{kosong}"),
+        "admin",
+        ADMIN,
+        SATKER_A,
+        json!({"jenis_pakaian_dinas_id": pdl, "nama": "Kosong", "gender": "SEMUA", "ukuran_group": "SEPATU", "is_active": true}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{}", res.text());
+
+    teardown_test_db(&db_name).await;
+}
+
+#[tokio::test]
+async fn penghapusan_ukuran_menunggu_penulis_yang_sedang_memvalidasi_lalu_melihat_pemakaiannya() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let baju = spek_id(&db, "PDH", "Pakaian Dinas").await;
+
+    // Penulis ukuran: sudah mengambil kunci bersama grup BAJU, memvalidasi 8XL terhadap daftar
+    // yang masih memuatnya, menulis, tetapi belum commit. Persis interleaving yang dilaporkan review.
+    let penulis = db.pool().get().await.unwrap();
+    penulis.execute("BEGIN", &[]).await.unwrap();
+    penulis
+        .execute(
+            "SELECT pg_advisory_xact_lock_shared(hashtext($1::text)::bigint)",
+            &[&"ukuran_grup:BAJU"],
+        )
+        .await
+        .unwrap();
+    penulis
+        .execute(
+            "INSERT INTO perlengkapan.pegawai_pakaian_dinas (nip, nama) VALUES ($1, 'P')",
+            &[&NIP_A],
+        )
+        .await
+        .unwrap();
+    penulis
+        .execute(
+            "INSERT INTO perlengkapan.pegawai_pakaian_dinas_ukuran (nip, spesifikasi_id, ukuran)
+             VALUES ($1, $2::text::uuid, '8XL')",
+            &[&NIP_A, &baju],
+        )
+        .await
+        .unwrap();
+
+    let pengamat = db.pool().get().await.unwrap();
+    let hapus_8xl = hapus(&server, "/pakaian-dinas/ukuran/BAJU/8XL", "admin", ADMIN);
+    let lepas = async {
+        // Beri waktu penghapusan sampai ke kunci, lalu pastikan ia BENAR-BENAR menunggu.
+        let mut menunggu = 0i64;
+        for _ in 0..50 {
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            menunggu = pengamat
+                .query_one(
+                    "SELECT count(*) AS n FROM pg_locks WHERE locktype = 'advisory' AND NOT granted",
+                    &[],
+                )
+                .await
+                .unwrap()
+                .get("n");
+            if menunggu > 0 {
+                break;
+            }
+        }
+        penulis.execute("COMMIT", &[]).await.unwrap();
+        menunggu
+    };
+    let (res, menunggu) = tokio::join!(hapus_8xl, lepas);
+
+    assert_eq!(
+        menunggu, 1,
+        "penghapusan harus menunggu kunci yang dipegang penulis"
+    );
+    // Setelah commit penghapusan melihat 8XL sudah dipakai, jadi menolak. Tanpa kunci bersama ia
+    // membaca nol pemakaian, menghapus 8XL, dan profil tersimpan dengan ukuran yang tak ada di daftar.
+    assert_ne!(res.status_code(), 200, "8XL sudah dipakai: {}", res.text());
+    assert!(res.text().contains("masih dipakai"), "{}", res.text());
+    let masih: i64 = pengamat
+        .query_one("SELECT count(*) AS n FROM perlengkapan.ms_ukuran WHERE \"group\" = 'BAJU' AND ukuran = '8XL'", &[])
+        .await
+        .unwrap()
+        .get("n");
+    assert_eq!(masih, 1, "ukuran tetap ada di daftar");
+
+    teardown_test_db(&db_name).await;
+}
+
+#[tokio::test]
+async fn penulis_lama_dua_versi_ke_belakang_tetap_menjadi_saran_lewat_jembatan_basis_data() {
+    let (app, db, db_name) = setup_test_app().await;
+    let _server = TestServer::new(app);
+    let baju = spek_id(&db, "PDH", "Pakaian Dinas").await;
+    let kaos = spek_id(&db, "PDL", "Kaos").await;
+    let sepatu = spek_id(&db, "PDH", "Sepatu Dinas").await;
+    let client = db.pool().get().await.unwrap();
+    let ukuran = |spek: String| {
+        let client = &client;
+        async move {
+            client
+                .query_opt(
+                    "SELECT ukuran FROM perlengkapan.pegawai_pakaian_dinas_ukuran WHERE nip = $1 AND spesifikasi_id = $2::text::uuid",
+                    &[&NIP_A, &spek],
+                )
+                .await
+                .unwrap()
+                .map(|r| r.get::<_, String>("ukuran"))
+        }
+    };
+
+    // SQL yang SAMA dengan yang dijalankan versi sebelum V019: hanya tiga kolom profil.
+    client
+        .execute(
+            "INSERT INTO perlengkapan.pegawai_pakaian_dinas (nip, nama, ukuran_baju, ukuran_sepatu) VALUES ($1, 'P', 'L', '42')",
+            &[&NIP_A],
+        )
+        .await
+        .unwrap();
+    assert_eq!(ukuran(baju.clone()).await.as_deref(), Some("L"));
+    assert_eq!(ukuran(sepatu.clone()).await.as_deref(), Some("42"));
+
+    // Rollback, lalu pegawai mengganti ukuran bajunya lewat halaman lama: berhasil di versi lama,
+    // dan harus menjadi saran begitu versi baru berjalan lagi.
+    client
+        .execute("UPDATE perlengkapan.pegawai_pakaian_dinas SET ukuran_baju = 'M', updated_at = now() WHERE nip = $1", &[&NIP_A])
+        .await
+        .unwrap();
+    assert_eq!(
+        ukuran(baju.clone()).await.as_deref(),
+        Some("M"),
+        "perubahan versi lama sampai ke saran"
+    );
+
+    // Isian per spesifikasi yang ditulis kode baru tak tertimpa oleh penulisan kolom lain.
+    client
+        .execute(
+            "INSERT INTO perlengkapan.pegawai_pakaian_dinas_ukuran (nip, spesifikasi_id, ukuran)
+             VALUES ($1, $2::text::uuid, 'S') ON CONFLICT (nip, spesifikasi_id) DO UPDATE SET ukuran = EXCLUDED.ukuran",
+            &[&NIP_A, &kaos],
+        )
+        .await
+        .unwrap();
+    client
+        .execute(
+            "UPDATE perlengkapan.pegawai_pakaian_dinas SET ukuran_sepatu = '43' WHERE nip = $1",
+            &[&NIP_A],
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        ukuran(kaos.clone()).await.as_deref(),
+        Some("S"),
+        "kolom baju tak berubah, kaos tak disentuh"
+    );
+    assert_eq!(ukuran(sepatu.clone()).await.as_deref(), Some("43"));
+
+    // Versi lama menulis penamaan lamanya.
+    client
+        .execute(
+            "UPDATE perlengkapan.pegawai_pakaian_dinas SET ukuran_baju = 'XXL' WHERE nip = $1",
+            &[&NIP_A],
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        ukuran(baju.clone()).await.as_deref(),
+        Some("2XL"),
+        "XXL diterjemahkan ke penamaan daftar"
+    );
+
+    teardown_test_db(&db_name).await;
+}
+
+#[tokio::test]
+async fn ukuran_dan_grup_berisi_spasi_saja_ditolak() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+
+    let res = admin_post(
+        &server,
+        "/pakaian-dinas/ukuran",
+        json!({"group": "TOPI", "ukuran": "   "}),
+    )
+    .await;
+    assert_ne!(
+        res.status_code(),
+        201,
+        "ukuran kosong tak boleh masuk daftar: {}",
+        res.text()
+    );
+    let res = admin_post(
+        &server,
+        "/pakaian-dinas/ukuran-grup",
+        json!({"kode": "SPASI", "nama": "   "}),
+    )
+    .await;
+    assert_ne!(res.status_code(), 201, "grup tanpa nama: {}", res.text());
+
+    teardown_test_db(&db_name).await;
+}
