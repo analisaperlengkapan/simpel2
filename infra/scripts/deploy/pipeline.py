@@ -323,7 +323,11 @@ def wait_rollouts(ns: str, timeout_s: int) -> list[str]:
     deadline = time.monotonic() + timeout_s
     while True:
         bad = []
-        for w in required_workloads(ns):
+        found = required_workloads(ns)
+        if not found:
+            # A selector that matches nothing must not read as "everything is healthy".
+            return [f"no Deployment or StatefulSet carries app.kubernetes.io/instance={RELEASE} in {ns}"]
+        for w in found:
             why = rollout_problems(w)
             if why:
                 bad.append(f"{w['kind']}/{w['metadata']['name']}: {why}")

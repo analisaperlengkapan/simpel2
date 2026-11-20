@@ -320,6 +320,8 @@ def run(script: Path) -> int:
     }.items():
         p, calls = e.run_env("staging", "v0.1.0-rc52", base_scenario(kubectl=kube))
         check(p.returncode in (1, 3) and "helm rollback" in calls, f"{label}: fails verification and rolls back", p.stdout[-300:])
+    p, calls = e.run_env("staging", "v0.1.0-rc52", base_scenario(kubectl=[{"match": ["get", "deploy,sts"], "out": items()}]))
+    check(p.returncode in (1, 3) and "helm rollback" in calls, "no workloads found at all is a failure, not a pass")
     sec = [{"match": ["get", "deploy,sts"], "out": items(deploy("authenc", 2, 2), deploy("secreton-0", 0, 1, kind="StatefulSet"))}]
     p, _ = e.run_env("staging", "v0.1.0-rc52", base_scenario(kubectl=sec))
     check(p.returncode == 0, "sealed Secreton does not fail a deploy while its auth is off")
