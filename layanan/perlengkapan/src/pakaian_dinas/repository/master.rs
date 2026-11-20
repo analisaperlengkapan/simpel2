@@ -567,6 +567,7 @@ impl PakaianDinasRepository {
         &self,
         jenis_id: uuid::Uuid,
         nama: &str,
+        kecuali: Option<uuid::Uuid>,
     ) -> AppResult<bool> {
         let client = self
             .pool
@@ -578,8 +579,9 @@ impl PakaianDinasRepository {
                 "SELECT EXISTS(
                     SELECT 1 FROM perlengkapan.ms_spesifikasi_pakaian_dinas
                     WHERE jenis_pakaian_dinas_id = $1 AND upper(btrim(nama)) = upper(btrim($2))
+                      AND ($3::uuid IS NULL OR id <> $3)
                  ) AS ada",
-                &[&jenis_id, &nama],
+                &[&jenis_id, &nama, &kecuali],
             )
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
