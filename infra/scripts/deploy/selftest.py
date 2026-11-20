@@ -114,7 +114,22 @@ def base_scenario(**over):
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
+    def _github(self):
+        gh = getattr(self.server, "gh", {})
+        body = gh.get("statuses", []) if "/statuses" in self.path else gh.get("deployments", [])
+        if gh.get("fail"):
+            self.send_response(500)
+            self.end_headers()
+            return
+        raw = json.dumps(body).encode()
+        self.send_response(200)
+        self.send_header("content-type", "application/json")
+        self.end_headers()
+        self.wfile.write(raw)
+
     def _answer(self):
+        if self.path.startswith("/repos/"):
+            return self._github()
         broken = os.path.exists(os.path.join(self.server.fake_dir, "broken"))
         code = {"/health": 200, "/perlengkapan/simpel/": 200, "/portal/": 200,
                 "/api/v1/perlengkapan/pakaian-dinas/jenis": 401, "/api/v1/iam/users": 401,
@@ -163,7 +178,7 @@ class Env:
             (self.tmp / "broken").write_text("1")
         (self.tmp / "scenario.json").write_text(json.dumps(scenario))
         env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}", FAKE_SCENARIO=str(self.tmp / "scenario.json"),
-                   FAKE_LOG=str(self.tmp / "calls.log"), FAKE_DIR=str(self.tmp), XDG_RUNTIME_DIR=str(self.tmp / "runtime"))
+                   FAKE_LOG=str(self.tmp / "calls.log"), FAKE_DIR=str(self.tmp), XDG_RUNTIME_DIR=str(self.tmp / "runtime"), GITHUB_API_URL=self.base_url, GITHUB_TOKEN="t")
         env.pop("GITHUB_STEP_SUMMARY", None)
         proc = subprocess.run([sys.executable, str(self.script), *args], capture_output=True, text=True, env=env, timeout=120)
         calls = (self.tmp / "calls.log").read_text() if (self.tmp / "calls.log").exists() else ""
@@ -332,20 +347,19 @@ def run(script: Path) -> int:
     print("S10 promote-guard")
     SHA = "abc12345deadbeef"
 
-    def guard(tag, *, tags="v0.1.0 v0.1.0-rc51\n", status="success", deployments="default"):
+    def guard(tag, *, tags="v0.1.0 v0.1.0-rc51\n", status="success", deployments="default", api_down=False):
         if deployments == "default":
             deployments = [{"id": 11, "sha": SHA, "ref": "v0.1.0-rc51"}]
+        e.httpd.gh = {"deployments": deployments, "statuses": [{"state": status}], "fail": api_down}
         sc = {
             "git": [{"match": ["rev-list"], "out": SHA + "\n"}, {"match": ["--points-at"], "out": tags}],
-            "gh": [{"match": ["/statuses"], "out": json.dumps([{"state": status}])},
-                   {"match": ["/deployments?"], "out": json.dumps(deployments)}],
-            "helm": [], "kubectl": [],
+            "helm": [], "kubectl": [], "gh": [],
         }
         return e.run(["promote-guard", "--tag", tag, "--repo", "o/r"], sc)
 
     p, calls = guard("v0.1.0")
     check(p.returncode == 0 and p.stdout.strip().splitlines()[-1] == "v0.1.0-rc51", "ok: the commit of an rc whose staging deployment is the newest and succeeded")
-    check("helm" not in calls and "kubectl" not in calls, "the guard never touches the cluster")
+    check("helm" not in calls and "kubectl" not in calls and "gh " not in calls, "the guard needs neither the cluster nor the gh CLI")
     p, _ = guard("v0.1.0", deployments=[{"id": 11, "sha": SHA, "ref": "refs/tags/v0.1.0-rc51"}])
     check(p.returncode == 0, "a deployment ref spelled refs/tags/<rc> is understood")
     p, _ = guard("v0.1.0-rc51")
@@ -361,6 +375,8 @@ def run(script: Path) -> int:
     check(p.returncode == 2, "refused: the staging deployment has not finished")
     p, _ = guard("v0.1.0", deployments=[])
     check(p.returncode == 2, "refused: staging has no recorded deployment")
+    p, _ = guard("v0.1.0", api_down=True)
+    check(p.returncode == 2 and "not guessing" in p.stdout, "refused, not guessed, when GitHub cannot be read")
     p, _ = guard("v0.1.0", deployments=[{"id": 12, "sha": "ffff0000ffff0000", "ref": "v0.1.0-rc52"}, {"id": 11, "sha": SHA, "ref": "v0.1.0-rc51"}])
     check(p.returncode == 2, "refused: a newer rc has been deployed to staging since")
 

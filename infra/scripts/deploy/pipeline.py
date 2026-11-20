@@ -558,6 +558,23 @@ def cmd_run(a) -> int:
     return finish(EXIT_MANUAL, f"{env} {tag}: FAILED and the rollback did not verify")
 
 
+def github_get(path: str):
+    """GET from the GitHub REST API with the standard library: the ARC runner image has no `gh` CLI
+    (release.yml and labeler.yml work around the same gap). GITHUB_API_URL lets the self-test stand in."""
+    base = os.environ.get("GITHUB_API_URL", "https://api.github.com").rstrip("/")
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or ""
+    headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    try:
+        with urllib.request.urlopen(urllib.request.Request(base + path, headers=headers), timeout=30) as r:
+            return json.loads(r.read() or b"[]")
+    except urllib.error.HTTPError as e:
+        raise Failed(f"GitHub API {path.split('?')[0]}: HTTP {e.code}") from e
+    except (urllib.error.URLError, TimeoutError) as e:
+        raise Failed(f"GitHub API {path.split('?')[0]}: {e}") from e
+
+
 def cmd_promote_guard(a) -> int:
     """A final tag may deploy to production only if it IS a release candidate that passed staging: the same
     commit, and the NEWEST staging deployment GitHub recorded is that commit and succeeded. The record is
@@ -572,7 +589,11 @@ def cmd_promote_guard(a) -> int:
     if not rcs:
         log(f"REFUSED: no {tag}-rcN tag points at {sha[:8]}; a final tag must sit on the commit that passed staging")
         return EXIT_REFUSED
-    deps = json.loads(sh(["gh", "api", f"repos/{a.repo}/deployments?environment=staging&per_page=10"]).stdout or "[]")
+    try:
+        deps = github_get(f"/repos/{a.repo}/deployments?environment=staging&per_page=10")
+    except Failed as e:
+        log(f"REFUSED: cannot read the staging deployment history ({e}); not guessing")
+        return EXIT_REFUSED
     if not deps:
         log("REFUSED: staging has no recorded deployment")
         return EXIT_REFUSED
@@ -582,7 +603,11 @@ def cmd_promote_guard(a) -> int:
         log(f"REFUSED: the newest staging deployment is {ref or '?'} at {str(latest.get('sha'))[:8]}; {tag} sits on {sha[:8]} "
             f"({', '.join(rcs)}). Staging has moved on, or this rc never ran there")
         return EXIT_REFUSED
-    sts = json.loads(sh(["gh", "api", f"repos/{a.repo}/deployments/{latest['id']}/statuses?per_page=1"]).stdout or "[]")
+    try:
+        sts = github_get(f"/repos/{a.repo}/deployments/{latest['id']}/statuses?per_page=1")
+    except Failed as e:
+        log(f"REFUSED: cannot read the deployment status ({e}); not guessing")
+        return EXIT_REFUSED
     state = sts[0].get("state") if sts else None
     if state != "success":
         log(f"REFUSED: the staging deployment of {ref} ended as {state or 'unknown'}, not success")
