@@ -150,7 +150,10 @@ impl IntegrationScheduler {
             let stop = stop.clone();
             Box::pin(async move {
                 info!("🚀 Starting SIMAN scheduled data fetch...");
-                match fetch_siman_data(config, db_client, stop).await {
+                // Held while the run is in progress: on SIGTERM the daemon waits for it to finish its
+                // clean-up (see `Stop::wait_idle`) before it exits.
+                let _running = stop.guard();
+                match fetch_siman_data(config, db_client, stop.clone()).await {
                     Ok(_) => info!("✅ SIMAN data fetch completed successfully"),
                     Err(e) => error!("❌ SIMAN data fetch failed: {}", e),
                 }

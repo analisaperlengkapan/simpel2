@@ -1058,6 +1058,149 @@ async fn rows_left_by_a_run_that_was_killed_are_removed_before_the_next_run() {
     );
 }
 
+/// Wait for `child` to exit, killing it if it does not within `limit`.
+async fn wait_for_exit(
+    child: std::process::Child,
+    limit: Duration,
+) -> (std::process::ExitStatus, String) {
+    let pid = child.id();
+    let out = tokio::time::timeout(
+        limit,
+        tokio::task::spawn_blocking(move || child.wait_with_output()),
+    )
+    .await;
+    match out {
+        Ok(joined) => {
+            let out = joined.expect("join").expect("wait");
+            let log = format!(
+                "{}{}",
+                String::from_utf8_lossy(&out.stdout),
+                String::from_utf8_lossy(&out.stderr)
+            );
+            (out.status, log)
+        }
+        Err(_) => {
+            let _ = Command::new("kill")
+                .args(["-KILL", &pid.to_string()])
+                .status();
+            panic!("the process did not exit within {limit:?}");
+        }
+    }
+}
+
+fn sigterm(pid: u32) {
+    let status = Command::new("kill")
+        .args(["-TERM", &pid.to_string()])
+        .status()
+        .expect("kill");
+    assert!(status.success());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_copy_replaced_by_a_version_without_the_marker_is_not_taken_for_leftovers() {
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    mount_siman(&server, 1500, None).await;
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(ok, "{log}");
+
+    // A rollback to a version that does not know `siman_copy`, and ITS complete run: it deletes the
+    // whole earlier copy and writes a new one, leaving the marker where the first run put it. Every
+    // row of the new copy is now stamped after the marker.
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    db.client
+        .batch_execute(
+            "DELETE FROM integrasi.siman_aset WHERE jenis_aset = 'Tanah'; \
+             INSERT INTO integrasi.siman_aset (jenis_aset, nup, synced_at) \
+             SELECT 'Tanah', 'lama' || g, clock_timestamp() FROM generate_series(1, 1500) g",
+        )
+        .await
+        .expect("replace the copy as the old version would");
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    // The new version again, and one block of its fetch fails. If the reclaim had taken the old
+    // version's complete copy for a dead run's leftovers, nothing would be left.
+    mount_siman(&server, 1500, Some(1001)).await;
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(!ok, "{log}");
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_aset WHERE nup LIKE 'lama%'")
+            .await,
+        1500,
+        "the complete copy written by the older version was deleted:\n{log}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_second_run_does_not_delete_the_rows_a_run_in_progress_has_written() {
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    mount_siman(&server, 3000, None).await;
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(ok, "{log}");
+
+    // Run A writes its first block and waits for the others.
+    mount_siman_shaped(&server, 3000, None, Some(1001), None).await;
+    let a = spawn_scheduler(&db, "siman", siman_env(&server));
+    let a_pid = a.id();
+    let mut waited = 0;
+    while db.count("SELECT count(*) FROM integrasi.siman_aset").await < 4000 {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        waited += 1;
+        assert!(waited < 300, "run A never wrote its first block");
+    }
+
+    // Run B starts on the same category: a Job someone created by hand while the CronJob's was going.
+    let (ok_b, log_b) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(
+        !ok_b,
+        "a second run beside a running one exited 0:\n{log_b}"
+    );
+    assert!(
+        log_b.contains("another SIMAN run is already fetching Tanah"),
+        "the refusal must say why:\n{log_b}"
+    );
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_aset").await,
+        4000,
+        "the second run deleted rows the first had written:\n{log_b}"
+    );
+
+    // The lock goes with the run: once A has been stopped, a run can take the category again.
+    sigterm(a_pid);
+    let (status, log_a) = wait_for_exit(a, Duration::from_secs(20)).await;
+    assert!(!status.success(), "{log_a}");
+    mount_siman(&server, 3000, None).await;
+    let (ok_c, log_c) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(ok_c, "the lock outlived its run:\n{log_c}");
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_aset").await,
+        3000
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_daemon_mode_stops_on_sigterm_instead_of_ignoring_it() {
+    let db = Db::new().await;
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_scheduler"));
+    cmd.env_clear()
+        .env("RUST_LOG", "info")
+        .env("STORAGE_TYPE", "database")
+        .env("DATABASE_URL", &db.url)
+        .env("SCHEDULER_ENABLED", "true")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let child = cmd.spawn().expect("the scheduler binary must start");
+    let pid = child.id();
+    tokio::time::sleep(Duration::from_millis(2500)).await;
+    sigterm(pid);
+    let (status, log) = wait_for_exit(child, Duration::from_secs(25)).await;
+    assert!(
+        status.success() && log.contains("Scheduler stopped successfully"),
+        "the daemon did not shut down cleanly on SIGTERM ({status:?}):\n{log}"
+    );
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn a_category_with_no_marker_is_left_alone_by_the_reclaim() {
     let db = Db::new().await;

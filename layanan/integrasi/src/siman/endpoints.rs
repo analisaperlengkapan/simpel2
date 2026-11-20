@@ -782,6 +782,55 @@ pub async fn fetch_category(
     category: SimanAssetCategory,
     stop: &crate::stop::Stop,
 ) -> Result<CategoryOutcome, MonsaktiError> {
+    // One run per category at a time, across processes. The CronJob's `concurrencyPolicy: Forbid` stops
+    // the SCHEDULE from overlapping itself, not a Job someone starts by hand (the documented way to pull
+    // data on staging) while a run is writing: the second run would take the first one's rows for the
+    // leftovers of a dead run and delete them, and the first, which counts its blocks in memory, would
+    // report a complete copy that is not. A session advisory lock is held on the connection that does
+    // the work; it vanishes with the connection, so a killed run never holds it.
+    let lock_key = format!("integrasi.siman_aset:{}", category.description());
+    let locked = match client.get_db_client() {
+        Some(db) if storage.writes_database() => {
+            let row = db
+                .query_one(
+                    "SELECT pg_try_advisory_lock(hashtextextended($1, 0))",
+                    &[&lock_key],
+                )
+                .await?;
+            if !row.get::<_, bool>(0) {
+                return Err(MonsaktiError::Incomplete(format!(
+                    "another SIMAN run is already fetching {}; not starting a second, which would delete the rows the first has written",
+                    category.description()
+                )));
+            }
+            true
+        }
+        _ => false,
+    };
+    let outcome = fetch_category_locked(client, storage, category, stop).await;
+    if locked && let Some(db) = client.get_db_client() {
+        if let Err(e) = db
+            .query_one(
+                "SELECT pg_advisory_unlock(hashtextextended($1, 0))",
+                &[&lock_key],
+            )
+            .await
+        {
+            warn!(
+                "could not release the lock of {}: {e}",
+                category.description()
+            );
+        }
+    }
+    outcome
+}
+
+async fn fetch_category_locked(
+    client: &mut MonsaktiClient,
+    storage: &crate::StorageStrategy,
+    category: SimanAssetCategory,
+    stop: &crate::stop::Stop,
+) -> Result<CategoryOutcome, MonsaktiError> {
     info!("📥 Starting fetch for: {}", category.description());
 
     // Get row count
@@ -1056,12 +1105,21 @@ pub async fn fetch_category(
 /// complete copy, where every reader sees them. `integrasi.siman_copy.settled_at` marks where that
 /// copy ends: a row stamped after it was written by a run that did not finish. A category with no
 /// marker is left alone, and so is a database without the table: a failure here must not stop a sync.
+///
+/// The marker alone is not proof. After a rollback to a version that does not know it, a complete run of
+/// THAT version replaces the whole copy and leaves the marker behind, so every row of the new copy is
+/// stamped after it; taking them for leftovers would delete a complete copy. A leftover is therefore
+/// deleted only while rows of the category at or before the marker still exist: those are the complete
+/// copy the marker describes, and what comes after them is what a dead run wrote.
 async fn reclaim_unsettled_rows(db: &tokio_postgres::Client, jenis: &str) {
     let result = db
         .execute(
             "DELETE FROM integrasi.siman_aset \
              WHERE jenis_aset = $1 \
-               AND synced_at > (SELECT settled_at FROM integrasi.siman_copy WHERE jenis_aset = $1)",
+               AND synced_at > (SELECT settled_at FROM integrasi.siman_copy WHERE jenis_aset = $1) \
+               AND EXISTS (SELECT 1 FROM integrasi.siman_aset k \
+                           WHERE k.jenis_aset = $1 \
+                             AND k.synced_at <= (SELECT settled_at FROM integrasi.siman_copy WHERE jenis_aset = $1))",
             &[&jenis],
         )
         .await;
