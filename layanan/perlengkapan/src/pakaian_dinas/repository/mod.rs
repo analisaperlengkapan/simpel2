@@ -19,6 +19,7 @@ impl PakaianDinasRepository {
     // ============ Master: Jenis Pakaian Dinas ============
 }
 
+mod impor;
 pub(crate) mod laporan;
 mod master;
 mod pegawai;

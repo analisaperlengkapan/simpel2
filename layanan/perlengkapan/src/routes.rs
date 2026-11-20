@@ -203,6 +203,10 @@ pub fn create_routes(state: AppState) -> Router {
             put(pakaian_dinas::update_ukuran_grup).delete(pakaian_dinas::delete_ukuran_grup),
         )
         .route(
+            "/pakaian-dinas/impor-profil",
+            post(pakaian_dinas::impor_profil),
+        )
+        .route(
             "/pakaian-dinas/ukuran",
             get(pakaian_dinas::get_all_ukuran).post(pakaian_dinas::create_ukuran),
         )

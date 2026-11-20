@@ -10,6 +10,7 @@
 //! - Report generation for uniform distribution
 
 pub mod handlers;
+pub mod impor_profil;
 pub mod models;
 pub mod notifikasi;
 pub mod pdf_export;
