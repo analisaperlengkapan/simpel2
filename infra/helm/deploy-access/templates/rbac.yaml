@@ -1,0 +1,83 @@
+# The identity the release pipeline deploys with. It has no token Secret: the credential is a short-lived
+# token requested explicitly (`kubectl create token`, see infra/scripts/buat-kredensial-deploy.sh) and kept
+# only as a GitHub environment secret, so nothing in the cluster holds a long-lived credential for it.
+#
+# The rules list exactly the kinds `helm template` renders for infra/helm/simpel (both environments), plus
+# what the pipeline itself does: read workloads and pods and their logs, and exec into postgres for the
+# pre-upgrade dump and the staging fixtures. They are broad, because a chart upgrade has to write every kind
+# the chart owns; what limits the damage is where the credential is kept, not the verbs. And while the
+# cluster runs with RBAC set to AlwaysAllow (see infra/AGENTS.md) these rules are not enforced at all; they
+# describe what the pipeline needs, ready for the day RBAC is turned on.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.serviceAccountName }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: deploy-access
+    app.kubernetes.io/part-of: simpelv2
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.serviceAccountName }}
+  labels:
+    app.kubernetes.io/name: deploy-access
+    app.kubernetes.io/part-of: simpelv2
+rules:
+  - apiGroups: [""]
+    resources: [configmaps, secrets, services, serviceaccounts, persistentvolumeclaims, resourcequotas, limitranges]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [namespaces, pods, events, persistentvolumes]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [pods/exec]
+    verbs: [create]
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get, list, watch]
+  - apiGroups: [batch]
+    resources: [cronjobs, jobs]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [policy]
+    resources: [poddisruptionbudgets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [networking.istio.io]
+    resources: [destinationrules, gateways, virtualservices]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [security.istio.io]
+    resources: [peerauthentications]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [scheduling.k8s.io]
+    resources: [priorityclasses]
+    verbs: [get, list, watch, create, update, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.serviceAccountName }}
+  labels:
+    app.kubernetes.io/name: deploy-access
+    app.kubernetes.io/part-of: simpelv2
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.serviceAccountName }}
+    namespace: {{ .Values.namespace }}

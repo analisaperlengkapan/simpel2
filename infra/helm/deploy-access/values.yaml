@@ -1,0 +1,4 @@
+# Where the ServiceAccount lives. `default` on purpose: the rehearsal release also lives there, so no
+# environment's namespace (which a clean-up could remove) holds the pipeline's identity.
+namespace: default
+serviceAccountName: release-deployer

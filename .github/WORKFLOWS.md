@@ -10,7 +10,9 @@ Overview of CI/CD workflows, their triggers, and purposes.
 | **CI - Quality** | `ci-quality.yml` | Push/PR + weekly schedule | Documentation build, code metrics |
 | **CI - Security** | `ci-security.yml` | Push/PR + weekly schedule | Dependency audit, SAST, secrets scan (cached tools) |
 | **Integration Tests** | `integration-tests.yml` | Push/PR + daily schedule | Expanded matrix backend integration & workspace tests |
-| **Release** | `release.yml` | Tag push (`v*.*.*`) or manual | Build, package, publish release + Docker (with caching & SBOM) |
+| **Release** | `release.yml` | Pre-release tag push (`v*.*.*-*`, i.e. `-rcN`) or manual | Build, package, publish release + Docker (with caching & SBOM), then **deploy to staging, verify, roll back on failure** (`deploy-staging`, Environment `staging`) |
+| **Promote Release** | `promote.yml` | Final tag push (`vX.Y.Z`) | Check the tag is the rc that passed staging, re-tag its images (no rebuild), **deploy to production after the owner approves** (Environment `production`), then publish the release |
+| **Deploy Check** | `deploy-check.yml` | Manual | Prove the deploy wiring (credential, preflight, image signatures, network from a dind container) without deploying or recording a deployment |
 | **Benchmark** | `benchmark.yml` | Push + weekly schedule | Track WASM bundle sizes and system performance |
 | **Autofix PR** | `autofix-pr.yml` | Event trigger from PRs | Automated PR-based fixes |
 | **Health Check** | `health-check.yml` | Daily schedule | Workflow validation & dependency audit |

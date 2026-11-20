@@ -1,0 +1,6 @@
+apiVersion: v2
+name: deploy-access
+description: The ServiceAccount and ClusterRole the release pipeline (release.yml, promote.yml) deploys with
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

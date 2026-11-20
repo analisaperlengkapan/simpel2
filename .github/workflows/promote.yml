@@ -1,30 +1,26 @@
-# promote.yml — Promote pre-release tag (v0.1.0-rc1) ke final tag (v0.1.0)
-# tanpa rebuild image. Image digest identik staging ↔ production.
-# (rename dari promote-release.yml)
+# promote.yml — a FINAL tag (vX.Y.Z, no -rc) means "release the release candidate that passed
+# staging to production". Nothing is rebuilt: the final tag points at the commit of that rc, its images
+# are the rc's images re-tagged with the identical digest, and the deploy is the same pipeline staging
+# used (infra/scripts/deploy/pipeline.py), now against production.
+#
+#   guard             the tag sits on the commit of an rc whose staging deployment is the NEWEST one and
+#                     succeeded (GitHub's deployment history; a newer rc on staging, a failed or missing
+#                     staging deploy, or a stray tag refuses here, before anything is touched)
+#   promote-images    re-tag each image from the rc's tag, verify the digest is identical, sign it
+#   deploy-production runs in the `production` GitHub Environment: the job waits for the owner's
+#                     approval, then upgrades (never installs: the first production install is the manual
+#                     bootstrap in infra/helm/RUNBOOK.md), verifies, and rolls back on failure
+#   publish-release   the GitHub Release, only after production verified
 
 name: Promote Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      source_tag:
-        description: "Source tag (rc) yang sudah lulus staging — contoh: v0.1.0-rc1"
-        required: true
-        type: string
-      target_tag:
-        description: "Target tag final — contoh: v0.1.0"
-        required: true
-        type: string
-      git_tag:
-        description: "Buat git tag final? (y/n) — default y"
-        required: false
-        type: string
-        default: "y"
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 permissions:
-  contents: write
-  packages: write
-  id-token: write
+  contents: read
 
 concurrency:
   group: promote-release
@@ -35,48 +31,38 @@ env:
   IMAGE_PREFIX: simpelv2
 
 jobs:
-  validate:
-    name: Validate input tags
+  guard:
+    name: The tag is the release candidate that passed staging
     runs-on: arc-simpel
-    timeout-minutes: 30
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      deployments: read
     outputs:
-      source_clean: ${{ steps.parse.outputs.source }}
-      target_clean: ${{ steps.parse.outputs.target }}
+      source_tag: ${{ steps.guard.outputs.source_tag }}
     steps:
-      - name: Parse & validate tag format
-        id: parse
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check the tag against the staging deployment history
+        id: guard
         shell: bash
         env:
-          SOURCE: ${{ inputs.source_tag }}
-          TARGET: ${{ inputs.target_tag }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          set -e
-          if ! echo "$SOURCE" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+-[A-Za-z0-9.-]+$'; then
-            echo "::error::source_tag harus SemVer pre-release (mis. v0.1.0-rc1). Got: $SOURCE"
-            exit 1
-          fi
-          if ! echo "$TARGET" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::target_tag harus SemVer final (mis. v0.1.0). Got: $TARGET"
-            exit 1
-          fi
-          # Strip the pre-release suffix: v0.1.0-rc1 -> v0.1.0. `%%-*` removes the
-          # longest `-`-prefixed suffix, i.e. everything from the FIRST hyphen —
-          # identical to the previous `sed 's/-.*//'`, without forking a process.
-          SOURCE_BASE="${SOURCE%%-*}"
-          if [ "$SOURCE_BASE" != "$TARGET" ]; then
-            echo "::error::Base version mismatch: source=$SOURCE_BASE, target=$TARGET"
-            exit 1
-          fi
-
-          echo "source=${SOURCE#v}" >> "$GITHUB_OUTPUT"
-          echo "target=${TARGET#v}" >> "$GITHUB_OUTPUT"
-          echo "Validated: $SOURCE -> $TARGET"
+          set -euo pipefail
+          # tee, not a bare `| tail`: the reason for a refusal must stay in the log.
+          python3 -I infra/scripts/deploy/pipeline.py promote-guard --tag "$TAG" --repo "$REPO" | tee guard.out
+          echo "source_tag=$(tail -n1 guard.out)" >> "$GITHUB_OUTPUT"
 
   promote-images:
     name: Re-tag (${{ matrix.image }})
     runs-on: arc-simpel
     timeout-minutes: 120
-    needs: validate
+    needs: guard
     permissions:
       contents: read
       packages: write
@@ -105,22 +91,22 @@ jobs:
       - name: Verify source image exists
         shell: bash
         env:
-          SOURCE_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.source_tag }}
+          SOURCE_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ needs.guard.outputs.source_tag }}
         run: docker manifest inspect "$SOURCE_IMAGE"
 
       - name: Re-tag image (no rebuild)
         shell: bash
         env:
-          SOURCE_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.source_tag }}
-          TARGET_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.target_tag }}
+          SOURCE_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ needs.guard.outputs.source_tag }}
+          TARGET_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ github.ref_name }}
         run: |
           docker buildx imagetools create --tag "$TARGET_IMAGE" "$SOURCE_IMAGE"
 
       - name: Verify digest identik
         shell: bash
         env:
-          SOURCE_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.source_tag }}
-          TARGET_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.target_tag }}
+          SOURCE_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ needs.guard.outputs.source_tag }}
+          TARGET_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ github.ref_name }}
           IMAGE_NAME: ${{ matrix.image }}
         run: |
           SOURCE_DIGEST=$(docker manifest inspect "$SOURCE_IMAGE" \
@@ -139,60 +125,70 @@ jobs:
       - name: Sign target tag (cosign keyless)
         shell: bash
         env:
-          IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.target_tag }}
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ github.ref_name }}
         run: cosign sign --yes "$IMAGE"
 
-  create-git-tag:
-    name: Create git tag (final)
+  deploy-production:
+    name: Deploy to production (after approval), verify, roll back on failure
+    needs: [guard, promote-images]
     runs-on: arc-simpel
-    timeout-minutes: 30
-    needs: [validate, promote-images]
-    if: ${{ inputs.git_tag == 'y' || inputs.git_tag == 'yes' }}
+    timeout-minutes: 120
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: ${{ vars.BASE_URL }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cluster access
+        uses: ./.github/actions/cluster-access
+        with:
+          server: ${{ vars.KUBE_SERVER }}
+          ca: ${{ vars.KUBE_CA }}
+          token: ${{ secrets.KUBE_TOKEN }}
+          namespace: simpelv2-production
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Verify every image is signed by this repository
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./infra/scripts/deploy/verify-images.sh infra/helm/simpel/values-production.yaml "${{ github.ref_name }}" promote
+
+      # Production gets the rollouts, the pod and image checks, the smoke over HTTP and the log scan. It does
+      # not get the authenticated e2e suite: that suite reseeds fixtures and logs in as fixture users, which
+      # production must never hold. A read-only synthetic account would allow an authenticated check; that
+      # is a decision about a real account in production, not something this job invents.
+      - name: Deploy, verify, scan the logs
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+          BASE_URL: ${{ vars.BASE_URL }}
+        run: |
+          set -euo pipefail
+          python3 -I infra/scripts/deploy/pipeline.py run --env production --tag "$TAG" --base-url "$BASE_URL"
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [deploy-production]
+    runs-on: arc-simpel
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - name: Create the release
+        uses: softprops/action-gh-release@v3
         with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Find commit dari source tag
-        id: src
-        shell: bash
+          tag_name: ${{ github.ref_name }}
+          name: SIMPEL ${{ github.ref_name }}
+          generate_release_notes: true
+          prerelease: false
         env:
-          SOURCE: ${{ inputs.source_tag }}
-        run: |
-          COMMIT=$(git rev-list -n 1 "$SOURCE")
-          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
-          echo "Source tag $SOURCE -> commit $COMMIT"
-
-      - name: Create & push final tag
-        shell: bash
-        env:
-          SOURCE: ${{ inputs.source_tag }}
-          TARGET: ${{ inputs.target_tag }}
-          COMMIT: ${{ steps.src.outputs.commit }}
-        run: |
-          git tag -a "$TARGET" "$COMMIT" \
-            -m "Release $TARGET
-
-          Promoted from $SOURCE setelah lulus QA staging.
-          Image digest identik dengan $SOURCE di ghcr.io."
-          git push origin "$TARGET"
-
-      - name: Summary
-        shell: bash
-        env:
-          SOURCE: ${{ inputs.source_tag }}
-          TARGET: ${{ inputs.target_tag }}
-          COMMIT: ${{ steps.src.outputs.commit }}
-        run: |
-          {
-            echo "## Promote Summary"
-            echo
-            echo "- Source: \`$SOURCE\`"
-            echo "- Target: \`$TARGET\`"
-            echo "- Commit: \`$COMMIT\`"
-            echo
-            echo "Note: tag dibuat dengan GITHUB_TOKEN, jadi TIDAK memicu \`release.yml\` — dan itu yang diinginkan: tidak ada build ulang, image \`$TARGET\` tetap digest \`$SOURCE\`. GitHub Release (bila perlu) dibuat manual."
-          } >> "$GITHUB_STEP_SUMMARY"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

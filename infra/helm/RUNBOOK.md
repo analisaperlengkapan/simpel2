@@ -22,6 +22,23 @@
 > Pattern: **"build once, promote artifact"**. Image yang lulus QA staging =
 > image identik di-deploy production. Cegah cache miss / non-determinism.
 
+> **Sekarang otomatis.** Mendorong tag `vX.Y.Z-rcN` membangun image DAN men-deploy-nya ke staging
+> dengan verifikasi dan rollback otomatis; mendorong tag `vX.Y.Z` (di commit RC yang lolos) memicu
+> promote lalu deploy production setelah persetujuan pemilik. Semuanya dijalankan
+> `infra/scripts/deploy/pipeline.py` (lihat `infra/AGENTS.md` → "Alur deploy WAJIB"). Prasyarat sekali:
+> `infra/scripts/buat-kredensial-deploy.sh` (kredensial + GitHub Environments) dan install production
+> pertama secara manual (§1). Bagian 0.1-0.5 di bawah adalah **jalur manual**: pakai bila pipeline
+> sedang rusak, dan sebagai rujukan apa yang diotomatisasi.
+>
+> **Batas rollback otomatis.** `helm rollback` hanya aman karena migrasi bersifat aditif (expand/contract).
+> Rilis dengan migrasi destruktif butuh restore dump manual: dump pra-upgrade ada di volume postgres
+> (`/var/lib/postgresql/data/pre-upgrade/<env>-<tag>-<waktu>.dump`, 3 terbaru), namanya dicetak pipeline
+> dan dicatat di ringkasan job. Restore: `pg_restore` dari berkas itu ke `dbsimpelv2`.
+>
+> **Kredensial kedaluwarsa.** Token deploy ber-umur (default 1 tahun); skrip pemasangnya mencetak
+> tanggalnya. Token basi menggagalkan job di langkah "Cluster access" dengan pesan yang menunjuk skrip itu,
+> sebelum ada yang berubah. Ulangi skripnya sebelum tanggal itu.
+
 ### 0.1 Tag pre-release (rc)
 
 ```bash

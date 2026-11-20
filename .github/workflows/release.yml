@@ -3,7 +3,10 @@ name: Release
 on:
   push:
     tags:
-      - "v*.*.*"
+      # Pre-release tags only (vX.Y.Z-rcN): they are built here and deployed to staging by the
+      # `deploy-staging` job below. A FINAL tag (vX.Y.Z) must never rebuild: it is the release candidate
+      # that passed staging, promoted by promote.yml with the identical image digests.
+      - "v*.*.*-*"
   workflow_dispatch:
     inputs:
       version:
@@ -691,3 +694,67 @@ jobs:
           echo "GAGAL: aset berikut tetap tak mendarat setelah 3 percobaan:"
           sed 's/^/  - /' missing.txt
           exit 1
+
+  # An -rcN tag is deployed to staging and verified by infra/scripts/deploy/pipeline.py: dump first,
+  # `helm upgrade`, rollouts and smoke, the e2e suite, a scan of every pod's log, and `helm rollback` to
+  # the previous revision when any of that fails (exit 1 = restored, exit 3 = a person is needed). The job
+  # runs in the `staging` GitHub Environment, which does two things the rest of the pipeline relies on:
+  # its secret (the cluster credential) is readable only by jobs running on a v*-rc* tag, and the job's
+  # result is recorded as a GitHub deployment, which is what promote.yml checks before a final tag may
+  # reach production. Everything here is exercised without a release by deploy-check.yml.
+  deploy-staging:
+    name: Deploy to staging, verify, roll back on failure
+    needs: [validate, publish]
+    if: github.event_name == 'push' && needs.validate.outputs.is-prerelease == 'true'
+    runs-on: arc-simpel
+    timeout-minutes: 120
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    environment:
+      name: staging
+      url: ${{ vars.BASE_URL }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cluster access
+        uses: ./.github/actions/cluster-access
+        with:
+          server: ${{ vars.KUBE_SERVER }}
+          ca: ${{ vars.KUBE_CA }}
+          token: ${{ secrets.KUBE_TOKEN }}
+          namespace: simpelv2-staging
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      # Deploy only what this repository's release workflow signed: every simpelv2 image the chart renders
+      # at this tag must verify, or nothing is deployed.
+      - name: Verify every image is signed by this repository
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./infra/scripts/deploy/verify-images.sh infra/helm/simpel/values-staging.yaml "${{ github.ref_name }}" release
+
+      # The suite runs from an image built from this tag's specs. Under ARC dind a bind mount resolves
+      # against the dind daemon, not the checkout, which is why the specs are baked in (see Dockerfile.e2e).
+      - name: Build the e2e runner image
+        shell: bash
+        run: docker build -t simpel-e2e:${{ github.sha }} antarmuka/perlengkapan/tests/e2e
+
+      - name: Deploy, verify, run the suite, scan the logs
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+          BASE_URL: ${{ vars.BASE_URL }}
+          E2E_IMAGE: simpel-e2e:${{ github.sha }}
+        run: |
+          set -euo pipefail
+          e2e="docker run --rm -e FRONTEND_URL=${BASE_URL} -e AUTHENC_URL=${BASE_URL} \
+            -e PERLENGKAPAN_URL=${BASE_URL} -e PERLENGKAPAN_API_URL=${BASE_URL} \
+            ${E2E_IMAGE} npx playwright test --workers=1 --retries=0 --reporter=line"
+          python3 -I infra/scripts/deploy/pipeline.py run --env staging --tag "$TAG" \
+            --base-url "$BASE_URL" --reseed --e2e-cmd "$e2e"

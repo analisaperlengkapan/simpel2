@@ -49,12 +49,13 @@ Infrastruktur SIMPEL berfokus pada **Keamanan Tingkat Tinggi (Zero-Trust)** dan 
 
 Urutan baku:
 
-1. **Build & push image** via tag git `v*.*.*` → `release.yml` (semver immutable, SBOM + provenance). Untuk RC pakai suffix `-rcN`.
-2. **Deploy STAGING**: `helm upgrade` `simpel` di `simpelv2-staging` (`values-staging.yaml`).
-3. **Uji STAGING**: smoke + Playwright e2e + `cargo test` terhadap staging. Bila gagal → perbaiki, naikkan RC, ulang dari (1).
-4. **Promote**: `promote.yml` me-_retag_ image **yang sama** (digest identik, **tanpa rebuild**) dari `-rcN` → tag final.
-5. **Deploy PRODUCTION**: `helm upgrade` `simpel` di `simpelv2-production` (`values-production.yaml`) dengan tag final.
-6. **Uji PRODUCTION**: smoke + e2e. Bila regresi → `helm rollback`.
+1. **Tag `vX.Y.Z-rcN`** → `release.yml` membangun dan menandatangani image (semver immutable, SBOM + provenance), lalu job `deploy-staging` men-deploy-nya ke `simpelv2-staging` **otomatis** lewat `infra/scripts/deploy/pipeline.py`: `pg_dump` dulu, `helm upgrade`, rollout + smoke + tiap container memakai tag ini, suite e2e Playwright, pemindaian log semua pod, dan **`helm rollback` otomatis ke revisi sebelumnya bila ada yang gagal** (exit 1 = pulih dan terverifikasi; exit 3 = perlu orang, nama dump dicetak). Job berjalan di GitHub Environment `staging`; hasilnya tercatat sebagai *deployment* GitHub.
+2. **Gagal?** Perbaiki, naikkan RC, ulang dari (1). RC yang gagal tak pernah dipromosikan.
+3. **Tag `vX.Y.Z` (tanpa `-rc`)** = keputusan pemilik untuk merilis RC yang lolos staging ke production. `promote.yml` memeriksa dulu bahwa tag itu berada di commit RC yang deployment staging-nya adalah yang **terbaru** dan **sukses** (RC yang lebih baru di staging, deploy staging yang gagal, atau tag liar menolak di sini sebelum apa pun disentuh), lalu me-_retag_ image **yang sama** (digest identik, **tanpa rebuild**) dan menandatanganinya.
+4. **Deploy PRODUCTION** berjalan di GitHub Environment `production`, yang **menunggu persetujuan pemilik** sebelum job dimulai, lalu pipeline yang sama dengan staging (tanpa fixture dan tanpa e2e berautentikasi): upgrade, verifikasi, rollback otomatis. **Hanya upgrade**: instalasi PERTAMA production tetap bootstrap manual (RUNBOOK §1), dan pipeline menolak bila rilis Helm-nya belum ada. GitHub Release baru terbit setelah production terverifikasi.
+5. Kredensial deploy (token ber-umur milik ServiceAccount `release-deployer`, chart `infra/helm/deploy-access`) disimpan sebagai secret **environment**, hanya terbaca job bertag; runner pull request tetap tanpa token. Dipasang/diperbarui dengan `infra/scripts/buat-kredensial-deploy.sh`; `deploy-check.yml` membuktikan sambungannya tanpa deploy apa pun.
+
+Jalur manual (darurat, atau saat pipeline sendiri rusak) tetap ada di RUNBOOK §0 dan Skill `deploy-to-environment`; langkahnya sama dengan yang diotomatisasi.
 
 > **Skill:** prosedur lengkap + guardrail + perintah ada di Skill
 > **`deploy-to-environment`** (`.claude/skills/`). Pakai saat rilis/deploy/promote/rollback.
@@ -203,8 +204,10 @@ SATU tempat = "conductor" terjadwal, bukan tersebar di logika deploy):
 Prinsip yang ditegakkan (selain "Alur deploy WAJIB" di atas):
 
 - **Build-once / promote-digest:** RC build digest D; prod pakai D identik, tanpa rebuild.
-- **Tag IMMUTABLE, tak pernah dihapus:** tag final `vX.Y.Z` = stempel SERTIFIKASI dibuat
-  HANYA setelah prod hijau (bukan trigger). Gagal = rollback + fix-forward tag baru.
+- **Tag IMMUTABLE, tak pernah dihapus:** tag final `vX.Y.Z` adalah keputusan merilis dan
+  sekaligus pemicu `promote.yml`; GitHub Release-nya baru terbit setelah prod terverifikasi.
+  Gagal di prod = rollback otomatis + fix-forward dengan versi baru (tag final yang gagal
+  dibiarkan tanpa Release).
 - **Auto-rollback = YA; auto-bikin-stable = TIDAK.** Kegagalan uji staging/prod →
   `helm rollback` otomatis (deterministik). Tapi **menerbitkan stable baru WAJIB
   human-gate** (GitHub Environment required reviewers) — `simpel.kejaksaan.go.id`

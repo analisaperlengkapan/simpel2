@@ -1,0 +1,76 @@
+name: Cluster access
+description: >-
+  Installs helm and kubectl and points kubectl at the cluster with the deploy credential of the
+  GitHub Environment the calling job runs in. Used only by the jobs that deploy (release.yml,
+  promote.yml); pull-request jobs never see this credential, because it is an environment secret
+  that only a tag-triggered job in that environment can read.
+inputs:
+  server:
+    description: API server URL the runner reaches from inside the cluster, e.g. https://kubernetes.default.svc
+    required: true
+  ca:
+    description: Base64 of the API server CA certificate (public, not secret)
+    required: true
+  token:
+    description: Short-lived token of the release-deployer ServiceAccount (an environment secret)
+    required: true
+  namespace:
+    description: Namespace the job is about to deploy into; checked so an expired token fails here, not mid-upgrade
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install helm
+      uses: azure/setup-helm@v5
+      with:
+        version: v3.20.2
+    - name: Install kubectl (checksum verified)
+      shell: bash
+      env:
+        KUBECTL_VERSION: v1.32.13
+      run: |
+        set -euo pipefail
+        d="$(mktemp -d)"
+        curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" -o "$d/kubectl"
+        want="$(curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256")"
+        echo "${want}  $d/kubectl" | sha256sum -c -
+        mkdir -p "$HOME/.local/bin"
+        install -m 0755 "$d/kubectl" "$HOME/.local/bin/kubectl"
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+    - name: Point kubectl at the cluster
+      shell: bash
+      env:
+        KUBE_SERVER: ${{ inputs.server }}
+        KUBE_CA: ${{ inputs.ca }}
+        KUBE_TOKEN: ${{ inputs.token }}
+        NAMESPACE: ${{ inputs.namespace }}
+      run: |
+        set -euo pipefail
+        for v in KUBE_SERVER KUBE_CA KUBE_TOKEN; do
+          [ -n "${!v}" ] || { echo "::error::$v is empty: the environment is not set up (run infra/scripts/buat-kredensial-deploy.sh)"; exit 1; }
+        done
+        umask 077
+        dir="$RUNNER_TEMP/kube"
+        mkdir -p "$dir"
+        printf '%s' "$KUBE_CA" | base64 -d > "$dir/ca.crt"
+        cat > "$dir/config" <<EOF_KUBECONFIG
+        apiVersion: v1
+        kind: Config
+        clusters:
+          - name: simpel
+            cluster: {server: "${KUBE_SERVER}", certificate-authority: "${dir}/ca.crt"}
+        users:
+          - name: release-deployer
+            user: {token: "${KUBE_TOKEN}"}
+        contexts:
+          - name: simpel
+            context: {cluster: simpel, user: release-deployer}
+        current-context: simpel
+        EOF_KUBECONFIG
+        echo "KUBECONFIG=$dir/config" >> "$GITHUB_ENV"
+        export KUBECONFIG="$dir/config"
+        if ! kubectl get namespace "$NAMESPACE" -o name > /dev/null 2> "$dir/err"; then
+          echo "::error::the deploy credential cannot reach the cluster ($(tail -n1 "$dir/err" | cut -c1-160)). If the token has expired, run infra/scripts/buat-kredensial-deploy.sh again."
+          exit 1
+        fi
+        echo "cluster reachable, namespace $NAMESPACE exists"
