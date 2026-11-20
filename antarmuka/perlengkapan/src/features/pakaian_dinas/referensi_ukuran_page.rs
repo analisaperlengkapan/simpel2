@@ -259,6 +259,7 @@ fn daftar_grup(
                                 <button
                                     type="button"
                                     data-testid=format!("grup-{}", g.kode)
+                                    title=g.kode.clone()
                                     aria-pressed=aktif.to_string()
                                     class=kelas
                                     on:click=move |_| terpilih.set(Some(kode.clone()))
@@ -271,8 +272,10 @@ fn daftar_grup(
                                             {if teks { "Teks" } else { "Pilihan" }}
                                         </span>
                                     </span>
-                                    <span class="mt-1 flex items-center justify-between gap-2 text-xs text-slate-500">
-                                        <span class="font-mono">{g.kode.clone()}</span>
+                                    // Kode grup (mis. NAMA_DADA) tampil di kartu detail dan sebagai tooltip:
+                                    // di daftar ia hanya mengulang nama, dan sapuan dokumentasi membacanya
+                                    // sebagai enum mentah yang bocor ke layar.
+                                    <span class="mt-1 flex items-center justify-end gap-2 text-xs text-slate-500">
                                         <span>
                                             {if teks {
                                                 "isian bebas".to_string()
