@@ -460,6 +460,23 @@ pub async fn update_ukuran_urutan(
     )))
 }
 
+/// PUT /pakaian-dinas/ukuran-grup/{kode}/urutan-ukuran
+/// Susun ulang seluruh daftar ukuran sebuah grup dalam satu transaksi (admin).
+pub async fn urutkan_ukuran(
+    State(service): State<PakaianDinasService>,
+    Path(kode): Path<String>,
+    claims: Claims,
+    Json(request): Json<UrutkanUkuranRequest>,
+) -> Result<Json<ApiResponse<Vec<Ukuran>>>, AppError> {
+    claims.require_admin()?;
+    let items = service.urutkan_ukuran(&kode, request).await?;
+
+    Ok(Json(ApiResponse::success(
+        items,
+        "Urutan ukuran berhasil disimpan".to_string(),
+    )))
+}
+
 pub async fn delete_ukuran(
     State(service): State<PakaianDinasService>,
     Path((group, ukuran)): Path<(String, String)>,

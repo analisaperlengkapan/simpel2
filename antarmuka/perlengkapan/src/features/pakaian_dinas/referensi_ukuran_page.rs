@@ -13,16 +13,16 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_fetch::QueryClient;
 
-use crate::api::ukuran_referensi::{
-    CreateUkuranGrupRequest, CreateUkuranRequest, UkuranGrup, UpdateUkuranGrupRequest,
-    UpdateUkuranUrutanRequest, buat_ukuran, buat_ukuran_grup, fetch_ukuran_grup, hapus_ukuran,
-    hapus_ukuran_grup, ubah_ukuran_grup, ubah_urutan_ukuran,
-};
 use crate::api::{AppError, Ukuran, fetch_master_ukuran};
 use crate::components::layout::{
     EmptyState, ErrorState, FormField, LoadingState, PageLayout, SectionCard,
 };
 use crate::features::auth::AuthService;
+use crate::features::pakaian_dinas::api::{
+    CreateUkuranGrupRequest, CreateUkuranRequest, UkuranGrup, UpdateUkuranGrupRequest, buat_ukuran,
+    buat_ukuran_grup, fetch_ukuran_grup, hapus_ukuran, hapus_ukuran_grup, ubah_ukuran_grup,
+    urutkan_ukuran_grup,
+};
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{ARROW_DOWN, ARROW_UP, CHECK_CIRCLE, PLUS, TRASH, WARNING_CIRCLE};
 
@@ -39,9 +39,6 @@ const TOMBOL_NETRAL: &str = "rounded-lg border border-white/10 bg-white/[0.04] p
 const TOMBOL_BAHAYA: &str = "inline-flex items-center gap-2 rounded-lg border border-danger-500/30 \
                              px-3 py-2 text-xs text-danger-300 transition hover:bg-danger-500/10 \
                              disabled:opacity-50";
-
-/// Jarak antar `urutan` saat daftar disusun ulang: memberi ruang bagi sisipan tanpa renumber.
-const LANGKAH_URUTAN: i32 = 10;
 
 #[derive(Clone, Debug, PartialEq)]
 struct Referensi {
@@ -89,7 +86,12 @@ fn jalankan<F>(
                 info.set(Some(sukses));
                 muat.update(|v| *v += 1);
             }
-            Err(e) => galat.set(Some(e.user_message())),
+            Err(e) => {
+                galat.set(Some(e.user_message()));
+                // Hasilnya mungkin tak pasti (ditolak karena daftar sudah berubah, atau terputus):
+                // muat ulang supaya layar kembali sama dengan server, bukan menebak.
+                muat.update(|v| *v += 1);
+            }
         }
         sibuk.set(false);
     });
@@ -142,40 +144,44 @@ pub fn ReferensiUkuranPage() -> impl IntoView {
                     None => view! { <LoadingState /> }.into_any(),
                     Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
                     Some(Ok(ref_data)) => {
-                        if ref_data.grup.is_empty() {
-                            return view! {
+                        // Pilihan awal / pilihan yang sudah tak ada (dihapus) jatuh ke grup pertama.
+                        // Daftar KOSONG tetap menggambar kolom kiri: tombol dan formulir "Tambah
+                        // Grup" ada di sana, dan tanpa mereka admin tak bisa membuat grup pertama
+                        // atau memulihkan referensi setelah grup terakhir dihapus.
+                        let grup_terpilih: Option<UkuranGrup> = terpilih
+                            .get()
+                            .and_then(|k| ref_data.grup.iter().find(|g| g.kode == k).cloned())
+                            .or_else(|| ref_data.grup.first().cloned());
+                        let kode_terpilih = grup_terpilih
+                            .as_ref()
+                            .map(|g| g.kode.clone())
+                            .unwrap_or_default();
+                        let detail = match grup_terpilih {
+                            Some(g) => {
+                                let ukuran_grup: Vec<Ukuran> = ref_data
+                                    .ukuran
+                                    .iter()
+                                    .filter(|u| u.group.eq_ignore_ascii_case(&g.kode))
+                                    .cloned()
+                                    .collect();
+                                detail_grup(g, ukuran_grup, is_admin, sibuk, galat, info, muat)
+                            }
+                            None => view! {
                                 <EmptyState
                                     icon="fas fa-ruler"
                                     title="Belum Ada Grup Ukuran"
                                     description="Tanpa grup, spesifikasi pakaian tak punya daftar ukuran."
                                 />
                             }
-                                .into_any();
-                        }
-                        // Pilihan awal / pilihan yang sudah tak ada (dihapus) jatuh ke grup pertama.
-                        let kode_terpilih = terpilih
-                            .get()
-                            .filter(|k| ref_data.grup.iter().any(|g| &g.kode == k))
-                            .unwrap_or_else(|| ref_data.grup[0].kode.clone());
-                        let grup_terpilih = ref_data
-                            .grup
-                            .iter()
-                            .find(|g| g.kode == kode_terpilih)
-                            .cloned()
-                            .expect("kode terpilih berasal dari daftar yang sama");
-                        let ukuran_grup: Vec<Ukuran> = ref_data
-                            .ukuran
-                            .iter()
-                            .filter(|u| u.group.eq_ignore_ascii_case(&grup_terpilih.kode))
-                            .cloned()
-                            .collect();
+                                .into_any(),
+                        };
                         view! {
                             <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
                                 <div class="lg:col-span-1">
                                     {daftar_grup(
                                         ref_data.grup.clone(),
                                         ref_data.ukuran.clone(),
-                                        kode_terpilih.clone(),
+                                        kode_terpilih,
                                         terpilih,
                                         is_admin,
                                         form_grup_terbuka,
@@ -184,9 +190,7 @@ pub fn ReferensiUkuranPage() -> impl IntoView {
                                         {form_tambah_grup(sibuk, galat, info, muat, terpilih, form_grup_terbuka)}
                                     </Show>
                                 </div>
-                                <div class="lg:col-span-2">
-                                    {detail_grup(grup_terpilih, ukuran_grup, is_admin, sibuk, galat, info, muat)}
-                                </div>
+                                <div class="lg:col-span-2">{detail}</div>
                             </div>
                         }
                             .into_any()
@@ -225,6 +229,15 @@ fn daftar_grup(
                     .into_any()
             })
         >
+            {grup
+                .is_empty()
+                .then(|| {
+                    view! {
+                        <p data-testid="grup-kosong" class="mb-2 text-sm text-slate-400">
+                            "Belum ada grup."
+                        </p>
+                    }
+                })}
             <ul data-testid="grup-daftar" class="flex flex-col gap-2">
                 {grup
                     .into_iter()
@@ -576,22 +589,14 @@ fn daftar_ukuran(
         );
     };
 
-    // Susun ulang: urutan baru ditulis sebagai kelipatan `LANGKAH_URUTAN` hanya pada yang berubah.
-    // Menukar dua `urutan` saja tak cukup bila ada dua ukuran dengan `urutan` sama.
+    // Susun ulang: SATU permintaan membawa seluruh urutan baru, yang diterapkan server dalam satu
+    // transaksi. Mengirim satu PUT per ukuran membiarkan separuhnya tersimpan bila salah satu gagal.
     let geser = {
         let urut = urut.clone();
         move |dari: usize, ke: usize| {
-            let mut susunan = urut.clone();
+            let mut susunan: Vec<String> = urut.iter().map(|u| u.ukuran.clone()).collect();
             let item = susunan.remove(dari);
             susunan.insert(ke, item);
-            let perubahan: Vec<(String, i32)> = susunan
-                .iter()
-                .enumerate()
-                .map(|(i, u)| (u.ukuran.clone(), (i as i32 + 1) * LANGKAH_URUTAN))
-                .zip(susunan.iter())
-                .filter(|((_, baru_urutan), asli)| asli.urutan != *baru_urutan)
-                .map(|(p, _)| p)
-                .collect();
             let g = grup_simpan.get_value();
             jalankan(
                 sibuk,
@@ -599,17 +604,7 @@ fn daftar_ukuran(
                 info,
                 muat,
                 "Urutan disimpan.".to_string(),
-                async move {
-                    for (nilai, urutan) in perubahan {
-                        ubah_urutan_ukuran(
-                            &g,
-                            &segmen(&nilai),
-                            &UpdateUkuranUrutanRequest { urutan },
-                        )
-                        .await?;
-                    }
-                    Ok(())
-                },
+                async move { urutkan_ukuran_grup(&g, susunan).await },
             );
         }
     };
@@ -661,6 +656,10 @@ fn daftar_ukuran(
                             .into_iter()
                             .enumerate()
                             .map(|(i, u)| {
+                                // Batas daftar dihitung di luar markup (`>`, `=` di atribut `view!`
+                                // dibaca sebagai akhir tag oleh perkakas).
+                                let paling_atas = i == 0;
+                                let paling_bawah = i + 1 >= jumlah;
                                 let nilai = u.ukuran.clone();
                                 let nilai_hapus = u.ukuran.clone();
                                 let nilai_tampil = u.ukuran.clone();
@@ -682,7 +681,7 @@ fn daftar_ukuran(
                                                     aria-label=format!("Naikkan {nilai}")
                                                     data-testid=format!("naik-{nilai}")
                                                     class="rounded p-1.5 text-slate-400 transition hover:bg-white/[0.08] hover:text-slate-100 disabled:opacity-30"
-                                                    prop:disabled=move || { sibuk.get() || i == 0 }
+                                                    prop:disabled=move || sibuk.get() || paling_atas
                                                     on:click={
                                                         let geser_naik = geser_naik.clone();
                                                         move |_| geser_naik(i, i - 1)
@@ -695,7 +694,7 @@ fn daftar_ukuran(
                                                     aria-label=format!("Turunkan {nilai}")
                                                     data-testid=format!("turun-{nilai}")
                                                     class="rounded p-1.5 text-slate-400 transition hover:bg-white/[0.08] hover:text-slate-100 disabled:opacity-30"
-                                                    prop:disabled=move || { sibuk.get() || i + 1 >= jumlah }
+                                                    prop:disabled=move || sibuk.get() || paling_bawah
                                                     on:click={
                                                         let geser_turun = geser_turun.clone();
                                                         move |_| geser_turun(i, i + 1)

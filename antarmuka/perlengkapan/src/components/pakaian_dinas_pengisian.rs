@@ -31,8 +31,8 @@ use crate::api::pakaian_dinas::{
     fetch_pakaian_satker_aktivitas, fetch_roster_pengisian, keluarkan_pegawai_dari_pengajuan,
     process_validator_action, simpan_ukuran_pegawai,
 };
-use crate::api::ukuran_referensi::{fetch_ukuran_grup, kelompokkan_ukuran};
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
+use crate::features::pakaian_dinas::api::{fetch_ukuran_grup, kelompokkan_ukuran};
 use lib_ui::components::icon::AppIcon;
 use lib_ui::utils::formatters::{format_iso_local, format_iso_wib};
 use phosphor_leptos::{

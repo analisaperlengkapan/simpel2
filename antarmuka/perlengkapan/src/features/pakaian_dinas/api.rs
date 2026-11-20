@@ -79,9 +79,10 @@ pub struct CreateUkuranRequest {
     pub urutan: Option<i32>,
 }
 
+/// Seluruh daftar ukuran sebuah grup dalam urutan baru: satu permintaan, satu transaksi di server.
 #[derive(Clone, Debug, Serialize)]
-pub struct UpdateUkuranUrutanRequest {
-    pub urutan: i32,
+pub struct UrutkanUkuranRequest {
+    pub ukuran: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -131,12 +132,14 @@ pub async fn buat_ukuran(request: &CreateUkuranRequest) -> AppResult<()> {
     Ok(())
 }
 
-pub async fn ubah_urutan_ukuran(
-    group: &str,
-    ukuran: &str,
-    request: &UpdateUkuranUrutanRequest,
-) -> AppResult<()> {
-    let _: Abaikan = api_put(&format!("/pakaian-dinas/ukuran/{group}/{ukuran}"), request).await?;
+/// Susun ulang seluruh daftar ukuran sebuah grup. Ditolak utuh bila daftar di server sudah
+/// berbeda dari yang dikirim (ukuran ditambah atau dihapus sejak layar memuatnya).
+pub async fn urutkan_ukuran_grup(grup: &str, ukuran: Vec<String>) -> AppResult<()> {
+    let _: Abaikan = api_put(
+        &format!("/pakaian-dinas/ukuran-grup/{grup}/urutan-ukuran"),
+        &UrutkanUkuranRequest { ukuran },
+    )
+    .await?;
     Ok(())
 }
 

@@ -23,11 +23,11 @@ use crate::api::pakaian_dinas::{
     delete_spesifikasi_pakaian, delete_subspesifikasi, fetch_spesifikasi_pakaian,
     fetch_subspesifikasi,
 };
-use crate::api::ukuran_referensi::{UkuranGrup, fetch_ukuran_grup};
 use crate::components::layout::{
     EmptyState, ErrorState, FormField, LoadingState, PageLayout, SectionCard,
 };
 use crate::features::auth::AuthService;
+use crate::features::pakaian_dinas::api::{UkuranGrup, fetch_ukuran_grup};
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{CARET_DOWN, CARET_RIGHT, LIST, PLUS, TRASH, WARNING_CIRCLE};
 

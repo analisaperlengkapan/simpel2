@@ -2,7 +2,7 @@
 """Fail when a frontend DTO names a field its backend twin never sends.
 
 The frontend declares its own copy of every wire type in
-`antarmuka/*/src/api/*.rs`. Nothing compares those copies to the backend
+`antarmuka/*/src/api/*.rs` (and `src/features/*/api.rs`). Nothing compares those copies to the backend
 structs they mirror, and they have drifted three times so far -- every time
 silently, because the failure is a deserialise error inside a resource, not an
 HTTP status:
@@ -54,7 +54,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
-FE_GLOB = "antarmuka/*/src/api/*.rs"
+# The legacy `src/api/*.rs` AND the feature-first clients (`src/features/<domain>/api.rs`, where
+# antarmuka/AGENTS.md puts new code). Scanning only the first made a type DISAPPEAR from the guard
+# the moment its file moved into a feature module: the DTO count dropped by two and nothing failed.
+FE_GLOBS = ("antarmuka/*/src/api/*.rs", "antarmuka/*/src/features/*/api.rs")
 # Enums are mirrored in the same api modules, but the backend keeps its
 # status enums under `models/`, which BE_GLOBS already covers.
 #
@@ -446,7 +449,7 @@ def main() -> int:
     if "--selftest" in sys.argv:
         return selftest()
 
-    frontend = collect((FE_GLOB,), "Deserialize")
+    frontend = collect(FE_GLOBS, "Deserialize")
     backend = collect(BE_GLOBS, "Serialize")
 
     if not frontend:
@@ -488,7 +491,7 @@ def main() -> int:
 
     # Enum discriminants: same idea, different shape. A mirrored status enum
     # that renumbers itself does not fail to parse -- it silently relabels.
-    fe_enums = collect_enums((FE_GLOB,))
+    fe_enums = collect_enums(FE_GLOBS)
     be_enums = collect_enums(BE_GLOBS)
     enum_drift: list[str] = []
     enums_compared = 0

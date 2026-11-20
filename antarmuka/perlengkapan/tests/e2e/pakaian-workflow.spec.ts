@@ -1466,6 +1466,24 @@ test.describe("Referensi Ukuran — admin manages groups and sizes", () => {
     }
   });
 
+  // The page used to stop at its empty state before drawing the add button, so an admin who removed the
+  // last group (the server allows it) had no way to create the first one again. The two lists are
+  // answered empty here because the seeded groups cannot be deleted (they are in use).
+  test("with no groups at all the admin can still add the first one", async ({ page }) => {
+    const vide = { success: true, data: [], message: "" };
+    await page.route("**/pakaian-dinas/ukuran-grup", async (route) =>
+      route.request().method() === "GET" ? route.fulfill({ json: vide }) : route.continue(),
+    );
+    await page.route("**/pakaian-dinas/ukuran", async (route) =>
+      route.request().method() === "GET" ? route.fulfill({ json: vide }) : route.continue(),
+    );
+    await page.goto(`${BASE}/pakaian-dinas/referensi-ukuran`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("Belum Ada Grup Ukuran")).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId("grup-kosong")).toBeVisible();
+    await page.getByTestId("tambah-grup").click();
+    await expect(page.getByTestId("form-grup"), "the form to create the first group is offered").toBeVisible();
+  });
+
   test("a text group has no size list and says what it is for", async ({ page, request }) => {
     const stamp = Date.now();
     const kode = `E2E_TEKS_${stamp}`;

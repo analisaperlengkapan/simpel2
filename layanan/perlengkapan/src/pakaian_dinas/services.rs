@@ -1311,6 +1311,20 @@ impl PakaianDinasService {
             .await
     }
 
+    pub async fn urutkan_ukuran(
+        &self,
+        kode: &str,
+        request: UrutkanUkuranRequest,
+    ) -> AppResult<Vec<Ukuran>> {
+        let kode =
+            super::validasi_ukuran::normalisasi_kode_grup(kode).map_err(|e| bad_request(&e))?;
+        self.repository
+            .get_ukuran_grup(&kode)
+            .await?
+            .ok_or_else(|| AppError::NotFound(format!("Grup ukuran \"{kode}\" tidak ada")))?;
+        self.repository.urutkan_ukuran(&kode, &request.ukuran).await
+    }
+
     pub async fn update_ukuran_urutan(
         &self,
         group: &str,

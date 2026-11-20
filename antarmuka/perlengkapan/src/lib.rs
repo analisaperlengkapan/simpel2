@@ -26,6 +26,7 @@ use components::app_chrome::{AppFooter, AppHeader, IntegrasiHealthBanner};
 use components::guards::{AdminLayout, AuthenticatedLayout};
 use components::sidebar::Sidebar;
 use features::auth::AuthService;
+use features::pakaian_dinas::ReferensiUkuranPage;
 use lib_ui::components::app_shell::AppShell;
 use pages::admin::{AdminAuditPage, AdminMasterDataPage, AdminSyncStatusPage, AdminTemplatesPage};
 use pages::bank_aset::{
@@ -37,7 +38,7 @@ use pages::kebutuhan_bmn::PeriodManagement;
 use pages::login::LoginPage;
 use pages::not_found::NotFound;
 use pages::notifikasi::NotifikasiInboxPage;
-use pages::pakaian_dinas::{ReferensiUkuranPage, SpesifikasiPage};
+use pages::pakaian_dinas::SpesifikasiPage;
 use pages::pemakaian_bmn::{PemakaianBmnDetailPage, PemakaianBmnListPage};
 use pages::penghapusan_bmn::{PenghapusanBmnDetailPage, PenghapusanBmnListPage};
 use pages::workflow::config_management::WorkflowConfigManagement;

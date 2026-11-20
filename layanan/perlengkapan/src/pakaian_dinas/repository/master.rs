@@ -825,6 +825,72 @@ impl PakaianDinasRepository {
             .ok_or_else(|| AppError::NotFound("Ukuran tidak ditemukan".to_string()))
     }
 
+    /// Susun ulang seluruh daftar ukuran sebuah grup: semua perubahan `urutan` dalam SATU transaksi
+    /// di bawah kunci eksklusif grup itu, atau tak satu pun. `daftar` harus persis himpunan ukuran
+    /// yang ada sekarang; selisihnya (ditambah, dihapus, atau ganda sejak layar memuatnya) ditolak
+    /// dan tak ada yang berubah. Urutan ditulis sebagai kelipatan 10 supaya ada ruang sisipan.
+    pub async fn urutkan_ukuran(&self, group: &str, daftar: &[String]) -> AppResult<Vec<Ukuran>> {
+        let mut client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let tx = client
+            .transaction()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        tx.execute(
+            "SELECT pg_advisory_xact_lock(hashtext($1::text)::bigint)",
+            &[&format!("ukuran_grup:{group}")],
+        )
+        .await
+        .map_err(|e| bad_request(&e.to_string()))?;
+
+        let ada: Vec<String> = tx
+            .query(
+                "SELECT ukuran FROM perlengkapan.ms_ukuran WHERE \"group\" = $1",
+                &[&group],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?
+            .iter()
+            .map(|r| r.get::<_, String>("ukuran"))
+            .collect();
+        let mut minta: Vec<&String> = daftar.iter().collect();
+        minta.sort();
+        let mut sekarang: Vec<&String> = ada.iter().collect();
+        sekarang.sort();
+        let ganda = minta.windows(2).any(|w| w[0] == w[1]);
+        if ganda || minta != sekarang {
+            return Err(bad_request(&format!(
+                "Daftar ukuran grup {group} berbeda dari yang ada di server (ada {} ukuran, dikirim {}). \
+                 Muat ulang halaman lalu ulangi",
+                ada.len(),
+                daftar.len()
+            )));
+        }
+
+        let urutan: Vec<i32> = (1..=daftar.len() as i32).map(|i| i * 10).collect();
+        tx.execute(
+            "UPDATE perlengkapan.ms_ukuran m SET urutan = v.urutan
+             FROM unnest($2::text[], $3::int4[]) AS v(ukuran, urutan)
+             WHERE m.\"group\" = $1 AND m.ukuran = v.ukuran",
+            &[&group, &daftar, &urutan],
+        )
+        .await
+        .map_err(|e| bad_request(&e.to_string()))?;
+        let rows = tx
+            .query(
+                "SELECT ukuran, \"group\", urutan FROM perlengkapan.ms_ukuran
+                 WHERE \"group\" = $1 ORDER BY urutan, ukuran",
+                &[&group],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        tx.commit().await.map_err(|e| bad_request(&e.to_string()))?;
+        Ok(rows.iter().map(Ukuran::from_row).collect())
+    }
+
     /// Hapus satu ukuran dari daftar sebuah grup, kecuali masih dipakai isian yang
     /// tersimpan: ukuran yang hilang dari daftar membuat isian itu tak bisa lagi dipilih
     /// dan tak lolos validasi bila disimpan ulang.
