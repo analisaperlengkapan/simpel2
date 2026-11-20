@@ -676,6 +676,20 @@ pub async fn get_aset_tetap_renovasi(
     .await
 }
 
+/// How one category's run ended.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CategoryOutcome {
+    /// Rows stored.
+    pub ok: usize,
+    /// Rows (counted in whole blocks of 1000) that were not fetched or not stored.
+    pub failed: usize,
+    /// Why the first block failed, for the administrator's page: a count alone ("1000 failed")
+    /// does not say whether to look at the network, SIMAN or the database.
+    pub cause: Option<String>,
+    /// The run was told to stop (SIGTERM) and ended early.
+    pub interrupted: bool,
+}
+
 /// Fetch all assets with pagination and save to storage
 ///
 /// This function fetches all assets for a given category and saves them using the storage strategy.
@@ -685,6 +699,89 @@ pub async fn fetch_all_assets_with_pagination(
     storage: &crate::StorageStrategy,
     category: SimanAssetCategory,
 ) -> Result<(usize, usize), MonsaktiError> {
+    let outcome = fetch_category(client, storage, category, &crate::stop::Stop::never()).await?;
+    Ok((outcome.ok, outcome.failed))
+}
+
+/// How many times one block of 1000 rows is asked for before it counts as failed, and the pause
+/// before the second attempt (it grows fourfold for each further one).
+///
+/// One dropped connection used to fail a block, a failed block failed its whole category, and a
+/// category that had taken thirty-five minutes was thrown away and, with `backoffLimit: 1`,
+/// restarted from nothing inside the same one-hour deadline. Asking again for ONE block costs
+/// seconds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BlockRetry {
+    pub attempts: u32,
+    pub delay: Duration,
+}
+
+impl BlockRetry {
+    pub fn from_env() -> Self {
+        let attempts = std::env::var("SIMAN_BLOCK_ATTEMPTS")
+            .ok()
+            .and_then(|v| v.parse::<u32>().ok())
+            .filter(|n| (1..=10).contains(n))
+            .unwrap_or(3);
+        let delay_ms = std::env::var("SIMAN_BLOCK_RETRY_DELAY_MS")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(2000);
+        Self {
+            attempts,
+            delay: Duration::from_millis(delay_ms),
+        }
+    }
+}
+
+/// Runs `attempt` up to `retry.attempts` times, pausing between tries, and returns the first success
+/// or the LAST error. `attempt` receives the number of the try (1-based).
+pub async fn with_retries<T, F, Fut>(retry: BlockRetry, mut attempt: F) -> Result<T, String>
+where
+    F: FnMut(u32) -> Fut,
+    Fut: std::future::Future<Output = Result<T, String>>,
+{
+    let mut last = String::new();
+    for n in 1..=retry.attempts.max(1) {
+        match attempt(n).await {
+            Ok(v) => return Ok(v),
+            Err(e) => {
+                last = e;
+                if n < retry.attempts {
+                    sleep(retry.delay * 4u32.saturating_pow(n - 1)).await;
+                }
+            }
+        }
+    }
+    Err(last)
+}
+
+/// The records of one block's reply, or why the reply cannot be used.
+fn records_of(response: crate::response::MonsaktiResponse) -> Result<Vec<Value>, String> {
+    let Some(data) = response.data else {
+        return Err("the reply carries no data".to_string());
+    };
+    let records = if let Some(results) = data.get("results").and_then(|r| r.as_array()) {
+        results.clone()
+    } else if let Some(array) = data.as_array() {
+        array.clone()
+    } else {
+        vec![]
+    };
+    if records.is_empty() {
+        return Err("the reply holds no records".to_string());
+    }
+    Ok(records)
+}
+
+/// Like `fetch_all_assets_with_pagination`, and what the scheduler uses: it asks again for a block
+/// that failed, says why a block was lost, and stops cleanly when `stop` is triggered.
+pub async fn fetch_category(
+    client: &mut MonsaktiClient,
+    storage: &crate::StorageStrategy,
+    category: SimanAssetCategory,
+    stop: &crate::stop::Stop,
+) -> Result<CategoryOutcome, MonsaktiError> {
     info!("📥 Starting fetch for: {}", category.description());
 
     // Get row count
@@ -740,7 +837,7 @@ pub async fn fetch_all_assets_with_pagination(
         // Nothing is replaced: a category that suddenly reports zero assets is far more likely
         // an upstream fault than the disposal of every asset in it.
         warn!("⚠️  No data available for {}", category.description());
-        return Ok((0, 0));
+        return Ok(CategoryOutcome::default());
     }
 
     // Each COMPLETE run replaces the local copy of this category; see `settle_category`.
@@ -748,8 +845,11 @@ pub async fn fetch_all_assets_with_pagination(
     // barang + NUP, and SIMAN does not guarantee all three), so the insert below is a plain
     // append: before this, every weekly run added the whole register again. The rows this run
     // writes are the ones stamped at or after `run_started`, by the database's own clock.
+    //
+    // First, whatever an earlier run that never settled left behind (see `reclaim_unsettled_rows`).
     let run_started: Option<std::time::SystemTime> = match client.get_db_client() {
         Some(db) if storage.writes_database() => {
+            reclaim_unsettled_rows(db, category.description()).await;
             Some(db.query_one("SELECT now()", &[]).await?.get(0))
         }
         _ => None,
@@ -757,6 +857,9 @@ pub async fn fetch_all_assets_with_pagination(
 
     let mut success_count = 0usize;
     let mut failed_count = 0usize;
+    let mut first_cause: Option<String> = None;
+    let mut interrupted = false;
+    let retry = BlockRetry::from_env();
     let chunk_size = 1000u32; // Batch size per request - increased for faster fetching
 
     // Prepare ranges
@@ -788,14 +891,30 @@ pub async fn fetch_all_assets_with_pagination(
     tokio::spawn(async move {
         let mut stream = stream::iter(tasks)
             .map(
-                |(start_id, end_id, mut client_clone, category_clone)| async move {
+                move |(start_id, end_id, client_clone, category_clone)| async move {
                     info!(
                         "🔄 Fetching records {}-{} of {}",
                         start_id, end_id, total_count
                     );
-                    let result = client_clone
-                        .fetch_siman_data(category_clone, start_id, end_id)
-                        .await;
+                    let result = with_retries(retry, |attempt| {
+                        // A clone per attempt: the future cannot borrow the task's client
+                        // across the retry loop, and a fresh one re-reads its token state.
+                        let mut c = client_clone.clone();
+                        async move {
+                            if attempt > 1 {
+                                warn!(
+                                    "↻ Asking again for {}-{} (attempt {})",
+                                    start_id, end_id, attempt
+                                );
+                            }
+                            let response = c
+                                .fetch_siman_data(category_clone, start_id, end_id)
+                                .await
+                                .map_err(|e| e.to_string())?;
+                            records_of(response)
+                        }
+                    })
+                    .await;
                     (start_id, end_id, result)
                 },
             )
@@ -810,101 +929,149 @@ pub async fn fetch_all_assets_with_pagination(
     });
 
     // Iterate through completed tasks received from channel
-    while let Some((current_id, end_id, result)) = rx.recv().await {
+    loop {
+        // A stop request ends the loop at once, even while every block is still in flight: the
+        // pod has thirty seconds between SIGTERM and SIGKILL, and what this run has written must be
+        // discarded inside them (`settle_category`).
+        let item = tokio::select! {
+            biased;
+            _ = stop.cancelled() => {
+                interrupted = true;
+                break;
+            }
+            item = rx.recv() => item,
+        };
+        let Some((current_id, end_id, result)) = item else {
+            break;
+        };
+        let block_size = (end_id - current_id + 1) as usize;
         match result {
-            Ok(response) => {
-                if let Some(data) = response.data {
-                    // Extract results array
-                    let records =
-                        if let Some(results) = data.get("results").and_then(|r| r.as_array()) {
-                            results.clone()
-                        } else if let Some(results_array) = data.as_array() {
-                            results_array.clone()
+            Err(cause) => {
+                let cause = format!(
+                    "{current_id}-{end_id} could not be fetched after {} attempt(s): {cause}",
+                    retry.attempts
+                );
+                tracing::error!("❌ {cause}");
+                first_cause.get_or_insert(cause);
+                failed_count += block_size;
+            }
+            Ok(records) => {
+                // Inject required fields for SIMAN database schema
+                let category_name = category.description().to_string(); // e.g. "Alat Besar"
+                let enhanced_records: Vec<serde_json::Value> = records
+                    .iter()
+                    .map(|record| {
+                        if let Some(mut obj) = record.as_object().cloned() {
+                            // Add jenis_aset field (REQUIRED by DB)
+                            obj.insert(
+                                "jenis_aset".to_string(),
+                                serde_json::Value::String(category_name.clone()),
+                            );
+                            serde_json::Value::Object(obj)
                         } else {
-                            vec![]
-                        };
+                            record.clone()
+                        }
+                    })
+                    .collect();
 
-                    if records.is_empty() {
-                        warn!("⚠️  No records in response for {}-{}", current_id, end_id);
-                        failed_count += (end_id - current_id + 1) as usize;
-                    } else {
-                        // Inject required fields for SIMAN database schema
-                        let category_name = category.description().to_string(); // e.g. "Alat Besar"
-                        let enhanced_records: Vec<serde_json::Value> = records
-                            .iter()
-                            .map(|record| {
-                                if let Some(mut obj) = record.as_object().cloned() {
-                                    // Add jenis_aset field (REQUIRED by DB)
-                                    obj.insert(
-                                        "jenis_aset".to_string(),
-                                        serde_json::Value::String(category_name.clone()),
-                                    );
-                                    serde_json::Value::Object(obj)
-                                } else {
-                                    record.clone()
-                                }
-                            })
-                            .collect();
+                let json_data = serde_json::Value::Array(enhanced_records);
 
-                        let json_data = serde_json::Value::Array(enhanced_records);
+                // Use storage strategy to save
+                // module = "siman", endpoint = "aset" (unified table), context = batch range
+                let context = format!("{}-{}", current_id, end_id);
 
-                        // Use storage strategy to save
-                        // module = "siman", endpoint = "aset" (unified table), context = batch range
-                        let context = format!("{}-{}", current_id, end_id);
-
-                        match storage
-                            .save(client, "siman", "aset", &json_data, &context)
-                            .await
-                        {
-                            Ok(saved_count) => {
-                                success_count += saved_count;
-                                // Counted per row: a block stored 999 of 1000 used to count as
-                                // fully stored, because only a block of ZERO was a failure.
-                                let short = records.len().saturating_sub(saved_count);
-                                if short == 0 {
-                                    info!(
-                                        "💾 Saved {} records ({}-{})",
-                                        saved_count, current_id, end_id
-                                    );
-                                } else {
-                                    warn!(
-                                        "⚠️  {} of {} records not stored ({}-{})",
-                                        short,
-                                        records.len(),
-                                        current_id,
-                                        end_id
-                                    );
-                                    failed_count += short;
-                                }
-                            }
-                            Err(e) => {
-                                tracing::error!(
-                                    "❌ Storage save failed for {}-{}: {}",
-                                    current_id,
-                                    end_id,
-                                    e
-                                );
-                                failed_count += records.len();
-                            }
+                match storage
+                    .save(client, "siman", "aset", &json_data, &context)
+                    .await
+                {
+                    Ok(saved_count) => {
+                        success_count += saved_count;
+                        // Counted per row: a block stored 999 of 1000 used to count as
+                        // fully stored, because only a block of ZERO was a failure.
+                        let short = records.len().saturating_sub(saved_count);
+                        if short == 0 {
+                            info!(
+                                "💾 Saved {} records ({}-{})",
+                                saved_count, current_id, end_id
+                            );
+                        } else {
+                            warn!(
+                                "⚠️  {} of {} records not stored ({}-{})",
+                                short,
+                                records.len(),
+                                current_id,
+                                end_id
+                            );
+                            first_cause.get_or_insert(format!(
+                                "{current_id}-{end_id}: {short} of {} records not stored",
+                                records.len()
+                            ));
+                            failed_count += short;
                         }
                     }
-                } else {
-                    warn!("⚠️  Reply without data for {}-{}", current_id, end_id);
-                    failed_count += (end_id - current_id + 1) as usize;
+                    Err(e) => {
+                        tracing::error!(
+                            "❌ Storage save failed for {}-{}: {}",
+                            current_id,
+                            end_id,
+                            e
+                        );
+                        first_cause.get_or_insert(format!(
+                            "{current_id}-{end_id} could not be stored: {e}"
+                        ));
+                        failed_count += records.len();
+                    }
                 }
             }
-            Err(e) => {
-                tracing::error!("❌ API fetch failed for {}-{}: {}", current_id, end_id, e);
-                failed_count += (end_id - current_id + 1) as usize;
-            }
         }
+    }
+
+    if interrupted {
+        // Everything not yet taken counts as failed, so the category settles as INCOMPLETE: the
+        // rows this run wrote are deleted and the last complete copy stays.
+        drop(rx);
+        let missing = (total_count as usize).saturating_sub(success_count + failed_count);
+        failed_count += missing.max(1);
+        first_cause = Some(format!(
+            "stopped by SIGTERM after {success_count} of {total_count} rows"
+        ));
     }
 
     if let Some(started) = run_started {
         settle_category(client, category, started, failed_count).await?;
     }
 
-    Ok((success_count, failed_count))
+    Ok(CategoryOutcome {
+        ok: success_count,
+        failed: failed_count,
+        cause: first_cause,
+        interrupted,
+    })
+}
+
+/// Before a category's run: delete the rows of an earlier run that never settled.
+///
+/// `settle_category` runs only when the process reaches the end of the category. A process that is
+/// killed instead (SIGKILL, an OOM, a lost node) leaves the rows it had written next to the last
+/// complete copy, where every reader sees them. `integrasi.siman_copy.settled_at` marks where that
+/// copy ends: a row stamped after it was written by a run that did not finish. A category with no
+/// marker is left alone, and so is a database without the table: a failure here must not stop a sync.
+async fn reclaim_unsettled_rows(db: &tokio_postgres::Client, jenis: &str) {
+    let result = db
+        .execute(
+            "DELETE FROM integrasi.siman_aset \
+             WHERE jenis_aset = $1 \
+               AND synced_at > (SELECT settled_at FROM integrasi.siman_copy WHERE jenis_aset = $1)",
+            &[&jenis],
+        )
+        .await;
+    match result {
+        Ok(0) => {}
+        Ok(n) => warn!(
+            "🧹 {jenis}: {n} row(s) left by a run that never finished were removed before this run"
+        ),
+        Err(e) => warn!("could not check {jenis} for rows left by an unfinished run: {e}"),
+    }
 }
 
 /// After a category's run: keep exactly ONE complete copy of it in `integrasi.siman_aset`.
@@ -930,13 +1097,39 @@ async fn settle_category(
         .ok_or_else(|| MonsaktiError::ConfigError("Database tidak dikonfigurasi".to_string()))?;
     let jenis = category.description();
     if failed == 0 {
-        let replaced = db
-            .execute(
-                "DELETE FROM integrasi.siman_aset \
-                 WHERE jenis_aset = $1 AND (synced_at < $2 OR synced_at IS NULL)",
+        // ONE statement: the old rows go and the marker moves together. Were they two, a process
+        // killed between them would leave the OLD marker next to the NEW copy, and the next run
+        // would take every row of the new copy for a leftover and delete it before fetching.
+        let atomic = db
+            .query_one(
+                "WITH gone AS ( \
+                     DELETE FROM integrasi.siman_aset \
+                     WHERE jenis_aset = $1 AND (synced_at < $2 OR synced_at IS NULL) \
+                     RETURNING 1), \
+                 mark AS ( \
+                     INSERT INTO integrasi.siman_copy (jenis_aset, settled_at) VALUES ($1, now()) \
+                     ON CONFLICT (jenis_aset) DO UPDATE SET settled_at = EXCLUDED.settled_at \
+                     RETURNING 1) \
+                 SELECT (SELECT count(*) FROM gone)",
                 &[&jenis, &run_started],
             )
-            .await?;
+            .await;
+        let replaced: i64 = match atomic {
+            Ok(row) => row.get(0),
+            Err(e) if e.code() == Some(&tokio_postgres::error::SqlState::UNDEFINED_TABLE) => {
+                // The marker table comes from migration 008; without it the copy is still replaced.
+                warn!(
+                    "integrasi.siman_copy does not exist (migration 008 not applied): replacing {jenis} without a marker"
+                );
+                db.execute(
+                    "DELETE FROM integrasi.siman_aset \
+                     WHERE jenis_aset = $1 AND (synced_at < $2 OR synced_at IS NULL)",
+                    &[&jenis, &run_started],
+                )
+                .await? as i64
+            }
+            Err(e) => return Err(e.into()),
+        };
         info!(
             "🔁 {}: copy replaced, {} older row(s) removed",
             jenis, replaced
@@ -954,4 +1147,101 @@ async fn settle_category(
         );
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    fn quick(attempts: u32) -> BlockRetry {
+        BlockRetry {
+            attempts,
+            delay: Duration::from_millis(1),
+        }
+    }
+
+    #[tokio::test]
+    async fn a_block_that_works_the_second_time_is_not_lost() {
+        let tries = AtomicU32::new(0);
+        let got = with_retries(quick(3), |n| {
+            tries.fetch_add(1, Ordering::SeqCst);
+            async move {
+                if n < 2 {
+                    Err("connection reset".to_string())
+                } else {
+                    Ok(n)
+                }
+            }
+        })
+        .await;
+        assert_eq!(got, Ok(2));
+        assert_eq!(
+            tries.load(Ordering::SeqCst),
+            2,
+            "no attempt after the success"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_block_that_never_works_fails_with_the_last_reason_after_exactly_the_attempts() {
+        let tries = AtomicU32::new(0);
+        let got: Result<(), String> = with_retries(quick(3), |n| {
+            tries.fetch_add(1, Ordering::SeqCst);
+            async move { Err(format!("attempt {n} refused")) }
+        })
+        .await;
+        assert_eq!(got, Err("attempt 3 refused".to_string()));
+        assert_eq!(tries.load(Ordering::SeqCst), 3);
+    }
+
+    #[tokio::test]
+    async fn one_attempt_means_no_retry_and_no_pause() {
+        let tries = AtomicU32::new(0);
+        let started = std::time::Instant::now();
+        let _: Result<(), String> = with_retries(
+            BlockRetry {
+                attempts: 1,
+                delay: Duration::from_secs(30),
+            },
+            |_| {
+                tries.fetch_add(1, Ordering::SeqCst);
+                async { Err("no".to_string()) }
+            },
+        )
+        .await;
+        assert_eq!(tries.load(Ordering::SeqCst), 1);
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "slept after the last attempt"
+        );
+    }
+
+    #[test]
+    fn a_reply_without_records_cannot_be_used() {
+        let empty = crate::response::MonsaktiResponse {
+            new_token: None,
+            data: Some(serde_json::json!({"results": []})),
+            error: None,
+        };
+        assert!(records_of(empty).is_err());
+        let none = crate::response::MonsaktiResponse {
+            new_token: None,
+            data: None,
+            error: None,
+        };
+        assert!(records_of(none).is_err());
+        let two = crate::response::MonsaktiResponse {
+            new_token: None,
+            data: Some(serde_json::json!({"results": [{"id": 1}, {"id": 2}]})),
+            error: None,
+        };
+        assert_eq!(records_of(two).unwrap().len(), 2);
+        let bare = crate::response::MonsaktiResponse {
+            new_token: None,
+            data: Some(serde_json::json!([{"id": 1}])),
+            error: None,
+        };
+        assert_eq!(records_of(bare).unwrap().len(), 1);
+    }
 }

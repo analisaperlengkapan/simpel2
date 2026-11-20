@@ -93,8 +93,14 @@ async fn main() -> Result<()> {
     );
     info!("  • Output Directory: {}", config.output_dir);
 
+    // Kubernetes ends a Job pod with SIGTERM when it runs past its deadline (and when it is evicted).
+    // A run that is told to stop discards the half of a category it has written instead of dying
+    // with it in the table; see `layanan_integrasi::stop`.
+    let stop = layanan_integrasi::stop::Stop::new();
+    layanan_integrasi::stop::trigger_on_signals(stop.clone());
+
     // Create scheduler
-    let mut scheduler = IntegrationScheduler::new(config).await?;
+    let mut scheduler = IntegrationScheduler::new(config).await?.with_stop(stop);
 
     if let Some(source) = cli.source {
         info!("🔧 Manual execution requested for source: {}", source);

@@ -316,6 +316,39 @@ Aturan turunannya:
   dijawab identik, kalau tidak ia menjadi cara membaca keberadaan baris roster
   nasional tanpa scoping.
 
+### 0d. Penarikan SIMAN: satu salinan lengkap per kategori, dan tahan terhadap gangguan
+
+Satu run SIMAN (`./scheduler --source siman`, ±625 ribu aset, 10 kategori) menggantikan salinan lokal
+tiap kategori. Aturan yang menjaganya, masing-masing lahir dari satu kegagalan nyata (staging, 2026-11-20):
+
+- **Tulis di samping, lalu ganti** (`settle_category`): baris baru ditulis di sebelah yang lama; run
+  LENGKAP menghapus yang lama dan menggeser penanda `integrasi.siman_copy.settled_at` dalam SATU
+  pernyataan (dua pernyataan akan membuat proses yang mati di antaranya meninggalkan penanda lama di
+  sebelah salinan baru). Run TIDAK lengkap menghapus barisnya sendiri dan menyisakan salinan lengkap terakhir.
+- **Blok yang gagal diminta ulang** di dalam run (`SIMAN_BLOCK_ATTEMPTS`, default 3; jeda
+  `SIMAN_BLOCK_RETRY_DELAY_MS`, default 2000, naik empat kali lipat tiap percobaan). Satu koneksi yang
+  putus tak lagi membuang kategori ±36 menit. Alasan blok pertama yang hilang ikut ke
+  `sync_status.last_sync_error`, supaya terlihat apakah jaringan, SIMAN, atau basis data yang bermasalah.
+- **SIGTERM dihormati** (`src/stop.rs`): batas waktu Job, evakuasi, atau penggusuran node mengirim SIGTERM
+  dan 30 detik kemudian SIGKILL. Run yang diberi tahu berhenti mengambil, menghapus separuh kategori yang
+  sudah ia tulis, mencatat gagal ("dihentikan (SIGTERM)") dan keluar non-nol.
+- **Sisa run yang dibunuh dipulihkan** (`reclaim_unsettled_rows`): SIGKILL/OOM/node hilang tetap bisa
+  meninggalkan separuh kategori. Baris kategori dengan `synced_at > settled_at` pasti milik run yang tak
+  pernah selesai dan dihapus sebelum run berikutnya mulai. Kategori tanpa penanda (semua basis data sebelum
+  migrasi 008) tak disentuh: tak ada bukti baris mana yang sisa.
+- **Penyisipan**: tabel tanpa kunci unik (`siman_aset`) memakai satu INSERT untuk 100 baris
+  (`ON CONFLICT DO NOTHING`), dan bila basis data menolaknya baris dicoba satu per satu supaya yang
+  rusak ditemukan dan dihitung persis. Tabel dengan upsert tetap satu baris per pernyataan (UPSERT gagal
+  bila satu pernyataan menyentuh baris yang sama dua kali). Pernyataan disiapkan SEKALI per pemanggilan.
+- **Batas waktu**: `cronjobs.siman.activeDeadlineSeconds: 10800` di `values.yaml`. Batas bawaan 3600 detik
+  membuat percobaan ulang selalu dibunuh di tengah kategori.
+- **Log**: pada `RUST_LOG=debug` driver `tokio_postgres` mencetak tiap pernyataan beserta NILAI parameternya;
+  staging memakai `debug,tokio_postgres=info`. Alasan satu baris ditolak dicatat SEKALI pada level ERROR
+  (tanpa nilainya), dan itulah yang harus dicari saat sebuah blok gagal.
+
+Diuji oleh `tests/sync_lands_in_source_tables.rs` (menjalankan biner `scheduler` sungguhan terhadap SIMAN
+palsu, termasuk SIGTERM di tengah kategori); tiap aturan di atas punya mutasi yang membuat tesnya merah.
+
 ### 1. Scheduler Configuration
 
 **IMPORTANT:** Scheduler is **DISABLED** by default. Use K8s CronJob for scheduling.

@@ -514,7 +514,10 @@ priorityClass:
   description: "Default priority for simpelv2 staging workloads (non-preempting)."
 
 config:
-  rustLog: debug
+  # `tokio_postgres=info`: pada level debug driver mencetak SETIAP statement beserta NILAI parameternya
+  # (NIP, alamat aset). Penarikan SIMAN 2026-11-20 menulis jutaan baris seperti itu, log pod terpotong
+  # rotasi, dan alasan satu blok yang gagal hilang bersama data yang tak semestinya ada di log.
+  rustLog: debug,tokio_postgres=info
   appEnvironment: staging
   portalBaseUrl: http://10.1.7.121
   jwtIssuer: http://10.1.7.121/auth
