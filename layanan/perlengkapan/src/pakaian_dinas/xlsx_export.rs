@@ -101,36 +101,65 @@ fn merged(
 
 // ─────────────────────────── paper and widths ───────────────────────────
 
-/// What one A4 landscape page holds across, in the character units column widths use, at 100 %.
-/// (277 mm of printable width over about 1.85 mm a character at Calibri 11.)
-const A4_LANDSCAPE_CHARS: f64 = 150.0;
 /// The smallest scale a sheet may be printed at before it moves to the next paper size up. 65 % of
 /// 11 pt is still 7 pt, which reads.
-const MIN_PRINT_SCALE: f64 = 0.65;
-/// Excel's paper size codes.
+const MIN_PRINT_SCALE: u16 = 65;
+/// Excel's paper size codes, and their sheet width in millimetres (landscape).
 const PAPER_A4: u8 = 9;
 const PAPER_A3: u8 = 8;
+const A4_WIDTH_MM: f64 = 297.0;
+const A3_WIDTH_MM: f64 = 420.0;
+/// Page margins, left and right, in inches (and the same in millimetres).
+const MARGIN_IN: f64 = 0.4;
+const MARGIN_MM: f64 = MARGIN_IN * 25.4;
+/// Pixels of a column of width `w` characters at Excel's default font (Calibri 11, 7 px a
+/// character, 5 px of padding), and millimetres of a pixel at 96 dpi.
+const PX_PER_CHAR: f64 = 7.0;
+const PX_PADDING: f64 = 5.0;
+const MM_PER_PX: f64 = 25.4 / 96.0;
+/// What is left of the page width after the scale is rounded down, so a column is never cut by
+/// rounding or by a printer that wastes a millimetre.
+const SCALE_SAFETY: f64 = 0.97;
 
-/// Paper that holds `total_chars` of columns at no less than [`MIN_PRINT_SCALE`]: A4 while it does,
-/// A3 once it does not. Fit-to-width is set either way, so nothing ever runs past the page edge
-/// (the sheet used to carry no page setup at all: portrait, 100 %, the columns beyond the first page
-/// printed on pages of their own).
-fn paper_for(total_chars: f64) -> u8 {
-    if total_chars * MIN_PRINT_SCALE > A4_LANDSCAPE_CHARS {
-        PAPER_A3
+/// Printed width of the columns at 100 %, in millimetres.
+fn natural_width_mm(widths: &[f64]) -> f64 {
+    widths
+        .iter()
+        .map(|w| w * PX_PER_CHAR + PX_PADDING)
+        .sum::<f64>()
+        * MM_PER_PX
+}
+
+/// The scale (percent) at which `widths` fit one page of `paper_mm` across, never above 100.
+fn scale_for(widths: &[f64], paper_mm: f64) -> u16 {
+    let printable = paper_mm - 2.0 * MARGIN_MM;
+    let pct = (printable / natural_width_mm(widths) * 100.0 * SCALE_SAFETY).floor();
+    pct.clamp(10.0, 100.0) as u16
+}
+
+/// Paper and print scale for a sheet of these column widths: A4 while it prints at no less than
+/// [`MIN_PRINT_SCALE`], A3 once it does not (and then at whatever scale fits A3).
+///
+/// An EXPLICIT scale, not "fit to one page wide": Excel documents that fit-to-pages ignores every
+/// manual page break, and each table (each satker, each rekap block) must start its own page.
+fn page_plan(widths: &[f64]) -> (u8, u16) {
+    let on_a4 = scale_for(widths, A4_WIDTH_MM);
+    if on_a4 >= MIN_PRINT_SCALE {
+        (PAPER_A4, on_a4)
     } else {
-        PAPER_A4
+        (PAPER_A3, scale_for(widths, A3_WIDTH_MM))
     }
 }
 
-/// Landscape, the paper for the sheet's width, one page wide and as many tall as it needs, tight
-/// margins, a page number, and a page break before each table (each table starts a page, as in the
-/// PDF).
-fn setup_page(ws: &mut Worksheet, total_chars: f64, breaks: &[u32]) -> Result<(), XlsxError> {
+/// Landscape, the paper and scale for the sheet's width, tight margins, a page number, and a page
+/// break before each table (each table starts a page, as in the PDF). Rows continue onto further
+/// pages by themselves.
+fn setup_page(ws: &mut Worksheet, widths: &[f64], breaks: &[u32]) -> Result<(), XlsxError> {
+    let (paper, scale) = page_plan(widths);
     ws.set_landscape();
-    ws.set_paper_size(paper_for(total_chars));
-    ws.set_print_fit_to_pages(1, 0);
-    ws.set_margins(0.4, 0.4, 0.5, 0.5, 0.3, 0.3);
+    ws.set_paper_size(paper);
+    ws.set_print_scale(scale);
+    ws.set_margins(MARGIN_IN, MARGIN_IN, 0.5, 0.5, 0.3, 0.3);
     ws.set_footer("&C&8Halaman &P dari &N");
     ws.set_page_breaks(breaks)?;
     Ok(())
@@ -280,7 +309,7 @@ fn build_daftar(ws: &mut Worksheet, report: &DaftarReport) -> Result<(), XlsxErr
             row += 1;
         }
     }
-    setup_page(ws, widths.iter().sum(), &breaks)
+    setup_page(ws, &widths, &breaks)
 }
 
 // ─────────────────────────── Rekap ───────────────────────────
@@ -393,7 +422,7 @@ fn build_rekap(ws: &mut Worksheet, report: &RekapReport) -> Result<(), XlsxError
         ws.write_number(row, total_col, block.summary_total as f64)?;
         row += 1;
     }
-    setup_page(ws, widths.iter().sum(), &breaks)
+    setup_page(ws, &widths, &breaks)
 }
 
 #[cfg(test)]
@@ -527,17 +556,35 @@ mod tests {
     }
 
     #[test]
-    fn paper_follows_the_width_a4_while_it_holds_a3_once_it_does_not() {
-        // 150 characters is one A4 landscape page at 100 %; the sheet may print down to 65 % before
-        // it moves up a paper size.
-        assert_eq!(paper_for(80.0), PAPER_A4);
+    fn paper_and_scale_follow_the_width_a4_while_it_reads_a3_once_it_does_not() {
+        // A sheet that fits A4 at full size prints at 100 %.
+        assert_eq!(page_plan(&[10.0, 20.0, 30.0]), (PAPER_A4, 100));
+        // Wider: A4 at a reduced scale while that stays legible...
+        let (paper, scale) = page_plan(&[8.0; 25]);
+        assert_eq!(paper, PAPER_A4);
+        assert!((MIN_PRINT_SCALE..100).contains(&scale), "{scale}");
+        // ...then A3, whose scale is bigger because the page is wider.
+        let wide = [8.0; 50];
+        let (paper, scale) = page_plan(&wide);
         assert_eq!(
-            paper_for(150.0 / MIN_PRINT_SCALE),
-            PAPER_A4,
-            "the edge still fits A4"
+            paper, PAPER_A3,
+            "A4 would print this below {MIN_PRINT_SCALE} %"
         );
-        assert_eq!(paper_for(150.0 / MIN_PRINT_SCALE + 1.0), PAPER_A3);
-        assert_eq!(paper_for(400.0), PAPER_A3);
+        assert!(scale > scale_for(&wide, A4_WIDTH_MM), "{scale}");
+        // Whatever the scale, the printed width is inside the page: nothing runs past the edge.
+        for w in [vec![10.0; 3], vec![8.0; 25], vec![8.0; 50], vec![8.0; 200]] {
+            let (p, s) = page_plan(&w);
+            let page = if p == PAPER_A3 {
+                A3_WIDTH_MM
+            } else {
+                A4_WIDTH_MM
+            };
+            let printed = natural_width_mm(&w) * f64::from(s) / 100.0;
+            assert!(
+                printed <= page - 2.0 * MARGIN_MM,
+                "{printed} mm on {page} mm paper"
+            );
+        }
     }
 
     fn pegawai(nama_dada: &str, garments: usize) -> DaftarRow {
@@ -578,15 +625,15 @@ mod tests {
             ],
         };
         let (sheet, _) = sheet_xml(&render_daftar_xlsx(&report).unwrap());
-        for expected in [
-            "orientation=\"landscape\"",
-            "paperSize=\"9\"",
-            "fitToHeight=\"0\"",
-            "fitToPage=\"1\"",
-            "<rowBreaks",
-        ] {
+        for expected in ["orientation=\"landscape\"", "paperSize=\"9\"", "<rowBreaks"] {
             assert!(sheet.contains(expected), "missing {expected}: {sheet}");
         }
+        // An explicit scale, NOT fit-to-pages: Excel ignores manual page breaks in fit-to mode, and
+        // each satker must start its own page.
+        assert!(
+            !sheet.contains("fitToPage"),
+            "fit-to-pages would make Excel ignore the page breaks: {sheet}"
+        );
         // The chest-name column is capped (28 + the 2 of air within the 28 ceiling), not as wide as the text.
         assert!(
             !sheet.contains("width=\"100"),
@@ -611,8 +658,8 @@ mod tests {
             "A3 for a sheet this wide: {sheet}"
         );
         assert!(
-            sheet.contains("fitToHeight=\"0\""),
-            "still one page wide: {sheet}"
+            sheet.contains("scale=\""),
+            "an explicit scale keeps it inside the page: {sheet}"
         );
     }
 

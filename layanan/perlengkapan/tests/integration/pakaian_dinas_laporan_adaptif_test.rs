@@ -206,17 +206,14 @@ async fn rekap_tidak_membuat_kolom_dari_isian_teks_dan_ekspor_mengikuti() {
         "tak ada tabel nama dada di rekap: {strings}"
     );
     assert!(!strings.contains("AGUS PRATAMA"));
-    // Kertas: landscape, A4 selama muat, satu halaman lebar, tiap tabel di halamannya.
+    // Kertas: landscape, A4 selama muat, skala yang memuat lebarnya, tiap tabel di halamannya.
     assert!(sheet.contains("orientation=\"landscape\""), "{sheet}");
     assert!(
         sheet.contains("paperSize=\"9\""),
         "A4 untuk tabel yang muat: {sheet}"
     );
-    assert!(
-        sheet.contains("fitToHeight=\"0\""),
-        "satu halaman lebar, tinggi sebanyak perlu: {sheet}"
-    );
-    assert!(sheet.contains("fitToPage=\"1\""), "{sheet}");
+    // Skala eksplisit, bukan "fit to pages": Excel mengabaikan page break manual dalam mode itu.
+    assert!(!sheet.contains("fitToPage"), "{sheet}");
     assert!(
         sheet.contains("<rowBreaks"),
         "tiap tabel mulai di halaman baru: {sheet}"
@@ -232,7 +229,7 @@ async fn rekap_tidak_membuat_kolom_dari_isian_teks_dan_ekspor_mengikuti() {
         "{strings}"
     );
     assert!(
-        sheet.contains("orientation=\"landscape\"") && sheet.contains("fitToHeight=\"0\""),
+        sheet.contains("orientation=\"landscape\"") && sheet.contains("<rowBreaks"),
         "{sheet}"
     );
 
