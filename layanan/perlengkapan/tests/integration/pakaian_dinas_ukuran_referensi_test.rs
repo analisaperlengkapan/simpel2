@@ -935,3 +935,49 @@ async fn ukuran_dan_grup_berisi_spasi_saja_ditolak() {
 
     teardown_test_db(&db_name).await;
 }
+
+#[tokio::test]
+async fn profil_baru_membawa_bendera_hijab_dan_tak_menimpanya_bila_tak_dikirim() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let kaos = spek_id(&db, "PDL", "Kaos").await;
+    let nip = "199203142014031002";
+
+    let simpan = |body: Value| {
+        server
+            .put("/pakaian-dinas/ukuran-profil")
+            .add_header(reqwest::header::AUTHORIZATION, bearer(nip))
+            .json(&body)
+    };
+    let hijab = || async {
+        let res = server
+            .get("/pakaian-dinas/ukuran-pakaian-pegawai")
+            .add_header(reqwest::header::AUTHORIZATION, bearer(nip))
+            .await;
+        assert_eq!(res.status_code(), 200, "{}", res.text());
+        res.json::<Value>()["data"]["with_hijab"].as_bool()
+    };
+
+    // Halaman Ukuran lama menyimpan bendera ini bersama tiga ukuran; halaman baru tak bisa memakai
+    // endpoint itu (menimpa ukuran per spesifikasi), jadi bendera ikut di endpoint profil.
+    let res =
+        simpan(json!({"ukuran": [{"spesifikasi_id": kaos, "ukuran": "M"}], "with_hijab": true}))
+            .await;
+    assert_eq!(res.status_code(), 200, "{}", res.text());
+    assert_eq!(hijab().await, Some(true));
+
+    // Tak dikirim = tak diubah.
+    let res = simpan(json!({"ukuran": [{"spesifikasi_id": kaos, "ukuran": "L"}]})).await;
+    assert_eq!(res.status_code(), 200, "{}", res.text());
+    assert_eq!(
+        hijab().await,
+        Some(true),
+        "bendera yang tak dikirim tak boleh terhapus"
+    );
+
+    let res = simpan(json!({"ukuran": [], "with_hijab": false})).await;
+    assert_eq!(res.status_code(), 200, "{}", res.text());
+    assert_eq!(hijab().await, Some(false));
+
+    teardown_test_db(&db_name).await;
+}

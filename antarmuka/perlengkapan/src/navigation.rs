@@ -106,6 +106,11 @@ const MODUL_UTAMA_GROUPS: &[NavGroup] = &[
                 label: "Ukuran",
             },
             NavItem {
+                href: routes::path::PAKAIAN_REFERENSI_UKURAN,
+                icon: "fas fa-ruler",
+                label: "Referensi Ukuran",
+            },
+            NavItem {
                 href: routes::path::PAKAIAN_LAPORAN,
                 icon: "fas fa-chart-bar",
                 label: "Laporan",

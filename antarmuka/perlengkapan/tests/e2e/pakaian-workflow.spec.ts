@@ -995,9 +995,22 @@ test.describe("Pakaian Dinas — the dialog starts from the sizes already on rec
     // operator_a is also the employee on the roster of 0200010: set their own profile.
     const token = await tokenFor(request, "operator_a");
     const auth = { Authorization: `Bearer ${token}` };
-    const profil = await request.post(`${PD_API}/ukuran-pakaian-pegawai`, {
+    // Since V019 the profile is per specification: seed every choice field by its size family.
+    const kolomProfil = await fetchRows<{ spesifikasi_id: string; ukuran_group: string; tipe: string }>(
+      request,
+      `${PD_API}/ukuran-profil`,
+      token,
+      "profile columns",
+    );
+    const perGrup: Record<string, string> = { BAJU: "L", CELANA: "32", SEPATU: "41" };
+    const profil = await request.put(`${PD_API}/ukuran-profil`, {
       headers: auth,
-      data: { ukuran_baju: "L", ukuran_celana: "32", ukuran_sepatu: "41", with_hijab: false },
+      data: {
+        ukuran: kolomProfil
+          .filter((k) => k.tipe === "PILIHAN" && perGrup[k.ukuran_group])
+          .map((k) => ({ spesifikasi_id: k.spesifikasi_id, ukuran: perGrup[k.ukuran_group] })),
+        with_hijab: false,
+      },
     });
     expect(profil.ok(), await profil.text()).toBeTruthy();
 
@@ -1305,5 +1318,292 @@ test.describe("Pakaian Dinas — role-gated validator action", () => {
       },
     });
     expect(resp.status(), "operator blocked from validator-action").toBeGreaterThanOrEqual(400);
+  });
+});
+
+
+// ── Referensi Ukuran: size groups and their lists are DATA (V019) ───────────
+// Until V019 a size group could only be BAJU, CELANA or SEPATU and the lists lived in migrations, so a
+// new garment (T-shirt, hat, PDL shoes, chest name) meant a migration and a release. These tests drive
+// the admin screen end to end and assert the state the server holds, not only what the page says.
+const GRUP_API = `${PD_API}/ukuran-grup`;
+
+/** Remove what a test created, tolerating that the test may already have removed it. */
+async function bersihkanGrup(request: APIRequestContext, kode: string): Promise<void> {
+  const token = await tokenFor(request, "admin");
+  const auth = { Authorization: `Bearer ${token}` };
+  const ukuran = await request.get(`${PD_API}/ukuran?group=${kode}`, { headers: auth });
+  if (ukuran.ok()) {
+    for (const u of (await ukuran.json()).data as Array<{ ukuran: string }>) {
+      await request.delete(`${PD_API}/ukuran/${kode}/${encodeURIComponent(u.ukuran)}`, { headers: auth });
+    }
+  }
+  await request.delete(`${GRUP_API}/${kode}`, { headers: auth });
+}
+
+test.describe("Referensi Ukuran — admin manages groups and sizes", () => {
+  test.use({ storageState: storageStatePath("admin") });
+
+  test("the seeded groups are listed with their sizes, and XXL is now 2XL", async ({ page }) => {
+    await page.goto(`${BASE}/pakaian-dinas/referensi-ukuran`, { waitUntil: "domcontentloaded" });
+    for (const kode of ["BAJU", "CELANA", "SEPATU", "TOPI", "NAMA_DADA"]) {
+      await expect(page.getByTestId(`grup-${kode}`), `group ${kode} is seeded`).toBeVisible({
+        timeout: 20000,
+      });
+    }
+    await page.getByTestId("grup-BAJU").click();
+    const daftar = page.getByTestId("ukuran-daftar");
+    await expect(daftar.locator('[data-ukuran="2XL"]')).toHaveCount(1);
+    await expect(daftar.locator('[data-ukuran="8XL"]')).toHaveCount(1);
+    await expect(daftar.locator('[data-ukuran="XXL"]'), "the old spelling is gone").toHaveCount(0);
+
+    // A text group has no list of sizes: it says so instead of showing an empty one.
+    await page.getByTestId("grup-NAMA_DADA").click();
+    await expect(page.getByText("Isian Teks")).toBeVisible();
+    await expect(page.getByTestId("ukuran-daftar")).toHaveCount(0);
+  });
+
+  test("a new group, its sizes and their order, used by a specification, then removed", async ({
+    page,
+    request,
+  }) => {
+    const stamp = Date.now();
+    const kode = `E2E_SEPATU_${stamp}`;
+    const namaGrup = `E2E Sepatu ${stamp}`;
+    const namaSpek = `E2E Sepatu Lapangan ${stamp}`;
+    const token = await tokenFor(request, "admin");
+    const auth = { Authorization: `Bearer ${token}` };
+    try {
+      await page.goto(`${BASE}/pakaian-dinas/referensi-ukuran`, { waitUntil: "domcontentloaded" });
+      await page.getByTestId("tambah-grup").click();
+      await page.locator("#grup-kode").fill(kode.toLowerCase());
+      await page.locator("#grup-nama").fill(namaGrup);
+      await page.locator("#grup-tipe").selectOption("PILIHAN");
+      await page.getByTestId("simpan-grup").click();
+      await expect(page.getByTestId("referensi-sukses")).toContainText(namaGrup, { timeout: 15000 });
+      // The code was normalised to upper case and the new group is the selected one.
+      await expect(page.getByTestId("grup-detail")).toHaveAttribute("data-grup", kode);
+
+      for (const u of ["40", "41"]) {
+        await page.getByTestId("ukuran-baru").fill(u);
+        await page.getByTestId("tambah-ukuran").click();
+        await expect(page.locator(`[data-testid="ukuran-baris"][data-ukuran="${u}"]`)).toHaveCount(1, {
+          timeout: 15000,
+        });
+      }
+
+      // Reorder: 41 before 40. Asserted on the server's order, which is what every fill-in screen reads.
+      await page.getByTestId("turun-40").click();
+      await expect(page.getByTestId("ukuran-baris").first()).toHaveAttribute("data-ukuran", "41", {
+        timeout: 15000,
+      });
+      const tersimpan = await request.get(`${PD_API}/ukuran?group=${kode}`, { headers: auth });
+      const urut = ((await tersimpan.json()).data as Array<{ ukuran: string; urutan: number }>)
+        .sort((a, b) => a.urutan - b.urutan)
+        .map((u) => u.ukuran);
+      expect(urut).toEqual(["41", "40"]);
+
+      // A specification can use the new group straight away: it is offered in the dropdown, by name.
+      const jenis = await fetchRows<{ id: string; nama: string }>(
+        request,
+        `${PD_API}/jenis?page=1&per_page=100`,
+        token,
+        "jenis list",
+      );
+      const pdl = jenis.find((j) => j.nama.trim().toUpperCase() === "PDL");
+      expect(pdl, "V011 seeds PDL").toBeTruthy();
+      await page.goto(`${BASE}/pakaian-dinas/jenis/${pdl!.id}/spesifikasi`, { waitUntil: "domcontentloaded" });
+      await page.getByTestId("tambah-spesifikasi").click();
+      await page.getByLabel("Nama Spesifikasi").fill(namaSpek);
+      await page.getByLabel("Grup Ukuran").selectOption(kode);
+      await page.getByRole("button", { name: "Simpan" }).click();
+      const baris = page.getByTestId("spesifikasi-tabel").locator("tr", { hasText: namaSpek });
+      await expect(baris).toHaveCount(1, { timeout: 20000 });
+      await expect(baris, "the table names the group, not its code").toContainText(namaGrup);
+
+      // ...and the employee's own Ukuran page offers it with the list in the saved order.
+      await page.goto(`${BASE}/pakaian-dinas/ukuran`, { waitUntil: "domcontentloaded" });
+      const kolom = page.locator(`[data-spesifikasi="${namaSpek}"]`);
+      await expect(kolom).toHaveCount(1, { timeout: 20000 });
+      const opsi = await kolom
+        .locator("option")
+        .evaluateAll((o) => (o as HTMLOptionElement[]).map((x) => x.value).filter((v) => v !== ""));
+      expect(opsi).toEqual(["41", "40"]);
+
+      // A group the specification still uses is refused, with the reason on screen.
+      await page.goto(`${BASE}/pakaian-dinas/referensi-ukuran`, { waitUntil: "domcontentloaded" });
+      await page.getByTestId(`grup-${kode}`).click();
+      await page.getByTestId("hapus-grup").click();
+      await page.getByTestId("hapus-grup").click();
+      await expect(page.getByTestId("referensi-galat")).toContainText(/masih dipakai/i, { timeout: 15000 });
+      expect(
+        ((await (await request.get(`${GRUP_API}`, { headers: auth })).json()).data as Array<{ kode: string }>).some(
+          (g) => g.kode === kode,
+        ),
+        "a refused delete leaves the group in place",
+      ).toBeTruthy();
+
+      // Remove the specification, then the sizes, then the group (each refusal above is the guard).
+      await page.goto(`${BASE}/pakaian-dinas/jenis/${pdl!.id}/spesifikasi`, { waitUntil: "domcontentloaded" });
+      const barisHapus = page.getByTestId("spesifikasi-tabel").locator("tr", { hasText: namaSpek });
+      await barisHapus.getByRole("button", { name: "Hapus spesifikasi" }).click();
+      await expect(barisHapus).toHaveCount(0, { timeout: 20000 });
+
+      await page.goto(`${BASE}/pakaian-dinas/referensi-ukuran`, { waitUntil: "domcontentloaded" });
+      await page.getByTestId(`grup-${kode}`).click();
+      for (const u of ["41", "40"]) {
+        await page.getByTestId(`hapus-${u}`).click();
+        await page.getByTestId(`hapus-${u}`).click();
+        await expect(page.locator(`[data-testid="ukuran-baris"][data-ukuran="${u}"]`)).toHaveCount(0, {
+          timeout: 15000,
+        });
+      }
+      await page.getByTestId("hapus-grup").click();
+      await page.getByTestId("hapus-grup").click();
+      await expect(page.getByTestId(`grup-${kode}`)).toHaveCount(0, { timeout: 15000 });
+    } finally {
+      await bersihkanGrup(request, kode);
+    }
+  });
+
+  test("a text group has no size list and says what it is for", async ({ page, request }) => {
+    const stamp = Date.now();
+    const kode = `E2E_TEKS_${stamp}`;
+    try {
+      await page.goto(`${BASE}/pakaian-dinas/referensi-ukuran`, { waitUntil: "domcontentloaded" });
+      await page.getByTestId("tambah-grup").click();
+      await page.locator("#grup-kode").fill(kode);
+      await page.locator("#grup-nama").fill(`E2E Teks ${stamp}`);
+      await page.locator("#grup-tipe").selectOption("TEKS");
+      await page.getByTestId("simpan-grup").click();
+      await expect(page.getByTestId("grup-detail")).toHaveAttribute("data-grup", kode, { timeout: 15000 });
+      await expect(page.getByText("Isian Teks")).toBeVisible();
+      await expect(page.getByTestId("ukuran-daftar")).toHaveCount(0);
+      await expect(page.getByTestId("tambah-ukuran"), "no size can be added to a text group").toHaveCount(0);
+
+      // The server also refuses it, for a caller that skips the screen.
+      const token = await tokenFor(request, "admin");
+      const res = await request.post(`${PD_API}/ukuran`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { group: kode, ukuran: "X" },
+      });
+      expect(res.status(), await res.text()).toBe(400);
+    } finally {
+      await bersihkanGrup(request, kode);
+    }
+  });
+});
+
+test.describe("Referensi Ukuran — everyone else may look, not change", () => {
+  test.use({ storageState: storageStatePath("operator_a") });
+
+  test("an operator sees the groups without any control that changes them", async ({ page, request }) => {
+    await page.goto(`${BASE}/pakaian-dinas/referensi-ukuran`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("grup-BAJU")).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId("tambah-grup")).toHaveCount(0);
+    await expect(page.getByTestId("hapus-grup")).toHaveCount(0);
+    await expect(page.getByTestId("tambah-ukuran")).toHaveCount(0);
+    await expect(page.getByText("Hanya administrator yang dapat mengubah referensi ini.")).toBeVisible();
+
+    // Hidden is not enough: the server refuses the write.
+    const token = await tokenFor(request, "operator_a");
+    const auth = { Authorization: `Bearer ${token}` };
+    const grup = await request.post(GRUP_API, { headers: auth, data: { kode: "E2E_TERLARANG", nama: "x" } });
+    expect(grup.status(), "creating a group is admin-only").toBe(403);
+    const ukuran = await request.post(`${PD_API}/ukuran`, { headers: auth, data: { group: "TOPI", ukuran: "99" } });
+    expect(ukuran.status(), "adding a size is admin-only").toBe(403);
+  });
+});
+
+// ── Pengisian: a text column (nama dada) next to a choice column ────────────
+test.describe("Pakaian Dinas — a text column in the fill-in dialog", () => {
+  test.use({ storageState: storageStatePath("operator_a") });
+
+  test("nama dada is typed, not picked; a profile value starts it; the full text is stored", async ({
+    page,
+    request,
+  }) => {
+    const operator = await tokenFor(request, "operator_a");
+    const kolomProfil = await fetchRows<{
+      spesifikasi_id: string;
+      jenis_pakaian_nama: string;
+      spesifikasi_nama: string;
+    }>(request, `${PD_API}/ukuran-profil`, operator, "profile columns");
+    const kaos = kolomProfil.find((k) => k.jenis_pakaian_nama === "PDL" && k.spesifikasi_nama === "Kaos");
+    const namaDada = kolomProfil.find((k) => k.jenis_pakaian_nama === "PDL" && k.spesifikasi_nama === "Nama Dada");
+    expect(kaos && namaDada, "V019 seeds PDL / Kaos and PDL / Nama Dada").toBeTruthy();
+
+    // The operator is also a pegawai on the roster: their profile starts the dialog.
+    const profil = await request.put(`${PD_API}/ukuran-profil`, {
+      headers: { Authorization: `Bearer ${operator}` },
+      data: {
+        ukuran: [
+          { spesifikasi_id: kaos!.spesifikasi_id, ukuran: "M" },
+          { spesifikasi_id: namaDada!.spesifikasi_id, ukuran: "E2E PROFIL" },
+        ],
+      },
+    });
+    expect(profil.ok(), await profil.text()).toBeTruthy();
+
+    const pusat = await tokenFor(request, "validator_pusat");
+    const jenis = await fetchRows<{ id: string; nama: string }>(
+      request,
+      `${PD_API}/jenis?page=1&per_page=100`,
+      pusat,
+      "jenis list",
+    );
+    const pdl = jenis.find((j) => j.nama.trim().toUpperCase() === "PDL");
+    expect(pdl, "V011 seeds PDL").toBeTruthy();
+    const created = await request.post(`${PD_API}/pengajuan`, {
+      headers: { Authorization: `Bearer ${pusat}` },
+      data: {
+        nama: `E2E nama dada ${Date.now()}`,
+        tahun: 2026,
+        tgl_mulai: hari(-60),
+        tgl_selesai: hari(300),
+        is_reguler: true,
+        pilihan_satker: "sebagian",
+        jenis_pakaian_dinas_id: pdl!.id,
+        spesifikasi_ids: [kaos!.spesifikasi_id, namaDada!.spesifikasi_id],
+        satker_ids: [SATKER_REVISI],
+      },
+    });
+    expect(created.status(), await created.text()).toBe(201);
+    const pengajuanId = (await created.json()).data.id as string;
+
+    await page.goto(`${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker/${SATKER_REVISI}/isi`, {
+      waitUntil: "domcontentloaded",
+    });
+    await expect(page.getByTestId("pengisian-tabel")).toBeVisible({ timeout: 20000 });
+    await page.getByRole("button", { name: /^Isi ukuran /i }).first().click();
+
+    const dialog = page.getByTestId("dialog-ukuran");
+    await expect(dialog.getByTestId("ukuran-diisi-otomatis")).toBeVisible();
+    // One choice column and one text column: a select for the shirt, a text box for the name.
+    await expect(dialog.locator("select")).toHaveCount(1);
+    const teks = dialog.getByTestId("ukuran-teks");
+    await expect(teks).toHaveCount(1);
+    await expect(dialog.locator("select")).toHaveValue("M");
+    await expect(teks, "the profile value is the starting text").toHaveValue("E2E PROFIL");
+
+    // 22 characters: valid for the profile and for the campaign (the campaign column used to hold 20).
+    const panjang = "MUHAMMAD RIZKY PRATAMA";
+    expect(panjang.length).toBe(22);
+    await teks.fill(panjang);
+    await page.getByTestId("simpan-ukuran").click();
+    await expect(dialog).toHaveCount(0, { timeout: 15000 });
+
+    const roster = await request.get(
+      `${PD_API}/pengajuan/${pengajuanId}/satker/${SATKER_REVISI}/pegawai`,
+      { headers: { Authorization: `Bearer ${pusat}` } },
+    );
+    const saved = (await roster.json()).data.pegawai.find(
+      (p: { nip: string }) => p.nip === "200000000000000001",
+    );
+    expect(saved.sudah_diisi).toBe(true);
+    expect((saved.ukuran as Array<{ ukuran: string }>).map((u) => u.ukuran).sort()).toEqual(["M", panjang].sort());
+
+    // The table shows the text in its own cell (cut to fit, whole in the tooltip).
+    await expect(page.getByTestId("pengisian-tabel").locator(`td span[title="${panjang}"]`)).toHaveCount(1);
   });
 });

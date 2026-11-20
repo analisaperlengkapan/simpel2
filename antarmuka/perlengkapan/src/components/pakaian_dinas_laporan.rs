@@ -733,6 +733,8 @@ fn group_accent(ukuran_group: &str) -> (&'static str, &'static str) {
         "BAJU" => ("info", "fas fa-tshirt"),
         "CELANA" => ("success", "fas fa-male"),
         "SEPATU" => ("gold", "fas fa-shoe-prints"),
+        "TOPI" => ("info", "fas fa-ruler"),
+        "NAMA_DADA" => ("gold", "fas fa-user-tag"),
         _ => ("slate", "fas fa-box"),
     }
 }

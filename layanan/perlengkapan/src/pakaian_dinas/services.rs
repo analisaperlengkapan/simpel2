@@ -1340,7 +1340,7 @@ impl PakaianDinasService {
         request: SimpanUkuranProfilRequest,
     ) -> AppResult<Vec<UkuranProfilItem>> {
         self.repository
-            .simpan_ukuran_profil(nip, nama, &request.ukuran)
+            .simpan_ukuran_profil(nip, nama, &request.ukuran, request.with_hijab)
             .await
     }
 }

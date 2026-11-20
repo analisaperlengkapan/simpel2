@@ -37,7 +37,7 @@ use pages::kebutuhan_bmn::PeriodManagement;
 use pages::login::LoginPage;
 use pages::not_found::NotFound;
 use pages::notifikasi::NotifikasiInboxPage;
-use pages::pakaian_dinas::SpesifikasiPage;
+use pages::pakaian_dinas::{ReferensiUkuranPage, SpesifikasiPage};
 use pages::pemakaian_bmn::{PemakaianBmnDetailPage, PemakaianBmnListPage};
 use pages::penghapusan_bmn::{PenghapusanBmnDetailPage, PenghapusanBmnListPage};
 use pages::workflow::config_management::WorkflowConfigManagement;
@@ -322,6 +322,10 @@ pub fn App() -> impl IntoView {
                                             <Route
                                                 path=path!("/pakaian-dinas/ukuran")
                                                 view=UkuranPegawaiCurrentUser
+                                            />
+                                            <Route
+                                                path=path!("/pakaian-dinas/referensi-ukuran")
+                                                view=ReferensiUkuranPage
                                             />
                                             <Route
                                                 path=path!("/pakaian-dinas/laporan")

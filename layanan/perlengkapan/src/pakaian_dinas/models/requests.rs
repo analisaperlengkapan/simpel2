@@ -281,4 +281,9 @@ pub struct UkuranProfilInput {
 pub struct SimpanUkuranProfilRequest {
     #[serde(default)]
     pub ukuran: Vec<UkuranProfilInput>,
+    /// Pakaian muslimah. `None` = tidak mengubah yang tercatat: halaman Ukuran lama menyimpan
+    /// bendera ini bersama tiga ukuran, jadi halaman baru yang tak bisa memakai endpoint itu
+    /// (menimpa ukuran per spesifikasi) membutuhkannya di sini.
+    #[serde(default)]
+    pub with_hijab: Option<bool>,
 }

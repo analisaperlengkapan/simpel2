@@ -259,23 +259,6 @@ pub struct PegawaiPakaianDinas {
     pub with_hijab: bool,
 }
 
-/// Mirrors `models/requests.rs::UpdatePersonalUkuranRequest`.
-///
-/// The three sizes are `String`, not `Option<String>`: the backend validates
-/// each with `length(min = 1)`, so sending `null` is a 400. The caller enforces
-/// that up front rather than letting the server reject it. There is no
-/// `pegawai_id` on the wire — the backend resolves the employee from the JWT
-/// `nip` claim, and the previous field was silently ignored.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct UpdatePersonalUkuranRequest {
-    pub ukuran_baju: String,
-    pub ukuran_celana: String,
-    pub ukuran_sepatu: String,
-    /// Round-tripped from the stored value so saving sizes cannot clear a flag
-    /// this form does not own; see the COALESCE in `repository/pegawai.rs`.
-    pub with_hijab: bool,
-}
-
 /// Report: Rekap Ukuran (Size summary)
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct LaporanRekapUkuran {
@@ -1041,45 +1024,6 @@ pub async fn fetch_pegawai_ukuran(
         data: None,
         message: "Server-side stub".to_string(),
     })
-}
-
-#[cfg(target_arch = "wasm32")]
-pub async fn upsert_pegawai_ukuran(
-    request: UpdatePersonalUkuranRequest,
-) -> Result<ApiResponse<PegawaiPakaianDinas>, crate::api::AppError> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let url = "/api/v1/perlengkapan/pakaian-dinas/ukuran-pakaian-pegawai";
-    let token = get_auth_token().ok_or_else(|| {
-        crate::api::AppError::network("No authentication token found".to_string())
-    })?;
-
-    let resp = Request::post(url)
-        .header("Authorization", &format!("Bearer {}", token))
-        .json(&request)?
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        // The server's own words, by status — not "connection failed" for a
-        // refusal that came back perfectly well.
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        return Err(crate::api::AppError::from_status(status, &body));
-    }
-
-    let result: ApiResponse<PegawaiPakaianDinas> = resp.json().await?;
-    Ok(result)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn upsert_pegawai_ukuran(
-    _request: UpdatePersonalUkuranRequest,
-) -> Result<ApiResponse<PegawaiPakaianDinas>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown(
-        "Server-side stub".to_string(),
-    ))
 }
 
 // --- Pegawai by Satker (from MySIMKARI) ---

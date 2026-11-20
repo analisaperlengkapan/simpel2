@@ -20,6 +20,8 @@ pub mod path {
     pub const PAKAIAN_JENIS: &str = "/perlengkapan/simpel/pakaian-dinas/jenis";
     pub const PAKAIAN_PENGAJUAN: &str = "/perlengkapan/simpel/pakaian-dinas/pengajuan";
     pub const PAKAIAN_UKURAN: &str = "/perlengkapan/simpel/pakaian-dinas/ukuran";
+    pub const PAKAIAN_REFERENSI_UKURAN: &str =
+        "/perlengkapan/simpel/pakaian-dinas/referensi-ukuran";
     pub const PAKAIAN_LAPORAN: &str = "/perlengkapan/simpel/pakaian-dinas/laporan";
 
     pub const PENGELOLAAN_PEMAKAIAN: &str = "/perlengkapan/simpel/pengelolaan/pemakaian";
