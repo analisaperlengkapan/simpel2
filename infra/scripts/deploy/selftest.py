@@ -61,8 +61,12 @@ for i, rule in enumerate(scn.get(tool, [])):
                     pass
             if eff == "check-overlay":
                 path = sys.argv[sys.argv.index("-f", sys.argv.index("-f") + 1) + 1]
-                ok = oct(os.stat(path).st_mode & 0o777) == "0o600" and {canary!r} in open(path).read()
+                body = open(path).read()
+                ok = oct(os.stat(path).st_mode & 0o777) == "0o600" and {canary!r} in body and "WRONG-REVISION" not in body
                 open(os.path.join(os.environ["FAKE_DIR"], "overlay-ok"), "w").write("yes" if ok else "no")
+        if rule.get("sleep"):
+            import time
+            time.sleep(rule["sleep"])
         sys.stdout.write(rule.get("out", ""))
         sys.stderr.write(rule.get("err", ""))
         sys.exit(rule.get("rc", 0))
@@ -82,11 +86,11 @@ def deploy(name, ready, want=1, image="ghcr.io/o/simpelv2-x:v0.1.0-rc52", kind="
     }
 
 
-def pod(name, restarts=0, waiting=None, last=None, owner="ReplicaSet"):
+def pod(name, restarts=0, waiting=None, last=None, owner="ReplicaSet", uid=None, finished="2999-01-01T00:00:00Z"):
     cs = {"name": "c", "restartCount": restarts, "state": {"waiting": {"reason": waiting}} if waiting else {"running": {}}}
     if last:
-        cs["lastState"] = {"terminated": {"reason": last}}
-    return {"metadata": {"name": name, "ownerReferences": [{"kind": owner}]}, "status": {"containerStatuses": [cs]}}
+        cs["lastState"] = {"terminated": {"reason": last, "finishedAt": finished}}
+    return {"metadata": {"name": name, "uid": uid or "uid-" + name, "ownerReferences": [{"kind": owner}]}, "status": {"containerStatuses": [cs]}}
 
 
 def items(*xs):
@@ -174,7 +178,7 @@ class Env:
         for name, tag in (("values-staging.yaml", staging), ("values-production.yaml", production)):
             (self.chart / name).write_text(f"# header\nglobal:\n  # note\n  imageTag: {tag}\n  imagePullPolicy: IfNotPresent\nother:\n  imageTag: nope\n")
 
-    def run(self, args, scenario, *, broken=False):
+    def run(self, args, scenario, *, broken=False, extra_env=None):
         for f in self.tmp.glob("count-*"):
             f.unlink()
         for name in ("broken", "overlay-ok", "calls.log", "marker-rolled"):
@@ -183,13 +187,13 @@ class Env:
             (self.tmp / "broken").write_text("1")
         (self.tmp / "scenario.json").write_text(json.dumps(scenario))
         env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}", FAKE_SCENARIO=str(self.tmp / "scenario.json"),
-                   FAKE_LOG=str(self.tmp / "calls.log"), FAKE_DIR=str(self.tmp), XDG_RUNTIME_DIR=str(self.tmp / "runtime"), GITHUB_API_URL=self.base_url, GITHUB_TOKEN="t")
+                   FAKE_LOG=str(self.tmp / "calls.log"), FAKE_DIR=str(self.tmp), XDG_RUNTIME_DIR=str(self.tmp / "runtime"), GITHUB_API_URL=self.base_url, GITHUB_TOKEN="t", **(extra_env or {}))
         env.pop("GITHUB_STEP_SUMMARY", None)
         proc = subprocess.run([sys.executable, str(self.script), *args], capture_output=True, text=True, env=env, timeout=120)
         calls = (self.tmp / "calls.log").read_text() if (self.tmp / "calls.log").exists() else ""
         return proc, calls
 
-    def run_env(self, env_name, tag, scenario, *extra, **kw):
+    def run_env(self, env_name, tag, scenario, *extra, **kw):  # kw: broken, extra_env
         args = ["run", "--env", env_name, "--tag", tag, "--base-url", self.base_url, "--chart-dir", str(self.chart),
                 "--smoke-pause", "0", "--wait", "1", *extra]
         return self.run(args, scenario, **kw)
@@ -319,7 +323,7 @@ def run(script: Path) -> int:
     for label, kube in {
         "a crash-looping pod": [{"match": ["get", "pods"], "out": items(pod("authenc-1", waiting="CrashLoopBackOff"))}],
         "an OOM-killed pod": [{"match": ["get", "pods"], "out": items(pod("authenc-1", last="OOMKilled"))}],
-        "a pod restarted 9 times": [{"match": ["get", "pods"], "out": items(pod("authenc-1", restarts=9))}],
+        "a NEW pod restarted 9 times": [{"match": ["get", "pods"], "seq": [{"out": items()}, {"out": items(pod("authenc-1", restarts=9))}]}],
         "an old image still running": [{"match": ["get", "deploy,sts"], "out": items(deploy("authenc", 2, 2, image="ghcr.io/o/simpelv2-x:v0.1.0-rc51"))}],
         "a workload that is not ready": [{"match": ["get", "deploy,sts"], "out": items(deploy("authenc", 1, 2))}],
     }.items():
@@ -344,6 +348,53 @@ def run(script: Path) -> int:
                         "a leaked token": "auth header " + fake_jwt()}.items():
         p, calls = e.run_env("staging", "v0.1.0-rc52", base_scenario(kubectl=[{"match": ["logs"], "out": line + "\n"}]))
         check(p.returncode == 1 and "helm rollback" in calls, f"{label} in a pod log rolls the deploy back")
+
+    print("S8b devin review of #1127: the failure paths")
+    # a command that outlives its timeout is a failure of the step, and the step has changed the cluster
+    slow = base_scenario(helm=[{"match": ["upgrade"], "sleep": 4}])
+    p, calls = e.run_env("staging", "v0.1.0-rc52", slow, extra_env={"DEPLOY_UPGRADE_TIMEOUT_S": "1"})
+    check(p.returncode == 1 and "helm rollback simpel 7" in calls, "a helm upgrade that times out is rolled back, not abandoned", p.stdout[-400:] + p.stderr[-400:])
+    check("Traceback" not in p.stderr, "...without a traceback")
+    # a pod log that cannot be read is not a clean log
+    unread = base_scenario(kubectl=[{"match": ["logs"], "rc": 1, "err": "forbidden: cannot get pods/log"}])
+    p, calls = e.run_env("staging", "v0.1.0-rc52", unread)
+    check(p.returncode == 1 and "helm rollback" in calls, "a log that could not be read fails the deploy (fail closed)", p.stdout[-300:])
+    # the cluster cannot be read while the ROLLBACK is verified: a person is needed, with the dump named
+    sc = base_scenario(kubectl=[{"match": ["get", "deploy,sts"], "when": "rolled", "rc": 1, "err": "connection refused"}])
+    p, calls = e.run_env("staging", "v0.1.0-rc52", sc, broken=True)
+    check(p.returncode == 3 and "MANUAL INTERVENTION" in p.stdout and ".dump" in p.stdout, "an unreadable cluster after rollback is exit 3, not a traceback", p.stdout[-400:] + p.stderr[-300:])
+    check("Traceback" not in p.stderr, "...and no traceback")
+    # the secret scan prints the line it found: never the token in it
+    p, calls = e.run_env("staging", "v0.1.0-rc52", base_scenario(kubectl=[{"match": ["logs"], "out": "auth header " + fake_jwt() + "\n"}]))
+    check(p.returncode == 1 and "<token redacted>" in p.stdout, "the finding says a token was found", p.stdout[-300:])
+    check(fake_jwt() not in p.stdout + p.stderr + calls, "the token itself is not in the deploy log")
+    # the latest revision is a FAILED one: the tag and the secrets come from the revision that runs
+    hist = [{"revision": 6, "status": "superseded"}, {"revision": 7, "status": "deployed"}, {"revision": 8, "status": "failed"}]
+    sc = base_scenario(helm=[
+        {"match": ["history"], "out": json.dumps(hist)},
+        {"match": ["get", "values", "--revision", "7"], "not": ["--all"], "out": json.dumps({"global": {"imageTag": "v0.1.0-rc51"}, "secrets": {"jwt": CANARY}})},
+        {"match": ["get", "values"], "not": ["--all", "--revision"], "out": json.dumps({"global": {"imageTag": "v0.1.0-rc52"}, "secrets": {"jwt": "WRONG-REVISION"}})},
+    ])
+    p, calls = e.run_env("staging", "v0.1.0-rc53", sc, broken=True)
+    e.set_values("v0.1.0-rc53", "v0.1.0")
+    p, calls = e.run_env("staging", "v0.1.0-rc53", sc, broken=True)
+    check(p.returncode == 1 and "rolled back to v0.1.0-rc51" in p.stdout, "after a failed revision the rollback is verified against the tag of revision 7", p.stdout[-400:])
+    check("--revision 7" in calls, "values are read from the deployed revision")
+    p, calls = e.run_env("staging", "v0.1.0-rc53", sc)
+    check((e.tmp / "overlay-ok").read_text() == "yes", "the carry overlay holds the secrets of revision 7, not of the failed one")
+    e.set_values("v0.1.0-rc52", "v0.1.0")
+    # restarts are judged by what changed DURING the deploy
+    old_pod = lambda n: [{"match": ["get", "pods"], "out": items(pod("postgres-0", restarts=n, owner="StatefulSet", uid="u-pg", last="OOMKilled", finished="2020-01-01T00:00:00Z"))}]
+    p, calls = e.run_env("staging", "v0.1.0-rc52", base_scenario(kubectl=old_pod(9)))
+    check(p.returncode == 0, "a database pod with an old restart history (and an old OOM kill) does not fail a healthy deploy", p.stdout[-300:])
+    grows = [{"match": ["get", "pods"], "seq": [{"out": items(pod("postgres-0", restarts=1, owner="StatefulSet", uid="u-pg"))}, {"out": items(pod("postgres-0", restarts=9, owner="StatefulSet", uid="u-pg"))}]}]
+    p, calls = e.run_env("staging", "v0.1.0-rc52", base_scenario(kubectl=grows))
+    check(p.returncode in (1, 3) and "helm rollback" in calls, "...but one that restarted 8 times DURING the deploy does")
+    new_oom = [{"match": ["get", "pods"], "out": items(pod("authenc-1", last="OOMKilled", finished="2999-01-01T00:00:00Z"))}]
+    p, calls = e.run_env("staging", "v0.1.0-rc52", base_scenario(kubectl=new_oom))
+    check(p.returncode in (1, 3) and "helm rollback" in calls, "an OOM kill after the deploy started fails it")
+    p, calls = e.run_env("staging", "v0.1.0-rc52", base_scenario(kubectl=[{"match": ["get", "pods"], "rc": 1, "err": "forbidden"}]))
+    check(p.returncode == 2 and "helm upgrade" not in calls, "pods that cannot be read BEFORE the upgrade: refused, nothing changed")
 
     print("S9 production")
     prod = [{"match": ["get", "deploy,sts"], "when": "not-rolled", "out": items(deploy("authenc", 2, 2, image="ghcr.io/o/simpelv2-x:v0.1.0"))}]

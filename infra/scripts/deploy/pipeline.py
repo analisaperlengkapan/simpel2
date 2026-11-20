@@ -123,7 +123,12 @@ def sh(cmd: list[str], *, check: bool = True, input_text: str | None = None, tim
     """Run a command. stdout/stderr are captured and NEVER echoed: some of what we run
     (`helm get values`) prints secrets. A failure reports the command name, its exit code
     and the last lines of stderr only."""
-    proc = subprocess.run(cmd, input=input_text, capture_output=True, text=True, timeout=timeout)
+    try:
+        proc = subprocess.run(cmd, input=input_text, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired as e:
+        # A timeout is a failure of the step like any other: raised as the bare exception it would skip the
+        # rollback below, and the cluster would be left as the half-finished upgrade made it.
+        raise Failed(f"`{cmd[0]} {cmd[1] if len(cmd) > 1 else ''}` did not finish within {timeout}s") from e
     if check and proc.returncode != 0:
         tail = " | ".join((proc.stderr or "").strip().splitlines()[-3:])[:400]
         raise Failed(f"`{cmd[0]} {cmd[1] if len(cmd) > 1 else ''}` exited {proc.returncode}: {tail}")
@@ -134,10 +139,14 @@ def kubectl_json(ns: str, *args: str) -> dict:
     return json.loads(sh(["kubectl", "-n", ns, *args, "-o", "json"]).stdout or "{}")
 
 
-def helm_values(ns: str, *, all_values: bool = False) -> dict:
+def helm_values(ns: str, *, all_values: bool = False, revision: int | None = None) -> dict:
+    """The values of the live release, or of ONE revision. Without a revision Helm answers for the LATEST
+    one, which after a failed upgrade is the failed one, not the one that is running."""
     cmd = ["helm", "get", "values", RELEASE, "-n", ns, "-o", "json"]
     if all_values:
         cmd.insert(3, "--all")
+    if revision is not None:
+        cmd += ["--revision", str(revision)]
     return json.loads(sh(cmd).stdout or "null") or {}
 
 
@@ -210,7 +219,7 @@ def preflight(env: str, tag: str, state: dict, *, chart: Path, allow_downgrade: 
     current = max(deployed, key=lambda h: h["revision"])
     state["previous_revision"] = current["revision"]
 
-    live = (helm_values(ns).get("global") or {}).get("imageTag")
+    live = (helm_values(ns, revision=current["revision"]).get("global") or {}).get("imageTag")
     state["previous_tag"] = live
     if live and not allow_downgrade:
         a, b = any_tag_key(live), tag_key(env, tag)
@@ -259,10 +268,12 @@ def secure_remove(path: str) -> None:
         pass
 
 
-def upgrade(env: str, tag: str, *, chart: Path, timeout: str) -> None:
+def upgrade(env: str, tag: str, *, chart: Path, timeout: str, revision: int | None = None) -> None:
     cfg = ENVS[env]
     ns = cfg["namespace"]
-    carry = {"secrets": helm_values(ns).get("secrets", {})}
+    # The overlay is the secrets of the revision that RUNS (the one a rollback returns to), not of a
+    # failed revision that happens to be the latest.
+    carry = {"secrets": helm_values(ns, revision=revision).get("secrets", {})}
     base = os.environ.get("XDG_RUNTIME_DIR") or "/dev/shm"
     if not os.path.isdir(base) or not os.access(base, os.W_OK):
         base = tempfile.gettempdir()
@@ -280,7 +291,7 @@ def upgrade(env: str, tag: str, *, chart: Path, timeout: str) -> None:
                 "-f", str(chart / cfg["values"]), "-f", overlay,
                 "--namespace", ns, "--timeout", timeout,
             ],
-            timeout=3600,
+            timeout=int(os.environ.get("DEPLOY_UPGRADE_TIMEOUT_S", "3600")),
         )
     finally:
         secure_remove(overlay)
@@ -336,22 +347,45 @@ def wait_rollouts(ns: str, timeout_s: int) -> list[str]:
         time.sleep(min(10, max(1, deadline - time.monotonic())))
 
 
-def pod_problems(ns: str, max_restarts: int) -> list[str]:
+def long_running_pods(ns: str) -> list[dict]:
+    pods = kubectl_json(ns, "get", "pods", "-l", f"app.kubernetes.io/instance={RELEASE}").get("items", [])
+    return [p for p in pods if {o.get("kind") for o in p["metadata"].get("ownerReferences", [])} & {"ReplicaSet", "StatefulSet"}]
+
+
+def restart_baseline(ns: str) -> dict[str, int]:
+    """restartCount of every container of every long-running pod, by pod UID, taken BEFORE the upgrade.
+
+    Kubernetes keeps `restartCount` and `lastState` for the life of a pod, and a StatefulSet pod
+    (postgres) outlives releases. Judged by its lifetime history, a database that restarted four times
+    last month would fail every deploy and every rollback; judged by what changed during this deploy, it
+    does not."""
+    out: dict[str, int] = {}
+    for p in long_running_pods(ns):
+        uid = p["metadata"].get("uid", p["metadata"]["name"])
+        for cs in p.get("status", {}).get("containerStatuses", []) or []:
+            out[f"{uid}/{cs['name']}"] = int(cs.get("restartCount", 0))
+    return out
+
+
+def pod_problems(ns: str, max_restarts: int, baseline: dict[str, int] | None = None, since: str | None = None) -> list[str]:
+    """A pod that is not running, or that restarted more than `max_restarts` times DURING this deploy (a
+    pod that did not exist before it is judged by its whole count), or was OOM-killed since `since`."""
     out = []
-    for p in kubectl_json(ns, "get", "pods", "-l", f"app.kubernetes.io/instance={RELEASE}").get("items", []):
-        owners = {o.get("kind") for o in p["metadata"].get("ownerReferences", [])}
-        if not owners & {"ReplicaSet", "StatefulSet"}:
-            continue  # Jobs and CronJob pods end by design
+    for p in long_running_pods(ns):
         name = p["metadata"]["name"]
+        uid = p["metadata"].get("uid", name)
         for cs in p.get("status", {}).get("containerStatuses", []) or []:
             waiting = (cs.get("state", {}).get("waiting") or {}).get("reason")
-            last = (cs.get("lastState", {}).get("terminated") or {}).get("reason")
+            terminated = cs.get("lastState", {}).get("terminated") or {}
+            count = int(cs.get("restartCount", 0))
+            before = (baseline or {}).get(f"{uid}/{cs['name']}")
+            gained = count - before if before is not None else count
             if waiting in BAD_WAITING:
                 out.append(f"{name}/{cs['name']}: {waiting}")
-            elif last == "OOMKilled":
+            elif terminated.get("reason") == "OOMKilled" and (since is None or str(terminated.get("finishedAt", "")) >= since):
                 out.append(f"{name}/{cs['name']}: OOMKilled")
-            elif cs.get("restartCount", 0) > max_restarts:
-                out.append(f"{name}/{cs['name']}: restarted {cs['restartCount']} times")
+            elif gained > max_restarts:
+                out.append(f"{name}/{cs['name']}: restarted {gained} times during this deploy")
     return out
 
 
@@ -394,17 +428,29 @@ def smoke(base_url: str, attempts: int = 6, pause: float = 10.0) -> list[str]:
     return last
 
 
-def verify(env: str, tag: str, base_url: str, *, wait: int, max_restarts: int, pause: float = 10.0) -> list[str]:
+def verify(env: str, tag: str, base_url: str, *, wait: int, max_restarts: int, pause: float = 10.0, state: dict | None = None) -> list[str]:
     ns = ENVS[env]["namespace"]
     problems = []
     problems += wait_rollouts(ns, wait)
-    problems += pod_problems(ns, max_restarts)
+    problems += pod_problems(ns, max_restarts, (state or {}).get("baseline"), (state or {}).get("deploy_started"))
     problems += image_problems(ns, tag)
     problems += smoke(base_url, pause=pause)
     return problems
 
 
 # ───────────────────────────── log scan ─────────────────────────────
+
+
+JWT_SHAPE = re.compile(r"eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]*")
+SCRUB = [JWT_SHAPE, re.compile(r"(?i)\bbearer\s+\S+")]
+
+
+def scrub(line: str) -> str:
+    """A log line as it may be PRINTED: a finding quotes the line, and a line flagged for holding a token must
+    not carry the token into the deploy log, where more people can read it than could read the pod's."""
+    for pat in SCRUB:
+        line = pat.sub("<token redacted>", line)
+    return line[:160]
 
 
 def scan_text(text: str) -> list[tuple[str, str]]:
@@ -414,7 +460,7 @@ def scan_text(text: str) -> list[tuple[str, str]]:
             continue
         for pat, why in LOG_DENY:
             if pat.search(line):
-                hits.append((why, line[:160]))
+                hits.append((why, scrub(line)))
                 break
     return hits
 
@@ -428,13 +474,15 @@ def normalise(line: str) -> str:
 def logscan(env: str, since: str) -> list[str]:
     ns = ENVS[env]["namespace"]
     problems, error_groups = [], {}
-    pods = kubectl_json(ns, "get", "pods", "-l", f"app.kubernetes.io/instance={RELEASE}").get("items", [])
-    for p in pods:
-        owners = {o.get("kind") for o in p["metadata"].get("ownerReferences", [])}
-        if not owners & {"ReplicaSet", "StatefulSet"}:
-            continue
+    for p in long_running_pods(ns):
         name = p["metadata"]["name"]
-        out = sh(["kubectl", "-n", ns, "logs", name, "--all-containers", f"--since={since}", "--tail=20000"], check=False).stdout or ""
+        proc = sh(["kubectl", "-n", ns, "logs", name, "--all-containers", f"--since={since}", "--tail=20000"], check=False)
+        if proc.returncode != 0:
+            # Fail closed: a log that could not be read (access denied, an unreachable kubelet) must not
+            # pass for a clean one.
+            problems.append(f"{name}: its log could not be read (exit {proc.returncode}: {(proc.stderr or '').strip()[-120:]})")
+            continue
+        out = proc.stdout or ""
         for why, line in scan_text(out):
             problems.append(f"{name}: {why}: {line}")
         for line in out.splitlines():
@@ -474,10 +522,16 @@ def rollback(env: str, state: dict, base_url: str, *, wait: int, max_restarts: i
         log("rollback impossible: no previous revision was recorded")
         return False
     log(f"ROLLBACK: helm rollback {RELEASE} to revision {rev}")
-    if sh(["helm", "rollback", RELEASE, str(rev), "-n", ns, "--timeout", "20m"], check=False).returncode != 0:
+    try:
+        if sh(["helm", "rollback", RELEASE, str(rev), "-n", ns, "--timeout", "20m"], check=False, timeout=1800).returncode != 0:
+            return False
+        prev = state.get("previous_tag") or ""
+        problems = verify(env, prev, base_url, wait=wait, max_restarts=max_restarts, pause=pause, state=state) if prev else wait_rollouts(ns, wait)
+    except Failed as e:
+        # Reading the cluster failed while checking the restored release: that is NOT a verified recovery,
+        # and the caller must reach the exit-3 branch that names the dump, not die with a traceback.
+        log(f"  the rollback could not be verified: {e}")
         return False
-    prev = state.get("previous_tag") or ""
-    problems = verify(env, prev, base_url, wait=wait, max_restarts=max_restarts, pause=pause) if prev else wait_rollouts(ns, wait)
     for p in problems:
         log(f"  after rollback: {p}")
     return not problems
@@ -525,11 +579,21 @@ def cmd_run(a) -> int:
         log(f"snapshot failed, not upgrading: {e}")
         return finish(EXIT_REFUSED, f"{env} {tag}: no usable dump, nothing changed")
 
+    # What the pods look like BEFORE anything changes: restarts and OOM kills are judged by what happens
+    # during this deploy. If the cluster cannot even be read now, nothing has changed yet.
+    try:
+        state["deploy_started"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        state["baseline"] = restart_baseline(ENVS[env]["namespace"])
+    except Failed as e:
+        done("baseline", f"FAILED: {e}")
+        log(f"cannot read the pods, not upgrading: {e}")
+        return finish(EXIT_REFUSED, f"{env} {tag}: the cluster could not be read, nothing changed")
+
     failure = None
     try:
-        upgrade(env, tag, chart=chart, timeout=a.helm_timeout)
+        upgrade(env, tag, chart=chart, timeout=a.helm_timeout, revision=state.get("previous_revision"))
         done("upgrade")
-        problems = verify(env, tag, a.base_url, wait=a.wait, max_restarts=a.max_restarts, pause=a.smoke_pause)
+        problems = verify(env, tag, a.base_url, wait=a.wait, max_restarts=a.max_restarts, pause=a.smoke_pause, state=state)
         if problems:
             raise Failed("verification failed:\n  " + "\n  ".join(problems))
         done("verify", "rollouts, pods, images, smoke")
