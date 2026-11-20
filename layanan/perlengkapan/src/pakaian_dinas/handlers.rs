@@ -806,6 +806,34 @@ pub async fn simpan_ukuran_profil(
     )))
 }
 
+/// POST /pakaian-dinas/impor-profil
+/// Impor satu lot profil ukuran awal (admin). `dry_run: true` hanya memeriksa dan menghitung.
+pub async fn impor_profil(
+    State(service): State<PakaianDinasService>,
+    claims: Claims,
+    Json(request): Json<super::impor_profil::ImporProfilRequest>,
+) -> Result<Json<ApiResponse<super::impor_profil::ImporProfilHasil>>, AppError> {
+    claims.require_admin()?;
+    let aktor = Some((
+        claims.user_id,
+        claims
+            .name
+            .clone()
+            .unwrap_or_else(|| claims.user_id.to_string()),
+    ));
+    let dry_run = request.dry_run;
+    let hasil = service.impor_profil(request, aktor).await?;
+
+    Ok(Json(ApiResponse::success(
+        hasil,
+        if dry_run {
+            "Pemeriksaan impor selesai; tidak ada yang ditulis".to_string()
+        } else {
+            "Impor profil ukuran selesai".to_string()
+        },
+    )))
+}
+
 pub async fn update_personal_ukuran(
     State(service): State<PakaianDinasService>,
     claims: Claims,

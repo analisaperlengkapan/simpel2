@@ -207,6 +207,10 @@ pub fn create_routes(state: AppState) -> Router {
             put(pakaian_dinas::urutkan_ukuran),
         )
         .route(
+            "/pakaian-dinas/impor-profil",
+            post(pakaian_dinas::impor_profil),
+        )
+        .route(
             "/pakaian-dinas/ukuran",
             get(pakaian_dinas::get_all_ukuran).post(pakaian_dinas::create_ukuran),
         )

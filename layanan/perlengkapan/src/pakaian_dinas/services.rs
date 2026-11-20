@@ -1351,6 +1351,64 @@ impl PakaianDinasService {
     }
 }
 
+// ============ Impor profil ukuran awal ============
+impl PakaianDinasService {
+    /// Impor satu lot baris profil (lihat `impor_profil.rs`). Yang dicatat ke jejak audit hanya
+    /// JUMLAH: tak ada NIP atau nama pada log atau audit.
+    pub async fn impor_profil(
+        &self,
+        request: super::impor_profil::ImporProfilRequest,
+        aktor: Option<(Uuid, String)>,
+    ) -> AppResult<super::impor_profil::ImporProfilHasil> {
+        use super::impor_profil::MAKS_BARIS;
+        if request.baris.is_empty() {
+            return Err(bad_request("Tidak ada baris untuk diimpor"));
+        }
+        if request.baris.len() > MAKS_BARIS {
+            return Err(bad_request(&format!(
+                "Satu permintaan paling banyak {MAKS_BARIS} baris (dikirim {}); bagi menjadi beberapa lot",
+                request.baris.len()
+            )));
+        }
+        let hasil = self
+            .repository
+            .impor_profil(&request.baris, request.dry_run)
+            .await?;
+        tracing::info!(
+            dry_run = hasil.dry_run,
+            diterima = hasil.diterima,
+            dimuat = hasil.baris_dimuat,
+            ditolak = hasil.ditolak.len(),
+            ukuran_ditulis = hasil.ukuran_ditulis,
+            "impor profil ukuran pakaian dinas"
+        );
+        if !hasil.dry_run
+            && let Some(sink) = &self.audit_sink
+        {
+            let mut event = AuditEvent::new(
+                "pakaian_dinas",
+                AuditAction::Import,
+                "pegawai_pakaian_dinas",
+            )
+            .action_name("pakaian_dinas.impor_profil")
+            .message("Impor profil ukuran awal")
+            .metadata(serde_json::json!({
+                "diterima": hasil.diterima,
+                "baris_dimuat": hasil.baris_dimuat,
+                "profil_baru": hasil.profil_baru,
+                "ukuran_ditulis": hasil.ukuran_ditulis,
+                "ukuran_dilewati_sudah_diisi": hasil.ukuran_dilewati_sudah_diisi,
+                "ditolak": hasil.ditolak.len(),
+            }));
+            if let Some((id, nama)) = aktor {
+                event = event.actor(id, nama);
+            }
+            let _ = sink.log(event).await;
+        }
+        Ok(hasil)
+    }
+}
+
 // ============ Profil ukuran per spesifikasi (V019) ============
 impl PakaianDinasService {
     pub async fn get_ukuran_profil(&self, nip: &str) -> AppResult<Vec<UkuranProfilItem>> {
