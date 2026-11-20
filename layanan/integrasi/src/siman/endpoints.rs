@@ -808,19 +808,19 @@ pub async fn fetch_category(
         _ => false,
     };
     let outcome = fetch_category_locked(client, storage, category, stop).await;
-    if locked && let Some(db) = client.get_db_client() {
-        if let Err(e) = db
+    if locked
+        && let Some(db) = client.get_db_client()
+        && let Err(e) = db
             .query_one(
                 "SELECT pg_advisory_unlock(hashtextextended($1, 0))",
                 &[&lock_key],
             )
             .await
-        {
-            warn!(
-                "could not release the lock of {}: {e}",
-                category.description()
-            );
-        }
+    {
+        warn!(
+            "could not release the lock of {}: {e}",
+            category.description()
+        );
     }
     outcome
 }

@@ -1179,6 +1179,64 @@ async fn a_second_run_does_not_delete_the_rows_a_run_in_progress_has_written() {
     );
 }
 
+/// A process that exits releases its session locks by itself, so a one-shot CronJob cannot show whether a
+/// category lock is released on purpose. The daemon keeps its connection for weeks: a lock it never released
+/// would refuse every later run of that category, a Job created by hand included, for as long as it lives.
+/// So this runs the category in THIS process, on a connection that stays open, and asks from another
+/// session whether the lock is free afterwards.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_category_lock_is_released_when_the_category_ends_not_only_when_the_process_does() {
+    use layanan_integrasi::StorageStrategy;
+    use layanan_integrasi::client::MonsaktiClient;
+    use layanan_integrasi::config::Config;
+    use layanan_integrasi::siman::{SimanAssetCategory, endpoints::fetch_category};
+    use layanan_integrasi::stop::Stop;
+
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    mount_siman(&server, 5, None).await;
+
+    let (conn, connection) = tokio_postgres::connect(&db.url, NoTls)
+        .await
+        .expect("a connection for the client under test");
+    tokio::spawn(connection);
+    let config = Config {
+        siman_base_url: server.uri(),
+        siman_token_url: format!("{}/connect/token", server.uri()),
+        siman_client_id: Some("uji-client".to_string()),
+        siman_client_secret: Some("uji-rahasia".to_string()),
+        siman_ba_key: Some(BA_KEY.to_string()),
+        ..Default::default()
+    };
+    let mut client = MonsaktiClient::new_with_db(config, std::sync::Arc::new(conn))
+        .await
+        .expect("client");
+    let outcome = fetch_category(
+        &mut client,
+        &StorageStrategy::Database,
+        SimanAssetCategory::Tanah,
+        &Stop::never(),
+    )
+    .await
+    .expect("the category run");
+    assert_eq!(outcome.ok, 5);
+
+    // The client's connection is still open. From another session, is the lock free?
+    let free: bool = db
+        .client
+        .query_one(
+            "SELECT pg_try_advisory_lock(hashtextextended($1, 0))",
+            &[&"integrasi.siman_aset:Tanah"],
+        )
+        .await
+        .expect("try the lock")
+        .get(0);
+    assert!(
+        free,
+        "the category lock is still held by a connection that is still open"
+    );
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn the_daemon_mode_stops_on_sigterm_instead_of_ignoring_it() {
     let db = Db::new().await;
