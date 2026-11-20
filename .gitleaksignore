@@ -18,3 +18,7 @@
 3d44462ea63ea247c296385177c45fe2c572ad8a:monolith/simpelv1/public/assets/libs/dropzone/dropzone.js:generic-api-key:2871
 # quill: `e.SHORTKEY = ...` is a JavaScript symbol name in minified code, not a credential.
 3d44462ea63ea247c296385177c45fe2c572ad8a:monolith/simpelv1/public/assets/libs/quill/quill.min.js:generic-api-key:7
+# deploy pipeline self-test: the first commit of the file wrote a JWT-SHAPED SAMPLE (not a credential) to prove
+# the log scan denies tokens in pod logs. The file now assembles the sample at run time, so no literal is left
+# to flag; this entry covers the commit that introduced it. Not repeated here for the same reason as above.
+c8fb5693242eb662e7ac89f37ba47bcc15b30dcb:infra/scripts/deploy/selftest.py:generic-api-key:218
