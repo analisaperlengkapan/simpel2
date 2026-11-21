@@ -1,0 +1,75 @@
+# deploy-check.yml — proves the deploy wiring WITHOUT deploying anything: the environment's credential
+# reaches the cluster, the chart at this commit passes the pipeline's preflight against the live staging
+# release, every image of the tag staging runs still verifies against its cosign signature, and the e2e
+# runner image reaches staging over the network a dind container actually has. Run it by hand after the
+# credential is installed or renewed, and whenever the pipeline changes; a green run is the evidence that
+# the first real `-rcN` deploy will not fail for a reason unrelated to the release.
+#
+# The job names the environment with `deployment: false`, so it can read the environment's secret but
+# records NO deployment: the newest staging deployment is what promote.yml compares a final tag against,
+# and a check must not displace it.
+
+name: Deploy Check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  staging:
+    name: The staging deploy wiring works
+    runs-on: arc-simpel
+    timeout-minutes: 45
+    environment:
+      name: staging
+      deployment: false
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cluster access
+        uses: ./.github/actions/cluster-access
+        with:
+          server: ${{ vars.KUBE_SERVER }}
+          ca: ${{ vars.KUBE_CA }}
+          token: ${{ secrets.KUBE_TOKEN }}
+          namespace: simpelv2-staging
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Preflight against the live staging release (nothing is changed)
+        shell: bash
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+        run: |
+          set -euo pipefail
+          tag="$(python3 -I -c "import sys; sys.path.insert(0, 'infra/scripts/deploy'); import pipeline as p; print(p.values_image_tag(p.CHART / 'values-staging.yaml'))")"
+          echo "values-staging.yaml records ${tag}"
+          python3 -I infra/scripts/deploy/pipeline.py run --env staging --tag "$tag" --base-url "$BASE_URL" --dry-run
+          echo "STAGING_TAG=$tag" >> "$GITHUB_ENV"
+
+      - name: Images of that tag verify against their signatures
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./infra/scripts/deploy/verify-images.sh infra/helm/simpel/values-staging.yaml "$STAGING_TAG" release
+
+      - name: Smoke over HTTP, from the runner and from a container (dind)
+        shell: bash
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+        run: |
+          set -euo pipefail
+          curl -fsS -o /dev/null -w "runner:    %{http_code}\n" "${BASE_URL}/health"
+          docker build -f antarmuka/perlengkapan/tests/e2e/Dockerfile.e2e -t simpel-e2e:check antarmuka/perlengkapan/tests/e2e
+          docker run --rm -e "U=${BASE_URL}" simpel-e2e:check node -e \
+            "fetch(process.env.U + '/health').then(r => { console.log('container:', r.status); process.exit(r.status === 200 ? 0 : 1); })"
