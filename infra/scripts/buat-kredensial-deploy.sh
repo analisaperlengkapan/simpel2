@@ -17,14 +17,19 @@
 #   3. menyimpan variabel KUBE_SERVER, KUBE_CA (sertifikat publik, bukan rahasia) dan BASE_URL;
 #   4. menyimpan rahasia KUBE_TOKEN per environment: token ber-umur (default 1 tahun, dibatasi API server).
 #
-# Environment variable: REPO, DURATION, STAGING_BASE_URL, PRODUCTION_BASE_URL, KUBE_SERVER, SKIP_HELM=1
+# Environment variable: REPO, DURATION, STAGING_BASE_URL, PRODUCTION_BASE_URL, KUBE_SERVER (bawaan: ClusterIP
+# Service kubernetes), SKIP_HELM=1
 set -euo pipefail
 
 REPO="${REPO:-analisaperlengkapan/simpel2}"
 DURATION="${DURATION:-8760h}"
 SA="release-deployer"
 SA_NS="default"
-KUBE_SERVER="${KUBE_SERVER:-https://kubernetes.default.svc}"   # dari dalam klaster, tempat runner ARC berjalan
+# Alamat API server yang dipakai RUNNER. Pod runner ARC memakai `dnsPolicy: None` dengan resolver publik
+# (infra/helm/arc/values-runner-set.yaml), jadi nama `kubernetes.default.svc` TIDAK ter-resolve di sana
+# (Deploy Check pertama gagal tepat di situ). ClusterIP Service `kubernetes` terjangkau tanpa DNS dan
+# tercantum di SAN sertifikat API server; ia diambil dari klaster, bukan ditulis tangan.
+KUBE_SERVER="${KUBE_SERVER:-}"
 STAGING_BASE_URL="${STAGING_BASE_URL:-http://10.1.7.121}"
 PRODUCTION_BASE_URL="${PRODUCTION_BASE_URL:-https://simpel.kejaksaan.go.id}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -40,6 +45,13 @@ if [ "${SKIP_HELM:-0}" != "1" ]; then
   echo "→ memasang chart deploy-access (ServiceAccount $SA di namespace $SA_NS)"
   helm upgrade --install deploy-access "$HERE/../helm/deploy-access" --namespace "$SA_NS"
 fi
+
+if [ -z "$KUBE_SERVER" ]; then
+  API_IP="$(kubectl -n default get service kubernetes -o jsonpath='{.spec.clusterIP}')"
+  [ -n "$API_IP" ] || { echo "ClusterIP Service kubernetes tak terbaca; isi KUBE_SERVER sendiri" >&2; exit 1; }
+  KUBE_SERVER="https://${API_IP}:443"
+fi
+echo "→ alamat API server untuk runner: $KUBE_SERVER"
 
 # Sertifikat CA API server: publik, diambil dari kubeconfig yang sedang aktif.
 CA="$(kubectl config view --raw --minify -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')"
