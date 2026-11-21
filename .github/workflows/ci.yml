@@ -474,6 +474,14 @@ jobs:
       - name: Pakaian dinas import preparation self-test
         shell: bash
         run: python3 -I ./infra/scripts/siapkan-impor-pakaian-dinas.py --self-test
+      # The deploy pipeline decides what happens to a release tag: what it refuses before touching the
+      # cluster, that a dump precedes the upgrade, that a failed verification restores the previous
+      # revision, and that a person is called when even that fails. Its self-test runs the real command
+      # lines against fake helm/kubectl/gh/git and a local HTTP server, and every guard in it was proven
+      # by a mutation that turns it red.
+      - name: Deploy pipeline self-test
+        shell: bash
+        run: python3 -I ./infra/scripts/deploy/pipeline.py --self-test
       # `npx playwright test` only runs specs a *project* collects: matched by
       # its `testMatch` and NOT excluded by a `testIgnore` (project-level, or the
       # inherited top-level one). A spec on disk that no project collects is
