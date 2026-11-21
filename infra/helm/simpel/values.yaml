@@ -634,6 +634,14 @@ layananIntegrasi:
       timeZone: "Asia/Jakarta"
       command: ["./scheduler"]
       args: ["--source", "siman"]
+      # Satu penarikan penuh (±625 ribu aset, 10 kategori) memakan ±36 menit pada staging 2026-11-20,
+      # sebelum sisipan banyak-baris. Dengan batas bawaan 3600 detik dan `backoffLimit: 1`, SATU
+      # kegagalan kategori membuat percobaan ulang (mulai dari nol) dibunuh oleh batasnya sendiri
+      # di tengah kategori. Kini kegagalan satu blok diulang di dalam run, dan batas ini memberi
+      # ruang bagi register produksi yang lebih besar plus satu percobaan ulang. Saat batas
+      # tercapai, Kubernetes mengirim SIGTERM dan run menghapus separuh kategori yang sudah ia
+      # tulis sebelum keluar (src/stop.rs); 30 detik masa tenggang cukup untuk itu.
+      activeDeadlineSeconds: 10800
     mysimkari:
       enabled: true
       suspend: true

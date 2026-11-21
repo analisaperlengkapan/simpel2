@@ -8,7 +8,8 @@
 use crate::client::MonsaktiClient;
 use crate::config::Config;
 // use crate::siman;
-use crate::siman::endpoints::fetch_all_assets_with_pagination;
+use crate::siman::endpoints::{CategoryOutcome, fetch_category};
+use crate::stop::Stop;
 use crate::storage_from_env;
 use anyhow::Result;
 use std::sync::Arc;
@@ -35,6 +36,8 @@ pub struct IntegrationScheduler {
     /// `ERROR Error receiving Closed` into roughly a third of the sync jobs' logs (measured
     /// 2026-11-13), an ERROR line about nothing that an operator reading the log has to rule out.
     scheduler: Option<JobScheduler>,
+    /// Triggered by the binary on SIGTERM/SIGINT; a SIMAN run polls it (see `crate::stop`).
+    stop: Stop,
 }
 
 impl IntegrationScheduler {
@@ -47,7 +50,14 @@ impl IntegrationScheduler {
             config,
             db_client,
             scheduler: None,
+            stop: Stop::never(),
         })
+    }
+
+    /// The signal a run polls to learn that the process was asked to stop.
+    pub fn with_stop(mut self, stop: Stop) -> Self {
+        self.stop = stop;
+        self
     }
 
     /// Initialize and start all scheduled jobs
@@ -133,12 +143,17 @@ impl IntegrationScheduler {
         let config = self.config.clone();
 
         let db_client = self.db_client.clone();
+        let stop = self.stop.clone();
         let job = Job::new_async(schedule.as_str(), move |_uuid, _lock| {
             let config = config.clone();
             let db_client = db_client.clone();
+            let stop = stop.clone();
             Box::pin(async move {
                 info!("🚀 Starting SIMAN scheduled data fetch...");
-                match fetch_siman_data(config, db_client).await {
+                // Held while the run is in progress: on SIGTERM the daemon waits for it to finish its
+                // clean-up (see `Stop::wait_idle`) before it exits.
+                let _running = stop.guard();
+                match fetch_siman_data(config, db_client, stop.clone()).await {
                     Ok(_) => info!("✅ SIMAN data fetch completed successfully"),
                     Err(e) => error!("❌ SIMAN data fetch failed: {}", e),
                 }
@@ -181,8 +196,11 @@ impl IntegrationScheduler {
                     .await?;
             }
             DataSource::Siman => {
-                self.recorded(source, fetch_siman_data(config, self.db_client.clone()))
-                    .await?;
+                self.recorded(
+                    source,
+                    fetch_siman_data(config, self.db_client.clone(), self.stop.clone()),
+                )
+                .await?;
             }
             DataSource::All => {
                 info!("Executing full synchronization across all modules...");
@@ -215,7 +233,7 @@ impl IntegrationScheduler {
                         "SIMAN",
                         self.recorded(
                             DataSource::Siman,
-                            fetch_siman_data(c3, self.db_client.clone()),
+                            fetch_siman_data(c3, self.db_client.clone(), self.stop.clone()),
                         )
                         .await,
                     ),
@@ -313,13 +331,23 @@ fn fail_if_any(what: &str, failures: Vec<String>) -> Result<()> {
 /// Both leave the local copy of that category incomplete, so neither may end in a green Job.
 fn siman_category_failure<E: std::fmt::Display>(
     category: &str,
-    outcome: &std::result::Result<(usize, usize), E>,
+    outcome: &std::result::Result<CategoryOutcome, E>,
 ) -> Option<String> {
     match outcome {
-        Ok((_, 0)) => None,
-        Ok((ok, failed)) => Some(format!(
-            "{category}: {failed} potongan data gagal ({ok} berhasil)"
-        )),
+        Ok(o) if o.failed == 0 && !o.interrupted => None,
+        Ok(o) => {
+            // The count alone ("1000 failed") does not say whether to look at the network, SIMAN
+            // or the database; the first block's reason is what the administrator needs.
+            let why = o
+                .cause
+                .as_deref()
+                .map(|c| format!(" — {c}"))
+                .unwrap_or_default();
+            Some(format!(
+                "{category}: {} potongan data gagal ({} berhasil){why}",
+                o.failed, o.ok
+            ))
+        }
         Err(e) => Some(format!("{category}: {e}")),
     }
 }
@@ -382,7 +410,11 @@ async fn fetch_mysimkari_data(config: Config, db_client: Option<Arc<Client>>) ->
 }
 
 /// Fetch all SIMAN data
-async fn fetch_siman_data(config: Config, db_client: Option<Arc<Client>>) -> Result<()> {
+async fn fetch_siman_data(
+    config: Config,
+    db_client: Option<Arc<Client>>,
+    stop: Stop,
+) -> Result<()> {
     let mut client = if let Some(db) = db_client {
         MonsaktiClient::new_with_db(config.clone(), db).await?
     } else {
@@ -416,14 +448,14 @@ async fn fetch_siman_data(config: Config, db_client: Option<Arc<Client>>) -> Res
     let mut failures: Vec<String> = Vec::new();
     for category in categories {
         info!("  → Process category: {}", category.description());
-        let outcome = fetch_all_assets_with_pagination(&mut client, &storage, category).await;
+        let outcome = fetch_category(&mut client, &storage, category, &stop).await;
         match &outcome {
-            Ok((success, failed)) => {
+            Ok(o) => {
                 info!(
                     "    ✓ {}: {} success, {} failed",
                     category.description(),
-                    success,
-                    failed
+                    o.ok,
+                    o.failed
                 );
             }
             Err(e) => {
@@ -431,6 +463,13 @@ async fn fetch_siman_data(config: Config, db_client: Option<Arc<Client>>) -> Res
             }
         }
         failures.extend(siman_category_failure(category.description(), &outcome));
+        // Told to stop: the category in hand has settled as incomplete. The rest are left for the
+        // next run instead of being started in the seconds that remain.
+        if stop.is_set() {
+            warn!("🛑 Stopped before the remaining categories were fetched");
+            failures.push("dihentikan (SIGTERM) sebelum semua kategori selesai".to_string());
+            break;
+        }
     }
 
     fail_if_any("kategori SIMAN", failures)
@@ -529,16 +568,19 @@ mod tests {
 
     #[test]
     fn a_category_taken_in_whole_is_not_a_failure() {
-        let ok: std::result::Result<(usize, usize), String> = Ok((12_000, 0));
+        let ok: std::result::Result<CategoryOutcome, String> = Ok(CategoryOutcome {
+            ok: 12_000,
+            ..Default::default()
+        });
         assert_eq!(siman_category_failure("Tanah", &ok), None);
         // Nothing to fetch is not a failure either: the API answered, the category is empty.
-        let empty: std::result::Result<(usize, usize), String> = Ok((0, 0));
+        let empty: std::result::Result<CategoryOutcome, String> = Ok(CategoryOutcome::default());
         assert_eq!(siman_category_failure("KDP", &empty), None);
     }
 
     #[test]
     fn a_category_that_could_not_be_asked_for_is_a_failure_naming_why() {
-        let err: std::result::Result<(usize, usize), String> =
+        let err: std::result::Result<CategoryOutcome, String> =
             Err("Request HTTP gagal: token".to_string());
         let msg = siman_category_failure("Tanah", &err).expect("an Err is a failure");
         assert!(
@@ -549,12 +591,51 @@ mod tests {
 
     #[test]
     fn a_category_with_failed_chunks_is_a_failure_even_though_the_call_returned_ok() {
-        // `Ok((3, 2))`: two of five 1000-row chunks never arrived. The local copy is incomplete.
-        let partial: std::result::Result<(usize, usize), String> = Ok((3, 2));
+        // Two of five 1000-row chunks never arrived. The local copy is incomplete.
+        let partial: std::result::Result<CategoryOutcome, String> = Ok(CategoryOutcome {
+            ok: 3,
+            failed: 2,
+            ..Default::default()
+        });
         let msg = siman_category_failure("Gedung dan Bangunan", &partial)
             .expect("failed chunks are a failure");
         assert!(msg.contains("Gedung dan Bangunan"), "{msg}");
         assert!(msg.contains("2 potongan data gagal"), "{msg}");
+    }
+
+    #[test]
+    fn the_failure_carries_why_the_first_block_was_lost() {
+        let lost: std::result::Result<CategoryOutcome, String> = Ok(CategoryOutcome {
+            ok: 484087,
+            failed: 1000,
+            cause: Some(
+                "485001-486000 could not be fetched after 3 attempt(s): connection reset".into(),
+            ),
+            interrupted: false,
+        });
+        let msg = siman_category_failure("Peralatan Mesin Non TIK", &lost).unwrap();
+        assert!(
+            msg.contains("connection reset"),
+            "the cause must reach sync_status: {msg}"
+        );
+    }
+
+    #[test]
+    fn an_interrupted_category_is_a_failure_even_with_nothing_counted_failed() {
+        let stopped: std::result::Result<CategoryOutcome, String> = Ok(CategoryOutcome {
+            interrupted: true,
+            ..Default::default()
+        });
+        assert!(siman_category_failure("Tanah", &stopped).is_some());
+    }
+
+    #[test]
+    fn a_complete_category_is_no_failure() {
+        let fine: std::result::Result<CategoryOutcome, String> = Ok(CategoryOutcome {
+            ok: 10,
+            ..Default::default()
+        });
+        assert!(siman_category_failure("Tanah", &fine).is_none());
     }
 
     #[test]

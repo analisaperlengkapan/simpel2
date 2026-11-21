@@ -65,6 +65,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "007_sync_status_last_success.sql",
         include_str!("../../migrations/007_sync_status_last_success.sql"),
     ),
+    (
+        "008_siman_copy_marker.sql",
+        include_str!("../../migrations/008_siman_copy_marker.sql"),
+    ),
 ];
 
 /// Derived snapshots of `siman_aset`, refreshed together.

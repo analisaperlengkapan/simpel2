@@ -6,6 +6,7 @@ pub mod db;
 pub mod db_handle;
 pub mod error;
 pub mod response;
+pub mod stop;
 pub mod storage;
 
 // API modules

@@ -93,8 +93,15 @@ async fn main() -> Result<()> {
     );
     info!("  • Output Directory: {}", config.output_dir);
 
+    // Kubernetes ends a Job pod with SIGTERM when it runs past its deadline (and when it is evicted).
+    // A run that is told to stop discards the half of a category it has written instead of dying
+    // with it in the table; see `layanan_integrasi::stop`.
+    let stop = layanan_integrasi::stop::Stop::new();
+    layanan_integrasi::stop::trigger_on_signals(stop.clone());
+    let daemon_stop = stop.clone();
+
     // Create scheduler
-    let mut scheduler = IntegrationScheduler::new(config).await?;
+    let mut scheduler = IntegrationScheduler::new(config).await?.with_stop(stop);
 
     if let Some(source) = cli.source {
         info!("🔧 Manual execution requested for source: {}", source);
@@ -130,10 +137,22 @@ async fn main() -> Result<()> {
     // Keep the process running
     info!("⏰ Scheduler is now running. Press Ctrl+C to stop.");
 
-    // Wait for shutdown signal
-    tokio::signal::ctrl_c().await?;
+    // Wait for a shutdown signal. SIGTERM is what Kubernetes sends; with the handler installed above it no
+    // longer terminates the process by itself, so it must end this wait or the daemon would never stop.
+    tokio::select! {
+        r = tokio::signal::ctrl_c() => r?,
+        _ = daemon_stop.cancelled() => {}
+    }
 
     info!("🛑 Shutdown signal received...");
+    // A scheduled SIMAN run that was told to stop discards the half of a category it has written; give it
+    // the time to do that before the process goes.
+    if !daemon_stop
+        .wait_idle(std::time::Duration::from_secs(20))
+        .await
+    {
+        error!("a sync was still running 20 s after the stop request");
+    }
     scheduler.shutdown().await?;
 
     info!("👋 Scheduler stopped successfully");

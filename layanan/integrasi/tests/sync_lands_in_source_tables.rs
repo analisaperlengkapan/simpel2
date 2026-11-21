@@ -32,8 +32,9 @@
 
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::time::Duration;
 use tokio_postgres::{Client, NoTls};
 use wiremock::matchers::{body_string_contains, header, method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -199,6 +200,26 @@ async fn scheduler(db: &Db, source: &str, envs: Vec<(&'static str, String)>) -> 
         String::from_utf8_lossy(&out.stderr)
     );
     (out.status.success(), log)
+}
+
+/// Like `scheduler`, but the process keeps running: for a test that signals it.
+fn spawn_scheduler(
+    db: &Db,
+    source: &str,
+    envs: Vec<(&'static str, String)>,
+) -> std::process::Child {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_scheduler"));
+    cmd.args(["--source", source])
+        .env_clear()
+        .env("RUST_LOG", "info")
+        .env("STORAGE_TYPE", "database")
+        .env("DATABASE_URL", &db.url)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    for (k, v) in envs {
+        cmd.env(k, v);
+    }
+    cmd.spawn().expect("the scheduler binary must start")
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -575,6 +596,19 @@ fn aset(i: u32) -> Value {
 /// SIMAN with `total` assets in category Tanah and none in the other nine. The data endpoint
 /// pages by `ID_1`..`ID_2` in blocks of 1000; every block from `fail_from` on answers HTTP 500.
 async fn mount_siman(server: &MockServer, total: u32, fail_from: Option<u32>) {
+    mount_siman_shaped(server, total, fail_from, None, None).await;
+}
+
+/// `mount_siman`, plus: every block from `slow_from` on answers only after two minutes (a run that
+/// is stopped meanwhile is mid-category), and asset number `poison` carries a NUL byte, which
+/// PostgreSQL refuses in a text column.
+async fn mount_siman_shaped(
+    server: &MockServer,
+    total: u32,
+    fail_from: Option<u32>,
+    slow_from: Option<u32>,
+    poison: Option<u32>,
+) {
     server.reset().await;
     Mock::given(method("POST"))
         .and(path("/connect/token"))
@@ -604,8 +638,21 @@ async fn mount_siman(server: &MockServer, total: u32, fail_from: Option<u32>) {
         let reply = if fail_from.is_some_and(|f| start >= f) {
             ResponseTemplate::new(500).set_body_string("Internal Server Error")
         } else {
-            let records: Vec<Value> = (start..=end).map(aset).collect();
-            ResponseTemplate::new(200).set_body_json(json!({ "results": records }))
+            let records: Vec<Value> = (start..=end)
+                .map(|i| {
+                    let mut a = aset(i);
+                    if poison == Some(i) {
+                        a["nama"] = json!("Tanah\u{0}Uji");
+                    }
+                    a
+                })
+                .collect();
+            let reply = ResponseTemplate::new(200).set_body_json(json!({ "results": records }));
+            if slow_from.is_some_and(|f| start >= f) {
+                reply.set_delay(Duration::from_secs(120))
+            } else {
+                reply
+            }
         };
         Mock::given(method("POST"))
             .and(path(format!("{SIMAN}/getAsetTanah")))
@@ -624,6 +671,8 @@ fn siman_env(server: &MockServer) -> Vec<(&'static str, String)> {
         ("SIMAN_CLIENT_ID", "uji-client".to_string()),
         ("SIMAN_CLIENT_SECRET", "uji-rahasia".to_string()),
         ("SIMAN_BA_KEY", BA_KEY.to_string()),
+        // The default pause before the second attempt is two seconds; a test has no use for it.
+        ("SIMAN_BLOCK_RETRY_DELAY_MS", "10".to_string()),
     ]
 }
 
@@ -837,6 +886,440 @@ async fn a_siman_category_cut_short_keeps_the_last_complete_copy() {
         db.count("SELECT count(DISTINCT nup) FROM integrasi.siman_aset")
             .await,
         1500
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_block_that_fails_once_is_asked_for_again_and_the_category_completes() {
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    mount_siman(&server, 2500, None).await;
+    // The second block (assets 1001-2000) answers HTTP 500 the first time only: a dropped
+    // connection or a restarting gateway. It used to cost the whole category.
+    Mock::given(method("POST"))
+        .and(path(format!("{SIMAN}/getAsetTanah")))
+        .and(body_string_contains("ID_1=1001&"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("Bad Gateway"))
+        .up_to_n_times(1)
+        .with_priority(1)
+        .mount(&server)
+        .await;
+
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(ok, "a block that failed once ended the run:\n{log}");
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_aset").await,
+        2500,
+        "{log}"
+    );
+    assert!(
+        log.contains("Asking again for 1001-2000"),
+        "the retry is not visible in the log:\n{log}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_block_that_cannot_be_fetched_says_why_in_sync_status() {
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    mount_siman(&server, 1500, Some(1001)).await;
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(!ok, "{log}");
+    let st = status(&db, "SIMAN", "aset").await;
+    let error = st.error.expect("a failed run records its error");
+    assert!(
+        error.contains("1001-1500") && error.contains("3 attempt"),
+        "the administrator must see WHICH block and after how many tries: {error}"
+    );
+    assert!(error.contains("500"), "and the reason: {error}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_run_told_to_stop_discards_what_it_wrote_and_fails_inside_the_grace_period() {
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    mount_siman(&server, 3000, None).await;
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(ok, "the first, complete run failed:\n{log}");
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_aset").await,
+        3000
+    );
+
+    // Block 1 answers at once; blocks 2 and 3 only after two minutes. The second run writes 1000
+    // new rows next to the 3000 old ones and then waits: that is where Kubernetes' deadline lands.
+    mount_siman_shaped(&server, 3000, None, Some(1001), None).await;
+    let child = spawn_scheduler(&db, "siman", siman_env(&server));
+    let pid = child.id();
+    let mut waited = 0;
+    while db.count("SELECT count(*) FROM integrasi.siman_aset").await < 4000 {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        waited += 1;
+        assert!(waited < 300, "the second run never wrote its first block");
+    }
+
+    let signalled = Command::new("kill")
+        .args(["-TERM", &pid.to_string()])
+        .status()
+        .expect("kill");
+    assert!(signalled.success());
+    let started = std::time::Instant::now();
+    let out = tokio::time::timeout(
+        Duration::from_secs(20),
+        tokio::task::spawn_blocking(move || child.wait_with_output()),
+    )
+    .await;
+    let out = match out {
+        Ok(joined) => joined.expect("join").expect("wait"),
+        Err(_) => {
+            let _ = Command::new("kill")
+                .args(["-KILL", &pid.to_string()])
+                .status();
+            panic!(
+                "the run did not end within 20 s of SIGTERM (Kubernetes allows 30 s before SIGKILL)"
+            );
+        }
+    };
+    let log = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        started.elapsed() < Duration::from_secs(15),
+        "it took {:?} to stop",
+        started.elapsed()
+    );
+    assert!(
+        !out.status.success(),
+        "a run that was stopped exited 0:\n{log}"
+    );
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_aset").await,
+        3000,
+        "the half of a category a stopped run wrote must be gone, the last complete copy kept:\n{log}"
+    );
+    let st = status(&db, "SIMAN", "aset").await;
+    assert_eq!(st.status, "failed", "{log}");
+    assert!(
+        st.error.as_deref().unwrap_or("").contains("SIGTERM"),
+        "the administrator must be able to tell an interrupted run from a broken API: {:?}",
+        st.error
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn rows_left_by_a_run_that_was_killed_are_removed_before_the_next_run() {
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    mount_siman(&server, 1500, None).await;
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(ok, "{log}");
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_copy WHERE jenis_aset = 'Tanah'")
+            .await,
+        1,
+        "a complete run records where its copy ends"
+    );
+
+    // What a run killed by SIGKILL leaves: rows written after the last complete copy settled and
+    // BEFORE the next run starts. Stamped in between (not in the future): a row stamped after the
+    // next run began would be taken for that run's own and discarded by its settle, which proves
+    // nothing about the reclaim.
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    db.client
+        .batch_execute(
+            "INSERT INTO integrasi.siman_aset (jenis_aset, nup, synced_at) \
+             SELECT 'Tanah', 'bocor' || g, clock_timestamp() FROM generate_series(1, 700) g",
+        )
+        .await
+        .expect("seed the leftovers");
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_aset").await,
+        2200
+    );
+
+    // The next run cannot even complete (the second block fails), so only the reclaim can have
+    // removed them: the settle of an incomplete run deletes its own rows, not an earlier run's.
+    mount_siman(&server, 1500, Some(1001)).await;
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(!ok, "{log}");
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_aset WHERE nup LIKE 'bocor%'")
+            .await,
+        0,
+        "rows of a killed run survived the next run:\n{log}"
+    );
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_aset").await,
+        1500,
+        "the last complete copy must be intact:\n{log}"
+    );
+}
+
+/// Wait for `child` to exit, killing it if it does not within `limit`.
+async fn wait_for_exit(
+    child: std::process::Child,
+    limit: Duration,
+) -> (std::process::ExitStatus, String) {
+    let pid = child.id();
+    let out = tokio::time::timeout(
+        limit,
+        tokio::task::spawn_blocking(move || child.wait_with_output()),
+    )
+    .await;
+    match out {
+        Ok(joined) => {
+            let out = joined.expect("join").expect("wait");
+            let log = format!(
+                "{}{}",
+                String::from_utf8_lossy(&out.stdout),
+                String::from_utf8_lossy(&out.stderr)
+            );
+            (out.status, log)
+        }
+        Err(_) => {
+            let _ = Command::new("kill")
+                .args(["-KILL", &pid.to_string()])
+                .status();
+            panic!("the process did not exit within {limit:?}");
+        }
+    }
+}
+
+fn sigterm(pid: u32) {
+    let status = Command::new("kill")
+        .args(["-TERM", &pid.to_string()])
+        .status()
+        .expect("kill");
+    assert!(status.success());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_copy_replaced_by_a_version_without_the_marker_is_not_taken_for_leftovers() {
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    mount_siman(&server, 1500, None).await;
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(ok, "{log}");
+
+    // A rollback to a version that does not know `siman_copy`, and ITS complete run: it deletes the
+    // whole earlier copy and writes a new one, leaving the marker where the first run put it. Every
+    // row of the new copy is now stamped after the marker.
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    db.client
+        .batch_execute(
+            "DELETE FROM integrasi.siman_aset WHERE jenis_aset = 'Tanah'; \
+             INSERT INTO integrasi.siman_aset (jenis_aset, nup, synced_at) \
+             SELECT 'Tanah', 'lama' || g, clock_timestamp() FROM generate_series(1, 1500) g",
+        )
+        .await
+        .expect("replace the copy as the old version would");
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    // The new version again, and one block of its fetch fails. If the reclaim had taken the old
+    // version's complete copy for a dead run's leftovers, nothing would be left.
+    mount_siman(&server, 1500, Some(1001)).await;
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(!ok, "{log}");
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_aset WHERE nup LIKE 'lama%'")
+            .await,
+        1500,
+        "the complete copy written by the older version was deleted:\n{log}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_second_run_does_not_delete_the_rows_a_run_in_progress_has_written() {
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    mount_siman(&server, 3000, None).await;
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(ok, "{log}");
+
+    // Run A writes its first block and waits for the others.
+    mount_siman_shaped(&server, 3000, None, Some(1001), None).await;
+    let a = spawn_scheduler(&db, "siman", siman_env(&server));
+    let a_pid = a.id();
+    let mut waited = 0;
+    while db.count("SELECT count(*) FROM integrasi.siman_aset").await < 4000 {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        waited += 1;
+        assert!(waited < 300, "run A never wrote its first block");
+    }
+
+    // Run B starts on the same category: a Job someone created by hand while the CronJob's was going.
+    let (ok_b, log_b) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(
+        !ok_b,
+        "a second run beside a running one exited 0:\n{log_b}"
+    );
+    assert!(
+        log_b.contains("another SIMAN run is already fetching Tanah"),
+        "the refusal must say why:\n{log_b}"
+    );
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_aset").await,
+        4000,
+        "the second run deleted rows the first had written:\n{log_b}"
+    );
+
+    // The lock goes with the run: once A has been stopped, a run can take the category again.
+    sigterm(a_pid);
+    let (status, log_a) = wait_for_exit(a, Duration::from_secs(20)).await;
+    assert!(!status.success(), "{log_a}");
+    mount_siman(&server, 3000, None).await;
+    let (ok_c, log_c) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(ok_c, "the lock outlived its run:\n{log_c}");
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_aset").await,
+        3000
+    );
+}
+
+/// A process that exits releases its session locks by itself, so a one-shot CronJob cannot show whether a
+/// category lock is released on purpose. The daemon keeps its connection for weeks: a lock it never released
+/// would refuse every later run of that category, a Job created by hand included, for as long as it lives.
+/// So this runs the category in THIS process, on a connection that stays open, and asks from another
+/// session whether the lock is free afterwards.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_category_lock_is_released_when_the_category_ends_not_only_when_the_process_does() {
+    use layanan_integrasi::StorageStrategy;
+    use layanan_integrasi::client::MonsaktiClient;
+    use layanan_integrasi::config::Config;
+    use layanan_integrasi::siman::{SimanAssetCategory, endpoints::fetch_category};
+    use layanan_integrasi::stop::Stop;
+
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    mount_siman(&server, 5, None).await;
+
+    let (conn, connection) = tokio_postgres::connect(&db.url, NoTls)
+        .await
+        .expect("a connection for the client under test");
+    tokio::spawn(connection);
+    let config = Config {
+        siman_base_url: server.uri(),
+        siman_token_url: format!("{}/connect/token", server.uri()),
+        siman_client_id: Some("uji-client".to_string()),
+        siman_client_secret: Some("uji-rahasia".to_string()),
+        siman_ba_key: Some(BA_KEY.to_string()),
+        ..Default::default()
+    };
+    let mut client = MonsaktiClient::new_with_db(config, std::sync::Arc::new(conn))
+        .await
+        .expect("client");
+    let outcome = fetch_category(
+        &mut client,
+        &StorageStrategy::Database,
+        SimanAssetCategory::Tanah,
+        &Stop::never(),
+    )
+    .await
+    .expect("the category run");
+    assert_eq!(outcome.ok, 5);
+
+    // The client's connection is still open. From another session, is the lock free?
+    let free: bool = db
+        .client
+        .query_one(
+            "SELECT pg_try_advisory_lock(hashtextextended($1, 0))",
+            &[&"integrasi.siman_aset:Tanah"],
+        )
+        .await
+        .expect("try the lock")
+        .get(0);
+    assert!(
+        free,
+        "the category lock is still held by a connection that is still open"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_daemon_mode_stops_on_sigterm_instead_of_ignoring_it() {
+    let db = Db::new().await;
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_scheduler"));
+    cmd.env_clear()
+        .env("RUST_LOG", "info")
+        .env("STORAGE_TYPE", "database")
+        .env("DATABASE_URL", &db.url)
+        .env("SCHEDULER_ENABLED", "true")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let child = cmd.spawn().expect("the scheduler binary must start");
+    let pid = child.id();
+    tokio::time::sleep(Duration::from_millis(2500)).await;
+    sigterm(pid);
+    let (status, log) = wait_for_exit(child, Duration::from_secs(25)).await;
+    assert!(
+        status.success() && log.contains("Scheduler stopped successfully"),
+        "the daemon did not shut down cleanly on SIGTERM ({status:?}):\n{log}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_category_with_no_marker_is_left_alone_by_the_reclaim() {
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    // The state of every database before migration 008: rows, and no marker for the category.
+    db.client
+        .batch_execute(
+            "INSERT INTO integrasi.siman_aset (jenis_aset, nup, synced_at) \
+             SELECT 'Tanah', 'lama' || g, now() - interval '1 day' FROM generate_series(1, 10) g",
+        )
+        .await
+        .expect("seed");
+    mount_siman(&server, 1500, Some(1001)).await;
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(!ok, "{log}");
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_aset WHERE nup LIKE 'lama%'")
+            .await,
+        10,
+        "with no marker nothing proves a row is a leftover, so none may be deleted:\n{log}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn one_refused_record_in_a_block_is_found_not_the_whole_block_blamed() {
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    // Asset 2 of 3 holds a NUL byte, which PostgreSQL refuses: the one statement that carries all
+    // three fails, and the rows are then tried one by one.
+    mount_siman_shaped(&server, 3, None, None, Some(2)).await;
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(!ok, "a refused record must fail the run:\n{log}");
+    let st = status(&db, "SIMAN", "aset").await;
+    let error = st.error.unwrap_or_default();
+    assert!(
+        error.contains("1 dari 3 baris gagal"),
+        "exactly the one bad row must be counted, not all three: {error}"
+    );
+    // The incomplete category is discarded as a whole; what matters is that the bad row was found.
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_aset").await,
+        0
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn many_rows_go_in_by_the_hundred_and_all_arrive_once() {
+    let db = Db::new().await;
+    let server = MockServer::start().await;
+    mount_siman(&server, 2500, None).await;
+    let (ok, log) = scheduler(&db, "siman", siman_env(&server)).await;
+    assert!(ok, "{log}");
+    assert_eq!(
+        db.count("SELECT count(*) FROM integrasi.siman_aset").await,
+        2500
+    );
+    assert_eq!(
+        db.count("SELECT count(DISTINCT nup) FROM integrasi.siman_aset")
+            .await,
+        2500,
+        "a multi-row statement must not drop or double a row"
     );
 }
 

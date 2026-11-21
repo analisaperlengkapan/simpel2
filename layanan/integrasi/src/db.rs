@@ -5,7 +5,7 @@ use std::error::Error;
 use std::io::Write;
 use tokio_postgres::Client;
 use tokio_postgres::types::{IsNull, ToSql, Type};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace, warn};
 use uuid::Uuid;
 
 /// Optimized SQL parameter wrapper to avoid allocations
@@ -454,28 +454,85 @@ pub async fn bulk_insert_postgres(
         )
     };
 
-    // Reuse vector allocation for params to reduce memory churn
-    let mut params: Vec<SqlParam> = Vec::with_capacity(columns.len());
+    // The statement is prepared ONCE per call. `Client::execute(&str, ..)` prepares on every call,
+    // so the per-row loop paid a whole extra round trip for each of the 485,000 rows of one SIMAN
+    // category: thirty-five minutes, with a one-hour deadline.
+    let stmt_single = db.prepare(&query).await?;
 
-    for (chunk_idx, chunk) in data.chunks(100).enumerate() {
-        info!(
+    // Tables with no unique key (`siman_aset`) insert with `ON CONFLICT DO NOTHING`, which also
+    // tolerates the same row twice inside one statement, so many rows can share one INSERT. A table
+    // that upserts on a key cannot: `ON CONFLICT DO UPDATE` fails when one statement touches a row
+    // twice, so those keep the one-row statement (and they are small: satker, pegawai).
+    let multi_row = unique_cols.is_empty();
+    let per_statement = if multi_row {
+        rows_per_statement(columns.len())
+    } else {
+        100
+    };
+    let mut multi_statements: std::collections::HashMap<usize, tokio_postgres::Statement> =
+        std::collections::HashMap::new();
+
+    // Reuse vector allocation for params to reduce memory churn
+    let mut params: Vec<SqlParam> = Vec::with_capacity(columns.len() * per_statement);
+
+    for (chunk_idx, chunk) in data.chunks(per_statement).enumerate() {
+        debug!(
             "📦 [BULK INSERT] Processing chunk {}, {} records",
             chunk_idx + 1,
             chunk.len()
         );
+
+        // Fast path: one statement for the whole chunk. If the database refuses it (one bad row
+        // fails all of them), the rows are inserted one by one below, so that the bad ones are
+        // found, counted and reported exactly as before.
+        if multi_row && chunk.len() > 1 {
+            let objects: Option<Vec<&serde_json::Map<String, Value>>> =
+                chunk.iter().map(|item| item.as_object()).collect();
+            if let Some(objects) = objects {
+                params.clear();
+                for obj in &objects {
+                    for col in &columns {
+                        params.push(json_to_sql_param(field(obj, col), col));
+                    }
+                }
+                let statement = match multi_statements.get(&objects.len()) {
+                    Some(statement) => statement.clone(),
+                    None => {
+                        let sql = multi_row_insert_sql(
+                            table_name,
+                            &column_list,
+                            columns.len(),
+                            objects.len(),
+                        );
+                        let statement = db.prepare(&sql).await?;
+                        multi_statements.insert(objects.len(), statement.clone());
+                        statement
+                    }
+                };
+                let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+                    .iter()
+                    .map(|p| p as &(dyn tokio_postgres::types::ToSql + Sync))
+                    .collect();
+                match db.execute(&statement, &param_refs[..]).await {
+                    Ok(rows) => {
+                        count += rows as usize;
+                        continue;
+                    }
+                    Err(e) => debug!(
+                        "[BULK INSERT] {} rows in one statement were refused ({}); inserting them one by one",
+                        objects.len(),
+                        describe_insert_error(&e)
+                    ),
+                }
+            }
+        }
+
         for item in chunk {
             if let Some(obj) = item.as_object() {
                 // Konversi nilai JSON ke parameter PostgreSQL
                 params.clear();
                 for col in &columns {
-                    // Handle mapping: api_id in DB comes from id in JSON
-                    let json_key = if col == "api_id" { "id" } else { col.as_str() };
-
-                    let value = obj
-                        .get(json_key)
-                        .or_else(|| obj.get(&json_key.to_uppercase()))
-                        .unwrap_or(&Value::Null);
-                    params.push(json_to_sql_param(value, col));
+                    params.push(json_to_sql_param(field(obj, col), col));
                 }
 
                 // Convert to references for execute
@@ -487,13 +544,13 @@ pub async fn bulk_insert_postgres(
                     .map(|p| p as &(dyn tokio_postgres::types::ToSql + Sync))
                     .collect();
 
-                match db.execute(&query, &param_refs[..]).await {
+                match db.execute(&stmt_single, &param_refs[..]).await {
                     Ok(rows) => {
                         if rows > 0 {
                             count += rows as usize;
-                            debug!("✅ [BULK INSERT] Inserted {} row(s)", rows);
+                            trace!("✅ [BULK INSERT] Inserted {} row(s)", rows);
                         } else {
-                            debug!("⚠️  [BULK INSERT] 0 rows inserted (possibly duplicate)");
+                            trace!("⚠️  [BULK INSERT] 0 rows inserted (possibly duplicate)");
                         }
                     }
                     Err(e) => {
@@ -506,15 +563,7 @@ pub async fn bulk_insert_postgres(
                         if first_error.is_none() {
                             let shape: Vec<String> = columns
                                 .iter()
-                                .map(|col| {
-                                    let json_key =
-                                        if col == "api_id" { "id" } else { col.as_str() };
-                                    let value = obj
-                                        .get(json_key)
-                                        .or_else(|| obj.get(&json_key.to_uppercase()))
-                                        .unwrap_or(&Value::Null);
-                                    format!("{col}:{}", json_type(value))
-                                })
+                                .map(|col| format!("{col}:{}", json_type(field(obj, col))))
                                 .collect();
                             let reason = describe_insert_error(&e);
                             error!(
@@ -546,6 +595,41 @@ pub async fn bulk_insert_postgres(
     }
 
     Ok(count)
+}
+
+/// The value for `column` in one upstream object. `api_id` is the upstream `id`; upstream keys may
+/// arrive in upper case.
+fn field<'a>(obj: &'a serde_json::Map<String, Value>, column: &str) -> &'a Value {
+    let json_key = if column == "api_id" { "id" } else { column };
+    obj.get(json_key)
+        .or_else(|| obj.get(&json_key.to_uppercase()))
+        .unwrap_or(&Value::Null)
+}
+
+/// Rows per multi-row INSERT: 100, fewer when the table is so wide that 100 rows would pass
+/// PostgreSQL's limit of 65,535 bind parameters in one statement.
+fn rows_per_statement(columns: usize) -> usize {
+    (30_000 / columns.max(1)).clamp(1, 100)
+}
+
+/// `INSERT INTO integrasi.<table> (<columns>) VALUES ($1, ..), ($n+1, ..), .. ON CONFLICT DO NOTHING`
+/// for `rows` rows of `columns` columns each.
+fn multi_row_insert_sql(table: &str, column_list: &str, columns: usize, rows: usize) -> String {
+    let mut values = String::new();
+    for r in 0..rows {
+        if r > 0 {
+            values.push_str(", ");
+        }
+        values.push('(');
+        for c in 0..columns {
+            if c > 0 {
+                values.push_str(", ");
+            }
+            values.push_str(&format!("${}", r * columns + c + 1));
+        }
+        values.push(')');
+    }
+    format!("INSERT INTO integrasi.{table} ({column_list}) VALUES {values} ON CONFLICT DO NOTHING")
 }
 
 fn json_type(value: &Value) -> &'static str {
@@ -631,6 +715,49 @@ pub async fn save_to_database(
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn a_multi_row_insert_numbers_its_parameters_row_after_row() {
+        let sql = multi_row_insert_sql("siman_aset", "\"a\", \"b\"", 2, 3);
+        assert_eq!(
+            sql,
+            "INSERT INTO integrasi.siman_aset (\"a\", \"b\") VALUES ($1, $2), ($3, $4), ($5, $6) ON CONFLICT DO NOTHING"
+        );
+    }
+
+    #[test]
+    fn a_single_row_statement_has_no_trailing_separator() {
+        let sql = multi_row_insert_sql("t", "\"a\"", 1, 1);
+        assert!(sql.contains("VALUES ($1) ON CONFLICT"), "{sql}");
+    }
+
+    #[test]
+    fn a_wide_table_never_passes_the_bind_parameter_limit() {
+        for columns in [1usize, 7, 70, 300, 1000, 5000] {
+            let rows = rows_per_statement(columns);
+            assert!(rows >= 1, "{columns} columns");
+            assert!(rows <= 100, "{columns} columns");
+            assert!(
+                rows * columns <= 65_535 || rows == 1,
+                "{columns} columns x {rows} rows passes 65,535 parameters"
+            );
+        }
+        assert_eq!(
+            rows_per_statement(70),
+            100,
+            "siman_aset: 100 rows a statement"
+        );
+    }
+
+    #[test]
+    fn a_field_is_found_by_its_lower_or_upper_case_key_and_api_id_is_id() {
+        let obj = serde_json::json!({"nup": "7", "KD_BRG": "20101", "id": 5});
+        let obj = obj.as_object().unwrap();
+        assert_eq!(field(obj, "nup"), &serde_json::json!("7"));
+        assert_eq!(field(obj, "kd_brg"), &serde_json::json!("20101"));
+        assert_eq!(field(obj, "api_id"), &serde_json::json!(5));
+        assert_eq!(field(obj, "absent"), &Value::Null);
+    }
 
     #[test]
     fn test_json_to_sql_param_conversions() {
