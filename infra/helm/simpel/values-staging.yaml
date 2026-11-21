@@ -459,7 +459,20 @@ global:
   # `docs/RUNBOOK_IMPOR_PAKAIAN_DINAS.md`). Data nyata diimpor HANYA di produksi, jangan di staging.
   # Pengganti nama spesifikasi kini ditolak bila nama sudah ada pada jenis itu (#1125).
   # rc48 dan rc49 jangan dipromosikan.
-  imageTag: v0.1.0-rc51
+  #
+  # rc52 = rc51 + penyelamatan sinkron SIMAN dan deploy otomatis. Sinkron SIMAN (#1129): tiap blok 1000 id
+  # dicoba ulang (3 kali, jeda 2 dtk lalu x4) sebelum kategori dinyatakan gagal; SIGTERM menghentikan run
+  # dengan rapi dan menandai sisanya gagal beserta sebabnya di `sync_status`; sisa run yang terbunuh
+  # (baris baru di samping salinan lama) dibersihkan run berikutnya hanya bila salinan lama masih utuh;
+  # dua run bersamaan atas kategori yang sama ditolak (kunci advisory); INSERT massal per banyak baris
+  # (bukan satu per baris); log debug tak lagi mencetak nilai parameter tiap baris. Migrasi
+  # `integrasi` 008 (`integrasi.siman_copy`) ADITIF (tabel baru): `helm rollback` ke rc51 aman. Pekerjaan
+  # SIMAN: `activeDeadlineSeconds` 10800 (sebelumnya 3600 membunuh run penuh). Pipeline (#1127, #1128):
+  # tag `vX.Y.Z-rcN` men-deploy ke staging lewat `infra/scripts/deploy/pipeline.py` (snapshot DB,
+  # upgrade, verifikasi, reseed, e2e, pemindaian log, rollback otomatis), tag final men-deploy produksi
+  # dari digest yang lulus staging setelah persetujuan pemilik. Ini rc PERTAMA yang lewat jalur itu.
+  # rc48 dan rc49 jangan dipromosikan.
+  imageTag: v0.1.0-rc52
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
