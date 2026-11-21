@@ -6,7 +6,7 @@ description: >-
   that only a tag-triggered job in that environment can read.
 inputs:
   server:
-    description: API server URL the runner reaches from inside the cluster, e.g. https://kubernetes.default.svc
+    description: API server URL the runner reaches from inside the cluster, by IP (e.g. https://10.152.183.1:443): runner pods use public resolvers, so cluster DNS names do not resolve
     required: true
   ca:
     description: Base64 of the API server CA certificate (public, not secret)
