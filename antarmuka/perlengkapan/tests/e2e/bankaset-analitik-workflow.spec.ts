@@ -357,9 +357,9 @@ test.describe("Bank Aset — sebaran + QR code", () => {
     await expect(page.getByTestId("hitungan-sebaran")).toContainText("1 dari");
     const link = page.getByTestId("baris-sebaran").getByRole("link", { name: /JAKARTA SELATAN/ });
     await link.click();
-    // The list opens already filtered to that satker, and shows only its assets.
-    await expect(page.getByText("Honda Vario").first()).toBeVisible({ timeout: 20000 });
-    await expect(page.getByText("Toyota Avanza")).toHaveCount(0);
+    // The list opens already filtered to that satker, and shows only its two assets (identified by
+    // their NUP, which is unique; the displayed names are SIMAN's, not the seed's brand names).
+    await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-B-1", "E2E-B-2"]);
   });
 
   test("QR generator selects assets and renders label previews", async ({ page }) => {
