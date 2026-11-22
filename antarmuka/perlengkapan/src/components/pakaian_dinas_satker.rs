@@ -113,6 +113,15 @@ fn build_timeline(
 /// Returns `(can_act, approve_label, reject_label)`.
 fn available_actions(code: i32) -> Option<(&'static str, &'static str)> {
     let session = AuthService::load_session()?;
+    aksi_untuk(
+        code,
+        session.is_validator_wilayah(),
+        session.is_validator_pusat(),
+    )
+}
+
+/// [`available_actions`] with the roles handed in, so the rule is testable without a session.
+fn aksi_untuk(code: i32, wilayah: bool, pusat: bool) -> Option<(&'static str, &'static str)> {
     // The validators' moves are the validators'. An administrator is not offered
     // them: the API refuses an admin every business decision (no bypass), so the
     // button would only ever answer 403.
@@ -120,14 +129,39 @@ fn available_actions(code: i32) -> Option<(&'static str, &'static str)> {
     // (1007). Same two moves either way: forward it again, or send it down to the
     // satker. Without 1007 here, "Kembalikan ke Wilayah" below parked the satker
     // on a screen with no button for anyone.
-    if matches!(code, 1001 | 1007 | 1012) && session.is_validator_wilayah() {
+    if matches!(code, 1001 | 1007 | 1012) && wilayah {
         return Some(("Teruskan ke Pusat", "Kembalikan untuk Revisi"));
     }
     // Pusat review pending (1004 / 1010)
-    if matches!(code, 1004 | 1010) && session.is_validator_pusat() {
+    if matches!(code, 1004 | 1010) && pusat {
         return Some(("Setujui (Selesai)", "Kembalikan ke Wilayah"));
     }
     None
+}
+
+/// The rows this user may move on, grouped by the move they are offered, in first-seen order.
+///
+/// One bulk bar for all of them was wrong for an account holding both validator roles (the seeded
+/// administrator does): its label came from the first row ("Teruskan ke Pusat") while "Pilih
+/// semua" ticked rows at both stages, and the server runs each row's own move, so the same click
+/// that forwarded a wilayah-stage satker also gave a pusat-stage one its FINAL approval. One bar
+/// per move, each acting only on its own rows, makes the button say what it does.
+fn kelompok_massal(
+    rows: &[(String, i32)],
+    wilayah: bool,
+    pusat: bool,
+) -> Vec<(&'static str, Vec<String>)> {
+    let mut grup: Vec<(&'static str, Vec<String>)> = Vec::new();
+    for (id, code) in rows {
+        let Some((setuju, _)) = aksi_untuk(*code, wilayah, pusat) else {
+            continue;
+        };
+        match grup.iter_mut().find(|(label, _)| *label == setuju) {
+            Some((_, ids)) => ids.push(id.clone()),
+            None => grup.push((setuju, vec![id.clone()])),
+        }
+    }
+    grup
 }
 
 /// Satker per page. The grid is two columns wide, so an even number keeps the last row full.
@@ -294,8 +328,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
 
     // Approve every ticked satker in one request. Each goes through the same
     // per-row checks a single approval does; the answer says which went through.
-    let on_massal = Callback::new(move |_: ()| {
-        let ids = terpilih.get();
+    let on_massal = Callback::new(move |ids: Vec<String>| {
         if ids.is_empty() {
             return;
         }
@@ -464,18 +497,98 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                         let rows = resp.data;
                         // The rows this user may move on now (a wilayah validator's
                         // pending ones, or pusat's); only those get a tick box.
-                        let layak: Vec<String> = rows
+                        let baris: Vec<(String, i32)> = rows
                             .iter()
-                            .filter(|s| available_actions(s.aktivitas_id).is_some())
-                            .map(|s| s.id.clone())
+                            .map(|s| (s.id.clone(), s.aktivitas_id))
                             .collect();
-                        let n_layak = layak.len();
-                        let label_setuju = rows
-                            .iter()
-                            .find_map(|s| available_actions(s.aktivitas_id))
-                            .map(|(approve, _)| approve)
-                            .unwrap_or("Setujui");
-                        let layak_semua = layak.clone();
+                        let grup = kelompok_massal(&baris, is_wilayah, is_pusat);
+                        let banyak_grup = grup.len() > 1;
+                        let bilah = grup
+                            .into_iter()
+                            .map(|(label, ids)| {
+                                let n = ids.len();
+                                let ids = std::sync::Arc::new(ids);
+                                let dipilih = {
+                                    let ids = ids.clone();
+                                    move || {
+                                        terpilih
+                                            .get()
+                                            .into_iter()
+                                            .filter(|x| ids.contains(x))
+                                            .collect::<Vec<String>>()
+                                    }
+                                };
+                                let semua_terpilih = {
+                                    let ids = ids.clone();
+                                    move || {
+                                        let t = terpilih.get();
+                                        n > 0 && ids.iter().all(|i| t.contains(i))
+                                    }
+                                };
+                                let ubah_semua = {
+                                    let ids = ids.clone();
+                                    move |ev| {
+                                        let on = event_target_checked(&ev);
+                                        terpilih
+                                            .update(|v| {
+                                                v.retain(|x| !ids.contains(x));
+                                                if on {
+                                                    v.extend(ids.iter().cloned());
+                                                }
+                                            });
+                                    }
+                                };
+                                let teks = match (banyak_grup, total_pages > 1) {
+                                    (true, _) => format!("Pilih semua untuk \u{201c}{label}\u{201d} ({n})"),
+                                    (false, true) => format!("Pilih semua yang menunggu di halaman ini ({n})"),
+                                    (false, false) => format!("Pilih semua yang menunggu ({n})"),
+                                };
+                                view! {
+                                    <div
+                                        data-testid="bilah-massal"
+                                        data-aksi=label
+                                        class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-surface-panel px-4 py-3 text-sm"
+                                    >
+                                        <label class="flex items-center gap-2 text-slate-200">
+                                            <input
+                                                type="checkbox"
+                                                data-testid="pilih-semua"
+                                                class="h-4 w-4 rounded border-white/20 bg-white/[0.04]"
+                                                prop:checked=semua_terpilih
+                                                on:change=ubah_semua
+                                            />
+                                            {teks}
+                                        </label>
+                                        <div class="flex items-center gap-3">
+                                            <span class="text-slate-400">
+                                                {
+                                                    let dipilih = dipilih.clone();
+                                                    move || format!("{} dipilih", dipilih().len())
+                                                }
+                                            </span>
+                                            <button
+                                                type="button"
+                                                data-testid="setujui-massal"
+                                                class="rounded-lg bg-gold-gradient px-4 py-2 text-xs font-bold text-navy-950 transition hover:opacity-90 disabled:opacity-40"
+                                                prop:disabled={
+                                                    let dipilih = dipilih.clone();
+                                                    move || busy.get() || dipilih().is_empty()
+                                                }
+                                                on:click={
+                                                    let dipilih = dipilih.clone();
+                                                    move |_| on_massal.run(dipilih())
+                                                }
+                                            >
+                                                {
+                                                    let dipilih = dipilih.clone();
+                                                    move || format!("{label} ({})", dipilih().len())
+                                                }
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                            })
+                            .collect_view();
                         if rows.is_empty() {
                             view! {
                                 <div class="rounded-2xl border border-white/[0.06] bg-surface-panel p-8 text-center text-sm text-slate-400">
@@ -489,50 +602,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                 .into_any()
                         } else {
                             view! {
-                                <Show when=move || { n_layak > 0 }>
-                                    <div
-                                        data-testid="bilah-massal"
-                                        class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-surface-panel px-4 py-3 text-sm"
-                                    >
-                                        <label class="flex items-center gap-2 text-slate-200">
-                                            <input
-                                                type="checkbox"
-                                                data-testid="pilih-semua"
-                                                class="h-4 w-4 rounded border-white/20 bg-white/[0.04]"
-                                                prop:checked=move || terpilih.get().len() == n_layak
-                                                on:change={
-                                                    let layak_semua = layak_semua.clone();
-                                                    move |ev| {
-                                                        if event_target_checked(&ev) {
-                                                            terpilih.set(layak_semua.clone());
-                                                        } else {
-                                                            terpilih.set(Vec::new());
-                                                        }
-                                                    }
-                                                }
-                                            />
-                                            {if total_pages > 1 {
-                                                format!("Pilih semua yang menunggu di halaman ini ({n_layak})")
-                                            } else {
-                                                format!("Pilih semua yang menunggu ({n_layak})")
-                                            }}
-                                        </label>
-                                        <div class="flex items-center gap-3">
-                                            <span class="text-slate-400">
-                                                {move || format!("{} dipilih", terpilih.get().len())}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                data-testid="setujui-massal"
-                                                class="rounded-lg bg-gold-gradient px-4 py-2 text-xs font-bold text-navy-950 transition hover:opacity-90 disabled:opacity-40"
-                                                prop:disabled=move || busy.get() || terpilih.get().is_empty()
-                                                on:click=move |_| on_massal.run(())
-                                            >
-                                                {move || format!("{label_setuju} ({})", terpilih.get().len())}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </Show>
+                                {bilah}
                                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
                                     <For
                                         each=move || rows.clone()
@@ -799,7 +869,51 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
 
 #[cfg(test)]
 mod tests {
-    use super::status_query;
+    use super::{aksi_untuk, kelompok_massal, status_query};
+
+    fn baris() -> Vec<(String, i32)> {
+        // Two waiting at wilayah (one of them returned by pusat), two at pusat, one with nobody's
+        // turn (still being filled in), one done.
+        vec![
+            ("w1".into(), 1001),
+            ("p1".into(), 1004),
+            ("w2".into(), 1007),
+            ("x1".into(), 1000),
+            ("p2".into(), 1010),
+            ("s1".into(), 1008),
+        ]
+    }
+
+    #[test]
+    fn a_dual_role_account_gets_one_group_per_move_never_one_mixed_group() {
+        // The bug: one bar labelled by the first row ("Teruskan ke Pusat") whose "select all"
+        // ticked both stages, so forwarding also gave the pusat-stage rows their final approval.
+        let grup = kelompok_massal(&baris(), true, true);
+        assert_eq!(grup.len(), 2);
+        assert_eq!(grup[0].0, "Teruskan ke Pusat");
+        assert_eq!(grup[0].1, vec!["w1".to_string(), "w2".to_string()]);
+        assert_eq!(grup[1].0, "Setujui (Selesai)");
+        assert_eq!(grup[1].1, vec!["p1".to_string(), "p2".to_string()]);
+    }
+
+    #[test]
+    fn a_single_role_sees_only_its_own_stage() {
+        let w = kelompok_massal(&baris(), true, false);
+        assert_eq!(w.len(), 1);
+        assert_eq!(w[0].1, vec!["w1".to_string(), "w2".to_string()]);
+        let p = kelompok_massal(&baris(), false, true);
+        assert_eq!(p.len(), 1);
+        assert_eq!(p[0].0, "Setujui (Selesai)");
+        assert_eq!(p[0].1, vec!["p1".to_string(), "p2".to_string()]);
+        assert!(kelompok_massal(&baris(), false, false).is_empty());
+    }
+
+    #[test]
+    fn a_row_nobody_may_move_is_in_no_group() {
+        for kode in [1000, 1003, 1008] {
+            assert_eq!(aksi_untuk(kode, true, true), None, "{kode}");
+        }
+    }
 
     #[test]
     fn menunggu_is_the_rows_this_role_can_move() {

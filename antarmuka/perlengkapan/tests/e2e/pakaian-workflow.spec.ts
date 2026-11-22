@@ -972,6 +972,50 @@ test.describe("Pakaian Dinas — the satker list can be searched and narrowed by
   });
 });
 
+// ── An account that holds BOTH validator roles ──────────────────────────────
+// One bulk bar served every row it was shown, labelled by the first. For an account with both
+// roles (the seeded administrator has them all) "Pilih semua" ticked rows at wilayah AND pusat and
+// "Teruskan ke Pusat" ran each row's own move: the satker waiting at wilayah went on to pusat, and
+// the one already at pusat was given its FINAL approval by a button that said "forward".
+test.describe("Pakaian Dinas — bulk actions for an account holding both validator roles", () => {
+  test("forwarding the wilayah-stage rows leaves the pusat-stage row where it is", async ({
+    browser,
+    request,
+  }) => {
+    const { pengajuanId, rows } = await kampanyeDuaSatker(request);
+    // rows[0] stays waiting at wilayah (1001); rows[1] is sent on and waits at pusat (1004).
+    expect((await aksiPakaian(request, "operator_a", rows[0], "submit")).aktivitas).toBe(1001);
+    expect((await aksiPakaian(request, "operator_b", rows[1], "submit")).aktivitas).toBe(1001);
+    expect((await aksiPakaian(request, "validator_wilayah", rows[1], "approve")).aktivitas).toBe(1004);
+
+    const ctx = await browser.newContext({ storageState: storageStatePath("admin") });
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker`, { waitUntil: "domcontentloaded" });
+
+    // One bar per move, not one for everything.
+    const forward = page.locator('[data-testid="bilah-massal"][data-aksi="Teruskan ke Pusat"]');
+    const approve = page.locator('[data-testid="bilah-massal"][data-aksi="Setujui (Selesai)"]');
+    await expect(forward).toBeVisible({ timeout: 20000 });
+    await expect(approve).toBeVisible();
+    await expect(forward.getByTestId("setujui-massal")).toBeDisabled();
+
+    // Ticking the forward bar's "select all" selects its own row only.
+    await forward.getByTestId("pilih-semua").check();
+    await expect(forward).toContainText("1 dipilih");
+    await expect(approve).toContainText("0 dipilih");
+    await forward.getByTestId("setujui-massal").click();
+    await expect(page.getByTestId("hasil-massal")).toContainText("1 satker diproses", { timeout: 15000 });
+
+    const pusat = await tokenFor(request, "validator_pusat");
+    const now = await fetchRows<{ id: string; aktivitas_id: number }>(
+      request, `${PD_API}/pengajuan/${pengajuanId}/satker?page=1&per_page=100`, pusat, "rows");
+    const status = (id: string) => now.find((x) => x.id === id)!.aktivitas_id;
+    expect(status(rows[0]), "the wilayah-stage row was forwarded").toBe(1004);
+    expect(status(rows[1]), "the pusat-stage row must NOT be finally approved by 'Teruskan'").toBe(1004);
+    await ctx.close();
+  });
+});
+
 // ── Handovers tell the next role ────────────────────────────────────────────
 // A satker moving to the next role used to tell nobody: the work sat in a list
 // until the next role happened to open it, and the dashboard's "Perlu Tindakan"
