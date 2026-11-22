@@ -30,7 +30,10 @@ pub fn BankAsetListPage() -> impl IntoView {
     let (jenis, set_jenis) = signal::<String>(String::new());
     let (kategori, set_kategori) = signal::<String>(String::new());
     let (kondisi, set_kondisi) = signal::<String>(String::new());
-    let (satker, set_satker) = signal::<String>(String::new());
+    // The map's "Lihat aset satker ini" arrives here as `?satker=<nama>`.
+    let query = leptos_router::hooks::use_query_map();
+    let (satker, set_satker) =
+        signal::<String>(query.read_untracked().get("satker").unwrap_or_default());
     let (search, set_search) = signal::<String>(String::new());
     let (sort, set_sort) = signal::<String>(String::new());
 
@@ -48,6 +51,17 @@ pub fn BankAsetListPage() -> impl IntoView {
     // menang — bukan yang ditanyakan paling akhir — lalu filter kondisi yang baru
     // dipilih tertimpa daftar lama (4 dari 12 percobaan di staging).
     let latest = LatestOnly::new();
+
+    // A `?satker=` from the map is in the signal before the dropdown has any options, and a select
+    // cannot show a value it has no option for, so it is applied again once they have arrived.
+    let satker_select = NodeRef::<leptos::html::Select>::new();
+    Effect::new(move |_| {
+        let _ = satker_opts.get();
+        let v = satker.get();
+        if let Some(el) = satker_select.get() {
+            el.set_value(&v);
+        }
+    });
 
     // Load filter options once on mount (no reactive deps → runs a single time).
     Effect::new(move |_| {
@@ -326,6 +340,7 @@ pub fn BankAsetListPage() -> impl IntoView {
                     </div>
                 </form>
                 <select
+                    node_ref=satker_select
                     class="focus-ring mt-3 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
                     on:change=on_satker
                     prop:value=move || satker.get()

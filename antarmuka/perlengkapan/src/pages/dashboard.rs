@@ -479,6 +479,7 @@ pub fn DashboardHome() -> impl IntoView {
     let aset_filter = move || AsetFilterQuery {
         jenis: f_jenis.get(),
         satker_kode: f_satker.get(),
+        satker: None,
         wilayah: f_wilayah.get(),
         tgl_from: f_from.get(),
         tgl_to: f_to.get(),

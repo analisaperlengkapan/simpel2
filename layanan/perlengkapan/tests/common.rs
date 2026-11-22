@@ -169,6 +169,7 @@ pub async fn setup_test_db() -> (Database, String) {
                 alamat TEXT, nama_satker TEXT, kdsatker_keu TEXT,
                 satker_id UUID, nama_barang TEXT, kode_barang TEXT, nup TEXT,
                 rph_aset TEXT, tgl_perlh TEXT, raw_data JSONB,
+                gps_latitude TEXT, gps_longitude TEXT,
                 synced_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW(),
                 created_at TIMESTAMPTZ DEFAULT NOW()
@@ -258,7 +259,10 @@ pub async fn setup_test_db() -> (Database, String) {
                 wilayah TEXT,
                 tipe_satker TEXT,
                 api_id TEXT,
-                parent_id TEXT
+                parent_id TEXT,
+                long TEXT,
+                lat TEXT,
+                provinsi TEXT
             )",
             &[],
         )
