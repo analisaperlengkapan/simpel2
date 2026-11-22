@@ -202,3 +202,112 @@ async fn test_permit_revocation_workflow() {
 
     teardown_test_db(&db_name).await;
 }
+
+/// Two tabs on a permit sent back for revision: one cancels, one re-submits.
+///
+/// The engine commits the new status text before the service writes the matching `status_kode`, so
+/// for a moment the text says CANCELLED while the code still says REVISI_OPERATOR. The re-submit
+/// checked only the version and the code, so it slipped into that moment, turned the cancelled
+/// permit back into SUBMITTED, and then the cancel's own write stamped its code over it:
+/// SUBMITTED with a CANCELLED code, which no validator action (they gate on the code) could ever
+/// accept. The re-submit must now see the text too.
+#[tokio::test]
+async fn a_resubmit_cannot_revive_a_permit_the_engine_just_cancelled() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+
+    // DRAFT -> SUBMITTED -> (validator returns it) REVISI_OPERATOR.
+    let mut req = server
+        .post("/pemakaian-bmn")
+        .json(&create_permit_body("NUP-RACE-1"));
+    for (k, v) in auth_headers("operator_satker", OPERATOR, SATKER) {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    assert_eq!(res.status_code(), 201, "create: {:?}", res.text());
+    let id = res.json::<serde_json::Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let mut req = server
+        .post(&format!("/pemakaian-bmn/{id}/transition"))
+        .json(&json!({"target_status": "SUBMITTED"}));
+    for (k, v) in auth_headers("operator_satker", OPERATOR, SATKER) {
+        req = req.add_header(k, v);
+    }
+    assert_eq!(req.await.status_code(), 200);
+
+    let mut req = server
+        .post(&format!("/pemakaian-bmn/{id}/validator-satker-action"))
+        .json(&json!({
+            "action": "return",
+            "expected_version": 1,
+            "catatan": "Lengkapi nomor seri dan lokasi pemakaian."
+        }));
+    for (k, v) in auth_headers("validator_satker", VALIDATOR_SATKER, SATKER) {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    assert_eq!(res.status_code(), 200, "return: {:?}", res.text());
+    let version = res.json::<serde_json::Value>()["data"]["version"]
+        .as_i64()
+        .unwrap();
+
+    // The moment between the engine's commit and the status_kode write.
+    let client = db.pool().get().await.unwrap();
+    let n = client
+        .execute(
+            "UPDATE perlengkapan.izin_pemakaian_bmn SET status = 'CANCELLED' WHERE id = $1::text::uuid",
+            &[&id],
+        )
+        .await
+        .unwrap();
+    assert_eq!(n, 1);
+
+    // Through the API the policy reads the status text first and already refuses: nothing revives.
+    let mut req = server
+        .post(&format!("/pemakaian-bmn/{id}/resubmit"))
+        .json(&json!({"expected_version": version}));
+    for (k, v) in auth_headers("operator_satker", OPERATOR, SATKER) {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    assert!(
+        res.status_code() == 403 || res.status_code() == 409,
+        "a re-submit must not revive what was just cancelled: {} {:?}",
+        res.status_code(),
+        res.text()
+    );
+
+    // The window the review described is the one the API cannot show from outside: the policy
+    // read happened BEFORE the cancel committed, the write after. That write is the repository's.
+    let repo = layanan_perlengkapan::pemakaian_bmn::PemakaianBmnRepository::new(db.pool().clone());
+    let err = repo
+        .operator_resubmit(
+            uuid::Uuid::parse_str(&id).unwrap(),
+            uuid::Uuid::parse_str(OPERATOR).unwrap(),
+            "Operator",
+            version as i32,
+        )
+        .await
+        .expect_err("the write must see the status text, not only the code");
+    assert!(
+        matches!(
+            err,
+            layanan_perlengkapan::shared::error::AppError::Conflict(_)
+        ),
+        "expected a Conflict, got {err:?}"
+    );
+
+    let row = client
+        .query_one(
+            "SELECT status FROM perlengkapan.izin_pemakaian_bmn WHERE id = $1::text::uuid",
+            &[&id],
+        )
+        .await
+        .unwrap();
+    assert_eq!(row.get::<_, String>(0), "CANCELLED");
+
+    teardown_test_db(&db_name).await;
+}

@@ -263,6 +263,10 @@ fn DetailBody(
     let status = izin.status.clone();
     let id_sk = permit_id.clone();
     let is_active = status == "ACTIVE" || status == "APPROVED";
+    // The SK is for a permit in force. An APPROVED one has its number but may never go live (a
+    // renewal whose predecessor another renewal already replaced is approved and then refused
+    // activation), and a numbered SK for it would read as a valid one.
+    let sk_terbit = status == "ACTIVE";
     let can_revoke = is_active;
     let can_renew = is_active;
 
@@ -311,7 +315,7 @@ fn DetailBody(
             description="Informasi umum permohonan."
             icon="fas fa-circle-info"
         >
-            {is_active
+            {sk_terbit
                 .then(|| {
                     let id_sk = id_sk.clone();
                     view! {
