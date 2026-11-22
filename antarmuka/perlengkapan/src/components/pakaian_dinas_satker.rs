@@ -149,9 +149,11 @@ async fn query_satker_list(
 
 /// The `status` of the list request for one choice of the status select. Blank = every status.
 /// "menunggu" is the rows [`available_actions`] offers this user a move on: wilayah's pending
-/// ones (1001 / 1012) and Pusat's returns to wilayah (1007), or Pusat's (1004 / 1010).
+/// ones (1001 / 1012) and Pusat's returns to wilayah (1007), or Pusat's (1004 / 1010), and both
+/// groups for an account that holds both roles (the seeded administrator does).
 fn status_query(pilihan: &str, wilayah: bool, pusat: bool) -> String {
     match pilihan {
+        "menunggu" if wilayah && pusat => "1001,1007,1012,1004,1010".to_string(),
         "menunggu" if wilayah => "1001,1007,1012".to_string(),
         "menunggu" if pusat => "1004,1010".to_string(),
         "penyiapan" => "1000".to_string(),
@@ -347,38 +349,39 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                 </label>
                 <label class="flex flex-col gap-1 text-xs text-slate-400">
                     "Status"
+                    // `prop:value`, not `selected` on each option: `selected` only sets the default,
+                    // so after the user has picked something Reset emptied the filter and left the
+                    // dropdown showing the old choice beside a list that had stopped honouring it.
                     <select
                         data-testid="status-satker"
                         class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+                        prop:value=move || status_pilihan.get()
                         on:change=move |ev| {
                             status_pilihan.set(event_target_value(&ev));
                             ke_halaman_awal();
                         }
                     >
-                        <option value="" selected=move || status_pilihan.get().is_empty()>
+                        <option value="">
                             "Semua status"
                         </option>
                         {(is_wilayah || is_pusat)
                             .then(|| {
                                 view! {
-                                    <option
-                                        value="menunggu"
-                                        selected=move || status_pilihan.get() == "menunggu"
-                                    >
+                                    <option value="menunggu">
                                         "Menunggu tindakan saya"
                                     </option>
                                 }
                             })}
-                        <option value="penyiapan" selected=move || status_pilihan.get() == "penyiapan">
+                        <option value="penyiapan">
                             "Penyiapan"
                         </option>
-                        <option value="diproses" selected=move || status_pilihan.get() == "diproses">
+                        <option value="diproses">
                             "Sedang diproses"
                         </option>
-                        <option value="revisi" selected=move || status_pilihan.get() == "revisi">
+                        <option value="revisi">
                             "Perlu revisi"
                         </option>
-                        <option value="selesai" selected=move || status_pilihan.get() == "selesai">
+                        <option value="selesai">
                             "Selesai"
                         </option>
                     </select>
@@ -803,6 +806,12 @@ mod tests {
         // The same codes `available_actions` offers a move on, per role.
         assert_eq!(status_query("menunggu", true, false), "1001,1007,1012");
         assert_eq!(status_query("menunggu", false, true), "1004,1010");
+        // An account with both roles can act on both groups, so "waiting on me" is the union;
+        // sending only the first group hid every satker waiting at pusat from it.
+        assert_eq!(
+            status_query("menunggu", true, true),
+            "1001,1007,1012,1004,1010"
+        );
         // Someone who can move nothing is not offered this choice (the option is hidden), so a
         // blank here only covers a stale selection; the server's satker scope still applies.
         assert_eq!(status_query("menunggu", false, false), "");

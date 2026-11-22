@@ -953,6 +953,12 @@ test.describe("Pakaian Dinas — the satker list can be searched and narrowed by
     expect((await menunggu).ok()).toBeTruthy();
     await expect(kartu).toHaveCount(1);
     await expect(page.getByRole("heading", { name: "KEJAKSAAN NEGERI JAKARTA PUSAT" })).toBeVisible();
+
+    // Reset after a status was chosen empties the dropdown as well as the list. `selected` on the
+    // options only sets a default, so once the user had picked one the dropdown kept showing it.
+    await page.getByTestId("cari-satker-reset").click();
+    await expect(page.getByTestId("status-satker")).toHaveValue("");
+    await expect(kartu).toHaveCount(2);
     await ctx.close();
   });
 
