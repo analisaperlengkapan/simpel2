@@ -2,6 +2,8 @@
 use super::common::*;
 
 #[cfg(target_arch = "wasm32")]
+use crate::api::client::auth_get_binary;
+#[cfg(target_arch = "wasm32")]
 use crate::api::client::{auth_get_json, auth_post_json};
 use serde_json::Value;
 
@@ -592,6 +594,51 @@ pub async fn resubmit_pemakaian_bmn(
     _id: &str,
     _expected_version: i32,
 ) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+/// The two moves that have no endpoint of their own: an operator SUBMITS a draft to the
+/// Validator Satker (`DRAFT → SUBMITTED`) or CANCELS one (`DRAFT | REVISI_OPERATOR →
+/// CANCELLED`). Both go through the generic `POST /pemakaian-bmn/{id}/transition`, which the
+/// server restricts to exactly these two (it refuses the others and points at their own
+/// endpoint). The detail page had no client for it: the first button of the whole permit
+/// workflow answered "Transisi 'DRAFT' → 'SUBMITTED' tidak dikenali oleh antarmuka", so an
+/// operator could write a draft and never send it on.
+#[cfg(target_arch = "wasm32")]
+pub async fn transisi_pemakaian_bmn(
+    id: &str,
+    target_status: &str,
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    auth_post_json(
+        &format!("{}/{}/transition", PEMAKAIAN_BMN_BASE, id),
+        &serde_json::json!({ "target_status": target_status }),
+    )
+    .await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn transisi_pemakaian_bmn(
+    _id: &str,
+    _target_status: &str,
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+/// `GET /pemakaian-bmn/{id}/sk-izin.pdf`: the permit's SK Izin as a PDF (page 1 the employee,
+/// page 2 the BMN). The server has produced it since Fase 1.10, but nothing in the app ever
+/// asked for it, so the one document an approved permit exists to produce could not be
+/// printed by anyone. The endpoint needs the JWT, hence a fetch rather than a link.
+#[cfg(target_arch = "wasm32")]
+pub async fn unduh_sk_izin_pdf(id: &str) -> Result<Vec<u8>, crate::api::AppError> {
+    auth_get_binary(&format!("{}/{}/sk-izin.pdf", PEMAKAIAN_BMN_BASE, id)).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn unduh_sk_izin_pdf(_id: &str) -> Result<Vec<u8>, crate::api::AppError> {
     Err(crate::api::AppError::Unknown(
         "Server-side stub".to_string(),
     ))

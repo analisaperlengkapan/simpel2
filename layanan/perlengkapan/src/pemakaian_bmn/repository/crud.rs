@@ -329,16 +329,29 @@ impl PemakaianBmnRepository {
     /// re-sync `status_kode`, or the next role action sees a stale code and
     /// no-ops. Called right after the engine transition in
     /// `transition_permit_status`.
-    pub async fn sync_status_kode(&self, id: Uuid, status_kode: i32) -> AppResult<()> {
+    ///
+    /// Conditional on the status text the engine just wrote. The engine commits that text before
+    /// this runs, so another action can move the permit in between (two tabs: cancel and
+    /// re-submit a permit sent back for revision). An unconditional write then stamped the
+    /// cancel's code onto a permit that had already become SUBMITTED, and the validator's own
+    /// actions, which gate on the code, could never act on it again. `false` = someone else got
+    /// there first; the caller says so instead of overwriting them.
+    pub async fn sync_status_kode(
+        &self,
+        id: Uuid,
+        status: &str,
+        status_kode: i32,
+    ) -> AppResult<bool> {
         let client = self.pool.client().await?;
-        client
+        let n = client
             .execute(
-                "UPDATE perlengkapan.izin_pemakaian_bmn SET status_kode = $1 WHERE id = $2",
-                &[&status_kode, &id],
+                "UPDATE perlengkapan.izin_pemakaian_bmn SET status_kode = $1 \
+                 WHERE id = $2 AND status = $3",
+                &[&status_kode, &id, &status],
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
-        Ok(())
+        Ok(n > 0)
     }
 
     // ========================================================================

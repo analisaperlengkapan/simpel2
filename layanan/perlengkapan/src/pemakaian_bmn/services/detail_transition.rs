@@ -169,14 +169,20 @@ impl PemakaianBmnService {
             .workflow_engine
             .transition(transition_request)
             .await
-            .map_err(|e| AppError::Internal(format!("Workflow transition failed: {}", e)))?;
+            .map_err(AppError::from)?;
 
         // The engine only writes the canonical `status`; re-sync the
         // denormalized `status_kode` so the internal-satker workflow methods
         // (which gate on status_kode) see the new state.
-        self.repository
-            .sync_status_kode(id, target_status.to_code())
-            .await?;
+        if !self
+            .repository
+            .sync_status_kode(id, to_state, target_status.to_code())
+            .await?
+        {
+            return Err(AppError::Conflict(
+                "Status izin diubah oleh aksi lain saat diproses — muat ulang halaman".to_string(),
+            ));
+        }
 
         // Get updated permit
         let updated = self.repository.get_by_id(id, scope).await?;

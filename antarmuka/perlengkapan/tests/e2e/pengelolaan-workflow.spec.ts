@@ -31,6 +31,7 @@
  * rejections (approver-only; admin explicitly BLOCKED by stakeholder mandate
  * via enforce_no_admin_revoke).
  */
+import { readFileSync } from "node:fs";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 import { apiLogin, credsFor, storageStatePath, TEST_USERS, PERLENGKAPAN_API_URL } from "./helpers/real-auth";
 import { clickAction } from "./helpers/workflow";
@@ -711,6 +712,74 @@ test.describe("Pengelolaan — create-form pages", () => {
     expect(izin.pegawai_satker_nama).toBe("KEJAKSAAN NEGERI JAKARTA PUSAT");
     expect(izin.satker_code).toBe("0200010");
     expect(izin.status).toBe("DRAFT");
+  });
+
+  // The first button of the permit workflow was dead. A draft's "Ajukan ke Validator Satker"
+  // answered "Transisi 'DRAFT' → 'SUBMITTED' tidak dikenali oleh antarmuka": the page routed the
+  // three satker moves and the resubmit to their endpoints and had no arm for the two that go
+  // through the generic transition (submit and cancel). Every spec before this started a permit
+  // from a seeded SUBMITTED row, so nothing ever pressed it. And once a permit was Aktif there was
+  // no way to get its SK Izin: the server has produced the PDF since Fase 1.10, the page never asked.
+  test("an operator sends a draft on to the validator, and the approved permit offers its SK Izin", async ({
+    page,
+    browser,
+  }) => {
+    const keperluan = `Uji e2e ajukan draft lalu unduh SK ${Date.now()}`;
+    await page.goto(`${BASE}/pengelolaan/pemakaian/buat`, { waitUntil: "domcontentloaded" });
+    await page.locator("#pegawai-nip").fill("200000000000000001");
+    await expect(page.getByTestId("pegawai-terpilih")).toBeVisible({ timeout: 20000 });
+    // A window of its own, so it never overlaps what the other specs book.
+    await page.locator("#periode-mulai").fill("2032-03-01");
+    await page.locator("#periode-selesai").fill("2032-03-10");
+    await page.locator("#keperluan").fill(keperluan);
+    await pickAset(page, "E2E-A-1", "aset-0");
+    await expect(page.getByTestId("bmn-ketersediaan-0")).toContainText("tersedia", {
+      timeout: 20000,
+    });
+    await page.locator("#no-polisi-0").fill("B 1234 UJI");
+    await page.locator("#no-bpkb-0").fill("BPKB-E2E-0002");
+    const dibalas = page.waitForResponse(
+      (r) => r.request().method() === "POST" && r.url().endsWith("/pemakaian-bmn"),
+    );
+    await page.getByRole("button", { name: "Ajukan Permohonan" }).click();
+    const balasan = await dibalas;
+    expect(balasan.status(), `create refused: ${await balasan.text()}`).toBe(201);
+    const id = (await balasan.json()).data.id as string;
+    const detail = `${BASE}/pengelolaan/pemakaian/detail/${id}`;
+
+    // Sent on from its own page: the banner says so and the button is spent.
+    await page.goto(detail, { waitUntil: "domcontentloaded" });
+    const ajukan = page.getByRole("button", { name: "Ajukan ke Validator Satker" });
+    await ajukan.click();
+    await expect(page.getByText("Izin diajukan ke Validator Satker.")).toBeVisible({ timeout: 20000 });
+    await expect(ajukan).toHaveCount(0);
+
+    // Each role takes its turn on the same page.
+    const giliran = async (role: string, tombol: string) => {
+      const ctx = await browser.newContext({ storageState: storageStatePath(role) });
+      const p = await ctx.newPage();
+      await p.goto(detail, { waitUntil: "domcontentloaded" });
+      const b = p.getByRole("button", { name: tombol, exact: true });
+      await b.click();
+      await expect(b, `${role} could not do "${tombol}"`).toHaveCount(0, { timeout: 20000 });
+      await ctx.close();
+    };
+    await giliran("validator_satker", "Teruskan ke Approver Satker");
+    await giliran("approver_satker", "Setujui Izin");
+
+    // Approved: the SK Izin is one click away and is a real PDF.
+    const ctx = await browser.newContext({ storageState: storageStatePath("approver_satker") });
+    const p = await ctx.newPage();
+    await p.goto(detail, { waitUntil: "domcontentloaded" });
+    const [unduhan] = await Promise.all([
+      p.waitForEvent("download", { timeout: 30000 }),
+      p.getByTestId("unduh-sk-izin").click(),
+    ]);
+    expect(unduhan.suggestedFilename()).toBe(`SK-Izin-Pemakaian-BMN-${id}.pdf`);
+    const bytes = readFileSync(await unduhan.path());
+    expect(bytes.subarray(0, 4).toString("latin1"), "not a PDF").toBe("%PDF");
+    expect(bytes.length).toBeGreaterThan(1000);
+    await ctx.close();
   });
 
   // The penghapusan form's submit had no spec either. It verified ONE asset on

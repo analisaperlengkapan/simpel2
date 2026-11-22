@@ -232,6 +232,7 @@ impl PemakaianBmnRepository {
                     updated_at      = NOW(),
                     version         = version + 1
                 WHERE id = $3 AND version = $4 AND status_kode = 3011
+                  AND status = 'REVISI_OPERATOR'
                 RETURNING *
                 "#,
                 &[&operator_id, &operator_nama, &id, &expected_version],
