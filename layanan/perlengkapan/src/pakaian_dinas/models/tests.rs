@@ -73,3 +73,43 @@ fn test_pengajuan_is_open() {
     pengajuan.tgl_selesai = Some(NaiveDate::from_ymd_opt(2030, 12, 31).unwrap());
     assert!(pengajuan.is_open());
 }
+
+#[test]
+fn satker_list_filter_blank_means_no_filter() {
+    let f = SatkerListFilter::parse(None, None).unwrap();
+    assert_eq!(f, SatkerListFilter::default());
+    // Whitespace and stray commas are what an empty input box and a cleared select send.
+    let f = SatkerListFilter::parse(Some("   "), Some(" , ,")).unwrap();
+    assert_eq!(f, SatkerListFilter::default());
+}
+
+#[test]
+fn satker_list_filter_escapes_the_users_wildcards() {
+    // `%` and `_` typed into the box are text, not "match anything".
+    let f = SatkerListFilter::parse(Some("100%_a\\b"), None).unwrap();
+    assert_eq!(f.q_pattern.as_deref(), Some("%100\\%\\_a\\\\b%"));
+    let f = SatkerListFilter::parse(Some("  Jakarta Pusat "), None).unwrap();
+    assert_eq!(f.q_pattern.as_deref(), Some("%Jakarta Pusat%"));
+}
+
+#[test]
+fn satker_list_filter_parses_status_codes_once_each() {
+    let f = SatkerListFilter::parse(None, Some("1001, 1007,1001,1012")).unwrap();
+    assert_eq!(f.statuses, vec![1001, 1007, 1012]);
+}
+
+#[test]
+fn satker_list_filter_refuses_what_is_not_a_filter() {
+    assert!(SatkerListFilter::parse(None, Some("1001,abc")).is_err());
+    assert!(SatkerListFilter::parse(None, Some("1;DROP")).is_err());
+    let long = "a".repeat(SatkerListFilter::MAX_Q + 1);
+    assert!(SatkerListFilter::parse(Some(&long), None).is_err());
+    let many = (1000..1000 + SatkerListFilter::MAX_STATUSES as i32 + 1)
+        .map(|n| n.to_string())
+        .collect::<Vec<_>>()
+        .join(",");
+    assert!(SatkerListFilter::parse(None, Some(&many)).is_err());
+    // The boundary itself is fine.
+    let ok = "a".repeat(SatkerListFilter::MAX_Q);
+    assert!(SatkerListFilter::parse(Some(&ok), None).is_ok());
+}

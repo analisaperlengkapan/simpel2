@@ -265,6 +265,11 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                                 <div class="flex flex-wrap gap-2">
                                     {move || {
                                         let specs = spesifikasi_resource.get().unwrap_or_default();
+                                        // With no jenis chosen the list mixes every jenis, and names repeat
+                                        // across them ("Celana" and "Sepatu" belong to both PDH and PDL;
+                                        // staging showed "Kemeja PDH" four times). Without the jenis beside
+                                        // each one there is no telling which one is being ticked.
+                                        let campur = form_jenis_id.get().is_empty();
                                         if specs.is_empty() {
                                             view! {
                                                 <span class="text-xs text-slate-500">
@@ -302,6 +307,16 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                                                                 }
                                                             />
                                                             {s.nama.clone()}
+                                                            {campur
+                                                                .then(|| s.jenis_pakaian_nama.clone())
+                                                                .flatten()
+                                                                .map(|j| {
+                                                                    view! {
+                                                                        <span class="text-xs text-slate-500">
+                                                                            {format!("· {j}")}
+                                                                        </span>
+                                                                    }
+                                                                })}
                                                         </label>
                                                     }
                                                 })

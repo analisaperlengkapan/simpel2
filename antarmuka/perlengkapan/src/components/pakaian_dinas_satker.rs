@@ -7,6 +7,7 @@
 //! on submissions pending wilayah review; Validator Pusat on those forwarded to
 //! pusat. Everyone else sees the timeline read-only.
 
+use leptos::html;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_fetch::QueryClient;
@@ -15,10 +16,11 @@ use leptos_router::hooks::use_params_map;
 use crate::api::{
     AppError, BulkActionResult, BulkValidatorActionRequest, PaginatedResponse, PengajuanSatker,
     PengajuanSatkerAktivitas, ValidatorActionRequest, aktivitas_is_revisi, aktivitas_label,
-    fetch_pakaian_satker_aktivitas, fetch_pengajuan_satker, process_validator_action,
+    fetch_pakaian_satker_aktivitas, fetch_pengajuan_satker_terfilter, process_validator_action,
     process_validator_action_bulk,
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
+use crate::components::pagination_controls::PaginationControls;
 use crate::components::workflow_ui::{
     ActionTone, ApprovalDialog, StepStatus, WorkflowAction, WorkflowActions, WorkflowStep,
     WorkflowTimeline,
@@ -111,6 +113,15 @@ fn build_timeline(
 /// Returns `(can_act, approve_label, reject_label)`.
 fn available_actions(code: i32) -> Option<(&'static str, &'static str)> {
     let session = AuthService::load_session()?;
+    aksi_untuk(
+        code,
+        session.is_validator_wilayah(),
+        session.is_validator_pusat(),
+    )
+}
+
+/// [`available_actions`] with the roles handed in, so the rule is testable without a session.
+fn aksi_untuk(code: i32, wilayah: bool, pusat: bool) -> Option<(&'static str, &'static str)> {
     // The validators' moves are the validators'. An administrator is not offered
     // them: the API refuses an admin every business decision (no bypass), so the
     // button would only ever answer 403.
@@ -118,21 +129,73 @@ fn available_actions(code: i32) -> Option<(&'static str, &'static str)> {
     // (1007). Same two moves either way: forward it again, or send it down to the
     // satker. Without 1007 here, "Kembalikan ke Wilayah" below parked the satker
     // on a screen with no button for anyone.
-    if matches!(code, 1001 | 1007 | 1012) && session.is_validator_wilayah() {
+    if matches!(code, 1001 | 1007 | 1012) && wilayah {
         return Some(("Teruskan ke Pusat", "Kembalikan untuk Revisi"));
     }
     // Pusat review pending (1004 / 1010)
-    if matches!(code, 1004 | 1010) && session.is_validator_pusat() {
+    if matches!(code, 1004 | 1010) && pusat {
         return Some(("Setujui (Selesai)", "Kembalikan ke Wilayah"));
     }
     None
 }
 
+/// The rows this user may move on, grouped by the move they are offered, in first-seen order.
+///
+/// One bulk bar for all of them was wrong for an account holding both validator roles (the seeded
+/// administrator does): its label came from the first row ("Teruskan ke Pusat") while "Pilih
+/// semua" ticked rows at both stages, and the server runs each row's own move, so the same click
+/// that forwarded a wilayah-stage satker also gave a pusat-stage one its FINAL approval. One bar
+/// per move, each acting only on its own rows, makes the button say what it does.
+fn kelompok_massal(
+    rows: &[(String, i32)],
+    wilayah: bool,
+    pusat: bool,
+) -> Vec<(&'static str, Vec<String>)> {
+    let mut grup: Vec<(&'static str, Vec<String>)> = Vec::new();
+    for (id, code) in rows {
+        let Some((setuju, _)) = aksi_untuk(*code, wilayah, pusat) else {
+            continue;
+        };
+        match grup.iter_mut().find(|(label, _)| *label == setuju) {
+            Some((_, ids)) => ids.push(id.clone()),
+            None => grup.push((setuju, vec![id.clone()])),
+        }
+    }
+    grup
+}
+
+/// Satker per page. The grid is two columns wide, so an even number keeps the last row full.
+/// A nationwide campaign carries every MySIMKARI satker (545 on staging); this screen used to
+/// ask for the first 100 by name and stop, so a validator pusat or an admin could never reach
+/// the rest, and had no way to ask which ones were waiting on them.
+const PER_HALAMAN: i32 = 30;
+
+/// What the list is asked for: the pengajuan, a refresh counter, the page, the search text and
+/// the workflow statuses (a comma list). One tuple so any of them changing refetches.
+type KunciDaftar = (String, i32, i32, String, String);
+
 async fn query_satker_list(
-    key: (String, i32),
+    key: KunciDaftar,
 ) -> Result<PaginatedResponse<PengajuanSatker>, AppError> {
-    let (pengajuan_id, _refresh) = key;
-    fetch_pengajuan_satker(pengajuan_id, 1, 100).await
+    let (pengajuan_id, _refresh, halaman, q, status) = key;
+    fetch_pengajuan_satker_terfilter(pengajuan_id, halaman, PER_HALAMAN, q, status).await
+}
+
+/// The `status` of the list request for one choice of the status select. Blank = every status.
+/// "menunggu" is the rows [`available_actions`] offers this user a move on: wilayah's pending
+/// ones (1001 / 1012) and Pusat's returns to wilayah (1007), or Pusat's (1004 / 1010), and both
+/// groups for an account that holds both roles (the seeded administrator does).
+fn status_query(pilihan: &str, wilayah: bool, pusat: bool) -> String {
+    match pilihan {
+        "menunggu" if wilayah && pusat => "1001,1007,1012,1004,1010".to_string(),
+        "menunggu" if wilayah => "1001,1007,1012".to_string(),
+        "menunggu" if pusat => "1004,1010".to_string(),
+        "penyiapan" => "1000".to_string(),
+        "diproses" => "1001,1012,1004,1010".to_string(),
+        "revisi" => "1003,1007".to_string(),
+        "selesai" => "1008".to_string(),
+        _ => String::new(),
+    }
 }
 
 async fn query_satker_aktivitas(
@@ -172,17 +235,60 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
     };
 
     let refresh = RwSignal::new(0);
+    let halaman = RwSignal::new(1_i32);
+    // `cari_input` is what is typed; `cari` is what the list was last asked for, so the list
+    // does not refetch on every keystroke.
+    let cari_input = RwSignal::new(String::new());
+    let cari = RwSignal::new(String::new());
+    let status_pilihan = RwSignal::new(String::new());
+    let (is_wilayah, is_pusat) = AuthService::load_session()
+        .map(|s| (s.is_validator_wilayah(), s.is_validator_pusat()))
+        .unwrap_or((false, false));
     let selected = RwSignal::new(Option::<PengajuanSatker>::None);
+    let panel_ref = NodeRef::<html::Div>::new();
     let pending = RwSignal::new(Option::<PendingAction>::None);
     let busy = RwSignal::new(false);
     let error = RwSignal::new(Option::<String>::None);
-    // Rows ticked for a bulk approval, and what the last bulk approval came to.
-    let terpilih = RwSignal::new(Vec::<String>::new());
+    // Rows ticked for a bulk move, and what the last bulk move came to. A tick is the satker AND the
+    // move it was ticked for ("Teruskan ke Pusat" or "Setujui (Selesai)"), not the satker alone:
+    // forward a ticked satker from its own panel and it is now at the next stage, and a bare id
+    // would carry the tick over to the final-approval bar, so that bar's button finished it too.
+    let terpilih = RwSignal::new(Vec::<(String, &'static str)>::new());
     let hasil_massal = RwSignal::new(Option::<BulkActionResult>::None);
 
     let client: QueryClient = expect_context();
-    let list_resource =
-        client.local_resource(query_satker_list, move || (pengajuan_id(), refresh.get()));
+    let list_resource = client.local_resource(query_satker_list, move || {
+        (
+            pengajuan_id(),
+            refresh.get(),
+            halaman.get(),
+            cari.get(),
+            status_query(&status_pilihan.get(), is_wilayah, is_pusat),
+        )
+    });
+    // The detail panel sits below the list; with a page of cards between the button and the
+    // panel, picking a satker looked like it did nothing.
+    Effect::new(move |_| {
+        if selected.get().is_some()
+            && let Some(el) = panel_ref.get()
+        {
+            el.scroll_into_view();
+        }
+    });
+    // Approving the last row of a filtered page empties it while later pages may remain.
+    Effect::new(move |_| {
+        if let Some(Ok(r)) = list_resource.get()
+            && r.data.is_empty()
+            && r.total > 0
+            && halaman.get_untracked() > 1
+        {
+            halaman.set(1);
+        }
+    });
+    let ke_halaman_awal = move || {
+        halaman.set(1);
+        terpilih.set(Vec::new());
+    };
     let akt_resource = client.local_resource(query_satker_aktivitas, move || {
         (
             selected.get().map(|s| s.id).unwrap_or_default(),
@@ -225,8 +331,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
 
     // Approve every ticked satker in one request. Each goes through the same
     // per-row checks a single approval does; the answer says which went through.
-    let on_massal = Callback::new(move |_: ()| {
-        let ids = terpilih.get();
+    let on_massal = Callback::new(move |ids: Vec<String>| {
         if ids.is_empty() {
             return;
         }
@@ -257,6 +362,88 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
             icon="fas fa-building"
             description="Pantau & proses pengajuan pakaian dinas per satuan kerja"
         >
+            <form
+                data-testid="filter-satker"
+                class="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-white/[0.06] bg-surface-panel px-4 py-3 text-sm"
+                on:submit=move |ev| {
+                    ev.prevent_default();
+                    cari.set(cari_input.get().trim().to_string());
+                    ke_halaman_awal();
+                }
+            >
+                <label class="flex min-w-[14rem] flex-1 flex-col gap-1 text-xs text-slate-400">
+                    "Cari satker"
+                    <input
+                        type="search"
+                        data-testid="cari-satker"
+                        placeholder="Nama atau kode satker"
+                        maxlength="100"
+                        class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+                        prop:value=move || cari_input.get()
+                        on:input=move |ev| cari_input.set(event_target_value(&ev))
+                    />
+                </label>
+                <label class="flex flex-col gap-1 text-xs text-slate-400">
+                    "Status"
+                    // `prop:value`, not `selected` on each option: `selected` only sets the default,
+                    // so after the user has picked something Reset emptied the filter and left the
+                    // dropdown showing the old choice beside a list that had stopped honouring it.
+                    <select
+                        data-testid="status-satker"
+                        class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+                        prop:value=move || status_pilihan.get()
+                        on:change=move |ev| {
+                            status_pilihan.set(event_target_value(&ev));
+                            ke_halaman_awal();
+                        }
+                    >
+                        <option value="">
+                            "Semua status"
+                        </option>
+                        {(is_wilayah || is_pusat)
+                            .then(|| {
+                                view! {
+                                    <option value="menunggu">
+                                        "Menunggu tindakan saya"
+                                    </option>
+                                }
+                            })}
+                        <option value="penyiapan">
+                            "Penyiapan"
+                        </option>
+                        <option value="diproses">
+                            "Sedang diproses"
+                        </option>
+                        <option value="revisi">
+                            "Perlu revisi"
+                        </option>
+                        <option value="selesai">
+                            "Selesai"
+                        </option>
+                    </select>
+                </label>
+                <button
+                    type="submit"
+                    data-testid="cari-satker-kirim"
+                    class="rounded-lg bg-gold-gradient px-4 py-2 text-xs font-bold text-navy-950 transition hover:opacity-90"
+                >
+                    "Cari"
+                </button>
+                <button
+                    type="button"
+                    data-testid="cari-satker-reset"
+                    class="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-slate-300 transition hover:bg-white/[0.08]"
+                    on:click=move |_| {
+                        cari_input.set(String::new());
+                        cari.set(String::new());
+                        status_pilihan.set(String::new());
+                        ke_halaman_awal();
+                    }
+                >
+                    "Reset"
+                </button>
+            </form>
+
             {move || {
                 error
                     .get()
@@ -306,33 +493,67 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                     None => view! { <LoadingState /> }.into_any(),
                     Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
                     Some(Ok(resp)) => {
+                        let total = resp.total;
+                        let total_pages = resp.total_pages;
+                        let ada_filter = !cari.get_untracked().is_empty()
+                            || !status_pilihan.get_untracked().is_empty();
                         let rows = resp.data;
                         // The rows this user may move on now (a wilayah validator's
                         // pending ones, or pusat's); only those get a tick box.
-                        let layak: Vec<String> = rows
+                        let baris: Vec<(String, i32)> = rows
                             .iter()
-                            .filter(|s| available_actions(s.aktivitas_id).is_some())
-                            .map(|s| s.id.clone())
+                            .map(|s| (s.id.clone(), s.aktivitas_id))
                             .collect();
-                        let n_layak = layak.len();
-                        let label_setuju = rows
-                            .iter()
-                            .find_map(|s| available_actions(s.aktivitas_id))
-                            .map(|(approve, _)| approve)
-                            .unwrap_or("Setujui");
-                        let layak_semua = layak.clone();
-                        if rows.is_empty() {
-                            view! {
-                                <div class="rounded-2xl border border-white/[0.06] bg-surface-panel p-8 text-center text-sm text-slate-400">
-                                    "Belum ada satker pada pengajuan ini."
-                                </div>
-                            }
-                                .into_any()
-                        } else {
-                            view! {
-                                <Show when=move || { n_layak > 0 }>
+                        let grup = kelompok_massal(&baris, is_wilayah, is_pusat);
+                        let banyak_grup = grup.len() > 1;
+                        let bilah = grup
+                            .into_iter()
+                            .map(|(label, ids)| {
+                                let n = ids.len();
+                                let ids = std::sync::Arc::new(ids);
+                                let dipilih = {
+                                    let ids = ids.clone();
+                                    move || {
+                                        terpilih
+                                            .get()
+                                            .into_iter()
+                                            .filter(|(x, l)| *l == label && ids.contains(x))
+                                            .map(|(x, _)| x)
+                                            .collect::<Vec<String>>()
+                                    }
+                                };
+                                let semua_terpilih = {
+                                    let ids = ids.clone();
+                                    move || {
+                                        let t = terpilih.get();
+                                        n > 0
+                                            && ids
+                                                .iter()
+                                                .all(|i| t.iter().any(|(x, l)| x == i && *l == label))
+                                    }
+                                };
+                                let ubah_semua = {
+                                    let ids = ids.clone();
+                                    move |ev| {
+                                        let on = event_target_checked(&ev);
+                                        terpilih
+                                            .update(|v| {
+                                                v.retain(|(x, l)| !(*l == label && ids.contains(x)));
+                                                if on {
+                                                    v.extend(ids.iter().map(|i| (i.clone(), label)));
+                                                }
+                                            });
+                                    }
+                                };
+                                let teks = match (banyak_grup, total_pages > 1) {
+                                    (true, _) => format!("Pilih semua untuk \u{201c}{label}\u{201d} ({n})"),
+                                    (false, true) => format!("Pilih semua yang menunggu di halaman ini ({n})"),
+                                    (false, false) => format!("Pilih semua yang menunggu ({n})"),
+                                };
+                                view! {
                                     <div
                                         data-testid="bilah-massal"
+                                        data-aksi=label
                                         class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-surface-panel px-4 py-3 text-sm"
                                     >
                                         <label class="flex items-center gap-2 text-slate-200">
@@ -340,36 +561,55 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                 type="checkbox"
                                                 data-testid="pilih-semua"
                                                 class="h-4 w-4 rounded border-white/20 bg-white/[0.04]"
-                                                prop:checked=move || terpilih.get().len() == n_layak
-                                                on:change={
-                                                    let layak_semua = layak_semua.clone();
-                                                    move |ev| {
-                                                        if event_target_checked(&ev) {
-                                                            terpilih.set(layak_semua.clone());
-                                                        } else {
-                                                            terpilih.set(Vec::new());
-                                                        }
-                                                    }
-                                                }
+                                                prop:checked=semua_terpilih
+                                                on:change=ubah_semua
                                             />
-                                            {format!("Pilih semua yang menunggu ({n_layak})")}
+                                            {teks}
                                         </label>
                                         <div class="flex items-center gap-3">
                                             <span class="text-slate-400">
-                                                {move || format!("{} dipilih", terpilih.get().len())}
+                                                {
+                                                    let dipilih = dipilih.clone();
+                                                    move || format!("{} dipilih", dipilih().len())
+                                                }
                                             </span>
                                             <button
                                                 type="button"
                                                 data-testid="setujui-massal"
                                                 class="rounded-lg bg-gold-gradient px-4 py-2 text-xs font-bold text-navy-950 transition hover:opacity-90 disabled:opacity-40"
-                                                prop:disabled=move || busy.get() || terpilih.get().is_empty()
-                                                on:click=move |_| on_massal.run(())
+                                                prop:disabled={
+                                                    let dipilih = dipilih.clone();
+                                                    move || busy.get() || dipilih().is_empty()
+                                                }
+                                                on:click={
+                                                    let dipilih = dipilih.clone();
+                                                    move |_| on_massal.run(dipilih())
+                                                }
                                             >
-                                                {move || format!("{label_setuju} ({})", terpilih.get().len())}
+                                                {
+                                                    let dipilih = dipilih.clone();
+                                                    move || format!("{label} ({})", dipilih().len())
+                                                }
                                             </button>
                                         </div>
                                     </div>
-                                </Show>
+                                }
+                            })
+                            .collect_view();
+                        if rows.is_empty() {
+                            view! {
+                                <div class="rounded-2xl border border-white/[0.06] bg-surface-panel p-8 text-center text-sm text-slate-400">
+                                    {if ada_filter {
+                                        "Tidak ada satker yang cocok dengan pencarian atau status ini."
+                                    } else {
+                                        "Belum ada satker pada pengajuan ini."
+                                    }}
+                                </div>
+                            }
+                                .into_any()
+                        } else {
+                            view! {
+                                {bilah}
                                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
                                     <For
                                         each=move || rows.clone()
@@ -410,13 +650,16 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                                 {nama}
                                                             </h3>
                                                             <p class="text-xs text-slate-400">
-                                                                {kode} " · " {pegawai.to_string()} " pegawai"
+                                                                {kode} " · " {pegawai.to_string()} " pegawai terisi"
                                                             </p>
                                                         </div>
                                                         <div class="flex items-center gap-2">
                                                             {if available_actions(code).is_some() {
                                                                 let id_pilih = s_pilih.id.clone();
                                                                 let id_cek = id_pilih.clone();
+                                                                let aksi_baris = available_actions(code)
+                                                                    .map(|(setuju, _)| setuju)
+                                                                    .unwrap_or("");
                                                                 Some(
                                                                     view! {
                                                                         <input
@@ -424,15 +667,20 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                                             data-testid="pilih-satker"
                                                                             aria-label=format!("Pilih {}", s_pilih.satker_nama.clone().unwrap_or_default())
                                                                             class="h-4 w-4 rounded border-white/20 bg-white/[0.04]"
-                                                                            prop:checked=move || terpilih.get().contains(&id_cek)
+                                                                            prop:checked=move || {
+                                                                                terpilih
+                                                                                    .get()
+                                                                                    .iter()
+                                                                                    .any(|(x, l)| *x == id_cek && *l == aksi_baris)
+                                                                            }
                                                                             on:change=move |ev| {
                                                                                 let on = event_target_checked(&ev);
                                                                                 let id = id_pilih.clone();
                                                                                 terpilih
                                                                                     .update(|v| {
-                                                                                        v.retain(|x| *x != id);
+                                                                                        v.retain(|(x, _)| *x != id);
                                                                                         if on {
-                                                                                            v.push(id);
+                                                                                            v.push((id, aksi_baris));
                                                                                         }
                                                                                     });
                                                                             }
@@ -481,6 +729,19 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                         }
                                     />
                                 </div>
+                                <PaginationControls
+                                    current_page=Signal::derive(move || halaman.get())
+                                    total_pages=Signal::derive(move || total_pages.max(1))
+                                    total_items=Some(total)
+                                    on_prev=Callback::new(move |_: ()| {
+                                        halaman.update(|p| *p = (*p - 1).max(1));
+                                        terpilih.set(Vec::new());
+                                    })
+                                    on_next=Callback::new(move |_: ()| {
+                                        halaman.update(|p| *p += 1);
+                                        terpilih.set(Vec::new());
+                                    })
+                                />
                             }
                                 .into_any()
                         }
@@ -543,7 +804,8 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                         let has_actions = !actions.is_empty();
 
                         view! {
-                            <div class="mt-6">
+                            // Leave room for the fixed top bar when the page scrolls to it.
+                            <div class="mt-6" node_ref=panel_ref style="scroll-margin-top: 5rem">
                                 <SectionCard title="Riwayat & Aksi Workflow">
                                     <div class="mb-3 flex items-center justify-between">
                                         <p class="text-sm font-semibold text-slate-200">{nama}</p>
@@ -617,5 +879,83 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                     })
             }}
         </PageLayout>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{aksi_untuk, kelompok_massal, status_query};
+
+    fn baris() -> Vec<(String, i32)> {
+        // Two waiting at wilayah (one of them returned by pusat), two at pusat, one with nobody's
+        // turn (still being filled in), one done.
+        vec![
+            ("w1".into(), 1001),
+            ("p1".into(), 1004),
+            ("w2".into(), 1007),
+            ("x1".into(), 1000),
+            ("p2".into(), 1010),
+            ("s1".into(), 1008),
+        ]
+    }
+
+    #[test]
+    fn a_dual_role_account_gets_one_group_per_move_never_one_mixed_group() {
+        // The bug: one bar labelled by the first row ("Teruskan ke Pusat") whose "select all"
+        // ticked both stages, so forwarding also gave the pusat-stage rows their final approval.
+        let grup = kelompok_massal(&baris(), true, true);
+        assert_eq!(grup.len(), 2);
+        assert_eq!(grup[0].0, "Teruskan ke Pusat");
+        assert_eq!(grup[0].1, vec!["w1".to_string(), "w2".to_string()]);
+        assert_eq!(grup[1].0, "Setujui (Selesai)");
+        assert_eq!(grup[1].1, vec!["p1".to_string(), "p2".to_string()]);
+    }
+
+    #[test]
+    fn a_single_role_sees_only_its_own_stage() {
+        let w = kelompok_massal(&baris(), true, false);
+        assert_eq!(w.len(), 1);
+        assert_eq!(w[0].1, vec!["w1".to_string(), "w2".to_string()]);
+        let p = kelompok_massal(&baris(), false, true);
+        assert_eq!(p.len(), 1);
+        assert_eq!(p[0].0, "Setujui (Selesai)");
+        assert_eq!(p[0].1, vec!["p1".to_string(), "p2".to_string()]);
+        assert!(kelompok_massal(&baris(), false, false).is_empty());
+    }
+
+    #[test]
+    fn a_row_nobody_may_move_is_in_no_group() {
+        for kode in [1000, 1003, 1008] {
+            assert_eq!(aksi_untuk(kode, true, true), None, "{kode}");
+        }
+    }
+
+    #[test]
+    fn menunggu_is_the_rows_this_role_can_move() {
+        // The same codes `available_actions` offers a move on, per role.
+        assert_eq!(status_query("menunggu", true, false), "1001,1007,1012");
+        assert_eq!(status_query("menunggu", false, true), "1004,1010");
+        // An account with both roles can act on both groups, so "waiting on me" is the union;
+        // sending only the first group hid every satker waiting at pusat from it.
+        assert_eq!(
+            status_query("menunggu", true, true),
+            "1001,1007,1012,1004,1010"
+        );
+        // Someone who can move nothing is not offered this choice (the option is hidden), so a
+        // blank here only covers a stale selection; the server's satker scope still applies.
+        assert_eq!(status_query("menunggu", false, false), "");
+    }
+
+    #[test]
+    fn named_choices_map_to_workflow_codes() {
+        assert_eq!(status_query("penyiapan", false, false), "1000");
+        assert_eq!(
+            status_query("diproses", false, false),
+            "1001,1012,1004,1010"
+        );
+        assert_eq!(status_query("revisi", false, false), "1003,1007");
+        assert_eq!(status_query("selesai", false, false), "1008");
+        assert_eq!(status_query("", true, true), "");
+        assert_eq!(status_query("bukan-pilihan", true, true), "");
     }
 }

@@ -630,8 +630,15 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
     // The production wiring tells the next role when a satker reaches it; the
     // harness must too, or the notification tests would pass on an app that
     // never sends anything.
-    let pakaian_dinas_service =
-        PakaianDinasService::new(pakaian_dinas_repo).with_notifier(notifier.clone());
+    //
+    // And the audit sink, as `main.rs` gives it: the validator's moves audit themselves, and a
+    // harness without the sink let that emission go unchecked, which is how the events came to
+    // be written with no actor at all.
+    let pakaian_dinas_service = PakaianDinasService::new(pakaian_dinas_repo)
+        .with_notifier(notifier.clone())
+        .with_audit_sink(std::sync::Arc::new(
+            layanan_perlengkapan::shared::audit::PgAuditSink::new(db.pool().clone()),
+        ));
 
     let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());
     // The three workflow engines carry the notifier here exactly as `main.rs` gives it to them.

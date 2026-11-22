@@ -909,6 +909,151 @@ test.describe("Pakaian Dinas — bulk approval", () => {
   });
 });
 
+// ── Finding one satker among hundreds ───────────────────────────────────────
+// A nationwide campaign carries every MySIMKARI satker (545 on staging). The list asked for the
+// first 100 by name and stopped: a validator pusat or an admin could not reach the rest, and had
+// no way to ask "which of these are waiting on me". It now searches, filters by status and pages.
+test.describe("Pakaian Dinas — the satker list can be searched and narrowed by status", () => {
+  test("a validator finds one satker by name and sees only what waits on them", async ({
+    browser,
+    request,
+  }) => {
+    const { pengajuanId, rows } = await kampanyeDuaSatker(request);
+    // Jakpus (0200010) sorts first and belongs to operator_a: it goes to wilayah; Jaksel stays at Input.
+    expect((await aksiPakaian(request, "operator_a", rows[0], "submit")).aktivitas).toBe(1001);
+
+    const ctx = await browser.newContext({ storageState: storageStatePath("validator_wilayah") });
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker`, { waitUntil: "domcontentloaded" });
+    const kartu = page.getByRole("button", { name: "Lihat Riwayat & Aksi" });
+    await expect(kartu).toHaveCount(2, { timeout: 20000 });
+    // The count says what it counts: filled employees, not the satker's headcount.
+    await expect(page.getByText(/· \d+ pegawai terisi/).first()).toBeVisible();
+    // Two satker fit one page, so there is nothing to page through.
+    await expect(page.getByRole("button", { name: "Selanjutnya" })).toBeDisabled();
+
+    // Search by name, typed in lower case: the request carries it, and the list narrows to the one satker.
+    const dicari = page.waitForResponse((r) => r.url().includes("/satker?") && r.url().includes("q=selatan"));
+    await page.getByTestId("cari-satker").fill("selatan");
+    await page.getByTestId("cari-satker-kirim").click();
+    expect((await dicari).ok()).toBeTruthy();
+    await expect(kartu).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: "KEJAKSAAN NEGERI JAKARTA SELATAN" })).toBeVisible();
+
+    // A search with no match says so instead of showing a blank page.
+    await page.getByTestId("cari-satker").fill("tidak ada satker bernama ini");
+    await page.getByTestId("cari-satker-kirim").click();
+    await expect(page.getByText("Tidak ada satker yang cocok dengan pencarian atau status ini.")).toBeVisible();
+
+    // Reset brings both back; "waiting on me" leaves only the one wilayah can move.
+    await page.getByTestId("cari-satker-reset").click();
+    await expect(kartu).toHaveCount(2);
+    const menunggu = page.waitForResponse((r) => r.url().includes("/satker?") && r.url().includes("status=1001"));
+    await page.getByTestId("status-satker").selectOption("menunggu");
+    expect((await menunggu).ok()).toBeTruthy();
+    await expect(kartu).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: "KEJAKSAAN NEGERI JAKARTA PUSAT" })).toBeVisible();
+
+    // Reset after a status was chosen empties the dropdown as well as the list. `selected` on the
+    // options only sets a default, so once the user had picked one the dropdown kept showing it.
+    await page.getByTestId("cari-satker-reset").click();
+    await expect(page.getByTestId("status-satker")).toHaveValue("");
+    await expect(kartu).toHaveCount(2);
+    await ctx.close();
+  });
+
+  test("the server refuses a status that is not a workflow code", async ({ request }) => {
+    const { pengajuanId } = await kampanyeDuaSatker(request);
+    const pusat = await tokenFor(request, "validator_pusat");
+    const res = await request.get(`${PD_API}/pengajuan/${pengajuanId}/satker?status=abc`, {
+      headers: { Authorization: `Bearer ${pusat}` },
+    });
+    expect(res.status()).toBe(400);
+  });
+});
+
+// ── An account that holds BOTH validator roles ──────────────────────────────
+// One bulk bar served every row it was shown, labelled by the first. For an account with both
+// roles (the seeded administrator has them all) "Pilih semua" ticked rows at wilayah AND pusat and
+// "Teruskan ke Pusat" ran each row's own move: the satker waiting at wilayah went on to pusat, and
+// the one already at pusat was given its FINAL approval by a button that said "forward".
+test.describe("Pakaian Dinas — bulk actions for an account holding both validator roles", () => {
+  test("forwarding the wilayah-stage rows leaves the pusat-stage row where it is", async ({
+    browser,
+    request,
+  }) => {
+    const { pengajuanId, rows } = await kampanyeDuaSatker(request);
+    // rows[0] stays waiting at wilayah (1001); rows[1] is sent on and waits at pusat (1004).
+    expect((await aksiPakaian(request, "operator_a", rows[0], "submit")).aktivitas).toBe(1001);
+    expect((await aksiPakaian(request, "operator_b", rows[1], "submit")).aktivitas).toBe(1001);
+    expect((await aksiPakaian(request, "validator_wilayah", rows[1], "approve")).aktivitas).toBe(1004);
+
+    const ctx = await browser.newContext({ storageState: storageStatePath("admin") });
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker`, { waitUntil: "domcontentloaded" });
+
+    // One bar per move, not one for everything.
+    const forward = page.locator('[data-testid="bilah-massal"][data-aksi="Teruskan ke Pusat"]');
+    const approve = page.locator('[data-testid="bilah-massal"][data-aksi="Setujui (Selesai)"]');
+    await expect(forward).toBeVisible({ timeout: 20000 });
+    await expect(approve).toBeVisible();
+    await expect(forward.getByTestId("setujui-massal")).toBeDisabled();
+
+    // Ticking the forward bar's "select all" selects its own row only.
+    await forward.getByTestId("pilih-semua").check();
+    await expect(forward).toContainText("1 dipilih");
+    await expect(approve).toContainText("0 dipilih");
+    await forward.getByTestId("setujui-massal").click();
+    await expect(page.getByTestId("hasil-massal")).toContainText("1 satker diproses", { timeout: 15000 });
+
+    const pusat = await tokenFor(request, "validator_pusat");
+    const now = await fetchRows<{ id: string; aktivitas_id: number }>(
+      request, `${PD_API}/pengajuan/${pengajuanId}/satker?page=1&per_page=100`, pusat, "rows");
+    const status = (id: string) => now.find((x) => x.id === id)!.aktivitas_id;
+    expect(status(rows[0]), "the wilayah-stage row was forwarded").toBe(1004);
+    expect(status(rows[1]), "the pusat-stage row must NOT be finally approved by 'Teruskan'").toBe(1004);
+    await ctx.close();
+  });
+
+  // A tick is the satker AND the move it was ticked for. Ticked as a bare id, a satker forwarded
+  // from its own panel kept its tick and turned up selected on the final-approval bar, whose button
+  // then finished it too.
+  test("a tick does not follow a satker to the next stage when it is forwarded from its panel", async ({
+    browser,
+    request,
+  }) => {
+    const { pengajuanId, rows } = await kampanyeDuaSatker(request);
+    expect((await aksiPakaian(request, "operator_a", rows[0], "submit")).aktivitas).toBe(1001);
+    expect((await aksiPakaian(request, "operator_b", rows[1], "submit")).aktivitas).toBe(1001);
+    expect((await aksiPakaian(request, "validator_wilayah", rows[1], "approve")).aktivitas).toBe(1004);
+
+    const ctx = await browser.newContext({ storageState: storageStatePath("admin") });
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker`, { waitUntil: "domcontentloaded" });
+    const approve = page.locator('[data-testid="bilah-massal"][data-aksi="Setujui (Selesai)"]');
+    await expect(approve).toBeVisible({ timeout: 20000 });
+
+    // A (waiting at wilayah) is ticked for "forward", B (waiting at pusat) for "approve".
+    await page.getByRole("checkbox", { name: "Pilih KEJAKSAAN NEGERI JAKARTA PUSAT" }).check();
+    await page.getByRole("checkbox", { name: "Pilih KEJAKSAAN NEGERI JAKARTA SELATAN" }).check();
+    await expect(approve).toContainText("1 dipilih");
+
+    // Forward A on its own, from its panel.
+    const kartuA = page.locator("div.rounded-2xl", {
+      has: page.getByRole("heading", { name: "KEJAKSAAN NEGERI JAKARTA PUSAT" }),
+    });
+    await kartuA.getByRole("button", { name: "Lihat Riwayat & Aksi" }).click();
+    await page.getByRole("button", { name: "Teruskan ke Pusat", exact: true }).click();
+    await page.getByRole("button", { name: "Kirim", exact: true }).click();
+    await expect(kartuA).toContainText("Diajukan ke Pusat", { timeout: 20000 });
+
+    // A is now at pusat too, but nobody ticked it for approval: only B is selected there.
+    await expect(approve).toContainText("1 dipilih");
+    await expect(approve.getByTestId("setujui-massal")).toContainText("(1)");
+    await ctx.close();
+  });
+});
+
 // ── Handovers tell the next role ────────────────────────────────────────────
 // A satker moving to the next role used to tell nobody: the work sat in a list
 // until the next role happened to open it, and the dashboard's "Perlu Tindakan"
