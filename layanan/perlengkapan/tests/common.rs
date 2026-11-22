@@ -647,7 +647,10 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
     // no test ever ran the notification SQL. The penghapusan branch selected a column that does
     // not exist, failed on every transition in staging, and nothing here could have said so.
     let kebutuhan_bmn_workflow = WorkflowEngine::for_kebutuhan_bmn(db.pool().clone())
-        .with_notification_sender(notifier.clone());
+        .with_notification_sender(notifier.clone())
+        .with_audit_sink(std::sync::Arc::new(
+            layanan_perlengkapan::shared::audit::PgAuditSink::new(db.pool().clone()),
+        ));
     // Wired like `main.rs`: the satker-level transitions audit themselves, and a
     // harness that omits the sink would let that emission rot unseen.
     let kebutuhan_bmn_service = KebutuhanBmnService::new(
@@ -664,15 +667,24 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
     let roadmap_service = RoadmapService::new(roadmap_repo);
 
     let pemakaian_bmn_repo = PemakaianBmnRepository::new(db.pool().clone());
+    // The three engines carry the audit sink as `main.rs` gives it to them. Without it every
+    // transition's audit emission goes unrun here, which is how the events came to be written
+    // with a blank actor name and nothing in the suite could say so.
     let pemakaian_bmn_workflow = WorkflowEngine::for_pemakaian_bmn(db.pool().clone())
-        .with_notification_sender(notifier.clone());
+        .with_notification_sender(notifier.clone())
+        .with_audit_sink(std::sync::Arc::new(
+            layanan_perlengkapan::shared::audit::PgAuditSink::new(db.pool().clone()),
+        ));
     let pemakaian_bmn_service =
         PemakaianBmnService::new(pemakaian_bmn_repo, pemakaian_bmn_workflow)
             .with_document_generator(docs.clone());
 
     let penghapusan_bmn_workflow = WorkflowEngine::for_penghapusan_bmn(db.pool().clone())
         .with_document_generator(docs.clone())
-        .with_notification_sender(notifier.clone());
+        .with_notification_sender(notifier.clone())
+        .with_audit_sink(std::sync::Arc::new(
+            layanan_perlengkapan::shared::audit::PgAuditSink::new(db.pool().clone()),
+        ));
     let penghapusan_bmn_service = Arc::new(
         PenghapusanBmnService::new(db.pool().clone(), Arc::new(penghapusan_bmn_workflow))
             .with_document_generator(docs.clone()),

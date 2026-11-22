@@ -22,6 +22,7 @@
 //!   prometheus middleware, RBAC helpers.
 //! - [`rate_limit`] — token-bucket per-IP rate limiter middleware.
 
+pub mod actor;
 pub mod audit;
 pub mod break_glass;
 pub mod cache;

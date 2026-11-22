@@ -254,3 +254,98 @@ async fn the_trail_and_its_facets_are_for_admin_and_pusat_only() {
 
     teardown_test_db(&db_name).await;
 }
+
+/// NIP carried in the mock token's optional fifth segment; the label has no name to print, so
+/// the trail must show this.
+const OPERATOR_NIP: &str = "198001010000000001";
+
+fn as_operator(req: axum_test::TestRequest) -> axum_test::TestRequest {
+    req.add_header(
+        reqwest::header::HeaderName::from_static("authorization"),
+        reqwest::header::HeaderValue::from_str(&format!(
+            "Bearer mock::operator_satker::{OPERATOR}::{SATKER}::{OPERATOR_NIP}"
+        ))
+        .unwrap(),
+    )
+}
+
+/// Two writers handed the sink an id and no usable name: the workflow engine (it receives only a
+/// `user_id`) and the helpdesk ticket (it wrote `user:<uuid>`). The Audit Log page then printed
+/// a blank cell and a raw uuid. Driven through HTTP exactly as the app does it, the trail must
+/// name the person who acted.
+#[tokio::test]
+async fn the_trail_names_the_person_for_engine_transitions_and_tickets() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+
+    // A helpdesk ticket: the service writes the event with the id only.
+    let res = as_operator(server.post("/bantuan/tiket"))
+        .json(&serde_json::json!({
+            "subject": "Printer rusak",
+            "description": "Tidak bisa mencetak SK",
+            "priority": "normal"
+        }))
+        .await;
+    assert_eq!(res.status_code(), 200, "ticket: {:?}", res.text());
+
+    // A permit move through the workflow engine: DRAFT -> SUBMITTED.
+    let res = as_operator(server.post("/pemakaian-bmn"))
+        .json(&serde_json::json!({
+            "pegawai_nip": "19800101000000001",
+            "tanggal_mulai": "2026-01-01",
+            "tanggal_selesai": "2026-12-31",
+            "keperluan": "Digunakan untuk pelaksanaan tugas kedinasan sehari-hari",
+            "items": [{
+                "jenis_bmn": "LAPTOP", "bmn_nup": "9001",
+                "bmn_kode_barang": "3060201003",
+                "bmn_nama_barang": "Laptop Dell Latitude 5520",
+                "bmn_merk": "Dell", "serial_number": "SN-12345678"
+            }]
+        }))
+        .await;
+    assert_eq!(res.status_code(), 201, "create permit: {:?}", res.text());
+    let permit_id = res.json::<Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let res = as_operator(server.post(&format!("/pemakaian-bmn/{permit_id}/transition")))
+        .json(&serde_json::json!({"target_status": "SUBMITTED", "catatan": "Mohon validasi"}))
+        .await;
+    assert_eq!(res.status_code(), 200, "submit: {:?}", res.text());
+
+    // The ticket's event is written from a spawned task; wait for it to land.
+    let mut rows: Vec<Value> = Vec::new();
+    for _ in 0..40 {
+        let res = get(&server, "/audit?per_page=200", "admin", ADMIN).await;
+        assert_eq!(res.status_code(), 200, "{:?}", res.text());
+        rows = res.json::<Value>()["data"].as_array().unwrap().clone();
+        let has_ticket = rows.iter().any(|r| r["module"] == "bantuan");
+        let has_move = rows
+            .iter()
+            .any(|r| r["action_name"] == "workflow.transition");
+        if has_ticket && has_move {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+
+    let ticket = rows
+        .iter()
+        .find(|r| r["module"] == "bantuan")
+        .unwrap_or_else(|| panic!("the ticket was never audited: {rows:?}"));
+    let moved = rows
+        .iter()
+        .find(|r| r["action_name"] == "workflow.transition" && r["module"] == "pemakaian_bmn")
+        .unwrap_or_else(|| panic!("the permit move was never audited: {rows:?}"));
+
+    for (what, row) in [("ticket", ticket), ("workflow transition", moved)] {
+        assert_eq!(row["actor_id"], OPERATOR, "{what}: {row}");
+        assert_eq!(
+            row["actor_name"], OPERATOR_NIP,
+            "{what} must name the person (here by NIP, the token carried no name), \
+             not a blank or `user:<uuid>`: {row}"
+        );
+    }
+
+    teardown_test_db(&db_name).await;
+}
