@@ -435,13 +435,7 @@ impl Claims {
         // Validate token via Authenc gRPC (signature, expiry, revocation and the
         // half-authenticated `mfa_pending` refusal all live on that side).
         match authenc.validate_token(token).await {
-            Ok(resp) => {
-                let claims = Claims::from_validation(&resp)?;
-                // The one place every request's identity passes through: remember who this is
-                // so an audit event written later in the same request can name them.
-                crate::shared::actor::remember(&claims);
-                Ok(claims)
-            }
+            Ok(resp) => Claims::from_validation(&resp),
             Err(e) => {
                 tracing::error!("Authenc validation failed: {}", e);
                 Err(AppError::Internal(
@@ -511,8 +505,10 @@ pub async fn require_authentication(
     }
     match Claims::authenticate(&authenc, request.headers()).await {
         Ok(claims) => {
-            request.extensions_mut().insert(claims);
-            next.run(request).await
+            request.extensions_mut().insert(claims.clone());
+            // Everything the handler awaits, the workflow engine and the audit sink included,
+            // runs as this request's person: see `shared::actor`.
+            crate::shared::actor::scope(&claims, next.run(request)).await
         }
         Err(e) => e.into_response(),
     }

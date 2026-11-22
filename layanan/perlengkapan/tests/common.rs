@@ -721,7 +721,20 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
         max_request_size: 10 * 1024 * 1024,
     };
 
-    let app = layanan_perlengkapan::routes::create_routes(state);
+    // The two layers `main.rs` puts around the API, in its order: authentication inside, the
+    // detach-on-mutation layer outside it. They are not decoration here. The authentication layer
+    // is what scopes a request to its caller's identity for the audit trail, and the detached
+    // task is exactly what would have dropped that identity had it been carried any other way;
+    // a harness without them would let both go unproven.
+    let authenc = state.authenc.clone();
+    let app = layanan_perlengkapan::routes::create_routes(state)
+        .layer(axum::middleware::from_fn_with_state(
+            authenc,
+            layanan_perlengkapan::shared::middleware::require_authentication,
+        ))
+        .layer(axum::middleware::from_fn(
+            layanan_perlengkapan::shared::middleware::cancel_safe::cancel_safe_middleware,
+        ));
 
     (app, db, db_name)
 }
