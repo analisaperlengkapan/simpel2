@@ -387,7 +387,7 @@ fn baris(
     } else {
         0.0
     };
-    let href = tautan_daftar(&s.nama_satker);
+    let href = tautan_daftar(&s.nama_satker, s.kode_satker.as_deref());
     view! {
         <tr class="border-b border-white/[0.04] last:border-0">
             <td class="py-3 pr-3 text-xs font-semibold text-gold-300">{peringkat.to_string()}</td>
@@ -401,20 +401,20 @@ fn baris(
                         view! { <span class="ml-2 text-slate-600">"· belum di peta"</span> }
                             .into_any()
                     } else {
-                        view! {
-                            <button
-                                type="button"
-                                class="ml-2 text-slate-400 underline hover:text-slate-100"
-                                on:click=move |_| {
-                                    tingkat.set(Tingkat::Satker(indeks));
-                                    scroll_ke_peta();
-                                }
-                            >
-                                "lihat di peta"
-                            </button>
-                        }
-                            .into_any()
+                        ().into_any()
                     }}
+                    // Every satker can be opened here, with or without a dot: a satker the map cannot
+                    // place still has its BMN summary, and the zoom keeps its wilayah in view.
+                    <button
+                        type="button"
+                        class="ml-2 text-slate-400 underline hover:text-slate-100"
+                        on:click=move |_| {
+                            tingkat.set(Tingkat::Satker(indeks));
+                            scroll_ke_peta();
+                        }
+                    >
+                        {if belum_di_peta { "buka rincian" } else { "lihat di peta" }}
+                    </button>
                 </p>
             </td>
             <td class="py-3 pr-3 text-right text-sm text-slate-200">
@@ -441,7 +441,6 @@ mod tests {
     fn s(nama: &str, kode: Option<&str>, prov: Option<&str>) -> SebaranSatker {
         SebaranSatker {
             kode_satker: kode.map(str::to_string),
-            kode_mysimkari: None,
             nama_satker: nama.to_string(),
             total_aset: 1,
             nilai_perolehan: 0.0,

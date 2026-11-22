@@ -339,7 +339,7 @@ test.describe("Bank Aset — sebaran + QR code", () => {
     await expect(page.getByTestId("rincian-satker")).toContainText("Jenis BMN");
     await expect(page.getByTestId("rincian-satker")).not.toContainText("Memuat rincian", { timeout: 20000 });
     await expect(page.getByTestId("gps-satker")).toBeVisible();
-    await expect(kartu.getByRole("link", { name: "Lihat aset satker ini" })).toHaveAttribute("href", /\?satker=/);
+    await expect(kartu.getByRole("link", { name: "Lihat aset satker ini" })).toHaveAttribute("href", /\?kode_siman=/);
 
     // Back up through the trail.
     await page.getByTestId("peta-remah").getByRole("button", { name: "Indonesia" }).click();

@@ -675,7 +675,7 @@ impl BankAsetRepository {
         // WHERE conjuncts have no guaranteed order and a bare cast would abort the whole page on
         // one bad row), then kept only when both lie inside Indonesia: a swapped pair or a 0,0
         // placeholder would otherwise put a dot in the ocean off Africa. A satker whose pairing has
-        // no usable place keeps the pairing itself (`kode_mysimkari`, `provinsi`).
+        // no usable place keeps the pairing's `provinsi`.
         //
         // `DISTINCT ON` because the code map can hold two MySIMKARI satkers for one SIMAN code,
         // and a join that fans out would list the satker twice and count its assets twice in the
@@ -686,23 +686,29 @@ impl BankAsetRepository {
                     "WITH per_satker AS (
                         SELECT
                             kdsatker_keu AS kode_satker,
-                            COALESCE(nama_satker, 'TIDAK DIKETAHUI') AS nama_satker,
+                            -- One label for the satker: its most common spelling (ties broken by the
+                            -- name itself, so it never flips between requests).
+                            COALESCE(MODE() WITHIN GROUP (ORDER BY nama_satker), 'TIDAK DIKETAHUI') AS nama_satker,
                             COUNT(*)::BIGINT AS total_aset,
                             COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8 AS nilai_perolehan,
                             COUNT(*) FILTER (WHERE UPPER(COALESCE(ur_kondisi, '')) = 'BAIK')::BIGINT AS aset_baik,
                             COUNT(*) FILTER (WHERE UPPER(COALESCE(ur_kondisi, '')) LIKE 'RUSAK%')::BIGINT AS aset_rusak,
                             {gps_count} AS aset_bergps
                          FROM integrasi.siman_aset{where_clause}
-                         GROUP BY kdsatker_keu, COALESCE(nama_satker, 'TIDAK DIKETAHUI')
+                         -- By CODE: a code the register spells two ways is still one satker, and
+                         -- grouping on the name too would split its assets across two dots. Rows with
+                         -- no code cannot be identified, so those stay apart by name.
+                         GROUP BY kdsatker_keu,
+                                  (CASE WHEN kdsatker_keu IS NULL THEN COALESCE(nama_satker, 'TIDAK DIKETAHUI') END)
                      ),
                      tempat AS (
                         SELECT DISTINCT ON (kdsatker_keu)
-                               kdsatker_keu, kode_mysimkari,
+                               kdsatker_keu,
                                CASE WHEN ok THEN lat END AS lintang,
                                CASE WHEN ok THEN lon END AS bujur,
                                provinsi
                           FROM (
-                            SELECT c.kdsatker_keu, c.kode_satker AS kode_mysimkari, c.verified, m.id,
+                            SELECT c.kdsatker_keu, c.verified, m.id,
                                    raw.lat, raw.lon,
                                    (raw.lat BETWEEN -11.5 AND 6.5 AND raw.lon BETWEEN 94.0 AND 141.5) AS ok,
                                    NULLIF(BTRIM(m.provinsi), '') AS provinsi
@@ -728,7 +734,7 @@ impl BankAsetRepository {
                          WHERE c.kdsatker_keu IS NOT NULL
                          GROUP BY 1
                      )
-                     SELECT p.*, t.kode_mysimkari, t.lintang, t.bujur, t.provinsi,
+                     SELECT p.*, t.lintang, t.bujur, t.provinsi,
                             NULLIF(substring(p.kode_satker FROM 6 FOR 4), '') AS wilayah_kode,
                             nw.nama AS wilayah_nama
                        FROM per_satker p
@@ -750,10 +756,6 @@ impl BankAsetRepository {
                 nilai_perolehan: r.get("nilai_perolehan"),
                 aset_baik: r.get("aset_baik"),
                 aset_rusak: r.get("aset_rusak"),
-                kode_mysimkari: r
-                    .try_get::<_, Option<String>>("kode_mysimkari")
-                    .ok()
-                    .flatten(),
                 lintang: r.try_get::<_, Option<f64>>("lintang").ok().flatten(),
                 bujur: r.try_get::<_, Option<f64>>("bujur").ok().flatten(),
                 provinsi: r.try_get::<_, Option<String>>("provinsi").ok().flatten(),
@@ -1003,6 +1005,8 @@ pub struct AsetFilter {
     /// half and not the other — and `satker` above is a NAME, which two
     /// satkers can share (554 distinct names for 556 distinct codes).
     pub satker_kode: Option<String>,
+    /// SIMAN `kdsatker_keu`, exact. See [`push_asset_filters`].
+    pub kode_siman: Option<String>,
     /// SIMAN wilayah code, digits 6-9 of `kdsatker_keu` — the same expression
     /// [`AsetScope`]'s wilayah tier compares against, so a pusat user filtering
     /// to a region sees exactly what that region's validator sees.
@@ -1045,6 +1049,13 @@ pub fn push_asset_filters(
     if let Some(kondisi) = &filter.kondisi {
         params.push(Box::new(kondisi.clone()));
         conditions.push(format!("ur_kondisi = ${}", params.len()));
+    }
+    if let Some(kode) = &filter.kode_siman {
+        // The SIMAN code itself. `satker` (a name) merges two satkers that share one (554 names for
+        // 556 codes on staging), and `satker_kode` (MySIMKARI) maps one code to every SIMAN code
+        // paired with it; this is the only filter that names exactly one satker.
+        params.push(Box::new(kode.clone()));
+        conditions.push(format!("kdsatker_keu = ${}", params.len()));
     }
     if let Some(satker) = &filter.satker {
         params.push(Box::new(satker.clone()));

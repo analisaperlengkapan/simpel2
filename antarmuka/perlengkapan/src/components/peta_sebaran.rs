@@ -341,12 +341,17 @@ pub fn campur(dari: Kotak, ke: Kotak, t: f64) -> Kotak {
 }
 
 /// Tautan ke Daftar Aset yang sudah disaring ke satu satker.
-pub fn tautan_daftar(nama_satker: &str) -> String {
-    format!(
-        "{}?satker={}",
-        path::BANK_ASET_DAFTAR,
-        urlencoding::encode(nama_satker)
-    )
+pub fn tautan_daftar(nama_satker: &str, kode_siman: Option<&str>) -> String {
+    let nama = urlencoding::encode(nama_satker);
+    match kode_siman.map(str::trim).filter(|k| !k.is_empty()) {
+        // By code: a name would merge two satkers that share one. The name only labels the notice.
+        Some(kode) => format!(
+            "{}?kode_siman={}&nama={nama}",
+            path::BANK_ASET_DAFTAR,
+            urlencoding::encode(kode)
+        ),
+        None => format!("{}?satker={nama}", path::BANK_ASET_DAFTAR),
+    }
 }
 
 fn persen(bagian: i64, total: i64) -> String {
@@ -642,7 +647,7 @@ pub fn PetaSebaran(
                 _ => None,
             });
             match (fokus, kini) {
-                (Some(Sorot::Wilayah(w)), _) => kartu_wilayah(&wilayah[w], tingkat, w).into_any(),
+                (Some(Sorot::Wilayah(w)), _) => kartu_wilayah(&wilayah[w]).into_any(),
                 (Some(Sorot::Satker(i)), _) => kartu_satker(&satker[i], i, tingkat).into_any(),
                 (None, Tingkat::Wilayah(w)) => {
                     panel_wilayah(&wilayah[w], &satker, tingkat).into_any()
@@ -803,7 +808,10 @@ fn panel_nasional(
     }
 }
 
-fn kartu_wilayah(w: &Wilayah, tingkat: RwSignal<Tingkat>, indeks: usize) -> impl IntoView + use<> {
+/// The preview of a wilayah while a dot is hovered or focused. It carries no buttons on purpose: it
+/// goes away the moment the pointer leaves the dot, so a control in it could never be reached.
+/// Clicking the dot (or Enter) opens the wilayah.
+fn kartu_wilayah(w: &Wilayah) -> impl IntoView + use<> {
     let nama = w.nama.clone();
     let ringkasan = w.ringkasan.clone();
     view! {
@@ -813,13 +821,6 @@ fn kartu_wilayah(w: &Wilayah, tingkat: RwSignal<Tingkat>, indeks: usize) -> impl
                 <p class="text-[0.7rem] text-slate-500">"Klik titik untuk memperbesar wilayah ini."</p>
             </div>
             {baris_ringkasan(&ringkasan)}
-            <button
-                type="button"
-                class=TOMBOL_AKSI
-                on:click=move |_| tingkat.set(Tingkat::Wilayah(indeks))
-            >
-                "Buka wilayah ini"
-            </button>
         </div>
     }
 }
@@ -905,10 +906,10 @@ fn kartu_satker(
     tingkat: RwSignal<Tingkat>,
 ) -> impl IntoView + use<> {
     let kelas = kelas_kondisi(s.total_aset, s.aset_rusak);
-    let href = tautan_daftar(&s.nama_satker);
+    let href = tautan_daftar(&s.nama_satker, s.kode_satker.as_deref());
     let terpilih = tingkat.get_untracked() == Tingkat::Satker(indeks);
     let rincian = terpilih.then(|| {
-        view! { <RincianSatker kode=s.kode_mysimkari.clone() nama=s.nama_satker.clone() /> }
+        view! { <RincianSatker kode=s.kode_satker.clone() /> }
     });
     let gps = if s.aset_bergps > 0 {
         format!(
@@ -961,21 +962,15 @@ fn kartu_satker(
             {rincian}
             <p data-testid="gps-satker" class="text-[0.7rem] text-slate-500">{gps}</p>
             {tanpa_tempat.map(|t| view! { <p class="text-[0.7rem] text-slate-500">{t}</p> })}
-            {(!terpilih)
+            // Only the opened satker carries a link: a hover preview vanishes with the pointer.
+            {terpilih
                 .then(|| {
                     view! {
-                        <button
-                            type="button"
-                            class=TOMBOL_AKSI
-                            on:click=move |_| tingkat.set(Tingkat::Satker(indeks))
-                        >
-                            "Buka satker ini"
-                        </button>
+                        <A href=href attr:class=format!("{TOMBOL_AKSI} inline-flex items-center gap-2")>
+                            "Lihat aset satker ini"
+                        </A>
                     }
                 })}
-            <A href=href attr:class=format!("{TOMBOL_AKSI} inline-flex items-center gap-2")>
-                "Lihat aset satker ini"
-            </A>
         </div>
     }
 }
@@ -983,18 +978,22 @@ fn kartu_satker(
 /// BMN satu satker menurut jenisnya, dari ringkasan dashboard Bank Aset yang disaring ke satker itu.
 /// Server membatasi hasil menurut hak akses pemanggil, jadi satker di luar cakupannya menjawab nol.
 #[component]
-fn RincianSatker(kode: Option<String>, nama: String) -> impl IntoView {
+fn RincianSatker(kode: Option<String>) -> impl IntoView {
+    // By the SIMAN code, exact: a name would merge two satkers that share one, and the MySIMKARI
+    // code would take in every SIMAN code paired with it. No code, no honest filter to ask with.
+    let Some(kode) = kode else {
+        return view! {
+            <div data-testid="rincian-satker" class="space-y-2">
+                <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"Jenis BMN"</p>
+                <p class="text-xs text-slate-500">"Rincian jenis belum tersedia."</p>
+            </div>
+        }
+        .into_any();
+    };
     let data = RwSignal::<Option<Result<BankAsetDashboard, String>>>::new(None);
-    // The MySIMKARI code is the identity; a satker only SIMAN knows falls back to its name.
-    let filter = match kode {
-        Some(kode) => AsetFilterQuery {
-            satker_kode: Some(kode),
-            ..Default::default()
-        },
-        None => AsetFilterQuery {
-            satker: Some(nama),
-            ..Default::default()
-        },
+    let filter = AsetFilterQuery {
+        kode_siman: Some(kode),
+        ..Default::default()
     };
     spawn_local(async move {
         let hasil = bank_aset::fetch_dashboard(&filter)
@@ -1050,6 +1049,7 @@ fn RincianSatker(kode: Option<String>, nama: String) -> impl IntoView {
             }}
         </div>
     }
+    .into_any()
 }
 
 #[cfg(test)]
@@ -1065,7 +1065,6 @@ mod tests {
     ) -> SebaranSatker {
         SebaranSatker {
             kode_satker: Some(format!("K-{nama}")),
-            kode_mysimkari: None,
             nama_satker: nama.into(),
             total_aset: total,
             nilai_perolehan: total as f64 * 1000.0,
@@ -1303,11 +1302,22 @@ mod tests {
     }
 
     #[test]
-    fn the_link_to_the_list_carries_the_name_encoded() {
-        let url = tautan_daftar("KEJAKSAAN NEGERI A & B");
+    fn the_link_to_the_list_names_the_satker_by_code_and_only_falls_back_to_the_name() {
+        // Two satkers can share a name: the code is what tells them apart.
+        let url = tautan_daftar("KEJARI KEMBAR", Some("006015555010001KD"));
+        assert!(
+            url.ends_with("?kode_siman=006015555010001KD&nama=KEJARI%20KEMBAR"),
+            "{url}"
+        );
+        // A satker with no code can only be asked for by its (encoded) name.
+        let url = tautan_daftar("KEJAKSAAN NEGERI A & B", None);
         assert!(
             url.ends_with("?satker=KEJAKSAAN%20NEGERI%20A%20%26%20B"),
             "{url}"
+        );
+        assert!(
+            tautan_daftar("X", Some("  ")).contains("?satker="),
+            "a blank code is no code"
         );
     }
 }

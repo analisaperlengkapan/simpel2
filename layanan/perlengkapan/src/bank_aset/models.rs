@@ -163,9 +163,6 @@ pub struct SebaranSatker {
     pub lintang: Option<f64>,
     pub bujur: Option<f64>,
     pub provinsi: Option<String>,
-    /// Kode satker di MySIMKARI (`mysimkari_satker.kode_satker`), yang dipakai penyaring `satker_kode`
-    /// dashboard. Kosong untuk satker yang hanya dikenal SIMAN.
-    pub kode_mysimkari: Option<String>,
     /// Wilayah (Kejaksaan Tinggi) satker ini, dengan definisi yang sama dengan penyaring wilayah
     /// dan tier RBAC: digit 6-9 `kdsatker_keu`. `wilayah_nama` adalah nama Kejati-nya; kosong untuk
     /// kelompok yang tak berada di bawah Kejati mana pun (Kejaksaan Agung dan unit pusat).

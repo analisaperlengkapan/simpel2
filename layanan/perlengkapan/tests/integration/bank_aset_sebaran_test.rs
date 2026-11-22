@@ -84,6 +84,7 @@ async fn seed(db: &layanan_perlengkapan::shared::db::Database) {
                  VALUES
                     ('Peralatan Mesin Non TIK', 'Laptop',  'Baik',         '{A}', 'KEJARI PETA SATU',   '3050105039', '1000', '-6.2', '106.8'),
                     ('Peralatan Mesin Non TIK', 'Printer', 'Rusak Ringan', '{A}', 'KEJARI PETA SATU',   '3050105040', '500',  '',     NULL),
+                    ('Peralatan Mesin Non TIK', 'Kabel',   'Baik',         '{A}', 'KEJAKSAAN NEGERI PETA SATU', '3050105041', '50', NULL, NULL),
                     ('Peralatan Mesin Non TIK', 'Meja',    'Baik',         '{B}', 'KEJARI DI SAMUDERA', '3050201002', '100',  NULL,   NULL),
                     ('Peralatan Mesin Non TIK', 'Kursi',   'Baik',         '{C}', 'KEJARI HURUF',       '3050201003', '100',  NULL,   NULL),
                     ('Peralatan Mesin Non TIK', 'Lemari',  'Baik',         '{D}', 'RS ADHYAKSA',        '3050201004', '100',  NULL,   NULL),
@@ -112,16 +113,17 @@ async fn each_satker_is_listed_once_with_its_place_its_wilayah_and_its_gps_count
         hits[0]
     };
 
-    // Two MySIMKARI pairings, one row; its assets counted once; the verified pairing's place.
+    // Two MySIMKARI pairings AND two spellings of its name, one row; its assets counted once (all
+    // three, not split across a dot per spelling), labelled by the spelling most rows carry; the
+    // verified pairing's place.
     let a = by(A);
-    assert_eq!(a["total_aset"], 2);
+    assert_eq!(a["total_aset"], 3);
+    assert_eq!(a["nama_satker"], "KEJARI PETA SATU");
     assert_eq!(a["lintang"], -6.2);
     assert_eq!(a["bujur"], 106.8);
     assert_eq!(a["provinsi"], "DKI Jakarta");
     // One asset has GPS, one has an empty string, one NULL would not count either.
     assert_eq!(a["aset_bergps"], 1);
-    // The dashboard drill-down filters by the MySIMKARI code, and the verified pairing wins.
-    assert_eq!(a["kode_mysimkari"], "MAP01");
 
     // Listed and counted, never placed: out of range, not a number, swapped, no counterpart.
     for kode in [B, C, D, E] {
@@ -133,14 +135,6 @@ async fn each_satker_is_listed_once_with_its_place_its_wilayah_and_its_gps_count
         );
         assert_eq!(r["aset_bergps"], 0, "{kode}");
     }
-
-    // A pairing whose place is unusable is still a pairing: the satker can be drilled into.
-    assert_eq!(by(B)["kode_mysimkari"], "MAP02");
-    assert_eq!(by(C)["kode_mysimkari"], "MAP03");
-    assert!(
-        by(D)["kode_mysimkari"].is_null(),
-        "SIMAN-only has no MySIMKARI code"
-    );
 
     // Wilayah = digits 6-9, named by the Kejati above ANY satker of that wilayah: B and E have no
     // parent of their own and still land in the named wilayah 8888; C is a wilayah no Kejati
@@ -169,7 +163,7 @@ async fn each_satker_is_listed_once_with_its_place_its_wilayah_and_its_gps_count
         .collect();
     assert_eq!(mine.len(), 5, "no satker dropped or duplicated: {rows:?}");
     let total: i64 = mine.iter().map(|r| r["total_aset"].as_i64().unwrap()).sum();
-    assert_eq!(total, 6, "the table's total is the asset count, once each");
+    assert_eq!(total, 7, "the table's total is the asset count, once each");
 
     teardown_test_db(&db_name).await;
 }
@@ -195,9 +189,74 @@ async fn an_environment_without_the_gps_columns_still_answers() {
         .iter()
         .find(|r| r["kode_satker"] == A)
         .expect("A listed");
-    assert_eq!(a["total_aset"], 2);
+    assert_eq!(a["total_aset"], 3);
     assert_eq!(a["aset_bergps"], 0, "no column, no coordinates: {a}");
     assert_eq!(a["lintang"], -6.2, "the satker's own place is unaffected");
+
+    teardown_test_db(&db_name).await;
+}
+
+#[tokio::test]
+async fn a_satker_code_names_exactly_one_satker_even_when_two_share_a_name() {
+    // 556 codes carry 554 names on staging: two satkers share one. The map links into the list and
+    // the dashboard by CODE; by name they would merge (10 and 20 assets would read as 30).
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let client = db.pool().get().await.unwrap();
+    const F: &str = "006015555010001KD";
+    const G: &str = "006015555020001KD";
+    client
+        .execute(
+            &format!(
+                "INSERT INTO integrasi.siman_aset (jenis_aset, nama, ur_kondisi, kdsatker_keu, nama_satker, kd_brg, rph_aset)
+                 VALUES ('Peralatan Mesin Non TIK', 'Meja F',  'Baik', '{F}', 'KEJARI KEMBAR', '3050201002', '100'),
+                        ('Peralatan Mesin Non TIK', 'Meja G1', 'Baik', '{G}', 'KEJARI KEMBAR', '3050201002', '100'),
+                        ('Peralatan Mesin Non TIK', 'Meja G2', 'Baik', '{G}', 'KEJARI KEMBAR', '3050201003', '100')"
+            ),
+            &[],
+        )
+        .await
+        .unwrap();
+    drop(client);
+
+    let get = |path: String| {
+        let server = &server;
+        async move {
+            let res = server
+                .get(&path)
+                .add_header(
+                    reqwest::header::HeaderName::from_static("authorization"),
+                    reqwest::header::HeaderValue::from_str(&format!(
+                        "Bearer mock::admin::{ADMIN}::PUSAT001"
+                    ))
+                    .unwrap(),
+                )
+                .await;
+            assert_eq!(res.status_code(), 200, "{path}: {:?}", res.text());
+            res.json::<Value>()
+        }
+    };
+
+    // By name the two merge; by code each is itself.
+    let by_name = get("/bank-aset?satker=KEJARI%20KEMBAR&per_page=50".to_string()).await;
+    assert_eq!(
+        by_name["data"].as_array().unwrap().len(),
+        3,
+        "the name merges them"
+    );
+    for (kode, jumlah) in [(F, 1), (G, 2)] {
+        let list = get(format!("/bank-aset?kode_siman={kode}&per_page=50")).await;
+        assert_eq!(
+            list["data"].as_array().unwrap().len(),
+            jumlah,
+            "{kode}: {list}"
+        );
+        let dash = get(format!("/bank-aset/dashboard?kode_siman={kode}")).await;
+        assert_eq!(
+            dash["data"]["total_aset"], jumlah,
+            "{kode} dashboard: {dash}"
+        );
+    }
 
     teardown_test_db(&db_name).await;
 }

@@ -103,9 +103,6 @@ pub struct SebaranSatker {
     pub bujur: Option<f64>,
     #[serde(default)]
     pub provinsi: Option<String>,
-    /// Kode satker di MySIMKARI: yang dimengerti penyaring `satker_kode`.
-    #[serde(default)]
-    pub kode_mysimkari: Option<String>,
     /// Wilayah (Kejati) satker ini: digit 6-9 kode SIMAN, dan nama Kejati-nya bila ada.
     #[serde(default)]
     pub wilayah_kode: Option<String>,
@@ -144,6 +141,8 @@ pub struct ListFilter {
     pub kategori: Option<String>,
     pub kondisi: Option<String>,
     pub satker: Option<String>,
+    /// SIMAN `kdsatker_keu`, exact. Comes from the Sebaran map's link, not from the dropdown.
+    pub kode_siman: Option<String>,
     pub search: Option<String>,
     pub sort: Option<String>,
 }
@@ -187,6 +186,11 @@ pub async fn fetch_list(filter: &ListFilter) -> AppResult<PaginatedResponse<Bank
     if let Some(v) = &filter.satker {
         if !v.is_empty() {
             push_query(&mut url, "satker", v);
+        }
+    }
+    if let Some(v) = &filter.kode_siman {
+        if !v.is_empty() {
+            push_query(&mut url, "kode_siman", v);
         }
     }
     if let Some(v) = &filter.search {
@@ -265,9 +269,9 @@ pub struct AsetFilterQuery {
     /// satkers can share a name). The server maps it to SIMAN codes through the code map, and
     /// answers zeros for a code it does not know.
     pub satker_kode: Option<String>,
-    /// The satker's NAME, for the satker SIMAN knows and MySIMKARI does not. Two satkers can
-    /// share a name, so prefer `satker_kode` whenever there is one.
-    pub satker: Option<String>,
+    /// The satker's SIMAN code (`kdsatker_keu`), exact: the one filter that names a single satker
+    /// when two of them share a name (554 names for 556 codes on staging).
+    pub kode_siman: Option<String>,
     /// SIMAN `wilayah_kode` (digits 6-9 of `kdsatker_keu`).
     pub wilayah: Option<String>,
     pub tgl_from: Option<String>,
@@ -281,7 +285,7 @@ impl AsetFilterQuery {
         for (k, v) in [
             ("jenis", &self.jenis),
             ("satker_kode", &self.satker_kode),
-            ("satker", &self.satker),
+            ("kode_siman", &self.kode_siman),
             ("wilayah", &self.wilayah),
             ("tgl_from", &self.tgl_from),
             ("tgl_to", &self.tgl_to),
@@ -373,18 +377,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_drill_down_filter_carries_the_code_or_the_name_encoded() {
+    fn the_drill_down_filter_carries_the_siman_code() {
         let by_code = AsetFilterQuery {
             satker_kode: Some("02.28".into()),
             ..Default::default()
         };
         assert_eq!(by_code.to_query(), "?satker_kode=02.28");
-        // A satker only SIMAN knows has no code: it is asked for by name, percent-encoded.
-        let by_name = AsetFilterQuery {
-            satker: Some("RS ADHYAKSA & CO".into()),
+        // The SIMAN code names exactly one satker, even when two of them share a name.
+        let exact = AsetFilterQuery {
+            kode_siman: Some("006010500691160000KD".into()),
             ..Default::default()
         };
-        assert_eq!(by_name.to_query(), "?satker=RS%20ADHYAKSA%20%26%20CO");
+        assert_eq!(exact.to_query(), "?kode_siman=006010500691160000KD");
         assert_eq!(AsetFilterQuery::default().to_query(), "");
     }
 
@@ -394,7 +398,7 @@ mod tests {
         let old = r#"{"kode_satker":"K","nama_satker":"S","total_aset":1,"nilai_perolehan":2.0,
                       "aset_baik":1,"aset_rusak":0}"#;
         let s: SebaranSatker = serde_json::from_str(old).expect("old shape");
-        assert!(s.lintang.is_none() && s.wilayah_kode.is_none() && s.kode_mysimkari.is_none());
+        assert!(s.lintang.is_none() && s.wilayah_kode.is_none());
         assert_eq!(s.aset_bergps, 0);
     }
 }

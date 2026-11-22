@@ -34,6 +34,11 @@ pub fn BankAsetListPage() -> impl IntoView {
     let query = leptos_router::hooks::use_query_map();
     let (satker, set_satker) =
         signal::<String>(query.read_untracked().get("satker").unwrap_or_default());
+    // ...or as `?kode_siman=<code>&nama=<name>`: the exact satker, which a name cannot name when two
+    // satkers share one. `nama` is only what the notice shows.
+    let (kode_siman, set_kode_siman) =
+        signal::<String>(query.read_untracked().get("kode_siman").unwrap_or_default());
+    let nama_kode = query.read_untracked().get("nama").unwrap_or_default();
     let (search, set_search) = signal::<String>(String::new());
     let (sort, set_sort) = signal::<String>(String::new());
 
@@ -84,6 +89,7 @@ pub fn BankAsetListPage() -> impl IntoView {
             kategori: some_if_non_empty(&kategori.get()),
             kondisi: some_if_non_empty(&kondisi.get()),
             satker: some_if_non_empty(&satker.get()),
+            kode_siman: some_if_non_empty(&kode_siman.get()),
             search: some_if_non_empty(&search.get()),
             sort: some_if_non_empty(&sort.get()),
         };
@@ -183,6 +189,7 @@ pub fn BankAsetListPage() -> impl IntoView {
         set_kategori.set(String::new());
         set_kondisi.set(String::new());
         set_satker.set(String::new());
+        set_kode_siman.set(String::new());
         set_search.set(String::new());
         set_sort.set(String::new());
         set_page.set(1);
@@ -232,6 +239,36 @@ pub fn BankAsetListPage() -> impl IntoView {
                     .into_any()
             })
         >
+            {move || {
+                let nama = nama_kode.clone();
+                (!kode_siman.get().is_empty())
+                    .then(|| {
+                        view! {
+                            <div
+                                data-testid="saring-kode-satker"
+                                class="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-gold-400/30 bg-gold-400/10 px-4 py-2 text-xs text-slate-200"
+                            >
+                                <span>
+                                    "Disaring ke satker "
+                                    <span class="font-semibold text-gold-300">
+                                        {if nama.is_empty() { kode_siman.get() } else { nama }}
+                                    </span>
+                                    " (kode " {move || kode_siman.get()} ")."
+                                </span>
+                                <button
+                                    type="button"
+                                    class="underline hover:text-white"
+                                    on:click=move |_| {
+                                        set_kode_siman.set(String::new());
+                                        set_page.set(1);
+                                    }
+                                >
+                                    "Hapus penyaring"
+                                </button>
+                            </div>
+                        }
+                    })
+            }}
             <SectionCard
                 title="Filter"
                 description="Batasi daftar berdasarkan kategori, kondisi, atau kata kunci."

@@ -95,6 +95,7 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
             kategori: non_empty(&kategori.get()),
             kondisi: None,
             satker: None,
+            kode_siman: None,
             search: non_empty(&search.get()),
             sort: None,
         };
