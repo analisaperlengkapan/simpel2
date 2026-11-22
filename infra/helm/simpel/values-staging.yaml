@@ -472,7 +472,17 @@ global:
   # upgrade, verifikasi, reseed, e2e, pemindaian log, rollback otomatis), tag final men-deploy produksi
   # dari digest yang lulus staging setelah persetujuan pemilik. Ini rc PERTAMA yang lewat jalur itu.
   # rc48 dan rc49 jangan dipromosikan.
-  imageTag: v0.1.0-rc52
+  #
+  # rc53 = rc52 + perbaikan dari uji manual menyeluruh. Pakaian dinas kampanye nasional (#1132): daftar
+  # satker bisa dicari, difilter status dan dihalamani (sebelumnya terpotong di 100 dari 545), jumlah satker
+  # laporan dihitung dari seluruh satker kampanye, aksi validator tercatat di jejak audit lengkap dengan
+  # pelakunya, bilah persetujuan massal dipisah per aksi sehingga akun dua peran tak bisa menyetujui akhir
+  # tanpa sengaja. Izin pemakaian (#1133): tombol ajukan dan batal berfungsi, SK Izin bisa diunduh sebagai
+  # PDF setelah izin AKTIF, penolakan karena peran menjadi 403 (bukan 500), dan pembatalan yang berbarengan
+  # dengan pengajuan ulang tak lagi membuat izin macet (409). Tampilan (#1134): kartu yang meluber, tanggal
+  # mentah pada penghapusan BMN, FAQ yang terpotong di ponsel. TANPA migrasi dan tanpa perubahan chart:
+  # `helm rollback` ke rc52 aman tanpa restore database.
+  imageTag: v0.1.0-rc53
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
