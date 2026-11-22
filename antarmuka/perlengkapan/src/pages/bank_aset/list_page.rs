@@ -223,8 +223,14 @@ pub fn BankAsetListPage() -> impl IntoView {
                 description="Batasi daftar berdasarkan kategori, kondisi, atau kata kunci."
                 icon="fas fa-filter"
             >
+                // `grid-cols-N` (Tailwind: `repeat(N, minmax(0, 1fr))`), not a hand-written `1fr`
+                // track: a native select's longest option ("Peralatan Mesin Khusus TIK (436.069)")
+                // sets its minimum width and `1fr` honours it, so the row grew past its card and the
+                // search box was cut off at the screen edge on a 1440px monitor. Four equal selects
+                // on one row, then the search box and its buttons on the next, so each select keeps
+                // room for the label it is showing.
                 <form
-                    class="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_2fr_auto]"
+                    class="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
                     on:submit=on_search_submit
                 >
                     <select
@@ -293,11 +299,11 @@ pub fn BankAsetListPage() -> impl IntoView {
                     <input
                         type="text"
                         placeholder="Cari nama/kode/NUP/merk..."
-                        class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 placeholder-slate-500"
+                        class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 placeholder-slate-500 md:col-span-2 xl:col-span-3"
                         on:input=on_search_input
                         prop:value=move || search.get()
                     />
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 md:col-span-2 xl:col-span-1">
                         <button
                             type="submit"
                             class="focus-ring inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"

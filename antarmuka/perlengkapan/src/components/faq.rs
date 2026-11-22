@@ -18,7 +18,7 @@ pub fn FaqPage() -> impl IntoView {
         ),
         (
             "Apa saja role yang tersedia?",
-            "Ada 4 role: Operator Satker (input data operasional), Validator Wilayah (verifikasi tingkat wilayah), Validator Pusat (persetujuan & penerbitan SK), dan Admin (pengelolaan sistem).",
+            "Ada 6 role: Operator Satker (mengelola perlengkapan di satuan kerja), Validator Satker (memverifikasi usulan izin pemakaian BMN di satuan kerja), Approver Satker (kuasa pengguna barang: menyetujui izin pemakaian BMN), Validator Wilayah (verifikasi tingkat Kejaksaan Tinggi), Validator Pusat (verifikasi akhir di Kejaksaan Agung), dan Administrator (data master, template, audit log, pengguna, dan role). Rincian hak akses tiap role ada di Admin → Otorisasi.",
         ),
         (
             "Bagaimana cara cetak QR Code aset?",
@@ -75,14 +75,22 @@ pub fn FaqPage() -> impl IntoView {
                                         <AppIcon icon=CARET_DOWN size=10 />
                                     </span>
                                 </button>
-                                <div
-                                    class="overflow-hidden transition-all duration-200"
-                                    class:max-h-0=move || open_idx.get() != Some(i)
-                                    class:max-h-52=move || open_idx.get() == Some(i)
-                                >
-                                    <p class="px-5 pb-4 text-sm leading-relaxed text-slate-400">
-                                        {answer}
-                                    </p>
+                                // The open panel takes the height of its answer (a grid row going from
+                                // `0fr` to `1fr`), not a fixed `max-h-52`: 208px held about eight lines, so
+                                // an answer longer than that was cut off on a phone with no way to scroll
+                                // to the rest.
+                                <div class=move || {
+                                    if open_idx.get() == Some(i) {
+                                        "grid grid-rows-[1fr] transition-[grid-template-rows] duration-200"
+                                    } else {
+                                        "grid grid-rows-[0fr] transition-[grid-template-rows] duration-200"
+                                    }
+                                }>
+                                    <div class="overflow-hidden">
+                                        <p class="px-5 pb-4 text-sm leading-relaxed text-slate-400">
+                                            {answer}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         }

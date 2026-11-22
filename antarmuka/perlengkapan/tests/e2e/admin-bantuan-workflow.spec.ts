@@ -74,6 +74,31 @@ test.describe('Bantuan — panduan & FAQ', () => {
     ).toBeVisible();
     await expect(page.getByText('Bagaimana cara mengajukan kebutuhan BMN?').first()).toBeVisible();
   });
+
+  // An open answer used to be capped at a fixed height (`max-h-52`, 208px, about eight lines) and
+  // clipped past it. The answer about the six roles is longer than that on a phone, so its last
+  // sentence could not be read and there was nothing to scroll.
+  test('a long answer is shown in full on a phone', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/bantuan/faq`);
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
+    await page.getByRole('button', { name: 'Apa saja role yang tersedia?' }).click();
+    const kalimatTerakhir = page.getByText(/Rincian hak akses tiap role ada di Admin/);
+    await expect(kalimatTerakhir).toBeVisible();
+    // The panel has finished growing (it animates for 200ms) and nothing of the paragraph is
+    // outside the box that clips it.
+    await expect
+      .poll(
+        () =>
+          kalimatTerakhir.evaluate((p) => {
+            const kotak = p.parentElement!.getBoundingClientRect();
+            const isi = p.getBoundingClientRect();
+            return isi.bottom <= kotak.bottom + 1 && isi.top >= kotak.top - 1;
+          }),
+        { message: 'the answer is cut off by its panel', timeout: 5000 },
+      )
+      .toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------

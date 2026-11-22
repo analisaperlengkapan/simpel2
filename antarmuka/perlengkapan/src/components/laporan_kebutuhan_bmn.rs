@@ -148,7 +148,7 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
 
     view! {
         <div style="max-width: 1100px; margin: 0 auto;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px;">
                 <div>
                     <h1 style="font-size: 1.4rem; font-weight: 800; color: #e2e8f0; margin: 0;">
                         "Laporan Kebutuhan BMN"
@@ -180,10 +180,10 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
             </div>
 
             // Filters
-            <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
                 <select
                     aria-label="Filter tahun"
-                    style="padding: 8px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #e2e8f0; font-size: 0.82rem;"
+                    style="max-width: 100%; padding: 8px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #e2e8f0; font-size: 0.82rem;"
                     on:change=move |ev| {
                         let v = event_target_value(&ev);
                         tahun.set(v.parse::<i32>().ok());
@@ -197,7 +197,7 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
                 </select>
                 <select
                     aria-label="Filter status"
-                    style="padding: 8px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #e2e8f0; font-size: 0.82rem;"
+                    style="max-width: 100%; padding: 8px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #e2e8f0; font-size: 0.82rem;"
                     on:change=move |ev| {
                         let v = event_target_value(&ev);
                         status_filter.set(v.parse::<i32>().ok());
@@ -258,7 +258,7 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
                         </div>
 
                         // Data table
-                        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden;">
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow-x: auto;">
                             <table style="width: 100%; border-collapse: collapse;">
                                 <thead>
                                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">

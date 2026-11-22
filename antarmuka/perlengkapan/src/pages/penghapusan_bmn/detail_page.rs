@@ -6,6 +6,7 @@ use leptos_router::components::A;
 use leptos_router::hooks::use_params_map;
 use lib_ui::components::icon::AppIcon;
 use lib_ui::hooks::LatestOnly;
+use lib_ui::utils::formatters::format_iso_local_opt;
 use phosphor_leptos::{ARROW_LEFT, CLOCK, FILE_ARROW_UP, FILE_TEXT, MAGIC_WAND, WARNING, X};
 use wasm_bindgen::JsCast;
 use web_sys::{Event, HtmlInputElement, HtmlTextAreaElement};
@@ -556,18 +557,14 @@ fn ValidatorPanel(p: PenghapusanBmnWorkflow) -> impl IntoView {
         .catatan_validator_wilayah
         .clone()
         .unwrap_or_else(|| "Belum ada catatan.".to_string());
-    let wilayah_tgl = p
-        .tanggal_verifikasi_wilayah
-        .clone()
-        .unwrap_or_else(|| "-".to_string());
+    // The server sends UTC ISO-8601; the reader gets "21 Nov 2026, 11:53" in their own zone, as
+    // every other page shows a moment, not `2026-11-21T04:53:52.532011Z`.
+    let wilayah_tgl = format_iso_local_opt(p.tanggal_verifikasi_wilayah.as_deref());
     let pusat_catatan = p
         .catatan_validator_pusat
         .clone()
         .unwrap_or_else(|| "Belum ada catatan.".to_string());
-    let pusat_tgl = p
-        .tanggal_verifikasi_pusat
-        .clone()
-        .unwrap_or_else(|| "-".to_string());
+    let pusat_tgl = format_iso_local_opt(p.tanggal_verifikasi_pusat.as_deref());
 
     view! {
         <SectionCard
@@ -616,15 +613,9 @@ fn SkPanel(
     on_upload: impl Fn(web_sys::MouseEvent) + 'static + Copy + Send + Sync,
 ) -> impl IntoView {
     let konsep_url = p.konsep_sk_url.clone();
-    let konsep_generated_at = p
-        .konsep_sk_generated_at
-        .clone()
-        .unwrap_or_else(|| "-".to_string());
+    let konsep_generated_at = format_iso_local_opt(p.konsep_sk_generated_at.as_deref());
     let signed_url = p.signed_sk_pdf_url.clone();
-    let signed_uploaded_at = p
-        .signed_sk_pdf_uploaded_at
-        .clone()
-        .unwrap_or_else(|| "-".to_string());
+    let signed_uploaded_at = format_iso_local_opt(p.signed_sk_pdf_uploaded_at.as_deref());
     let needs_upload = status == "KONSEP_SK_GENERATED" && signed_url.is_none();
 
     view! {
