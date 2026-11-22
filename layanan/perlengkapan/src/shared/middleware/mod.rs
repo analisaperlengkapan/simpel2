@@ -505,8 +505,10 @@ pub async fn require_authentication(
     }
     match Claims::authenticate(&authenc, request.headers()).await {
         Ok(claims) => {
-            request.extensions_mut().insert(claims);
-            next.run(request).await
+            request.extensions_mut().insert(claims.clone());
+            // Everything the handler awaits, the workflow engine and the audit sink included,
+            // runs as this request's person: see `shared::actor`.
+            crate::shared::actor::scope(&claims, next.run(request)).await
         }
         Err(e) => e.into_response(),
     }

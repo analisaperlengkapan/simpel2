@@ -153,7 +153,9 @@ impl TicketService {
             return;
         };
         let mut event = AuditEvent::new("bantuan", action, "tiket")
-            .actor(actor, format!("user:{actor}"))
+            // The name is resolved HERE, before `tokio::spawn` below: a spawned task does not
+            // inherit the request's identity (`shared::actor`), a ticket has only the id.
+            .actor(actor, crate::shared::actor::resolve(actor, None))
             .resource_id(ticket_id.to_string());
         event.action_name = Some(action_name.to_string());
         event.success = true;

@@ -45,6 +45,25 @@ fn invalid_validation_response(error: &str) -> ValidateTokenResponse {
     }
 }
 
+/// The login a token carries. Tokens minted for the portal carry it as the standard OIDC claim
+/// `preferred_username` (`build_user_custom_claims`); `username` is the older spelling and wins
+/// when both are present. Reading only the latter left every consumer of `ValidateToken` with no
+/// login at all, so a service that printed one fell back to the user's UUID.
+fn login_from_custom(
+    custom: &std::collections::HashMap<String, serde_json::Value>,
+) -> Option<String> {
+    ["username", "preferred_username"]
+        .into_iter()
+        .find_map(|k| {
+            custom
+                .get(k)
+                .and_then(|v| v.as_str())
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+        })
+}
+
 /// AuthencGrpcService implementation
 ///
 /// This service provides gRPC endpoints for service-to-service communication.
@@ -411,7 +430,7 @@ impl AuthencService for AuthencGrpcService {
                         .get(key)
                         .and_then(|v| v.as_str().map(|s| s.to_string()))
                 };
-                let username = pick("username");
+                let username = login_from_custom(&claims.custom);
                 let name = pick("name").or_else(|| pick("nama"));
                 let nip = pick("nip");
                 let jabatan = pick("jabatan");
@@ -1354,5 +1373,42 @@ impl AuthencService for AuthencGrpcService {
         Err(Status::unimplemented(
             "CAPTCHA not yet implemented - requires CAPTCHA service",
         ))
+    }
+}
+
+#[cfg(test)]
+mod login_tests {
+    use super::login_from_custom;
+    use serde_json::json;
+    use std::collections::HashMap;
+
+    fn custom(pairs: &[(&str, &str)]) -> HashMap<String, serde_json::Value> {
+        pairs
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), json!(v)))
+            .collect()
+    }
+
+    #[test]
+    fn a_portal_token_carries_the_login_as_preferred_username() {
+        assert_eq!(
+            login_from_custom(&custom(&[("preferred_username", "operator_bmn")])).as_deref(),
+            Some("operator_bmn")
+        );
+    }
+
+    #[test]
+    fn the_older_username_claim_still_wins_when_both_are_present() {
+        let c = custom(&[("username", "lama"), ("preferred_username", "baru")]);
+        assert_eq!(login_from_custom(&c).as_deref(), Some("lama"));
+    }
+
+    #[test]
+    fn a_blank_claim_is_no_login() {
+        assert_eq!(
+            login_from_custom(&custom(&[("preferred_username", "  ")])),
+            None
+        );
+        assert_eq!(login_from_custom(&custom(&[])), None);
     }
 }

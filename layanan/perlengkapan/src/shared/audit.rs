@@ -42,6 +42,12 @@ impl AuditSink for PgAuditSink {
 
         let action_str = Self::action_str(event.action);
         let metadata = event.metadata.clone();
+        // Whoever wrote the event, the trail never stores a blank, `unknown` or `user:<uuid>`
+        // for a person: see `shared::actor`.
+        let actor_username: Option<String> = event
+            .actor_user_id
+            .map(|id| crate::shared::actor::resolve(id, event.actor_username.as_deref()))
+            .or_else(|| event.actor_username.clone());
 
         client
             .execute(
@@ -57,7 +63,7 @@ impl AuditSink for PgAuditSink {
                     &event.id,
                     &event.occurred_at,
                     &event.actor_user_id,
-                    &event.actor_username,
+                    &actor_username,
                     &event.actor_ip,
                     &action_str,
                     &event.action_name,

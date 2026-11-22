@@ -277,7 +277,10 @@ async fn audit(
     outcome: &AppResult<()>,
 ) {
     let mut event = AuditEvent::new(module.as_str(), AuditAction::Custom, module.status_table())
-        .actor(claims.user_id, claims.username.clone())
+        .actor(
+            claims.user_id,
+            crate::shared::actor::label_of(claims).unwrap_or_default(),
+        )
         .ip(ip.to_string())
         .resource_id(id.to_string())
         .action_name("workflow.break_glass")

@@ -33,15 +33,12 @@ pub struct Aktor<'a> {
 }
 
 impl Aktor<'_> {
-    /// The name the audit trail shows: the person's own, else their NIP, else their login. A
-    /// token that carries none of the first two would otherwise print the handler's "unknown"
-    /// placeholder as if it were a name.
-    pub fn nama_audit(&self) -> &str {
-        [self.nama, self.nip, self.username]
-            .into_iter()
-            .map(str::trim)
-            .find(|n| !n.is_empty() && *n != "unknown")
-            .unwrap_or(self.username)
+    /// What the audit trail shows for the caller, `Nama (NIP)`: see [`crate::shared::actor::label`].
+    /// A token that carries neither a name nor a NIP would otherwise print the handler's
+    /// "unknown" placeholder as if it were a name.
+    pub fn nama_audit(&self) -> String {
+        crate::shared::actor::label(Some(self.nama), Some(self.nip), Some(self.username))
+            .unwrap_or_else(|| self.username.to_string())
     }
 }
 
@@ -1491,7 +1488,10 @@ mod tests {
 
     #[test]
     fn nama_audit_prefers_the_persons_own_name() {
-        assert_eq!(aktor("Budi", "198001", "budi").nama_audit(), "Budi");
+        assert_eq!(
+            aktor("Budi", "198001", "budi").nama_audit(),
+            "Budi (198001)"
+        );
     }
 
     #[test]
