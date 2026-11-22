@@ -298,3 +298,77 @@ pub struct SimpanUkuranProfilRequest {
     #[serde(default)]
     pub with_hijab: Option<bool>,
 }
+
+/// What narrows the per-satker list of one pengajuan: a free-text search and a set of
+/// workflow statuses. A nationwide campaign carries every MySIMKARI satker (545 on
+/// staging), and the list used to be one page of the first 100 by name — nothing beyond
+/// them could be reached by a validator pusat or an admin, and there was no way to ask
+/// "which ones are waiting on me".
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SatkerListFilter {
+    /// Already a `LIKE` pattern with the user's wildcards escaped: `%` and `_` in what
+    /// was typed must match themselves, not "anything".
+    pub q_pattern: Option<String>,
+    /// `aktivitas_id` values the row may stand at. Empty = every status.
+    pub statuses: Vec<i32>,
+}
+
+impl SatkerListFilter {
+    /// Longest search text honoured. Anything past it is not a name or a code anyone typed.
+    pub const MAX_Q: usize = 100;
+    /// More status codes than the workflow has is a malformed request, not a wide filter.
+    pub const MAX_STATUSES: usize = 16;
+
+    /// `q` is the raw `?q=`; `status` the raw `?status=1001,1007`. Blank means "no filter".
+    pub fn parse(
+        q: Option<&str>,
+        status: Option<&str>,
+    ) -> Result<Self, crate::shared::error::AppError> {
+        use crate::shared::error::bad_request;
+
+        let q_pattern = match q.map(str::trim).filter(|s| !s.is_empty()) {
+            None => None,
+            Some(s) if s.chars().count() > Self::MAX_Q => {
+                return Err(bad_request(&format!(
+                    "Kata pencarian maksimal {} karakter",
+                    Self::MAX_Q
+                )));
+            }
+            Some(s) => {
+                let mut escaped = String::with_capacity(s.len() + 2);
+                escaped.push('%');
+                for c in s.chars() {
+                    if matches!(c, '\\' | '%' | '_') {
+                        escaped.push('\\');
+                    }
+                    escaped.push(c);
+                }
+                escaped.push('%');
+                Some(escaped)
+            }
+        };
+
+        let mut statuses = Vec::new();
+        for token in status
+            .unwrap_or_default()
+            .split(',')
+            .map(str::trim)
+            .filter(|t| !t.is_empty())
+        {
+            let code: i32 = token
+                .parse()
+                .map_err(|_| bad_request(&format!("Status tidak dikenal: {token}")))?;
+            if !statuses.contains(&code) {
+                statuses.push(code);
+            }
+        }
+        if statuses.len() > Self::MAX_STATUSES {
+            return Err(bad_request("Terlalu banyak status pada satu permintaan"));
+        }
+
+        Ok(Self {
+            q_pattern,
+            statuses,
+        })
+    }
+}

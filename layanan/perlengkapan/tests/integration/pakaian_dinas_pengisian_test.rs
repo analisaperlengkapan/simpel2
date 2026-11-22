@@ -485,3 +485,244 @@ async fn setelah_diajukan_ukuran_tidak_dapat_diubah_lagi() {
 
     teardown_test_db(&db_name).await;
 }
+
+/// Kampanye nasional ("semua"): setiap satker MySIMKARI mendapat barisnya. Staging
+/// membawa 545 satker, dan layar daftar hanya memuat 100 pertama tanpa cara menjangkau sisanya;
+/// laporan menyatakan "Belum ada satker yang ditetapkan" karena `total_satker` menghitung
+/// `_satker_terpilih`, yang KOSONG untuk kampanye semacam ini. Tes ini menjaga sisi server
+/// keduanya: hitungan satker peserta, halaman yang tak saling tumpang, pencarian, dan
+/// penyaring status.
+#[tokio::test]
+async fn kampanye_nasional_dihitung_utuh_dan_daftarnya_bisa_dihalamani_dan_dicari() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let (mulai, selesai) = periode_berjalan();
+
+    let res = post(
+        &server,
+        "/pakaian-dinas/jenis",
+        "admin",
+        ADMIN,
+        SATKER_A,
+        json!({"nama": "PDH Nasional", "is_active": true}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 201, "jenis: {:?}", res.text());
+    let jenis_id = res.json::<Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let res = post(
+        &server,
+        "/pakaian-dinas/spesifikasi",
+        "admin",
+        ADMIN,
+        SATKER_A,
+        json!({"jenis_pakaian_dinas_id": jenis_id, "nama": "Baju Nasional",
+               "gender": "SEMUA", "ukuran_group": "BAJU", "is_active": true}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 201, "spesifikasi: {:?}", res.text());
+    let spesifikasi_id = res.json::<Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let res = post(
+        &server,
+        "/pakaian-dinas/pengajuan",
+        "validator_pusat",
+        PUSAT,
+        SATKER_A,
+        json!({"nama": "Kampanye nasional", "tgl_mulai": mulai, "tgl_selesai": selesai,
+               "is_reguler": true, "tahun": 2026, "pilihan_satker": "semua",
+               "jenis_pakaian_dinas_id": jenis_id, "spesifikasi_ids": [spesifikasi_id]}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 201, "pengajuan: {:?}", res.text());
+    let pengajuan_id = res.json::<Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let daftar = |query: &'static str| {
+        let path = format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker{query}");
+        let server = &server;
+        async move { get(server, &path, "validator_pusat", PUSAT, SATKER_A).await }
+    };
+    let kode = |body: &Value| -> Vec<String> {
+        body["data"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r["satker_id"].as_str().unwrap().to_string())
+            .collect()
+    };
+
+    // 1. Seluruh satker MySIMKARI jadi peserta, dan itulah yang dihitung laporan.
+    let res = daftar("?per_page=100").await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    let semua = res.json::<Value>();
+    let jumlah = semua["total"].as_i64().unwrap();
+    assert!(
+        jumlah >= 5,
+        "kampanye nasional harus memuat semua satker: {jumlah}"
+    );
+
+    let res = get(
+        &server,
+        "/pakaian-dinas/pengajuan",
+        "validator_pusat",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    let kampanye = res.json::<Value>()["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["id"].as_str() == Some(pengajuan_id.as_str()))
+        .cloned()
+        .expect("kampanye ada di daftarnya");
+    assert_eq!(
+        kampanye["total_satker"].as_i64(),
+        Some(jumlah),
+        "total_satker menghitung peserta, bukan `_satker_terpilih` yang kosong untuk 'semua'"
+    );
+
+    // 2. Halaman: tidak saling tumpang, urutannya tetap, dan gabungannya utuh.
+    let mut dari_halaman = Vec::new();
+    for page in 1..=3 {
+        let path = format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker?page={page}&per_page=2");
+        let res = get(&server, &path, "validator_pusat", PUSAT, SATKER_A).await;
+        assert_eq!(res.status_code(), 200, "{:?}", res.text());
+        let body = res.json::<Value>();
+        assert_eq!(body["total"].as_i64(), Some(jumlah));
+        dari_halaman.extend(kode(&body));
+    }
+    assert_eq!(
+        dari_halaman.len(),
+        5.min(jumlah as usize),
+        "tiga halaman dua-dua"
+    );
+    let mut unik = dari_halaman.clone();
+    unik.sort();
+    unik.dedup();
+    assert_eq!(
+        unik.len(),
+        dari_halaman.len(),
+        "halaman tidak boleh tumpang: {dari_halaman:?}"
+    );
+    assert_eq!(
+        kode(&semua)[..dari_halaman.len()],
+        dari_halaman[..],
+        "urutan sama di tiap ukuran halaman"
+    );
+
+    // 3. Pencarian: nama dan kode, tanpa peduli huruf besar; `%` yang diketik adalah teks.
+    let res = daftar("?q=uji%20dua").await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    let body = res.json::<Value>();
+    assert_eq!(kode(&body), vec!["KJT02".to_string()], "{body:?}");
+    assert_eq!(body["total"].as_i64(), Some(1), "total mengikuti pencarian");
+    let res = daftar("?q=skr003").await;
+    assert_eq!(kode(&res.json::<Value>()), vec!["SKR003".to_string()]);
+    let res = daftar("?q=%25").await;
+    assert_eq!(res.status_code(), 200);
+    assert!(
+        kode(&res.json::<Value>()).is_empty(),
+        "`%` bukan 'apa saja'"
+    );
+
+    // 4. Status: semua baru lahir di Input (1000); tak ada yang Selesai (1008).
+    let res = daftar("?status=1000&per_page=100").await;
+    assert_eq!(res.json::<Value>()["total"].as_i64(), Some(jumlah));
+    let res = daftar("?status=1001,1008").await;
+    assert_eq!(res.json::<Value>()["total"].as_i64(), Some(0));
+    let res = daftar("?status=abc").await;
+    assert_eq!(
+        res.status_code(),
+        400,
+        "bukan angka = permintaan salah: {:?}",
+        res.text()
+    );
+
+    teardown_test_db(&db_name).await;
+}
+
+/// Aksi validator masuk jejak audit DENGAN pelakunya. Sebelumnya kejadiannya dibuat tanpa aktor sama
+/// sekali (`actor_id` dan `actor_name` null), sehingga halaman Audit Log yang menjanjikan "siapa, apa,
+/// kapan" tak punya jawaban untuk persetujuan pakaian dinas; satu-satunya jejak pelakunya ada di baris
+/// aktivitas per satker.
+#[tokio::test]
+async fn aksi_validator_pakaian_dinas_tercatat_di_jejak_audit_beserta_pelakunya() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+    let path = format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai/{NIP_A}");
+
+    let res = put(
+        &server,
+        &path,
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+        json!({"with_hijab": false, "ukuran": [{"pakaian_id": pakaian_id, "ukuran": "L"}]}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker"),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    let satker_row_id = res.json::<Value>()["data"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let res = post(
+        &server,
+        "/pakaian-dinas/validator-action",
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+        json!({"pengajuan_satker_id": satker_row_id, "aksi": "submit"}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "ajukan: {:?}", res.text());
+
+    let res = get(
+        &server,
+        "/audit?module=pakaian_dinas&per_page=50",
+        "admin",
+        ADMIN,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    let body = res.json::<Value>();
+    let entry = body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["action_name"].as_str() == Some("pakaian_dinas.validator_action"))
+        .unwrap_or_else(|| panic!("aksi validator harus tercatat: {body:?}"));
+
+    assert_eq!(
+        entry["actor_id"].as_str(),
+        Some(OPERATOR),
+        "tanpa pelaku, jejak audit tak bisa menjawab siapa yang bertindak: {entry:?}"
+    );
+    let nama = entry["actor_name"].as_str().unwrap_or_default();
+    assert!(
+        !nama.trim().is_empty() && nama != "unknown",
+        "nama pelaku harus terbaca manusia, bukan penanda kosong: {entry:?}"
+    );
+
+    teardown_test_db(&db_name).await;
+}

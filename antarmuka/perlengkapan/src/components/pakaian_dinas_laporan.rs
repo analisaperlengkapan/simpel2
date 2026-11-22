@@ -43,7 +43,9 @@ async fn query_satker_options(
     let Some(id) = pengajuan_id else {
         return Ok(Vec::new());
     };
-    fetch_pengajuan_satker(id, 1, 500).await.map(|r| r.data)
+    // 1000 is the most the server returns in one page. A nationwide campaign has ~550 satker,
+    // and 500 left the last fifty out of the dropdown with nothing saying so.
+    fetch_pengajuan_satker(id, 1, 1000).await.map(|r| r.data)
 }
 
 /// Rekap query keyed by the entire filter struct — so toggling

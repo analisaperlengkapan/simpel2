@@ -12,7 +12,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use super::models::*;
-use super::services::PakaianDinasService;
+use super::services::{Aktor, PakaianDinasService};
 use crate::shared::error::*;
 use crate::shared::middleware::Claims;
 use crate::shared::pagination::PaginationQuery;
@@ -50,6 +50,16 @@ pub struct SubSpesifikasiFilterQuery {
 #[derive(Debug, Deserialize)]
 pub struct UkuranFilterQuery {
     pub group: Option<String>,
+}
+
+/// `?page=&per_page=&q=&status=` of the per-satker list of one pengajuan.
+/// `q` searches the satker's name and code; `status` is a comma list of workflow codes.
+#[derive(Debug, Deserialize)]
+pub struct SatkerListQuery {
+    #[serde(flatten)]
+    pub pagination: PaginationQuery,
+    pub q: Option<String>,
+    pub status: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -614,15 +624,18 @@ pub async fn process_validator_action_bulk(
 ) -> Result<Json<ApiResponse<BulkActionResult>>, AppError> {
     // Validators only: an operator submits one satker at a time, from its own page.
     claims.require_any_role(&["validator_wilayah", "validator_pusat"])?;
-    let user_nip = claims.nip.as_deref().unwrap_or("unknown");
-    let user_nama = claims.name.as_deref().unwrap_or("unknown");
+    let aktor = Aktor {
+        id: claims.user_id,
+        nip: claims.nip.as_deref().unwrap_or("unknown"),
+        nama: claims.name.as_deref().unwrap_or("unknown"),
+        username: &claims.username,
+    };
     let user_roles: Vec<String> = claims.role_set().iter().map(str::to_string).collect();
 
     let result = service
         .process_validator_action_bulk(
             request,
-            user_nip,
-            user_nama,
+            &aktor,
             &user_roles,
             &SatkerScope::from_claims(&claims),
         )
@@ -656,10 +669,12 @@ pub async fn get_menunggu_pakaian_dinas(
 pub async fn get_pengajuan_satker_list(
     State(service): State<PakaianDinasService>,
     Path(pengajuan_id): Path<Uuid>,
-    Query(pagination): Query<PaginationQuery>,
+    Query(query): Query<SatkerListQuery>,
     claims: Claims,
 ) -> Result<Json<PaginatedResponse<PengajuanSatker>>, AppError> {
+    let pagination = &query.pagination;
     pagination.validate()?;
+    let filter = SatkerListFilter::parse(query.q.as_deref(), query.status.as_deref())?;
     service.catat_pengguna(&claims).await;
     // The campaign may be nationwide; a satker's response to it is not.
     let (items, total) = service
@@ -667,6 +682,7 @@ pub async fn get_pengajuan_satker_list(
             pengajuan_id,
             pagination.page,
             pagination.per_page,
+            &filter,
             &SatkerScope::from_claims(&claims),
         )
         .await?;
@@ -724,8 +740,12 @@ pub async fn process_validator_action(
     // (an approver of another workflow, an administrator) instead of leaving the
     // decision to the "no valid (status, action, role)" fall-through.
     claims.require_any_role(&["operator_satker", "validator_wilayah", "validator_pusat"])?;
-    let user_nip = claims.nip.as_deref().unwrap_or("unknown");
-    let user_nama = claims.name.as_deref().unwrap_or("unknown");
+    let aktor = Aktor {
+        id: claims.user_id,
+        nip: claims.nip.as_deref().unwrap_or("unknown"),
+        nama: claims.name.as_deref().unwrap_or("unknown"),
+        username: &claims.username,
+    };
     // Every role the caller holds, sorted (`RoleSet` order); the service acts
     // as the first one for which the requested move is valid.
     let user_roles: Vec<String> = claims.role_set().iter().map(str::to_string).collect();
@@ -736,8 +756,7 @@ pub async fn process_validator_action(
     let item = service
         .process_validator_action(
             request,
-            user_nip,
-            user_nama,
+            &aktor,
             &user_roles,
             &SatkerScope::from_claims(&claims),
         )

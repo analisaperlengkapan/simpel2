@@ -7,6 +7,7 @@
 //! on submissions pending wilayah review; Validator Pusat on those forwarded to
 //! pusat. Everyone else sees the timeline read-only.
 
+use leptos::html;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_fetch::QueryClient;
@@ -15,10 +16,11 @@ use leptos_router::hooks::use_params_map;
 use crate::api::{
     AppError, BulkActionResult, BulkValidatorActionRequest, PaginatedResponse, PengajuanSatker,
     PengajuanSatkerAktivitas, ValidatorActionRequest, aktivitas_is_revisi, aktivitas_label,
-    fetch_pakaian_satker_aktivitas, fetch_pengajuan_satker, process_validator_action,
+    fetch_pakaian_satker_aktivitas, fetch_pengajuan_satker_terfilter, process_validator_action,
     process_validator_action_bulk,
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
+use crate::components::pagination_controls::PaginationControls;
 use crate::components::workflow_ui::{
     ActionTone, ApprovalDialog, StepStatus, WorkflowAction, WorkflowActions, WorkflowStep,
     WorkflowTimeline,
@@ -128,11 +130,36 @@ fn available_actions(code: i32) -> Option<(&'static str, &'static str)> {
     None
 }
 
+/// Satker per page. The grid is two columns wide, so an even number keeps the last row full.
+/// A nationwide campaign carries every MySIMKARI satker (545 on staging); this screen used to
+/// ask for the first 100 by name and stop, so a validator pusat or an admin could never reach
+/// the rest, and had no way to ask which ones were waiting on them.
+const PER_HALAMAN: i32 = 30;
+
+/// What the list is asked for: the pengajuan, a refresh counter, the page, the search text and
+/// the workflow statuses (a comma list). One tuple so any of them changing refetches.
+type KunciDaftar = (String, i32, i32, String, String);
+
 async fn query_satker_list(
-    key: (String, i32),
+    key: KunciDaftar,
 ) -> Result<PaginatedResponse<PengajuanSatker>, AppError> {
-    let (pengajuan_id, _refresh) = key;
-    fetch_pengajuan_satker(pengajuan_id, 1, 100).await
+    let (pengajuan_id, _refresh, halaman, q, status) = key;
+    fetch_pengajuan_satker_terfilter(pengajuan_id, halaman, PER_HALAMAN, q, status).await
+}
+
+/// The `status` of the list request for one choice of the status select. Blank = every status.
+/// "menunggu" is the rows [`available_actions`] offers this user a move on: wilayah's pending
+/// ones (1001 / 1012) and Pusat's returns to wilayah (1007), or Pusat's (1004 / 1010).
+fn status_query(pilihan: &str, wilayah: bool, pusat: bool) -> String {
+    match pilihan {
+        "menunggu" if wilayah => "1001,1007,1012".to_string(),
+        "menunggu" if pusat => "1004,1010".to_string(),
+        "penyiapan" => "1000".to_string(),
+        "diproses" => "1001,1012,1004,1010".to_string(),
+        "revisi" => "1003,1007".to_string(),
+        "selesai" => "1008".to_string(),
+        _ => String::new(),
+    }
 }
 
 async fn query_satker_aktivitas(
@@ -172,7 +199,17 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
     };
 
     let refresh = RwSignal::new(0);
+    let halaman = RwSignal::new(1_i32);
+    // `cari_input` is what is typed; `cari` is what the list was last asked for, so the list
+    // does not refetch on every keystroke.
+    let cari_input = RwSignal::new(String::new());
+    let cari = RwSignal::new(String::new());
+    let status_pilihan = RwSignal::new(String::new());
+    let (is_wilayah, is_pusat) = AuthService::load_session()
+        .map(|s| (s.is_validator_wilayah(), s.is_validator_pusat()))
+        .unwrap_or((false, false));
     let selected = RwSignal::new(Option::<PengajuanSatker>::None);
+    let panel_ref = NodeRef::<html::Div>::new();
     let pending = RwSignal::new(Option::<PendingAction>::None);
     let busy = RwSignal::new(false);
     let error = RwSignal::new(Option::<String>::None);
@@ -181,8 +218,38 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
     let hasil_massal = RwSignal::new(Option::<BulkActionResult>::None);
 
     let client: QueryClient = expect_context();
-    let list_resource =
-        client.local_resource(query_satker_list, move || (pengajuan_id(), refresh.get()));
+    let list_resource = client.local_resource(query_satker_list, move || {
+        (
+            pengajuan_id(),
+            refresh.get(),
+            halaman.get(),
+            cari.get(),
+            status_query(&status_pilihan.get(), is_wilayah, is_pusat),
+        )
+    });
+    // The detail panel sits below the list; with a page of cards between the button and the
+    // panel, picking a satker looked like it did nothing.
+    Effect::new(move |_| {
+        if selected.get().is_some()
+            && let Some(el) = panel_ref.get()
+        {
+            el.scroll_into_view();
+        }
+    });
+    // Approving the last row of a filtered page empties it while later pages may remain.
+    Effect::new(move |_| {
+        if let Some(Ok(r)) = list_resource.get()
+            && r.data.is_empty()
+            && r.total > 0
+            && halaman.get_untracked() > 1
+        {
+            halaman.set(1);
+        }
+    });
+    let ke_halaman_awal = move || {
+        halaman.set(1);
+        terpilih.set(Vec::new());
+    };
     let akt_resource = client.local_resource(query_satker_aktivitas, move || {
         (
             selected.get().map(|s| s.id).unwrap_or_default(),
@@ -257,6 +324,87 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
             icon="fas fa-building"
             description="Pantau & proses pengajuan pakaian dinas per satuan kerja"
         >
+            <form
+                data-testid="filter-satker"
+                class="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-white/[0.06] bg-surface-panel px-4 py-3 text-sm"
+                on:submit=move |ev| {
+                    ev.prevent_default();
+                    cari.set(cari_input.get().trim().to_string());
+                    ke_halaman_awal();
+                }
+            >
+                <label class="flex min-w-[14rem] flex-1 flex-col gap-1 text-xs text-slate-400">
+                    "Cari satker"
+                    <input
+                        type="search"
+                        data-testid="cari-satker"
+                        placeholder="Nama atau kode satker"
+                        maxlength="100"
+                        class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+                        prop:value=move || cari_input.get()
+                        on:input=move |ev| cari_input.set(event_target_value(&ev))
+                    />
+                </label>
+                <label class="flex flex-col gap-1 text-xs text-slate-400">
+                    "Status"
+                    <select
+                        data-testid="status-satker"
+                        class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+                        on:change=move |ev| {
+                            status_pilihan.set(event_target_value(&ev));
+                            ke_halaman_awal();
+                        }
+                    >
+                        <option value="" selected=move || status_pilihan.get().is_empty()>
+                            "Semua status"
+                        </option>
+                        {(is_wilayah || is_pusat)
+                            .then(|| {
+                                view! {
+                                    <option
+                                        value="menunggu"
+                                        selected=move || status_pilihan.get() == "menunggu"
+                                    >
+                                        "Menunggu tindakan saya"
+                                    </option>
+                                }
+                            })}
+                        <option value="penyiapan" selected=move || status_pilihan.get() == "penyiapan">
+                            "Penyiapan"
+                        </option>
+                        <option value="diproses" selected=move || status_pilihan.get() == "diproses">
+                            "Sedang diproses"
+                        </option>
+                        <option value="revisi" selected=move || status_pilihan.get() == "revisi">
+                            "Perlu revisi"
+                        </option>
+                        <option value="selesai" selected=move || status_pilihan.get() == "selesai">
+                            "Selesai"
+                        </option>
+                    </select>
+                </label>
+                <button
+                    type="submit"
+                    data-testid="cari-satker-kirim"
+                    class="rounded-lg bg-gold-gradient px-4 py-2 text-xs font-bold text-navy-950 transition hover:opacity-90"
+                >
+                    "Cari"
+                </button>
+                <button
+                    type="button"
+                    data-testid="cari-satker-reset"
+                    class="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-slate-300 transition hover:bg-white/[0.08]"
+                    on:click=move |_| {
+                        cari_input.set(String::new());
+                        cari.set(String::new());
+                        status_pilihan.set(String::new());
+                        ke_halaman_awal();
+                    }
+                >
+                    "Reset"
+                </button>
+            </form>
+
             {move || {
                 error
                     .get()
@@ -306,6 +454,10 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                     None => view! { <LoadingState /> }.into_any(),
                     Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
                     Some(Ok(resp)) => {
+                        let total = resp.total;
+                        let total_pages = resp.total_pages;
+                        let ada_filter = !cari.get_untracked().is_empty()
+                            || !status_pilihan.get_untracked().is_empty();
                         let rows = resp.data;
                         // The rows this user may move on now (a wilayah validator's
                         // pending ones, or pusat's); only those get a tick box.
@@ -324,7 +476,11 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                         if rows.is_empty() {
                             view! {
                                 <div class="rounded-2xl border border-white/[0.06] bg-surface-panel p-8 text-center text-sm text-slate-400">
-                                    "Belum ada satker pada pengajuan ini."
+                                    {if ada_filter {
+                                        "Tidak ada satker yang cocok dengan pencarian atau status ini."
+                                    } else {
+                                        "Belum ada satker pada pengajuan ini."
+                                    }}
                                 </div>
                             }
                                 .into_any()
@@ -352,7 +508,11 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                     }
                                                 }
                                             />
-                                            {format!("Pilih semua yang menunggu ({n_layak})")}
+                                            {if total_pages > 1 {
+                                                format!("Pilih semua yang menunggu di halaman ini ({n_layak})")
+                                            } else {
+                                                format!("Pilih semua yang menunggu ({n_layak})")
+                                            }}
                                         </label>
                                         <div class="flex items-center gap-3">
                                             <span class="text-slate-400">
@@ -410,7 +570,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                                 {nama}
                                                             </h3>
                                                             <p class="text-xs text-slate-400">
-                                                                {kode} " · " {pegawai.to_string()} " pegawai"
+                                                                {kode} " · " {pegawai.to_string()} " pegawai terisi"
                                                             </p>
                                                         </div>
                                                         <div class="flex items-center gap-2">
@@ -481,6 +641,19 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                         }
                                     />
                                 </div>
+                                <PaginationControls
+                                    current_page=Signal::derive(move || halaman.get())
+                                    total_pages=Signal::derive(move || total_pages.max(1))
+                                    total_items=Some(total)
+                                    on_prev=Callback::new(move |_: ()| {
+                                        halaman.update(|p| *p = (*p - 1).max(1));
+                                        terpilih.set(Vec::new());
+                                    })
+                                    on_next=Callback::new(move |_: ()| {
+                                        halaman.update(|p| *p += 1);
+                                        terpilih.set(Vec::new());
+                                    })
+                                />
                             }
                                 .into_any()
                         }
@@ -543,7 +716,8 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                         let has_actions = !actions.is_empty();
 
                         view! {
-                            <div class="mt-6">
+                            // Leave room for the fixed top bar when the page scrolls to it.
+                            <div class="mt-6" node_ref=panel_ref style="scroll-margin-top: 5rem">
                                 <SectionCard title="Riwayat & Aksi Workflow">
                                     <div class="mb-3 flex items-center justify-between">
                                         <p class="text-sm font-semibold text-slate-200">{nama}</p>
@@ -617,5 +791,33 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                     })
             }}
         </PageLayout>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::status_query;
+
+    #[test]
+    fn menunggu_is_the_rows_this_role_can_move() {
+        // The same codes `available_actions` offers a move on, per role.
+        assert_eq!(status_query("menunggu", true, false), "1001,1007,1012");
+        assert_eq!(status_query("menunggu", false, true), "1004,1010");
+        // Someone who can move nothing is not offered this choice (the option is hidden), so a
+        // blank here only covers a stale selection; the server's satker scope still applies.
+        assert_eq!(status_query("menunggu", false, false), "");
+    }
+
+    #[test]
+    fn named_choices_map_to_workflow_codes() {
+        assert_eq!(status_query("penyiapan", false, false), "1000");
+        assert_eq!(
+            status_query("diproses", false, false),
+            "1001,1012,1004,1010"
+        );
+        assert_eq!(status_query("revisi", false, false), "1003,1007");
+        assert_eq!(status_query("selesai", false, false), "1008");
+        assert_eq!(status_query("", true, true), "");
+        assert_eq!(status_query("bukan-pilihan", true, true), "");
     }
 }

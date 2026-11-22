@@ -909,6 +909,63 @@ test.describe("Pakaian Dinas — bulk approval", () => {
   });
 });
 
+// ── Finding one satker among hundreds ───────────────────────────────────────
+// A nationwide campaign carries every MySIMKARI satker (545 on staging). The list asked for the
+// first 100 by name and stopped: a validator pusat or an admin could not reach the rest, and had
+// no way to ask "which of these are waiting on me". It now searches, filters by status and pages.
+test.describe("Pakaian Dinas — the satker list can be searched and narrowed by status", () => {
+  test("a validator finds one satker by name and sees only what waits on them", async ({
+    browser,
+    request,
+  }) => {
+    const { pengajuanId, rows } = await kampanyeDuaSatker(request);
+    // Jakpus (0200010) sorts first and belongs to operator_a: it goes to wilayah; Jaksel stays at Input.
+    expect((await aksiPakaian(request, "operator_a", rows[0], "submit")).aktivitas).toBe(1001);
+
+    const ctx = await browser.newContext({ storageState: storageStatePath("validator_wilayah") });
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker`, { waitUntil: "domcontentloaded" });
+    const kartu = page.getByRole("button", { name: "Lihat Riwayat & Aksi" });
+    await expect(kartu).toHaveCount(2, { timeout: 20000 });
+    // The count says what it counts: filled employees, not the satker's headcount.
+    await expect(page.getByText(/· \d+ pegawai terisi/).first()).toBeVisible();
+    // Two satker fit one page, so there is nothing to page through.
+    await expect(page.getByRole("button", { name: "Selanjutnya" })).toBeDisabled();
+
+    // Search by name, typed in lower case: the request carries it, and the list narrows to the one satker.
+    const dicari = page.waitForResponse((r) => r.url().includes("/satker?") && r.url().includes("q=selatan"));
+    await page.getByTestId("cari-satker").fill("selatan");
+    await page.getByTestId("cari-satker-kirim").click();
+    expect((await dicari).ok()).toBeTruthy();
+    await expect(kartu).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: "KEJAKSAAN NEGERI JAKARTA SELATAN" })).toBeVisible();
+
+    // A search with no match says so instead of showing a blank page.
+    await page.getByTestId("cari-satker").fill("tidak ada satker bernama ini");
+    await page.getByTestId("cari-satker-kirim").click();
+    await expect(page.getByText("Tidak ada satker yang cocok dengan pencarian atau status ini.")).toBeVisible();
+
+    // Reset brings both back; "waiting on me" leaves only the one wilayah can move.
+    await page.getByTestId("cari-satker-reset").click();
+    await expect(kartu).toHaveCount(2);
+    const menunggu = page.waitForResponse((r) => r.url().includes("/satker?") && r.url().includes("status=1001"));
+    await page.getByTestId("status-satker").selectOption("menunggu");
+    expect((await menunggu).ok()).toBeTruthy();
+    await expect(kartu).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: "KEJAKSAAN NEGERI JAKARTA PUSAT" })).toBeVisible();
+    await ctx.close();
+  });
+
+  test("the server refuses a status that is not a workflow code", async ({ request }) => {
+    const { pengajuanId } = await kampanyeDuaSatker(request);
+    const pusat = await tokenFor(request, "validator_pusat");
+    const res = await request.get(`${PD_API}/pengajuan/${pengajuanId}/satker?status=abc`, {
+      headers: { Authorization: `Bearer ${pusat}` },
+    });
+    expect(res.status()).toBe(400);
+  });
+});
+
 // ── Handovers tell the next role ────────────────────────────────────────────
 // A satker moving to the next role used to tell nobody: the work sat in a list
 // until the next role happened to open it, and the dashboard's "Perlu Tindakan"

@@ -71,7 +71,7 @@ impl PakaianDinasRepository {
             r#"
             SELECT p.*, j.nama as jenis_pakaian_nama,
                    COALESCE(a.deskripsi, a.nama) as aktivitas_label,
-                   (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = p.id) as total_satker,
+                   (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker pt WHERE pt.pengajuan_id = p.id) as total_satker,
                    (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
                     WHERE ps.pengajuan_id = p.id AND ps.aktivitas_id = {AKTIVITAS_SELESAI}) as satker_selesai
             FROM perlengkapan.pengajuan_pakaian_dinas p
@@ -142,7 +142,7 @@ impl PakaianDinasRepository {
             r#"
                 SELECT p.*, j.nama as jenis_pakaian_nama,
                        COALESCE(a.deskripsi, a.nama) as aktivitas_label,
-                       (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = p.id) as total_satker,
+                       (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker pt WHERE pt.pengajuan_id = p.id) as total_satker,
                        (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
                         WHERE ps.pengajuan_id = p.id AND ps.aktivitas_id = {AKTIVITAS_SELESAI}) as satker_selesai
                 FROM perlengkapan.pengajuan_pakaian_dinas p

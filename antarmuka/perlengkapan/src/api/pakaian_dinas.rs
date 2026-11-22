@@ -816,18 +816,54 @@ pub async fn delete_pengajuan_pakaian_dinas(
 
 // --- Pengajuan Satker ---
 
-#[cfg(target_arch = "wasm32")]
+/// One page of a pengajuan's satker, no narrowing. Callers that want the whole list in
+/// one go (the laporan's satker dropdown) use this; the validator screen pages and filters
+/// through [`fetch_pengajuan_satker_terfilter`].
 pub async fn fetch_pengajuan_satker(
     pengajuan_id: String,
     page: i32,
     per_page: i32,
 ) -> Result<PaginatedResponse<PengajuanSatker>, crate::api::AppError> {
+    fetch_pengajuan_satker_terfilter(pengajuan_id, page, per_page, String::new(), String::new())
+        .await
+}
+
+/// The query string of [`fetch_pengajuan_satker_terfilter`], blank filters omitted. Pure, so
+/// what reaches the server is checked without a browser. Only the browser build calls it; the
+/// host build keeps it for the tests below instead of carrying a dead function.
+#[cfg(any(target_arch = "wasm32", test))]
+pub fn satker_list_query(page: i32, per_page: i32, q: &str, status: &str) -> String {
+    let mut qs = format!("page={page}&per_page={per_page}");
+    let q = q.trim();
+    if !q.is_empty() {
+        qs.push_str("&q=");
+        qs.push_str(&urlencoding::encode(q));
+    }
+    let status = status.trim();
+    if !status.is_empty() {
+        qs.push_str("&status=");
+        qs.push_str(&urlencoding::encode(status));
+    }
+    qs
+}
+
+/// `GET /pakaian-dinas/pengajuan/{id}/satker` with paging, a name/code search and a comma
+/// list of workflow statuses.
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_pengajuan_satker_terfilter(
+    pengajuan_id: String,
+    page: i32,
+    per_page: i32,
+    q: String,
+    status: String,
+) -> Result<PaginatedResponse<PengajuanSatker>, crate::api::AppError> {
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
-        "/api/v1/perlengkapan/pakaian-dinas/pengajuan/{}/satker?page={}&per_page={}",
-        pengajuan_id, page, per_page
+        "/api/v1/perlengkapan/pakaian-dinas/pengajuan/{}/satker?{}",
+        pengajuan_id,
+        satker_list_query(page, per_page, &q, &status)
     );
 
     let token = get_auth_token().ok_or_else(|| {
@@ -851,10 +887,12 @@ pub async fn fetch_pengajuan_satker(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_pengajuan_satker(
+pub async fn fetch_pengajuan_satker_terfilter(
     _pengajuan_id: String,
     _page: i32,
     _per_page: i32,
+    _q: String,
+    _status: String,
 ) -> Result<PaginatedResponse<PengajuanSatker>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
@@ -1681,4 +1719,25 @@ pub async fn keluarkan_pegawai_dari_pengajuan(
     Err(crate::api::AppError::Unknown(
         "Server-side stub".to_string(),
     ))
+}
+
+#[cfg(test)]
+mod satker_list_query_tests {
+    use super::satker_list_query;
+
+    #[test]
+    fn blank_filters_are_left_out_of_the_query() {
+        assert_eq!(satker_list_query(1, 30, "", ""), "page=1&per_page=30");
+        assert_eq!(satker_list_query(2, 30, "   ", " "), "page=2&per_page=30");
+    }
+
+    #[test]
+    fn what_was_typed_is_encoded_not_interpreted() {
+        // `&` and `=` typed into the box must not become parameters of their own, and a
+        // space must not end the value.
+        assert_eq!(
+            satker_list_query(1, 30, "Jakarta Pusat&status=1008", "1001,1007"),
+            "page=1&per_page=30&q=Jakarta%20Pusat%26status%3D1008&status=1001%2C1007"
+        );
+    }
 }

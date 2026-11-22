@@ -17,6 +17,34 @@ use crate::shared::grpc::clients::integrasi::v1::{DataSource, SyncState};
 use crate::shared::satker_scope::SatkerScope;
 use lib_perlengkapan::audit::{AuditAction, AuditEvent};
 
+/// Who is acting: what the audit trail and the activity row must say about the caller.
+///
+/// A validator's approval used to reach the audit trail with no actor at all (`actor_id` and
+/// `actor_name` both null), so "who approved this satker" had no answer there, only in the
+/// per-satker activity row. The id is what makes the entry attributable; the name is what a
+/// reader of the trail recognises.
+#[derive(Debug, Clone, Copy)]
+pub struct Aktor<'a> {
+    pub id: Uuid,
+    pub nip: &'a str,
+    pub nama: &'a str,
+    /// The login name from the token: the last resort when no name or NIP was carried.
+    pub username: &'a str,
+}
+
+impl Aktor<'_> {
+    /// The name the audit trail shows: the person's own, else their NIP, else their login. A
+    /// token that carries none of the first two would otherwise print the handler's "unknown"
+    /// placeholder as if it were a name.
+    pub fn nama_audit(&self) -> &str {
+        [self.nama, self.nip, self.username]
+            .into_iter()
+            .map(str::trim)
+            .find(|n| !n.is_empty() && *n != "unknown")
+            .unwrap_or(self.username)
+    }
+}
+
 /// Validate periode pengajuan pakaian dinas (Fase 1.8). Mengembalikan
 /// `AppError::BadRequest` (422) jika:
 /// - salah satu tgl_mulai / tgl_selesai `None` (keduanya wajib), ATAU
@@ -492,10 +520,11 @@ impl PakaianDinasService {
         pengajuan_id: Uuid,
         page: i32,
         per_page: i32,
+        filter: &SatkerListFilter,
         scope: &SatkerScope,
     ) -> AppResult<(Vec<PengajuanSatker>, i64)> {
         self.repository
-            .get_pengajuan_satker_list(pengajuan_id, page, per_page, scope)
+            .get_pengajuan_satker_list(pengajuan_id, page, per_page, filter, scope)
             .await
     }
 
@@ -513,11 +542,11 @@ impl PakaianDinasService {
     pub async fn process_validator_action(
         &self,
         request: ValidatorActionRequest,
-        user_nip: &str,
-        user_nama: &str,
+        aktor: &Aktor<'_>,
         user_roles: &[String],
         scope: &SatkerScope,
     ) -> AppResult<PengajuanSatker> {
+        let (user_nip, user_nama) = (aktor.nip, aktor.nama);
         // Scoped read FIRST, and it is the only read of this row: everything
         // below — the transition, the activity row stamped with the actor's
         // NIP, the audit event — hangs off it. `determine_next_status` gates
@@ -570,6 +599,7 @@ impl PakaianDinasService {
                 _ => AuditAction::Update,
             };
             let event = AuditEvent::new("pakaian_dinas", action, "pengajuan_satker")
+                .actor(aktor.id, aktor.nama_audit())
                 .resource_id(request.pengajuan_satker_id.to_string())
                 .action_name("pakaian_dinas.validator_action")
                 .message(request.komentar.clone().unwrap_or_default())
@@ -834,8 +864,7 @@ impl PakaianDinasService {
     pub async fn process_validator_action_bulk(
         &self,
         request: BulkValidatorActionRequest,
-        user_nip: &str,
-        user_nama: &str,
+        aktor: &Aktor<'_>,
         user_roles: &[String],
         scope: &SatkerScope,
     ) -> AppResult<BulkActionResult> {
@@ -870,7 +899,7 @@ impl PakaianDinasService {
                 komentar: request.komentar.clone(),
             };
             match self
-                .process_validator_action(one, user_nip, user_nama, user_roles, scope)
+                .process_validator_action(one, aktor, user_roles, scope)
                 .await
             {
                 Ok(item) => result.berhasil.push(BulkActionBerhasil {
@@ -1448,6 +1477,31 @@ impl PakaianDinasService {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ─── Aktor::nama_audit ───────────────────────────────────────────
+
+    fn aktor<'a>(nama: &'a str, nip: &'a str, username: &'a str) -> Aktor<'a> {
+        Aktor {
+            id: Uuid::nil(),
+            nip,
+            nama,
+            username,
+        }
+    }
+
+    #[test]
+    fn nama_audit_prefers_the_persons_own_name() {
+        assert_eq!(aktor("Budi", "198001", "budi").nama_audit(), "Budi");
+    }
+
+    #[test]
+    fn nama_audit_falls_back_to_nip_then_login_never_the_placeholder() {
+        // The handlers hand over "unknown" when the token carries no name or NIP; that is a
+        // placeholder, not a person, and must not reach the trail as one.
+        assert_eq!(aktor("unknown", "198001", "budi").nama_audit(), "198001");
+        assert_eq!(aktor("  ", "unknown", "budi").nama_audit(), "budi");
+        assert_eq!(aktor("unknown", "unknown", "budi").nama_audit(), "budi");
+    }
 
     // ─── Fase 1.8: validate_periode_pakaian_dinas ────────────────────
 
