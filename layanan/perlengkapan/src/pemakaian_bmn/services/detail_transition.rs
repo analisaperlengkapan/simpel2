@@ -169,7 +169,7 @@ impl PemakaianBmnService {
             .workflow_engine
             .transition(transition_request)
             .await
-            .map_err(|e| AppError::Internal(format!("Workflow transition failed: {}", e)))?;
+            .map_err(AppError::from)?;
 
         // The engine only writes the canonical `status`; re-sync the
         // denormalized `status_kode` so the internal-satker workflow methods

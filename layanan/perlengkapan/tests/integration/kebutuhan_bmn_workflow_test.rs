@@ -255,3 +255,60 @@ async fn test_kebutuhan_bmn_rejection_workflow() {
 
     teardown_test_db(&db_name).await;
 }
+
+/// A role that is not allowed to make a move is REFUSED (403), not "an internal error" (500).
+///
+/// The engine's own "Insufficient permissions: required role operator_satker" was wrapped in
+/// `AppError::Internal` by the service, so the screen said "Terjadi kesalahan di server" for what
+/// was a plain "not yours", and the log carried an ERROR for something that worked as designed.
+/// Found by pressing "Input Barang" as validator_pusat on a freshly created campaign.
+#[tokio::test]
+async fn a_move_the_role_may_not_make_is_refused_not_a_server_error() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let pusat = "00000000-0000-0000-0000-000000000003";
+
+    let mut req = server.post("/kebutuhan-bmn/pengajuan").json(&json!({
+        "nama": "Kebutuhan uji penolakan peran",
+        "tahun": 2026,
+        "tgl_mulai": "2026-01-01",
+        "tgl_selesai": "2026-12-31"
+    }));
+    for (k, v) in auth_headers("validator_pusat", pusat, "PUSAT001") {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    assert_eq!(res.status_code(), 201, "{:?}", res.text());
+    let body: serde_json::Value = res.json();
+    let id = body["data"]["pengajuan"]["id"]
+        .as_str()
+        .or(body["data"]["id"].as_str())
+        .expect("pengajuan id")
+        .to_string();
+
+    // DRAFT -> INPUT_BARANG (2001) is the operator's move.
+    let mut req = server
+        .post(&format!("/kebutuhan-bmn/pengajuan/{id}/transition"))
+        .json(&json!({"target_status": 2001}));
+    for (k, v) in auth_headers("validator_pusat", pusat, "PUSAT001") {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    assert_eq!(
+        res.status_code(),
+        403,
+        "a refusal must not read as a crash: {:?}",
+        res.text()
+    );
+    let text = res.text();
+    assert!(
+        text.contains("operator_satker"),
+        "the refusal should say whose move it is: {text}"
+    );
+    assert!(
+        !text.contains("internal error"),
+        "no internal-error wording on a refusal: {text}"
+    );
+
+    teardown_test_db(&db_name).await;
+}

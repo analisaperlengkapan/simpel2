@@ -53,6 +53,33 @@ pub enum WorkflowError {
 
 pub type Result<T> = std::result::Result<T, WorkflowError>;
 
+/// What an engine refusal means to the caller.
+///
+/// Both services used to wrap every engine error in `AppError::Internal`, so a role that was
+/// simply not allowed to make a move ("Insufficient permissions: required role operator_satker")
+/// came back as HTTP 500 "An internal error occurred": the screen could not tell a refusal from a
+/// crash, and an on-call reading the logs saw an ERROR for something that worked as designed. A
+/// refusal is an answer to the request, so it keeps its own status; only what really is a fault
+/// stays a 500.
+impl From<WorkflowError> for crate::shared::error::AppError {
+    fn from(e: WorkflowError) -> Self {
+        use crate::shared::error::AppError;
+        match e {
+            WorkflowError::InsufficientPermissions { required_role } => AppError::Authorization(
+                format!("Aksi ini hanya dapat dilakukan oleh peran {required_role}"),
+            ),
+            WorkflowError::InvalidTransition { from, to } => AppError::BadRequest(format!(
+                "Perpindahan status dari {from} ke {to} tidak diperbolehkan"
+            )),
+            WorkflowError::InvalidState(msg) => AppError::BadRequest(msg),
+            WorkflowError::EntityNotFound(id) => {
+                AppError::NotFound(format!("Data alur kerja tidak ditemukan: {id}"))
+            }
+            other => AppError::Internal(format!("Workflow transition failed: {other}")),
+        }
+    }
+}
+
 /// Workflow transition request
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TransitionRequest {
@@ -270,5 +297,40 @@ mod tests {
         assert!(engine.is_terminal_state("REJECTED"));
         assert!(engine.is_terminal_state("CANCELLED"));
         assert!(!engine.is_terminal_state("DRAFT"));
+    }
+}
+
+#[cfg(test)]
+mod app_error_mapping_tests {
+    use super::*;
+    use crate::shared::error::AppError;
+
+    #[test]
+    fn a_refusal_is_not_an_internal_error() {
+        let e: AppError = WorkflowError::InsufficientPermissions {
+            required_role: "operator_satker".into(),
+        }
+        .into();
+        assert!(matches!(e, AppError::Authorization(m) if m.contains("operator_satker")));
+
+        let e: AppError = WorkflowError::InvalidTransition {
+            from: "DRAFT".into(),
+            to: "APPROVED".into(),
+        }
+        .into();
+        assert!(
+            matches!(e, AppError::BadRequest(m) if m.contains("DRAFT") && m.contains("APPROVED"))
+        );
+
+        let e: AppError = WorkflowError::InvalidState("bad".into()).into();
+        assert!(matches!(e, AppError::BadRequest(_)));
+        let e: AppError = WorkflowError::EntityNotFound(Uuid::nil()).into();
+        assert!(matches!(e, AppError::NotFound(_)));
+    }
+
+    #[test]
+    fn a_real_fault_stays_a_fault() {
+        let e: AppError = WorkflowError::AuthencError("down".into()).into();
+        assert!(matches!(e, AppError::Internal(m) if m.contains("Workflow transition failed")));
     }
 }

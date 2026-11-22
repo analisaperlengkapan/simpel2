@@ -90,7 +90,7 @@ impl KebutuhanBmnService {
             .workflow_engine
             .transition(transition_request)
             .await
-            .map_err(|e| AppError::Internal(format!("Workflow transition failed: {}", e)))?;
+            .map_err(AppError::from)?;
 
         // Get updated pengajuan
         let updated = self.repository.get_pengajuan_by_id(id).await?;

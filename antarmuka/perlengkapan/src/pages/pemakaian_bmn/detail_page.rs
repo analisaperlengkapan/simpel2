@@ -6,7 +6,7 @@ use leptos_router::components::A;
 use leptos_router::hooks::use_params_map;
 use lib_ui::components::icon::AppIcon;
 use lib_ui::hooks::LatestOnly;
-use phosphor_leptos::{ARROW_LEFT, PROHIBIT, REPEAT, WARNING, X};
+use phosphor_leptos::{ARROW_LEFT, FILE_PDF, PROHIBIT, REPEAT, WARNING, X};
 use wasm_bindgen::JsCast;
 use web_sys::{Event, HtmlInputElement, HtmlTextAreaElement};
 
@@ -261,11 +261,17 @@ fn DetailBody(
     let permit_id = izin.id.clone();
     let permit_version = izin.version;
     let status = izin.status.clone();
+    let id_sk = permit_id.clone();
     let is_active = status == "ACTIVE" || status == "APPROVED";
     let can_revoke = is_active;
     let can_renew = is_active;
 
-    let nomor = izin.nomor_izin.clone().unwrap_or_else(|| "-".to_string());
+    // A permit has no number until it is issued: a draft read "Izin #-", which looks like a
+    // number that failed to load.
+    let judul_izin = match izin.nomor_izin.as_deref().filter(|n| !n.trim().is_empty()) {
+        Some(n) => format!("Izin #{n}"),
+        None => "Izin (belum bernomor)".to_string(),
+    };
     let periode = format!("{} → {}", izin.tanggal_mulai, izin.tanggal_selesai);
     let pemohon_nama = izin.pegawai_nama.clone();
     let pemohon_nip = izin.pegawai_nip.clone();
@@ -301,10 +307,29 @@ fn DetailBody(
         />
 
         <SectionCard
-            title=format!("Izin #{}", nomor)
+            title=judul_izin
             description="Informasi umum permohonan."
             icon="fas fa-circle-info"
         >
+            {is_active
+                .then(|| {
+                    let id_sk = id_sk.clone();
+                    view! {
+                        <div class="mb-4">
+                            <button
+                                type="button"
+                                data-testid="unduh-sk-izin"
+                                class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
+                                on:click=move |_| unduh_sk_izin(id_sk.clone(), set_action_msg)
+                            >
+                                <span class="text-[0.7rem] text-danger-300">
+                                    <AppIcon icon=FILE_PDF />
+                                </span>
+                                "Unduh SK Izin (PDF)"
+                            </button>
+                        </div>
+                    }
+                })}
             <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <InfoField label="Pemohon" value=pemohon_nama />
                 <InfoField label="NIP" value=pemohon_nip />
@@ -558,6 +583,54 @@ fn SatkerApprovalActions(
         .into_any()
 }
 
+/// Fetch the permit's SK Izin PDF with the JWT and hand the bytes to the browser as a download.
+/// A failure is said on the page's banner, not only in the console.
+#[cfg(target_arch = "wasm32")]
+fn unduh_sk_izin(id: String, set_action_msg: WriteSignal<Option<(bool, String)>>) {
+    use web_sys::{Blob, BlobPropertyBag, Url};
+
+    spawn_local(async move {
+        let bytes = match pemakaian_bmn::unduh_sk_izin_pdf(&id).await {
+            Ok(b) => b,
+            Err(e) => {
+                set_action_msg.set(Some((false, e.user_message())));
+                return;
+            }
+        };
+        let array = js_sys::Uint8Array::from(bytes.as_slice());
+        let parts = js_sys::Array::new();
+        parts.push(&array);
+        let opts = BlobPropertyBag::new();
+        opts.set_type("application/pdf");
+        let Ok(blob) = Blob::new_with_u8_array_sequence_and_options(&parts, &opts) else {
+            set_action_msg.set(Some((
+                false,
+                "Berkas SK tidak dapat disiapkan.".to_string(),
+            )));
+            return;
+        };
+        let Ok(url) = Url::create_object_url_with_blob(&blob) else {
+            set_action_msg.set(Some((
+                false,
+                "Berkas SK tidak dapat disiapkan.".to_string(),
+            )));
+            return;
+        };
+        if let Some(doc) = web_sys::window().and_then(|w| w.document())
+            && let Ok(a) = doc.create_element("a")
+        {
+            let a: web_sys::HtmlAnchorElement = a.unchecked_into();
+            a.set_href(&url);
+            a.set_download(&format!("SK-Izin-Pemakaian-BMN-{id}.pdf"));
+            a.click();
+        }
+        let _ = Url::revoke_object_url(&url);
+    });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn unduh_sk_izin(_id: String, _set_action_msg: WriteSignal<Option<(bool, String)>>) {}
+
 /// Route a satker approval move to the endpoint that owns it.
 ///
 /// Keyed on the (from, to) pair, mirroring `PemakaianBmnAction::for_transition`
@@ -595,6 +668,16 @@ async fn dispatch_satker_action(
         ("REVISI_OPERATOR", "SUBMITTED") => {
             pemakaian_bmn::resubmit_pemakaian_bmn(id, version).await?;
             Ok("Izin diajukan ulang ke Validator Satker.".to_string())
+        }
+        // The two moves with no endpoint of their own, which the server serves through the
+        // generic transition and checks against the same policy.
+        ("DRAFT", "SUBMITTED") => {
+            pemakaian_bmn::transisi_pemakaian_bmn(id, to_state).await?;
+            Ok("Izin diajukan ke Validator Satker.".to_string())
+        }
+        ("DRAFT" | "REVISI_OPERATOR", "CANCELLED") => {
+            pemakaian_bmn::transisi_pemakaian_bmn(id, to_state).await?;
+            Ok("Usulan izin dibatalkan.".to_string())
         }
         (from, to) => Err(AppError::Unknown(format!(
             "Transisi '{}' → '{}' tidak dikenali oleh antarmuka.",
