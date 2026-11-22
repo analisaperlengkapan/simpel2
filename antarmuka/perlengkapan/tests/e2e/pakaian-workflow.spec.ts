@@ -1014,6 +1014,44 @@ test.describe("Pakaian Dinas — bulk actions for an account holding both valida
     expect(status(rows[1]), "the pusat-stage row must NOT be finally approved by 'Teruskan'").toBe(1004);
     await ctx.close();
   });
+
+  // A tick is the satker AND the move it was ticked for. Ticked as a bare id, a satker forwarded
+  // from its own panel kept its tick and turned up selected on the final-approval bar, whose button
+  // then finished it too.
+  test("a tick does not follow a satker to the next stage when it is forwarded from its panel", async ({
+    browser,
+    request,
+  }) => {
+    const { pengajuanId, rows } = await kampanyeDuaSatker(request);
+    expect((await aksiPakaian(request, "operator_a", rows[0], "submit")).aktivitas).toBe(1001);
+    expect((await aksiPakaian(request, "operator_b", rows[1], "submit")).aktivitas).toBe(1001);
+    expect((await aksiPakaian(request, "validator_wilayah", rows[1], "approve")).aktivitas).toBe(1004);
+
+    const ctx = await browser.newContext({ storageState: storageStatePath("admin") });
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker`, { waitUntil: "domcontentloaded" });
+    const approve = page.locator('[data-testid="bilah-massal"][data-aksi="Setujui (Selesai)"]');
+    await expect(approve).toBeVisible({ timeout: 20000 });
+
+    // A (waiting at wilayah) is ticked for "forward", B (waiting at pusat) for "approve".
+    await page.getByRole("checkbox", { name: "Pilih KEJAKSAAN NEGERI JAKARTA PUSAT" }).check();
+    await page.getByRole("checkbox", { name: "Pilih KEJAKSAAN NEGERI JAKARTA SELATAN" }).check();
+    await expect(approve).toContainText("1 dipilih");
+
+    // Forward A on its own, from its panel.
+    const kartuA = page.locator("div.rounded-2xl", {
+      has: page.getByRole("heading", { name: "KEJAKSAAN NEGERI JAKARTA PUSAT" }),
+    });
+    await kartuA.getByRole("button", { name: "Lihat Riwayat & Aksi" }).click();
+    await page.getByRole("button", { name: "Teruskan ke Pusat", exact: true }).click();
+    await page.getByRole("button", { name: "Kirim", exact: true }).click();
+    await expect(kartuA).toContainText("Diajukan ke Pusat", { timeout: 20000 });
+
+    // A is now at pusat too, but nobody ticked it for approval: only B is selected there.
+    await expect(approve).toContainText("1 dipilih");
+    await expect(approve.getByTestId("setujui-massal")).toContainText("(1)");
+    await ctx.close();
+  });
 });
 
 // ── Handovers tell the next role ────────────────────────────────────────────

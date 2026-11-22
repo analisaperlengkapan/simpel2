@@ -249,8 +249,11 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
     let pending = RwSignal::new(Option::<PendingAction>::None);
     let busy = RwSignal::new(false);
     let error = RwSignal::new(Option::<String>::None);
-    // Rows ticked for a bulk approval, and what the last bulk approval came to.
-    let terpilih = RwSignal::new(Vec::<String>::new());
+    // Rows ticked for a bulk move, and what the last bulk move came to. A tick is the satker AND the
+    // move it was ticked for ("Teruskan ke Pusat" or "Setujui (Selesai)"), not the satker alone:
+    // forward a ticked satker from its own panel and it is now at the next stage, and a bare id
+    // would carry the tick over to the final-approval bar, so that bar's button finished it too.
+    let terpilih = RwSignal::new(Vec::<(String, &'static str)>::new());
     let hasil_massal = RwSignal::new(Option::<BulkActionResult>::None);
 
     let client: QueryClient = expect_context();
@@ -514,7 +517,8 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                         terpilih
                                             .get()
                                             .into_iter()
-                                            .filter(|x| ids.contains(x))
+                                            .filter(|(x, l)| *l == label && ids.contains(x))
+                                            .map(|(x, _)| x)
                                             .collect::<Vec<String>>()
                                     }
                                 };
@@ -522,7 +526,10 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                     let ids = ids.clone();
                                     move || {
                                         let t = terpilih.get();
-                                        n > 0 && ids.iter().all(|i| t.contains(i))
+                                        n > 0
+                                            && ids
+                                                .iter()
+                                                .all(|i| t.iter().any(|(x, l)| x == i && *l == label))
                                     }
                                 };
                                 let ubah_semua = {
@@ -531,9 +538,9 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                         let on = event_target_checked(&ev);
                                         terpilih
                                             .update(|v| {
-                                                v.retain(|x| !ids.contains(x));
+                                                v.retain(|(x, l)| !(*l == label && ids.contains(x)));
                                                 if on {
-                                                    v.extend(ids.iter().cloned());
+                                                    v.extend(ids.iter().map(|i| (i.clone(), label)));
                                                 }
                                             });
                                     }
@@ -650,6 +657,9 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                             {if available_actions(code).is_some() {
                                                                 let id_pilih = s_pilih.id.clone();
                                                                 let id_cek = id_pilih.clone();
+                                                                let aksi_baris = available_actions(code)
+                                                                    .map(|(setuju, _)| setuju)
+                                                                    .unwrap_or("");
                                                                 Some(
                                                                     view! {
                                                                         <input
@@ -657,15 +667,20 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                                             data-testid="pilih-satker"
                                                                             aria-label=format!("Pilih {}", s_pilih.satker_nama.clone().unwrap_or_default())
                                                                             class="h-4 w-4 rounded border-white/20 bg-white/[0.04]"
-                                                                            prop:checked=move || terpilih.get().contains(&id_cek)
+                                                                            prop:checked=move || {
+                                                                                terpilih
+                                                                                    .get()
+                                                                                    .iter()
+                                                                                    .any(|(x, l)| *x == id_cek && *l == aksi_baris)
+                                                                            }
                                                                             on:change=move |ev| {
                                                                                 let on = event_target_checked(&ev);
                                                                                 let id = id_pilih.clone();
                                                                                 terpilih
                                                                                     .update(|v| {
-                                                                                        v.retain(|x| *x != id);
+                                                                                        v.retain(|(x, _)| *x != id);
                                                                                         if on {
-                                                                                            v.push(id);
+                                                                                            v.push((id, aksi_baris));
                                                                                         }
                                                                                     });
                                                                             }
