@@ -18,7 +18,7 @@ pub fn FaqPage() -> impl IntoView {
         ),
         (
             "Apa saja role yang tersedia?",
-            "Ada 4 role: Operator Satker (input data operasional), Validator Wilayah (verifikasi tingkat wilayah), Validator Pusat (persetujuan & penerbitan SK), dan Admin (pengelolaan sistem).",
+            "Ada 6 role: Operator Satker (mengelola perlengkapan di satuan kerja), Validator Satker (memverifikasi usulan izin pemakaian BMN di satuan kerja), Approver Satker (kuasa pengguna barang: menyetujui izin pemakaian BMN), Validator Wilayah (verifikasi tingkat Kejaksaan Tinggi), Validator Pusat (verifikasi akhir di Kejaksaan Agung), dan Administrator (data master, template, audit log, pengguna, dan role). Rincian hak akses tiap role ada di Admin → Otorisasi.",
         ),
         (
             "Bagaimana cara cetak QR Code aset?",

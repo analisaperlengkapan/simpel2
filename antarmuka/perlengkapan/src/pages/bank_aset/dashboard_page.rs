@@ -3,6 +3,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::components::A;
+use lib_ui::components::charts::format_rupiah_short;
 use lib_ui::components::icon::AppIcon;
 use lib_ui::utils::formatters::format_iso_local;
 use phosphor_leptos::{DATABASE, LIST, MAP_PIN_AREA};
@@ -110,7 +111,11 @@ fn DashboardContent(data: BankAsetDashboard, last_sync: Option<LastSyncInfo>) ->
         .map(format_iso_local)
         .unwrap_or_else(|| "Belum pernah sinkron".to_string());
 
-    let total_nilai = format_rupiah(data.total_nilai_perolehan);
+    // The tile shows the abbreviated figure ("Rp 81,9 T"): the exact 14-digit one does not fit
+    // its width and was cut off with an ellipsis, so the tile's one number could not be read.
+    // The exact figure moves to the caption.
+    let total_nilai = format_rupiah_short(data.total_nilai_perolehan);
+    let total_nilai_persis = format_rupiah(data.total_nilai_perolehan);
     let total_aset = format_thousands(data.total_aset);
     let total_satker = format_thousands(data.total_satker);
     let total_kategori = format_thousands(data.total_kategori);
@@ -137,7 +142,7 @@ fn DashboardContent(data: BankAsetDashboard, last_sync: Option<LastSyncInfo>) ->
                 <StatCard
                     label="Nilai Perolehan"
                     value=total_nilai
-                    caption="akumulasi rupiah"
+                    caption=format!("{total_nilai_persis} · akumulasi rupiah")
                     icon="fas fa-sack-dollar"
                     tone=StatTone::Success
                 />

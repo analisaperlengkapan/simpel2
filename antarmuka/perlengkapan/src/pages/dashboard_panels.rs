@@ -451,8 +451,12 @@ pub fn FilterBar(
     // arrive already narrowed: the page refetches `/bank-aset/filter-options`
     // with the region applied, so the list is the server's answer rather than
     // this component's guess about how a code is composed.
-    let sel = "rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 \
-               outline-none transition-colors hover:border-white/20 focus:border-gold-400/50";
+    // `w-full max-w-full` here and `min-w-0` on each wrapper: a flex item will not shrink below
+    // its content, and a select's content is its longest option (a satker name). On a phone that
+    // made the row 154px wider than its card, clipped on the right with no scrollbar.
+    let sel = "w-full max-w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm \
+               text-slate-100 outline-none transition-colors hover:border-white/20 \
+               focus:border-gold-400/50";
     let lab = "mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500";
 
     let has_any = move || {
@@ -467,7 +471,7 @@ pub fn FilterBar(
         <section class="rounded-2xl border border-white/10 bg-slate-900/40 p-4 backdrop-blur">
             <div class="flex flex-wrap items-end gap-3">
                 <Show when=move || show_wilayah>
-                    <div>
+                    <div class="w-full min-w-0 sm:w-auto sm:max-w-full">
                         <label class=lab for="f-wilayah">
                             "Wilayah"
                         </label>
@@ -499,7 +503,7 @@ pub fn FilterBar(
                 </Show>
 
                 <Show when=move || show_satker>
-                    <div>
+                    <div class="w-full min-w-0 sm:w-auto sm:max-w-full">
                         <label class=lab for="f-satker">
                             "Satuan Kerja"
                         </label>
@@ -529,7 +533,7 @@ pub fn FilterBar(
                     </div>
                 </Show>
 
-                <div>
+                <div class="w-full min-w-0 sm:w-auto sm:max-w-full">
                     <label class=lab for="f-jenis">
                         "Jenis Aset"
                     </label>
@@ -558,7 +562,7 @@ pub fn FilterBar(
                     </select>
                 </div>
 
-                <div>
+                <div class="w-full min-w-0 sm:w-auto sm:max-w-full">
                     <label class=lab for="f-tahun">
                         "Tahun Anggaran"
                     </label>
@@ -584,7 +588,7 @@ pub fn FilterBar(
                     </select>
                 </div>
 
-                <div>
+                <div class="w-full min-w-0 sm:w-auto sm:max-w-full">
                     <label class=lab for="f-from">
                         "Perolehan Dari"
                     </label>
@@ -598,7 +602,7 @@ pub fn FilterBar(
                         }
                     />
                 </div>
-                <div>
+                <div class="w-full min-w-0 sm:w-auto sm:max-w-full">
                     <label class=lab for="f-to">
                         "Sampai"
                     </label>
