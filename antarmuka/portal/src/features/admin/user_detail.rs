@@ -9,6 +9,8 @@
 
 use crate::components::feedback::{ErrorBanner, LoadingPanel, SuccessBanner};
 use crate::components::layout::main_layout::MainLayout;
+use crate::features::admin::temp_password;
+use crate::features::admin::users::{TempCredential, TempPasswordPanel, changed};
 use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
 use crate::utils::async_load::load_value_once;
 use crate::utils::authenc_api::{IamUser, RoleInfo, UpdateUserRequest};
@@ -78,6 +80,13 @@ pub fn UserDetailPage() -> impl IntoView {
     let (edit_first_name, set_edit_first_name) = signal(String::new());
     let (edit_last_name, set_edit_last_name) = signal(String::new());
     let (edit_enabled, set_edit_enabled) = signal(true);
+    let (edit_nip, set_edit_nip) = signal(String::new());
+    let (edit_jabatan, set_edit_jabatan) = signal(String::new());
+    let (edit_satker, set_edit_satker) = signal(String::new());
+    // The values as loaded: the save sends only what differs from them.
+    let (orig_nip, set_orig_nip) = signal(String::new());
+    let (orig_jabatan, set_orig_jabatan) = signal(String::new());
+    let (orig_satker, set_orig_satker) = signal(String::new());
     let (saving, set_saving) = signal(false);
 
     // Load user
@@ -106,6 +115,14 @@ pub fn UserDetailPage() -> impl IntoView {
             set_edit_first_name.set(u.first_name.unwrap_or_default());
             set_edit_last_name.set(u.last_name.unwrap_or_default());
             set_edit_enabled.set(u.enabled);
+            let nip = u.nip.unwrap_or_default();
+            let jabatan = u.jabatan.unwrap_or_default();
+            set_edit_nip.set(nip.clone());
+            set_orig_nip.set(nip);
+            set_edit_jabatan.set(jabatan.clone());
+            set_orig_jabatan.set(jabatan);
+            set_edit_satker.set(u.satker_code.clone());
+            set_orig_satker.set(u.satker_code);
         }
     });
 
@@ -140,7 +157,13 @@ pub fn UserDetailPage() -> impl IntoView {
                     first_name: Some(edit_first_name.get()),
                     last_name: Some(edit_last_name.get()),
                     enabled: Some(edit_enabled.get()),
-                    require_password_change: None,
+                    // Only what the admin changed: an untouched field would put the
+                    // value from page-open back over a newer save. Blank means
+                    // "leave as it is", so the form cannot clear these.
+                    nip: changed(&edit_nip.get(), &orig_nip.get()),
+                    jabatan: changed(&edit_jabatan.get(), &orig_jabatan.get()),
+                    satker_code: changed(&edit_satker.get(), &orig_satker.get()),
+                    ..Default::default()
                 };
                 match api.iam_update_user(&uid, &req).await {
                     Ok(_) => {
@@ -154,8 +177,16 @@ pub fn UserDetailPage() -> impl IntoView {
         });
     }
 
-    // Reset password handler
+    // Reset password handler.
+    //
+    // The backend needs the new password in the request, so the portal makes one
+    // (random, from `crypto.getRandomValues`, see `temp_password`), sets it, marks
+    // the account "must change at first login" and shows it to the admin once.
+    // The panel holds the only copy, so a second reset is refused until the admin
+    // has closed it.
     let (reset_trigger, set_reset_trigger) = signal(0u32);
+    let (resetting, set_resetting) = signal(false);
+    let (temp_credential, set_temp_credential) = signal(Option::<TempCredential>::None);
     {
         let api = api.clone();
         Effect::new(move || {
@@ -163,13 +194,58 @@ pub fn UserDetailPage() -> impl IntoView {
             if count == 0 {
                 return;
             }
+            if resetting.get_untracked() {
+                return;
+            }
+            set_error.set(None);
+            set_success.set(None);
+            if temp_credential.get_untracked().is_some() {
+                set_error.set(Some(
+                    "Tutup panel password sementara di atas (setelah menyalinnya) sebelum mereset lagi."
+                        .to_string(),
+                ));
+                return;
+            }
+            let Some(password) = temp_password::generate() else {
+                set_error.set(Some(
+                    "Gagal reset password: browser ini tidak menyediakan pengacak yang aman, \
+                     jadi password sementara tidak dapat dibuat. Gunakan browser yang lebih baru."
+                        .to_string(),
+                ));
+                return;
+            };
+            set_resetting.set(true);
             let api = api.clone();
             let uid = user_id();
+            let username = user.get_untracked().map(|u| u.username).unwrap_or_default();
             spawn_local(async move {
-                match api.iam_reset_user_password(&uid).await {
-                    Ok(_) => set_success.set(Some("Password berhasil direset".to_string())),
+                match api.iam_reset_user_password(&uid, &password).await {
+                    Ok(_) => {
+                        // The password is now known to the admin: make it temporary.
+                        let must_change = UpdateUserRequest {
+                            require_password_change: Some(true),
+                            ..Default::default()
+                        };
+                        let enforced = match api.iam_update_user(&uid, &must_change).await {
+                            Ok(_) => true,
+                            Err(e) => {
+                                set_error.set(Some(format!(
+                                    "Password direset, tetapi kewajiban ganti password gagal \
+                                     ditetapkan ({e}). Reset sekali lagi setelah panel ditutup."
+                                )));
+                                false
+                            }
+                        };
+                        set_temp_credential.set(Some(TempCredential {
+                            username,
+                            password,
+                            enforced,
+                        }));
+                        set_success.set(Some("Password berhasil direset".to_string()));
+                    }
                     Err(e) => set_error.set(Some(format!("Gagal reset password: {}", e))),
                 }
+                set_resetting.set(false);
             });
         });
     }
@@ -286,6 +362,18 @@ pub fn UserDetailPage() -> impl IntoView {
 
                 {move || success.get().map(|msg| view! { <SuccessBanner message=msg /> })}
                 {move || error.get().map(|msg| view! { <ErrorBanner message=msg /> })}
+                {move || {
+                    temp_credential
+                        .get()
+                        .map(|c| {
+                            view! {
+                                <TempPasswordPanel
+                                    credential=c
+                                    on_close=Callback::new(move |_| set_temp_credential.set(None))
+                                />
+                            }
+                        })
+                }}
 
                 <Show
                     when=move || !loading.get()
@@ -457,6 +545,53 @@ pub fn UserDetailPage() -> impl IntoView {
                                             </div>
                                         </div>
 
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    "NIP"
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    inputmode="numeric"
+                                                    data-testid="edit-user-nip"
+                                                    prop:value=edit_nip
+                                                    on:input=move |ev| set_edit_nip.set(event_target_value(&ev))
+                                                    class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    "Jabatan"
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    data-testid="edit-user-jabatan"
+                                                    prop:value=edit_jabatan
+                                                    on:input=move |ev| {
+                                                        set_edit_jabatan.set(event_target_value(&ev))
+                                                    }
+                                                    class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                                                />
+                                            </div>
+                                            <div class="md:col-span-2">
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    "Kode Satker"
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    data-testid="edit-user-satker"
+                                                    prop:value=edit_satker
+                                                    on:input=move |ev| {
+                                                        set_edit_satker.set(event_target_value(&ev))
+                                                    }
+                                                    class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                                                />
+                                                <p class="mt-1 text-xs text-gray-500">
+                                                    "Kode satuan kerja MySIMKARI. Menentukan data yang dapat dilihat akun ini."
+                                                </p>
+                                            </div>
+                                        </div>
+
                                         <div class="flex items-center gap-3">
                                             <label class="relative inline-flex items-center cursor-pointer">
                                                 <input
@@ -524,13 +659,14 @@ pub fn UserDetailPage() -> impl IntoView {
                                                 "Reset Kata Sandi"
                                             </h4>
                                             <p class="text-sm text-gray-500 mb-4">
-                                                "Kirim tautan reset kata sandi ke email pengguna atau tetapkan kata sandi baru secara langsung."
+                                                "Tetapkan kata sandi sementara yang baru. Kata sandi ditampilkan sekali; pengguna wajib menggantinya saat masuk berikutnya."
                                             </p>
                                             <button
                                                 on:click=move |_| {
                                                     set_reset_trigger.set(reset_trigger.get() + 1)
                                                 }
-                                                class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm"
+                                                disabled=move || resetting.get()
+                                                class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm disabled:opacity-50"
                                             >
                                                 "🔄 Reset Kata Sandi"
                                             </button>

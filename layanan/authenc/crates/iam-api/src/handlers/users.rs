@@ -267,6 +267,12 @@ pub async fn get_user(
     Ok(Json(user_to_response(&user)))
 }
 
+/// Whether an update moved the account to another satker. `before` is `None` when the
+/// request did not touch the satker at all, which is not a move.
+fn satker_moved(before: Option<&str>, after: &str) -> bool {
+    before.is_some_and(|before| before != after)
+}
+
 /// PUT /api/v1/iam/users/{id} - Update user
 pub async fn update_user(
     State(state): State<Arc<IamApiState>>,
@@ -300,6 +306,43 @@ pub async fn update_user(
     ]);
     let audit_enabled = req.enabled;
     let audit_satker = req.satker_code.clone();
+    // Read before the change, to know afterwards whether the account moved.
+    let satker_before = if req.satker_code.is_some() {
+        Some(
+            state
+                .user_service
+                .get_user(UserId::from_uuid(id))
+                .await
+                .map_err(crate::error::ApiError)?
+                .satker_code,
+        )
+    } else {
+        None
+    };
+    // A move to another satker is a narrowing of what the account may see, so it is
+    // fail-closed: the sessions are cut BEFORE the change and the request is refused
+    // if that cannot be done, leaving everything as it was and the same request safe
+    // to repeat. (Afterwards the same revoke runs again, below, to also cover a token
+    // issued in between.) Revoking only after the change would leave a move reported
+    // as done with the old satker's data still open to the old token, and a retry
+    // would not repair it, since the satker would no longer be changing.
+    //
+    // The price of this order, accepted on purpose: if the update is then rejected
+    // (a taken e-mail address in the same request, say) the account's sessions are
+    // already cut and its user signs in again although nothing moved. That costs one
+    // login; the other order can leave the old scope open. Making the two atomic
+    // would take one transaction around the revocation store and the user update,
+    // which neither takes today.
+    let moving = req
+        .satker_code
+        .as_deref()
+        .is_some_and(|after| satker_moved(satker_before.as_deref(), after));
+    if moving {
+        state
+            .try_revoke_user_sessions(id, "satker changing")
+            .await
+            .map_err(crate::error::ApiError)?;
+    }
     let update_req = authenc_types::domain::UpdateUserRequest {
         username: None,
         email: req.email,
@@ -328,6 +371,13 @@ pub async fn update_user(
     // Disabling an account must cut its live sessions, not wait for expiry.
     if audit_enabled == Some(false) {
         state.revoke_user_sessions(id, "user disabled").await;
+    }
+    // Moving an account to another satker must do the same. The satker code is a
+    // claim in the access token and the data scoping reads it from there, so a token
+    // issued before the move would keep showing the old satker's data until it
+    // expired. The user signs in again and gets the new code.
+    if satker_moved(satker_before.as_deref(), &user.satker_code) {
+        state.revoke_user_sessions(id, "satker changed").await;
     }
 
     record_admin_action(
@@ -504,4 +554,27 @@ pub async fn disable_user_mfa(
     .await;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::satker_moved;
+
+    #[test]
+    fn a_different_satker_is_a_move() {
+        assert!(satker_moved(Some("006019999010001KD"), "006019999020001KD"));
+        // From no satker at all to one is a move too: the old tokens carry no scope.
+        assert!(satker_moved(Some(""), "006019999020001KD"));
+    }
+
+    #[test]
+    fn the_same_satker_or_none_given_is_not_a_move() {
+        assert!(!satker_moved(
+            Some("006019999010001KD"),
+            "006019999010001KD"
+        ));
+        // The request did not carry a satker, so nothing was read beforehand.
+        assert!(!satker_moved(None, "006019999010001KD"));
+        assert!(!satker_moved(None, ""));
+    }
 }

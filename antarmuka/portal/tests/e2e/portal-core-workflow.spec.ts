@@ -337,6 +337,10 @@ test.describe('Portal core — admin (IAM users/roles/audit)', () => {
     const modal = page.locator('form', { has: page.getByText('Username *') });
     await modal.locator('input').nth(0).fill(username);
     await modal.locator('input').nth(1).fill(email);
+    // Who the account belongs to, and which satker it is scoped to.
+    await modal.getByTestId('new-user-nip').fill('199001012015011001');
+    await modal.getByTestId('new-user-jabatan').fill('Analis Perlengkapan');
+    await modal.getByTestId('new-user-satker').fill('006019999010001KD');
     await page.getByRole('button', { name: 'Buat Pengguna' }).click();
     await expect(page.getByText('Pengguna berhasil dibuat')).toBeVisible({ timeout: 15000 });
 
@@ -355,6 +359,13 @@ test.describe('Portal core — admin (IAM users/roles/audit)', () => {
       { headers: { Authorization: `Bearer ${token}` } },
     );
     expect(found.status()).toBe(200);
+    // ...and carries the identity the form collected (blank fields would have been NULL).
+    const foundUser = ((await found.json()).data as Array<Record<string, unknown>>).find(
+      (u) => u.username === username,
+    );
+    expect(foundUser?.nip).toBe('199001012015011001');
+    expect(foundUser?.jabatan).toBe('Analis Perlengkapan');
+    expect(foundUser?.satker_code).toBe('006019999010001KD');
 
     // 2. The new user logs in (fresh context) and changes their password
     //    through the real Ubah Kata Sandi form.
@@ -529,6 +540,116 @@ test.describe('Portal core — admin (IAM users/roles/audit)', () => {
     await expect(page.getByText('SIMPEL Perlengkapan').first()).toBeVisible({
       timeout: 15000,
     });
+  });
+
+  test('admin resets a password from the detail page: one-time panel, forced change', async ({
+    page,
+  }) => {
+    // Temp user via the real IAM API so this test owns its fixture.
+    const token = await pageToken(page);
+    const username = `e2ereset${Date.now()}`;
+    const oldPassword = `E2e-lama-${Date.now()}!`;
+    const createResp = await page.request.post(`${AUTHENC_URL}/api/v1/iam/users`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { username, email: `${username}@e2e.test`, password: oldPassword, enabled: true },
+    });
+    expect(createResp.status()).toBe(201);
+    const created = await createResp.json();
+
+    // UI: user detail -> Kredensial -> Reset Kata Sandi. The button used to send an
+    // empty body and always answered 422.
+    await page.goto(`${PORTAL_URL}/portal/admin/users/${created.id}`, {
+      waitUntil: 'domcontentloaded',
+    });
+    await page.getByRole('button', { name: /Kredensial/ }).click();
+    await page.getByRole('button', { name: /Reset Kata Sandi/ }).click();
+    await expect(page.getByText('Password berhasil direset')).toBeVisible({ timeout: 15000 });
+    const resetPassword = (await page.getByTestId('temp-password').innerText()).trim();
+    expect(resetPassword).toMatch(/^[A-Za-z0-9!@#$%&*?\-_=+]{20}$/);
+    await expect(page.getByText('Pengguna wajib menggantinya saat login pertama.')).toBeVisible();
+
+    // Backend truth: the shown password is the real one, and it forces a change.
+    const login = await loginViaApi(page, { username, password: resetPassword });
+    const claims = JSON.parse(Buffer.from(login.access_token.split('.')[1], 'base64url').toString());
+    expect(claims.require_password_change).toBe(true);
+
+    // The panel holds the only copy: a second reset is refused while it is open and
+    // leaves the shown password untouched.
+    await page.getByRole('button', { name: /Reset Kata Sandi/ }).click();
+    await expect(page.getByText(/Tutup panel password sementara/)).toBeVisible();
+    expect((await page.getByTestId('temp-password').innerText()).trim()).toBe(resetPassword);
+
+    // Cleanup as its own assertion: disable the temp account.
+    const disableResp = await page.request.put(`${AUTHENC_URL}/api/v1/iam/users/${created.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { enabled: false },
+    });
+    expect(disableResp.status()).toBe(200);
+  });
+
+  test('moving an account to another satker cuts the token it already holds', async ({
+    page,
+  }) => {
+    // Bank Aset and friends scope by the satker code carried in the access token, so
+    // a token minted before a move would keep showing the old satker's data.
+    const token = await pageToken(page);
+    const username = `e2emove${Date.now()}`;
+    const password = `E2e-pindah-${Date.now()}!`;
+    const createResp = await page.request.post(`${AUTHENC_URL}/api/v1/iam/users`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: {
+        username,
+        email: `${username}@e2e.test`,
+        password,
+        enabled: true,
+        satker_code: '006019999010001KD',
+      },
+    });
+    expect(createResp.status()).toBe(201);
+    const created = await createResp.json();
+
+    const held = await loginViaApi(page, { username, password });
+    const meBefore = await page.request.get(`${AUTHENC_URL}/api/v1/auth/me`, {
+      headers: { Authorization: `Bearer ${held.access_token}` },
+    });
+    expect(meBefore.status()).toBe(200);
+
+    // Saving the same satker again is not a move: the token must survive it.
+    const same = await page.request.put(`${AUTHENC_URL}/api/v1/iam/users/${created.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { satker_code: '006019999010001KD' },
+    });
+    expect(same.status()).toBe(200);
+    const meSame = await page.request.get(`${AUTHENC_URL}/api/v1/auth/me`, {
+      headers: { Authorization: `Bearer ${held.access_token}` },
+    });
+    expect(meSame.status()).toBe(200);
+
+    // The move itself.
+    const move = await page.request.put(`${AUTHENC_URL}/api/v1/iam/users/${created.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { satker_code: '006019999020001KD' },
+    });
+    expect(move.status()).toBe(200);
+    expect((await move.json()).satker_code).toBe('006019999020001KD');
+    const meAfter = await page.request.get(`${AUTHENC_URL}/api/v1/auth/me`, {
+      headers: { Authorization: `Bearer ${held.access_token}` },
+    });
+    expect(meAfter.status()).toBe(401);
+
+    // Signing in again gives a token with the new satker.
+    const fresh = await loginViaApi(page, { username, password });
+    const claims = JSON.parse(
+      Buffer.from(fresh.access_token.split('.')[1], 'base64url').toString(),
+    );
+    expect(claims.satker_code).toBe('006019999020001KD');
+
+    // Cleanup as its own assertion: disable the temp account.
+    const disableResp = await page.request.put(`${AUTHENC_URL}/api/v1/iam/users/${created.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { enabled: false },
+    });
+    expect(disableResp.status()).toBe(200);
   });
 
   test('role assignment on user detail is real end-to-end (assign → revoke)', async ({

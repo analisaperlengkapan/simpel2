@@ -209,6 +209,15 @@ pub struct IamUser {
     pub created_at: String,
     pub last_login_at: Option<String>,
     pub roles: Vec<String>,
+    /// Employee number. `None` for accounts created before the form asked for it.
+    #[serde(default)]
+    pub nip: Option<String>,
+    #[serde(default)]
+    pub jabatan: Option<String>,
+    /// MySIMKARI satker code. It decides which data the account can see, so an
+    /// empty value is worth showing to the admin rather than hiding.
+    #[serde(default)]
+    pub satker_code: String,
 }
 
 /// Create user request
@@ -220,15 +229,27 @@ pub struct CreateUserRequest {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub enabled: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nip: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub jabatan: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub satker_code: Option<String>,
 }
 
 /// Update user request
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct UpdateUserRequest {
     pub email: Option<String>,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nip: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub jabatan: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub satker_code: Option<String>,
     /// Make the user choose a new password at the next login. Left out of the
     /// request unless set, so saving the detail form never touches it.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -775,13 +796,19 @@ impl AuthencApiClient {
         Self::check_ok(resp).await
     }
 
-    /// Reset user password (admin)
+    /// Set a new password for the user (admin). The backend requires the new
+    /// password in the body (`ResetPasswordRequest { new_password }`); the old
+    /// call sent `{}` and always came back 422.
     #[cfg(target_arch = "wasm32")]
-    pub async fn iam_reset_user_password(&self, id: &str) -> Result<(), String> {
+    pub async fn iam_reset_user_password(
+        &self,
+        id: &str,
+        new_password: &str,
+    ) -> Result<(), String> {
         let resp = self
             .post(
                 &format!("/api/v1/iam/users/{}/password/reset", id),
-                &serde_json::json!({}),
+                &serde_json::json!({ "new_password": new_password }),
             )
             .await?;
         Self::check_ok(resp).await
@@ -1078,6 +1105,9 @@ impl AuthencApiClient {
             created_at: "2026-01-01".to_string(),
             last_login_at: None,
             roles: vec![],
+            nip: None,
+            jabatan: None,
+            satker_code: String::new(),
         })
     }
     #[cfg(not(target_arch = "wasm32"))]
@@ -1089,6 +1119,9 @@ impl AuthencApiClient {
             first_name: None,
             last_name: None,
             enabled: true,
+            nip: None,
+            jabatan: None,
+            satker_code: None,
         })
         .await
     }
@@ -1105,7 +1138,11 @@ impl AuthencApiClient {
         Ok(())
     }
     #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_reset_user_password(&self, _id: &str) -> Result<(), String> {
+    pub async fn iam_reset_user_password(
+        &self,
+        _id: &str,
+        _new_password: &str,
+    ) -> Result<(), String> {
         Ok(())
     }
     #[cfg(not(target_arch = "wasm32"))]
