@@ -202,7 +202,7 @@ pub async fn start_registration_handler(
 pub async fn finish_registration_handler(
     State(state): State<Arc<ApiState>>,
     Json(request): Json<FinishRegistrationRequest>,
-) -> Result<Json<FinishRegistrationResponse>, ErrorResponse> {
+) -> Result<axum::response::Response, ErrorResponse> {
     // Retrieve registration session
     let session = state
         .session_store
@@ -215,6 +215,45 @@ pub async fn finish_registration_handler(
             message: "Registration session not found or expired".to_string(),
         })?;
 
+    // `start` checked the caller's token, but the ceremony stays open for minutes
+    // and `finish` carries only the session id. The account may have been
+    // disabled, or its tokens revoked (logout, role change), since then; a
+    // credential stored now would be a standing way back into an account that was
+    // just cut off. Refuse unless the account is still enabled and nothing was
+    // revoked for it after the ceremony began.
+    let user = state
+        .user_service
+        .get_user(session.user_id)
+        .await
+        .map_err(|e| internal_error("Failed to load the user for the passkey registration", &e))?;
+    if !user.enabled || user.deleted_at.is_some() {
+        return Err(ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
+            error: "authentication_failed".to_string(),
+            message: "Akun Anda telah dinonaktifkan. Silakan hubungi administrator.".to_string(),
+        });
+    }
+    match state
+        .revocation_store
+        .is_revoked(
+            "",
+            None,
+            &session.user_id.0.to_string(),
+            session.created_at.timestamp(),
+        )
+        .await
+    {
+        Ok(false) => {}
+        Ok(true) => {
+            return Err(ErrorResponse {
+                status_code: axum::http::StatusCode::UNAUTHORIZED,
+                error: "invalid_session".to_string(),
+                message: "Sesi Anda telah dicabut. Silakan masuk kembali.".to_string(),
+            });
+        }
+        Err(e) => return Err(internal_error("Revocation check failed", &e)),
+    }
+
     // Finish registration with WebAuthn service
     let credential = state
         .webauthn_service
@@ -226,11 +265,19 @@ pub async fn finish_registration_handler(
             message: format!("Failed to complete passkey registration: {}", e),
         })?;
 
-    Ok(Json(FinishRegistrationResponse {
+    let response = Json(FinishRegistrationResponse {
         id: credential.id,
         credential_id: credential.id,
         message: "Passkey registered successfully".to_string(),
-    }))
+    })
+    .into_response();
+    // This endpoint carries no token, only the ceremony id, so the audit
+    // middleware cannot tell who registered the credential; the ceremony can.
+    Ok(crate::handlers::auth::with_authenticated_actor(
+        response,
+        &credential.user_id.0.to_string(),
+        None,
+    ))
 }
 
 /// POST /api/v1/auth/webauthn/authenticate/start - Start passkey authentication
@@ -318,9 +365,6 @@ pub async fn finish_authentication_handler(
         }
     };
 
-    // Generate JWT tokens using JwtService
-    let session_id = uuid::Uuid::new_v4().to_string();
-
     // Fetch user to build custom claims
     let user = state.user_service.get_user(user_id).await.map_err(|e| {
         tracing::error!(error = %e, "Failed to fetch user details for passkey token claims — refusing to issue JWT without claims");
@@ -344,6 +388,16 @@ pub async fn finish_authentication_handler(
             message: "Akun Anda telah dinonaktifkan. Silakan hubungi administrator.".to_string(),
         });
     }
+
+    // A real session row, as the password login makes: it is what "Sesi Aktif"
+    // lists and what logout and the admin session views act on.
+    let session_id = state
+        .auth_service
+        .establish_session(user_id)
+        .await
+        .map_err(|e| internal_error("Failed to open a session for the passkey login", &e))?
+        .0
+        .to_string();
 
     // Build custom claims
     let custom_claims =

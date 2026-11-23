@@ -59,6 +59,12 @@ impl Default for SecurityMonitoringConfig {
                 "/api/v1/auth/totp/disable".to_string(),
                 "/api/v1/auth/me/password".to_string(),
                 "/api/v1/auth/session/active-role".to_string(),
+                // Passkeys. The ceremony `finish` calls are the events: signing
+                // in with one is an authentication like the password login, and
+                // registering a credential is a way back into the account, like
+                // enrolling a second factor. The `start` calls prove nothing.
+                "/api/v1/auth/webauthn/authenticate/finish".to_string(),
+                "/api/v1/auth/webauthn/register/finish".to_string(),
             ],
             log_auth_attempts: true,
             log_authz_failures: true,
@@ -303,8 +309,15 @@ fn auth_event(path: &str, status: StatusCode) -> (&'static str, &'static str) {
         "/api/v1/auth/totp/disable" => Some("MFA_DISABLE"),
         "/api/v1/auth/me/password" => Some("PASSWORD_CHANGE"),
         "/api/v1/auth/session/active-role" => Some("ROLE_SWITCH"),
+        "/api/v1/auth/webauthn/register/finish" => Some("PASSKEY_REGISTER"),
         _ => None,
     };
+    // A passkey sign-in that did not produce a session is a failed login whether
+    // the server said 400 (assertion did not verify, ceremony gone) or 401
+    // (account disabled); the generic mapping would file a 400 as a warning.
+    if path == "/api/v1/auth/webauthn/authenticate/finish" && status.is_client_error() {
+        return ("AUTH_FAILURE", "failure");
+    }
     match (lifecycle, status) {
         (Some(event), s) if s.is_success() => (event, "success"),
         (Some(event), s) if s.is_client_error() => (event, "failure"),
