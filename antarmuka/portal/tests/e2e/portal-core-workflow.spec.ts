@@ -587,6 +587,71 @@ test.describe('Portal core — admin (IAM users/roles/audit)', () => {
     expect(disableResp.status()).toBe(200);
   });
 
+  test('moving an account to another satker cuts the token it already holds', async ({
+    page,
+  }) => {
+    // Bank Aset and friends scope by the satker code carried in the access token, so
+    // a token minted before a move would keep showing the old satker's data.
+    const token = await pageToken(page);
+    const username = `e2emove${Date.now()}`;
+    const password = `E2e-pindah-${Date.now()}!`;
+    const createResp = await page.request.post(`${AUTHENC_URL}/api/v1/iam/users`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: {
+        username,
+        email: `${username}@e2e.test`,
+        password,
+        enabled: true,
+        satker_code: '006019999010001KD',
+      },
+    });
+    expect(createResp.status()).toBe(201);
+    const created = await createResp.json();
+
+    const held = await loginViaApi(page, { username, password });
+    const meBefore = await page.request.get(`${AUTHENC_URL}/api/v1/auth/me`, {
+      headers: { Authorization: `Bearer ${held.access_token}` },
+    });
+    expect(meBefore.status()).toBe(200);
+
+    // Saving the same satker again is not a move: the token must survive it.
+    const same = await page.request.put(`${AUTHENC_URL}/api/v1/iam/users/${created.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { satker_code: '006019999010001KD' },
+    });
+    expect(same.status()).toBe(200);
+    const meSame = await page.request.get(`${AUTHENC_URL}/api/v1/auth/me`, {
+      headers: { Authorization: `Bearer ${held.access_token}` },
+    });
+    expect(meSame.status()).toBe(200);
+
+    // The move itself.
+    const move = await page.request.put(`${AUTHENC_URL}/api/v1/iam/users/${created.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { satker_code: '006019999020001KD' },
+    });
+    expect(move.status()).toBe(200);
+    expect((await move.json()).satker_code).toBe('006019999020001KD');
+    const meAfter = await page.request.get(`${AUTHENC_URL}/api/v1/auth/me`, {
+      headers: { Authorization: `Bearer ${held.access_token}` },
+    });
+    expect(meAfter.status()).toBe(401);
+
+    // Signing in again gives a token with the new satker.
+    const fresh = await loginViaApi(page, { username, password });
+    const claims = JSON.parse(
+      Buffer.from(fresh.access_token.split('.')[1], 'base64url').toString(),
+    );
+    expect(claims.satker_code).toBe('006019999020001KD');
+
+    // Cleanup as its own assertion: disable the temp account.
+    const disableResp = await page.request.put(`${AUTHENC_URL}/api/v1/iam/users/${created.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { enabled: false },
+    });
+    expect(disableResp.status()).toBe(200);
+  });
+
   test('role assignment on user detail is real end-to-end (assign → revoke)', async ({
     page,
   }) => {

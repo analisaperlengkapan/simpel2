@@ -10,7 +10,7 @@
 use crate::components::feedback::{ErrorBanner, LoadingPanel, SuccessBanner};
 use crate::components::layout::main_layout::MainLayout;
 use crate::features::admin::temp_password;
-use crate::features::admin::users::{TempCredential, TempPasswordPanel, non_empty};
+use crate::features::admin::users::{TempCredential, TempPasswordPanel, changed};
 use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
 use crate::utils::async_load::load_value_once;
 use crate::utils::authenc_api::{IamUser, RoleInfo, UpdateUserRequest};
@@ -83,6 +83,10 @@ pub fn UserDetailPage() -> impl IntoView {
     let (edit_nip, set_edit_nip) = signal(String::new());
     let (edit_jabatan, set_edit_jabatan) = signal(String::new());
     let (edit_satker, set_edit_satker) = signal(String::new());
+    // The values as loaded: the save sends only what differs from them.
+    let (orig_nip, set_orig_nip) = signal(String::new());
+    let (orig_jabatan, set_orig_jabatan) = signal(String::new());
+    let (orig_satker, set_orig_satker) = signal(String::new());
     let (saving, set_saving) = signal(false);
 
     // Load user
@@ -111,9 +115,14 @@ pub fn UserDetailPage() -> impl IntoView {
             set_edit_first_name.set(u.first_name.unwrap_or_default());
             set_edit_last_name.set(u.last_name.unwrap_or_default());
             set_edit_enabled.set(u.enabled);
-            set_edit_nip.set(u.nip.unwrap_or_default());
-            set_edit_jabatan.set(u.jabatan.unwrap_or_default());
-            set_edit_satker.set(u.satker_code);
+            let nip = u.nip.unwrap_or_default();
+            let jabatan = u.jabatan.unwrap_or_default();
+            set_edit_nip.set(nip.clone());
+            set_orig_nip.set(nip);
+            set_edit_jabatan.set(jabatan.clone());
+            set_orig_jabatan.set(jabatan);
+            set_edit_satker.set(u.satker_code.clone());
+            set_orig_satker.set(u.satker_code);
         }
     });
 
@@ -148,10 +157,12 @@ pub fn UserDetailPage() -> impl IntoView {
                     first_name: Some(edit_first_name.get()),
                     last_name: Some(edit_last_name.get()),
                     enabled: Some(edit_enabled.get()),
-                    // Blank means "leave as it is": the form cannot clear these.
-                    nip: non_empty(&edit_nip.get()),
-                    jabatan: non_empty(&edit_jabatan.get()),
-                    satker_code: non_empty(&edit_satker.get()),
+                    // Only what the admin changed: an untouched field would put the
+                    // value from page-open back over a newer save. Blank means
+                    // "leave as it is", so the form cannot clear these.
+                    nip: changed(&edit_nip.get(), &orig_nip.get()),
+                    jabatan: changed(&edit_jabatan.get(), &orig_jabatan.get()),
+                    satker_code: changed(&edit_satker.get(), &orig_satker.get()),
                     ..Default::default()
                 };
                 match api.iam_update_user(&uid, &req).await {

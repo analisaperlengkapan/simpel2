@@ -422,7 +422,7 @@ pub fn UsersManagementPage() -> impl IntoView {
                 // Create user modal
                 <Show when=move || show_create_modal.get()>
                     <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/50">
-                        <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+                        <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 max-h-[90dvh] overflow-y-auto">
                             <h2 class="text-lg font-bold text-gray-900 mb-4">
                                 "Tambah Pengguna Baru"
                             </h2>
@@ -572,6 +572,15 @@ pub(crate) fn non_empty(value: &str) -> Option<String> {
     (!value.is_empty()).then(|| value.to_string())
 }
 
+/// A form field as the value to send on an edit: only what the admin actually
+/// changed. The form is filled from the profile as it was when the page opened, so
+/// sending an untouched field would put that old value back over anything someone
+/// else saved in the meantime (a satker move, say). Blank still means "leave as it
+/// is", which also makes a field the admin emptied a no-op.
+pub(crate) fn changed(edited: &str, original: &str) -> Option<String> {
+    non_empty(edited).filter(|value| value != original.trim())
+}
+
 /// The account just created (or reset) and the password the admin has to pass on.
 #[derive(Clone)]
 pub struct TempCredential {
@@ -629,13 +638,40 @@ pub fn TempPasswordPanel(credential: TempCredential, on_close: Callback<()>) -> 
 
 #[cfg(test)]
 mod tests {
-    use super::non_empty;
+    use super::{changed, non_empty};
 
     #[test]
     fn blank_form_fields_are_not_given() {
         assert_eq!(non_empty(""), None);
         assert_eq!(non_empty("   "), None);
         assert_eq!(non_empty("\t\n"), None);
+    }
+
+    #[test]
+    fn an_untouched_field_is_not_sent_back() {
+        assert_eq!(changed("006019999010001KD", "006019999010001KD"), None);
+        // Same value up to surrounding spaces is still untouched.
+        assert_eq!(changed(" 006019999010001KD ", "006019999010001KD"), None);
+        assert_eq!(changed("006019999010001KD", " 006019999010001KD"), None);
+    }
+
+    #[test]
+    fn a_changed_field_is_sent_trimmed() {
+        assert_eq!(
+            changed(" 006019999020001KD ", "006019999010001KD"),
+            Some("006019999020001KD".to_string())
+        );
+        // A field that was empty and is now filled is a change.
+        assert_eq!(
+            changed("Kepala Seksi", ""),
+            Some("Kepala Seksi".to_string())
+        );
+    }
+
+    #[test]
+    fn an_emptied_field_is_left_alone() {
+        assert_eq!(changed("", "006019999010001KD"), None);
+        assert_eq!(changed("   ", "Kepala Seksi"), None);
     }
 
     #[test]
