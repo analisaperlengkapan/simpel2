@@ -75,13 +75,10 @@ pub fn PasskeysPage() -> impl IntoView {
                                     .webauthn_register_finish(&start_resp.session_id, &credential)
                                     .await
                                 {
-                                    Ok(info) => {
-                                        let name =
-                                            info.nickname.as_deref().unwrap_or("Passkey baru");
-                                        set_success_msg.set(Some(format!(
-                                            "Passkey '{}' berhasil didaftarkan!",
-                                            name
-                                        )));
+                                    Ok(()) => {
+                                        set_success_msg.set(Some(
+                                            "Passkey baru berhasil didaftarkan!".to_string(),
+                                        ));
                                         reload();
                                     }
                                     Err(e) => {

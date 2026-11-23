@@ -332,21 +332,41 @@ pub fn DashboardPage() -> impl IntoView {
 #[component]
 fn StatCard(label: &'static str, value: i64, color: &'static str) -> impl IntoView {
     let (bg, text) = match color {
-        "blue" => ("bg-blue-500/10 border-blue-400/30", "text-blue-200"),
-        "green" => (
-            "bg-emerald-500/10 border-emerald-400/30",
-            "text-emerald-200",
+        "blue" => (
+            "bg-blue-50 border-blue-200 dark:bg-blue-500/10 dark:border-blue-400/30",
+            "text-blue-700 dark:text-blue-200",
         ),
-        "indigo" => ("bg-indigo-500/10 border-indigo-400/30", "text-indigo-200"),
-        "purple" => ("bg-violet-500/10 border-violet-400/30", "text-violet-200"),
-        "amber" => ("bg-amber-500/10 border-amber-400/30", "text-amber-200"),
-        "red" => ("bg-red-500/10 border-red-400/30", "text-red-200"),
-        _ => ("bg-slate-500/10 border-slate-400/30", "text-slate-200"),
+        "green" => (
+            "bg-emerald-50 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-400/30",
+            "text-emerald-700 dark:text-emerald-200",
+        ),
+        "indigo" => (
+            "bg-indigo-50 border-indigo-200 dark:bg-indigo-500/10 dark:border-indigo-400/30",
+            "text-indigo-700 dark:text-indigo-200",
+        ),
+        "purple" => (
+            "bg-violet-50 border-violet-200 dark:bg-violet-500/10 dark:border-violet-400/30",
+            "text-violet-700 dark:text-violet-200",
+        ),
+        "amber" => (
+            "bg-amber-50 border-amber-200 dark:bg-amber-500/10 dark:border-amber-400/30",
+            "text-amber-700 dark:text-amber-200",
+        ),
+        "red" => (
+            "bg-red-50 border-red-200 dark:bg-red-500/10 dark:border-red-400/30",
+            "text-red-700 dark:text-red-200",
+        ),
+        _ => (
+            "bg-slate-50 border-slate-200 dark:bg-slate-500/10 dark:border-slate-400/30",
+            "text-slate-700 dark:text-slate-200",
+        ),
     };
 
     view! {
         <article class=format!("rounded-2xl border p-4 backdrop-blur {}", bg)>
-            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">{label}</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
+                {label}
+            </p>
             <p class=format!("mt-2 text-2xl font-black {}", text)>{value}</p>
         </article>
     }
@@ -361,13 +381,16 @@ fn InfoCard(
 ) -> impl IntoView {
     let accent = accent.unwrap_or("blue");
     let (text_color, bg_color) = match accent {
-        "green" => ("text-emerald-300", "bg-emerald-500/15"),
-        "amber" => ("text-amber-300", "bg-amber-500/15"),
-        _ => ("text-blue-300", "bg-blue-500/15"),
+        "green" => (
+            "text-emerald-600 dark:text-emerald-300",
+            "bg-emerald-500/15",
+        ),
+        "amber" => ("text-amber-600 dark:text-amber-300", "bg-amber-500/15"),
+        _ => ("text-blue-600 dark:text-blue-300", "bg-blue-500/15"),
     };
 
     view! {
-        <article class="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/50 p-4 backdrop-blur">
+        <article class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900/50 dark:shadow-none dark:backdrop-blur">
             <div class=format!(
                 "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 {}",
                 bg_color,
@@ -387,8 +410,10 @@ fn InfoCard(
                 </svg>
             </div>
             <div class="min-w-0">
-                <p class="text-xs text-slate-400">{label}</p>
-                <p class="truncate text-sm font-semibold text-slate-100">{value}</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+                <p class="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    {value}
+                </p>
             </div>
         </article>
     }
@@ -399,7 +424,7 @@ fn SectionHeader(label: &'static str) -> impl IntoView {
     view! {
         <div class="mb-3 flex items-center gap-3">
             <div class="h-8 w-1 rounded-full bg-gradient-to-b from-gold-400 to-amber-300"></div>
-            <h2 class="text-lg font-bold tracking-wide text-slate-100">{label}</h2>
+            <h2 class="text-lg font-bold tracking-wide text-slate-900 dark:text-slate-100">{label}</h2>
         </div>
     }
 }
@@ -413,17 +438,19 @@ fn QuickLink(
     icon_path: &'static str,
 ) -> impl IntoView {
     let icon_bg = match color {
-        "blue" => "bg-blue-500/20 text-blue-300",
-        "green" => "bg-emerald-500/20 text-emerald-300",
-        "purple" => "bg-violet-500/20 text-violet-300",
-        "amber" => "bg-amber-500/20 text-amber-300",
-        _ => "bg-slate-500/20 text-slate-300",
+        "blue" => "bg-blue-500/15 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300",
+        "green" => {
+            "bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300"
+        }
+        "purple" => "bg-violet-500/15 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300",
+        "amber" => "bg-amber-500/15 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300",
+        _ => "bg-slate-500/15 text-slate-600 dark:bg-slate-500/20 dark:text-slate-300",
     };
 
     view! {
         <a
             href=href
-            class="group flex items-center gap-3 rounded-xl border border-white/10 bg-slate-900/50 p-4 transition-all duration-300 hover:border-white/20 hover:bg-slate-900/80"
+            class="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-300 hover:border-slate-300 hover:bg-slate-50 dark:border-white/10 dark:bg-slate-900/50 dark:shadow-none dark:hover:border-white/20 dark:hover:bg-slate-900/80"
         >
             <div class=format!(
                 "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 {}",
@@ -439,13 +466,13 @@ fn QuickLink(
                 </svg>
             </div>
             <div class="min-w-0 flex-1">
-                <p class="text-sm font-semibold text-slate-100 transition-colors group-hover:text-gold-300">
+                <p class="text-sm font-semibold text-slate-900 transition-colors group-hover:text-gold-600 dark:text-slate-100 dark:group-hover:text-gold-300">
                     {label}
                 </p>
                 <p class="text-xs text-slate-500">{desc}</p>
             </div>
             <svg
-                class="h-4 w-4 flex-shrink-0 text-slate-600 transition-colors group-hover:text-slate-300"
+                class="h-4 w-4 flex-shrink-0 text-slate-400 transition-colors group-hover:text-slate-600 dark:text-slate-600 dark:group-hover:text-slate-300"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -468,9 +495,9 @@ fn LoadingSkeleton(#[prop(optional, default = 3)] count: usize) -> impl IntoView
             {(0..count)
                 .map(|_| {
                     view! {
-                        <div class="animate-pulse rounded-2xl border border-white/10 bg-slate-900/50 p-4">
-                            <div class="mb-2 h-3 w-20 rounded bg-slate-700/70"></div>
-                            <div class="h-6 w-12 rounded bg-slate-700/70"></div>
+                        <div class="animate-pulse rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-900/50">
+                            <div class="mb-2 h-3 w-20 rounded bg-slate-200 dark:bg-slate-700/70"></div>
+                            <div class="h-6 w-12 rounded bg-slate-200 dark:bg-slate-700/70"></div>
                         </div>
                     }
                 })

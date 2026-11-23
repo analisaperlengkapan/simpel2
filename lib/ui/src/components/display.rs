@@ -604,16 +604,16 @@ pub fn QrCodeDisplay(
             // Instructions
             <div class="text-center max-w-sm">
                 <p class="text-sm text-gray-600 dark:text-gray-400">
-                    "Scan this QR code with your authenticator app"
+                    "Pindai kode QR ini dengan aplikasi autentikator Anda"
                 </p>
                 <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                    "Compatible with Google Authenticator, Microsoft Authenticator, FreeOTP, and Authy"
+                    "Kompatibel dengan Google Authenticator, Microsoft Authenticator, FreeOTP, dan Authy"
                 </p>
             </div>
 
             // Accessibility features
             <div class="sr-only">
-                "QR Code for Multi-Factor Authentication setup. If you cannot scan this code, use the manual setup option below."
+                "Kode QR untuk pengaturan autentikasi multi-faktor. Bila kode ini tidak dapat dipindai, gunakan pengaturan manual di bawahnya."
             </div>
         </div>
     }

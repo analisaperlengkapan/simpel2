@@ -92,16 +92,16 @@ pub fn MfaVerificationPage() -> impl IntoView {
 
     view! {
         <AuthLayout>
-            <div class="w-full max-w-md">
+            <div class="w-full max-w-md mx-auto">
                 // Header
                 <div class="text-center mb-8">
                     <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-full shadow-lg mb-4">
                         <span class="text-4xl">"🔐"</span>
                     </div>
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                    <h1 class="text-3xl font-bold text-white mb-2">
                         "Two-Factor Authentication"
                     </h1>
-                    <p class="text-gray-600 dark:text-gray-400">
+                    <p class="text-navy-200">
                         "Enter the verification code from your authenticator app"
                     </p>
                 </div>

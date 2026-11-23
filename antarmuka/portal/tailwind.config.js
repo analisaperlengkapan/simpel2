@@ -1,5 +1,12 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  // `dark:` variants follow the `dark` class that `lib_ui`'s theme code puts on
+  // <html>, NOT the operating system. With the default (`media`) strategy an
+  // operator with a dark OS saw a half-dark portal that no control could undo
+  // (the headings of most pages went dark-on-dark), while the theme toggle,
+  // which sets the class, changed nothing. Only light is complete today; see the
+  // theme section of the navbar.
+  darkMode: 'class',
   content: [
     "./src/**/*.rs",
     "./index.html",

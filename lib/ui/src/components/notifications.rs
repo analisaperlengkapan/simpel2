@@ -199,7 +199,7 @@ pub fn NotificationBell(
                                                                     {notif.message.clone()}
                                                                 </p>
                                                                 <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                                                                    {notif.timestamp.clone()}
+                                                                    {crate::utils::formatters::format_iso_local(&notif.timestamp)}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -447,7 +447,7 @@ pub fn NotificationList(
                                                 </p>
                                                 <div class="flex items-center justify-between">
                                                     <p class="text-sm text-gray-500 dark:text-gray-500">
-                                                        {notif.timestamp.clone()}
+                                                        {crate::utils::formatters::format_iso_local(&notif.timestamp)}
                                                     </p>
                                                     {(!notif.read)
                                                         .then(|| {

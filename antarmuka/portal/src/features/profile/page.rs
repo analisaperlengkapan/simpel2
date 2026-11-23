@@ -231,7 +231,7 @@ pub fn ProfilePage() -> impl IntoView {
                                                         label="Telepon"
                                                         value=data.phone.unwrap_or_else(|| "-".into())
                                                     />
-                                                    <Field label="Role" value=data.role />
+                                                    <Field label="Peran" value=lib_core::auth::UserRole::from_string(&data.role).display_name() />
                                                     <Field
                                                         label="Email Terverifikasi"
                                                         value=if data.email_verified {

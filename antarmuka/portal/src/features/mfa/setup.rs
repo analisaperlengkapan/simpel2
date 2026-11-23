@@ -114,17 +114,17 @@ pub fn MfaSetupPage() -> impl IntoView {
 
     view! {
         <AuthLayout>
-            <div class="w-full max-w-2xl">
+            <div class="w-full max-w-2xl mx-auto">
                 // Header
                 <div class="text-center mb-8">
                     <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-full shadow-lg mb-4">
                         <span class="text-4xl">"🔐"</span>
                     </div>
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                        "Setup Multi-Factor Authentication"
+                    <h1 class="text-3xl font-bold text-white mb-2">
+                        "Pengaturan Autentikasi Multi-Faktor"
                     </h1>
-                    <p class="text-gray-600 dark:text-gray-400">
-                        "Secure your account with an additional layer of protection"
+                    <p class="text-navy-200">
+                        "Lindungi akun Anda dengan lapisan keamanan tambahan"
                     </p>
                 </div>
 
@@ -146,13 +146,13 @@ pub fn MfaSetupPage() -> impl IntoView {
                                 </svg>
                             </div>
                             <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                                "MFA Setup Complete!"
+                                "Pengaturan MFA Selesai!"
                             </h3>
                             <p class="text-gray-600 dark:text-gray-400 mb-4">
-                                "Your account is now secured with multi-factor authentication."
+                                "Akun Anda kini dilindungi autentikasi multi-faktor."
                             </p>
                             <div class="animate-pulse text-sm text-gray-500">
-                                "Redirecting to login..."
+                                "Mengarahkan ke halaman masuk..."
                             </div>
                         </div>
                     </Show>
@@ -176,10 +176,10 @@ pub fn MfaSetupPage() -> impl IntoView {
                                         </svg>
                                         <div>
                                             <h3 class="text-lg font-medium text-yellow-800 dark:text-yellow-300">
-                                                "Additional Security Verification Required"
+                                                "Diperlukan Verifikasi Keamanan Tambahan"
                                             </h3>
                                             <p class="text-sm text-yellow-700 dark:text-yellow-400 mt-1">
-                                                "We've detected unusual activity. Please complete the security verification to proceed with MFA setup."
+                                                "Kami mendeteksi aktivitas tidak biasa. Selesaikan verifikasi keamanan untuk melanjutkan pengaturan MFA."
                                             </p>
                                         </div>
                                     </div>
@@ -200,10 +200,10 @@ pub fn MfaSetupPage() -> impl IntoView {
                             // Step 1: QR Code Display
                             <div>
                                 <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                                    "Step 1: Scan QR Code"
+                                    "Langkah 1: Pindai Kode QR"
                                 </h2>
                                 <p class="text-gray-600 dark:text-gray-400 mb-6">
-                                    "Use your authenticator app to scan this QR code. We recommend Google Authenticator, Microsoft Authenticator, or FreeOTP."
+                                    "Gunakan aplikasi autentikator Anda untuk memindai kode QR ini. Kami menyarankan Google Authenticator, Microsoft Authenticator, atau FreeOTP."
                                 </p>
 
                                 <Show when=move || is_generating.get()>
@@ -249,20 +249,20 @@ pub fn MfaSetupPage() -> impl IntoView {
                                         // Manual setup option
                                         <details class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                                             <summary class="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-emerald-600">
-                                                "Can't scan the QR code? Enter manually"
+                                                "Tidak bisa memindai kode QR? Masukkan secara manual"
                                             </summary>
                                             <div class="mt-4 space-y-3">
                                                 <div>
                                                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                                        "Account Name:"
+                                                        "Nama Akun:"
                                                     </label>
                                                     <code class="block text-sm bg-white dark:bg-gray-800 p-2 rounded border font-mono">
-                                                        "SIMPEL (your-username@kejaksaan.go.id)"
+                                                        "SIMPEL (nama-pengguna@kejaksaan.go.id)"
                                                     </code>
                                                 </div>
                                                 <div>
                                                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                                        "Secret Key:"
+                                                        "Kunci Rahasia:"
                                                     </label>
                                                     <code class="block text-sm bg-white dark:bg-gray-800 p-2 rounded border font-mono break-all">
                                                         {move || {
@@ -279,10 +279,10 @@ pub fn MfaSetupPage() -> impl IntoView {
                             // Step 2: Verification
                             <div class="border-t pt-8">
                                 <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                                    "Step 2: Verify Setup"
+                                    "Langkah 2: Verifikasi"
                                 </h2>
                                 <p class="text-gray-600 dark:text-gray-400 mb-6">
-                                    "Enter the 6-digit code from your authenticator app to complete the setup."
+                                    "Masukkan kode 6 digit dari aplikasi autentikator Anda untuk menyelesaikan pengaturan."
                                 </p>
 
                                 <div class="max-w-md mx-auto">
@@ -292,7 +292,7 @@ pub fn MfaSetupPage() -> impl IntoView {
                                         on_change=set_otp_code
                                         disabled=is_loading.get() || mfa_data.get().is_none()
                                         loading=is_loading.get()
-                                        hint="Enter the 6-digit code from your authenticator app"
+                                        hint="Masukkan kode 6 digit dari aplikasi autentikator Anda"
                                             .to_string()
                                         error=if error_message.get().is_empty() {
                                             String::new()
@@ -364,7 +364,7 @@ pub fn MfaSetupPage() -> impl IntoView {
                                                             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                                                         ></path>
                                                     </svg>
-                                                    "Verifying..."
+                                                    "Memverifikasi..."
                                                 }
                                                     .into_any()
                                             } else {
@@ -392,10 +392,10 @@ pub fn MfaSetupPage() -> impl IntoView {
                                         </svg>
                                         <div>
                                             <h4 class="text-sm font-medium text-blue-800 dark:text-blue-300">
-                                                "Backup Codes Generated"
+                                                "Kode Pemulihan Dibuat"
                                             </h4>
                                             <p class="text-sm text-blue-700 dark:text-blue-400 mt-1">
-                                                "After completing setup, you'll receive backup codes that can be used if you lose access to your authenticator app. Store them safely!"
+                                                "Setelah pengaturan selesai, Anda menerima kode pemulihan yang dapat dipakai bila Anda kehilangan akses ke aplikasi autentikator. Simpan di tempat yang aman!"
                                             </p>
                                         </div>
                                     </div>
@@ -408,9 +408,9 @@ pub fn MfaSetupPage() -> impl IntoView {
                 // Help section
                 <div class="mt-6 text-center">
                     <p class="text-sm text-gray-500 dark:text-gray-400">
-                        "Need help? "
+                        "Butuh bantuan? "
                         <a href="#" class="text-emerald-600 hover:text-emerald-500 font-medium">
-                            "View MFA setup guide"
+                            "Lihat panduan pengaturan MFA"
                         </a>
                     </p>
                 </div>
