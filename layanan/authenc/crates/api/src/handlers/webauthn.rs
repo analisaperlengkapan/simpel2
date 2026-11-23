@@ -6,6 +6,7 @@ use axum::{
     Json,
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
+    response::IntoResponse,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -14,6 +15,16 @@ use webauthn_rs::prelude::*;
 use super::auth_helpers::extract_user_from_token;
 use crate::{handlers::ErrorResponse, state::ApiState};
 use authenc_types::UserId;
+
+/// A 500 whose cause is logged here and not shown to the client.
+fn internal_error(what: &str, cause: &authenc_types::AuthencError) -> ErrorResponse {
+    tracing::error!(error = %cause, "{what}");
+    ErrorResponse {
+        status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        error: "internal_error".to_string(),
+        message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
+    }
+}
 
 /// Start passkey registration request
 #[derive(Debug, Deserialize)]
@@ -47,7 +58,10 @@ pub struct FinishRegistrationRequest {
 /// Finish passkey registration response
 #[derive(Debug, Serialize)]
 pub struct FinishRegistrationResponse {
-    /// Credential ID
+    /// Credential ID, under the name the rest of the API (the credential list)
+    /// uses. The portal reads this one.
+    pub id: Uuid,
+    /// Credential ID, under the name this endpoint has always used.
     pub credential_id: Uuid,
     /// Success message
     pub message: String,
@@ -136,10 +150,23 @@ pub async fn start_registration_handler(
             message: e.message,
         })?;
 
-    // Look up user details for WebAuthn registration
+    // Name the credential for the person, not for their UUID: this is what the
+    // browser's passkey picker and the user's password manager display.
     let user_id = UserId(user_id);
-    let username = user_id.0.to_string(); // Fallback: use UUID as username
-    let display_name = username.clone(); // Fallback: use UUID as display name
+    let (username, display_name) = match state.user_service.get_user(user_id).await {
+        Ok(user) => {
+            let display = user
+                .nama
+                .clone()
+                .filter(|n| !n.trim().is_empty())
+                .unwrap_or_else(|| user.username.clone());
+            (user.username, display)
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "Could not load the user for the passkey name, using the id");
+            (user_id.0.to_string(), user_id.0.to_string())
+        }
+    };
 
     // Start registration with WebAuthn service
     let (challenge, session) = state
@@ -155,11 +182,12 @@ pub async fn start_registration_handler(
     // Generate session ID
     let session_id = uuid::Uuid::new_v4().to_string();
 
-    // Store session temporarily
+    // Store session temporarily (shared across replicas)
     state
         .session_store
         .store_registration_session(session_id.clone(), session)
-        .await;
+        .await
+        .map_err(|e| internal_error("Failed to store the passkey registration state", &e))?;
 
     Ok(Json(StartRegistrationResponse {
         challenge,
@@ -180,6 +208,7 @@ pub async fn finish_registration_handler(
         .session_store
         .remove_registration_session(&request.session_id)
         .await
+        .map_err(|e| internal_error("Failed to load the passkey registration state", &e))?
         .ok_or_else(|| ErrorResponse {
             status_code: axum::http::StatusCode::BAD_REQUEST,
             error: "invalid_session".to_string(),
@@ -198,6 +227,7 @@ pub async fn finish_registration_handler(
         })?;
 
     Ok(Json(FinishRegistrationResponse {
+        id: credential.id,
         credential_id: credential.id,
         message: "Passkey registered successfully".to_string(),
     }))
@@ -228,11 +258,12 @@ pub async fn start_authentication_handler(
     // Generate session ID
     let session_id = uuid::Uuid::new_v4().to_string();
 
-    // Store session temporarily
+    // Store session temporarily (shared across replicas)
     state
         .session_store
         .store_authentication_session(session_id.clone(), session)
-        .await;
+        .await
+        .map_err(|e| internal_error("Failed to store the passkey authentication state", &e))?;
 
     Ok(Json(StartAuthenticationResponse {
         challenge,
@@ -247,12 +278,13 @@ pub async fn start_authentication_handler(
 pub async fn finish_authentication_handler(
     State(state): State<Arc<ApiState>>,
     Json(request): Json<FinishAuthenticationRequest>,
-) -> Result<Json<FinishAuthenticationResponse>, ErrorResponse> {
+) -> Result<axum::response::Response, ErrorResponse> {
     // Retrieve authentication session
     let session = state
         .session_store
         .remove_authentication_session(&request.session_id)
         .await
+        .map_err(|e| internal_error("Failed to load the passkey authentication state", &e))?
         .ok_or_else(|| ErrorResponse {
             status_code: axum::http::StatusCode::BAD_REQUEST,
             error: "invalid_session".to_string(),
@@ -299,6 +331,20 @@ pub async fn finish_authentication_handler(
         }
     })?;
 
+    // A passkey proves the person holds the credential; it does not make a
+    // disabled or deleted account usable. The password login refuses these
+    // (`authenticate` returns "Akun Anda telah dinonaktifkan"); this path used to
+    // go straight from the verified credential to a token, so an account an admin
+    // had switched off could still sign in with a passkey registered before.
+    if !user.enabled || user.deleted_at.is_some() {
+        tracing::warn!(user_id = %user_id.0, "Passkey login refused: account is disabled or deleted");
+        return Err(ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
+            error: "authentication_failed".to_string(),
+            message: "Akun Anda telah dinonaktifkan. Silakan hubungi administrator.".to_string(),
+        });
+    }
+
     // Build custom claims
     let custom_claims =
         crate::handlers::active_role::build_claims_for_user(&state, &user, None).await;
@@ -333,12 +379,20 @@ pub async fn finish_authentication_handler(
             }
         })?;
 
-    Ok(Json(FinishAuthenticationResponse {
+    let response = Json(FinishAuthenticationResponse {
         access_token,
         refresh_token,
         token_type: "Bearer".to_string(),
         expires_in: 900, // 15 minutes
-    }))
+    })
+    .into_response();
+    // Hand the verified identity to the audit middleware so the AUTH_SUCCESS row
+    // names the user, as the password login does.
+    Ok(crate::handlers::auth::with_authenticated_actor(
+        response,
+        &user_id.0.to_string(),
+        None,
+    ))
 }
 
 /// GET /api/v1/auth/webauthn/credentials - List user's passkeys

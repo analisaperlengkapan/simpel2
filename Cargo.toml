@@ -154,6 +154,8 @@ x25519-dalek = { version = "2.0.1", features = [
 # WebAuthn/Passkeys (MANDATORY - PRIMARY authentication method)
 webauthn-rs = { version = "0.5.5", features = [
   "danger-allow-state-serialisation",
+  # Usernameless (discoverable) login: start/identify/finish_discoverable_authentication.
+  "conditional-ui",
 ] }
 webauthn-rs-proto = "0.5.5"
 

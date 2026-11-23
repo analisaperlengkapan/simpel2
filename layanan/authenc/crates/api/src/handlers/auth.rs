@@ -372,7 +372,7 @@ impl IntoResponse for ErrorResponse {
 /// exists. A login handler is the one place the identity is known but the audit
 /// write is not; returning the response unchanged keeps every other path
 /// (failed logins, unauthenticated requests) correctly unattributed.
-fn with_authenticated_actor(
+pub(crate) fn with_authenticated_actor(
     mut response: axum::response::Response,
     user_id: &str,
     client_id: Option<&str>,
@@ -878,6 +878,19 @@ pub async fn refresh_token_handler(
         .into_response();
     }
 
+    // A revoked refresh token (logout, account disabled, role change) must not
+    // mint a new access token. Without this a refresh token kept working after the
+    // account was cut off; for a login that has no session row (passkey, MFA) the
+    // new token's fresh `iat` also slips past the "revoked before" cutoff.
+    if let Err(e) = auth_helpers::ensure_not_revoked(&state, &claims).await {
+        return ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
+            error: "invalid_token".to_string(),
+            message: e.message,
+        }
+        .into_response();
+    }
+
     // Extract user_id and session_id from token claims
     let uid = claims.sub.clone();
     let sid = claims.sid.as_deref().unwrap_or("").to_string();
@@ -988,7 +1001,7 @@ pub async fn get_current_user_handler(
 
     // Enforce password-change requirement and extract user ID in a single
     // JWT verification pass (avoids verifying the token twice).
-    let user_uuid = match auth_helpers::extract_user_with_password_check(&state, &headers) {
+    let user_uuid = match auth_helpers::extract_user_with_password_check(&state, &headers).await {
         Ok(u) => u,
         Err(e) => {
             // Distinguish password-change-required (403) from auth errors (401)
@@ -1123,8 +1136,9 @@ pub async fn update_profile_handler(
 ) -> Result<Json<UserProfileResponse>, ErrorResponse> {
     // Enforce password-change requirement and extract user ID in a single
     // JWT verification pass (avoids verifying the token twice).
-    let user_uuid =
-        auth_helpers::extract_user_with_password_check(&state, &headers).map_err(|e| {
+    let user_uuid = auth_helpers::extract_user_with_password_check(&state, &headers)
+        .await
+        .map_err(|e| {
             let (status, error_code) =
                 if e.error_code == auth_helpers::AuthErrorCode::PasswordChangeRequired {
                     (

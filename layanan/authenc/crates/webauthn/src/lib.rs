@@ -24,7 +24,8 @@ pub mod store;
 
 // Re-export main types
 pub use models::{
-    AuthenticationResult, AuthenticationSession, RegistrationSession, StoredCredential,
+    AuthenticationResult, AuthenticationSession, CeremonyState, RegistrationSession,
+    StoredCredential,
 };
 pub use service::{WebAuthnConfig, WebAuthnService};
 pub use store::CredentialStore;

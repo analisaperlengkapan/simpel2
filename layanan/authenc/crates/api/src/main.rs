@@ -304,8 +304,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     };
     let webauthn_service = Arc::new(WebAuthnService::new(webauthn_config, credential_store)?);
 
-    // WebAuthn session store (in-memory)
-    let webauthn_session_store = WebAuthnSessionStore::new();
+    // WebAuthn ceremony state lives in Postgres, not in this replica's memory:
+    // `start` and `finish` of one ceremony may be served by different replicas.
+    let webauthn_session_store = WebAuthnSessionStore::new((*db).clone());
 
     // Clone services shared between ApiState and IamApiState
     let iam_user_service = user_service.clone();
@@ -465,6 +466,23 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     // integrasi client directly.)
     let iam_state = IamApiState::new(iam_user_service, iam_jwt_service, db.clone());
     let iam_router = create_iam_router(Arc::new(iam_state));
+
+    // The unified router carries the security-monitoring layer, but this router is
+    // merged in AFTER that layer is applied, so no request to /api/v1/iam/ was ever
+    // monitored: a refused admin call (403) left no AUTHZ_FAILURE row, and a failed
+    // privilege escalation against the identity provider left no trace at all. The
+    // same layer, on the same audit store, now wraps it. It sits outside the admin
+    // guard, so the actor the guard attaches to its refusals is read here.
+    let iam_security_state = Arc::new(authenc_api::middleware::SecurityMonitoringState::new(
+        authenc_api::middleware::SecurityMonitoringConfig::default(),
+        Some(Arc::new(authenc_core::services::PgAuditLogStore::new(
+            db.clone(),
+        ))),
+    ));
+    let iam_router = iam_router.layer(axum::middleware::from_fn_with_state(
+        iam_security_state,
+        authenc_api::middleware::security_monitoring_middleware,
+    ));
 
     // Rate limiting — secure defaults (60 req/min per IP, enabled) that
     // production/staging keep by leaving these unset. Overridable via env so the
