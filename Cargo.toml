@@ -287,7 +287,10 @@ tss-esapi = "7.7.0"
 # verifier rejects. The portable verifier (and `neon` on aarch64) is not affected.
 # The advisory has no patched release, so cargo-audit/cargo-deny still list the
 # crate (see the ignore entries and their removal condition in deny.toml).
-pqcrypto-mldsa = { version = "0.1.2", default-features = false, features = ["std", "neon"] }
+pqcrypto-mldsa = { version = "0.1.2", default-features = false, features = [
+  "std",
+  "neon",
+] }
 pqcrypto-mlkem = "0.1.1"
 pqcrypto-falcon = "0.4.1"
 pqcrypto-traits = "0.3.5"
