@@ -63,12 +63,43 @@ pub fn foto_pegawai_url(foto: Option<&str>) -> Option<String> {
     if nama.is_empty() {
         return None;
     }
+    // A row can already hold the full URL (the staging fixture's does). Prefixing
+    // it again gave `.../images/https%3A%2F%2Fmedia-mysimkari...png`, which is a
+    // 404, so the avatar fell back to initials. Only a URL on the media host is
+    // taken as it is: any other absolute URL in this column is not ours to
+    // load into an `<img>`, and falls through to be treated (and encoded) as a
+    // file name like before.
+    if nama.starts_with(&format!("{MEDIA_MYSIMKARI}/")) {
+        return Some(nama.to_string());
+    }
     Some(format!("{MEDIA_MYSIMKARI}/{}", encode_segment(nama)))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn url_media_yang_sudah_lengkap_dipakai_apa_adanya() {
+        let sudah = format!("{MEDIA_MYSIMKARI}/KbePhq C7cc(1).png");
+        assert_eq!(foto_pegawai_url(Some(&sudah)), Some(sudah.clone()));
+        // Tidak ada awalan ganda.
+        assert_eq!(
+            foto_pegawai_url(Some(&sudah))
+                .unwrap()
+                .matches("https://")
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn url_di_host_lain_bukan_untuk_dimuat() {
+        let luar = "https://contoh.example/foto.png";
+        let url = foto_pegawai_url(Some(luar)).unwrap();
+        assert!(url.starts_with(&format!("{MEDIA_MYSIMKARI}/")), "{url}");
+        assert!(url.contains("https%3A%2F%2Fcontoh.example"), "{url}");
+    }
 
     #[test]
     fn kosong_bukan_url() {

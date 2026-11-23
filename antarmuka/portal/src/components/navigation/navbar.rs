@@ -11,7 +11,6 @@ use leptos::prelude::*;
 use lib_ui::components::{
     AvatarSize, BrandedLogo, BrandedLogoSize, GlobalSearchBar, NotificationBell,
 };
-use lib_ui::prelude::*;
 
 /// Main navigation bar with navy/gold Kejaksaan RI branding
 #[component]
@@ -54,10 +53,6 @@ pub fn Navbar(
                 AuthService::logout();
             }
         }
-    };
-
-    let handle_theme_toggle = move |_| {
-        toggle_theme();
     };
 
     view! {
@@ -124,28 +119,6 @@ pub fn Navbar(
 
                     // Right Side Actions
                     <div class="flex items-center space-x-1.5">
-                        // Theme Toggle
-                        <button
-                            on:click=handle_theme_toggle
-                            class="p-2 rounded-lg text-navy-200 hover:text-white hover:bg-white/10 transition-all duration-200"
-                            title="Toggle Theme"
-                            aria-label="Toggle dark mode"
-                        >
-                            <svg
-                                class="w-5 h-5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                                />
-                            </svg>
-                        </button>
-
                         // Notification Bell
                         {user_session.as_ref().map(|_| view! { <NotificationBell /> })}
 

@@ -93,7 +93,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
 
     view! {
         <AuthLayout>
-            <div class="w-full max-w-md">
+            <div class="w-full max-w-md mx-auto">
                 // Header
                 <div class="text-center mb-8">
                     <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-600 to-amber-700 rounded-full shadow-lg mb-4">

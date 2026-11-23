@@ -295,6 +295,25 @@ curl -s -o /dev/null -w '%{http_code}\n' http://simpel.kejaksaan.go.id/   # 301 
 Login dengan administrator pertama, ganti sandi, lalu **cabut sandi awalnya dari values-secrets**.
 `secretonAuth.enabled` tetap `false` (blocker F6-A: Secreton belum menyimpan state; lihat §7).
 
+### 1.8b Akun bawaan migrasi (WAJIB, sebelum pengguna diarahkan ke host)
+
+Migrasi authenc `002_seed.sql` membuat dua akun di database produksi, dan keduanya diketahui
+siapa pun yang membaca repo (repo ini publik):
+
+| Akun | Keadaan awal | Tindakan |
+|---|---|---|
+| `199203142014031001` (administrator pertama) | **Sandi awalnya sama dengan NIP-nya sendiri.** Ditandai wajib ganti sandi: konsol admin menolak (`403`) sampai sandi diganti. Terverifikasi pada database baru. | Login pertama **sebelum host dijangkau pihak lain**: dari dalam klaster (`kubectl port-forward`) atau sebelum DNS/gateway diarahkan. Ganti sandi lewat *Ubah Kata Sandi*. Sandi baru dipegang pemilik akun saja: tidak ditulis di chat, git, atau berkas values. Siapa yang login lebih dulu menentukan sandinya, jadi inilah jendela risikonya. |
+| `admin` (`admin@authenc.local`, satker `UNKNOWN`) | Aktif, bukan akun orang. Sandinya tidak diverifikasi. | Setelah login langkah di atas: Portal → Admin → Pengguna → **Nonaktifkan** `admin` (atau `PUT /api/v1/iam/users/{id}` `{"enabled":false}`). Lakukan setelah administrator pertama berhasil login dan konsol admin terbuka: menonaktifkan akun tidak dicegah bila ia satu-satunya administrator (hanya pencabutan *peran* admin dari administrator terakhir yang ditolak, dengan `409`). |
+
+Akun fixture e2e (`2000000000000000NN`) tidak dibuat oleh migrasi dan hanya ada di staging; bila ikut terbawa
+ke produksi lewat salinan database, nonaktifkan semuanya sebelum host dibuka.
+
+Verifikasi: `GET /api/v1/iam/users` sebagai administrator pertama hanya menampilkan akun nyata yang
+berstatus aktif, dan login `admin` ditolak dengan "Akun Anda telah dinonaktifkan".
+
+Akun yang dibuat admin dari portal mendapat sandi sementara acak yang ditampilkan **sekali** dan wajib diganti saat
+login pertama (sebelumnya semua akun baru memakai sandi tetap yang sama).
+
 ### 1.9 Rehearsal produksi di cluster staging (WAJIB sebelum 1.7)
 
 Staging memakai profil lain (1 replika, mTLS PERMISSIVE, fixture, cron di-suspend). Yang hanya terbukti

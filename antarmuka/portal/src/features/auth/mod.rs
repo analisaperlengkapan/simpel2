@@ -669,6 +669,20 @@ impl AuthService {
                     opts.set_credentials(RequestCredentials::Include);
                     opts.set_headers(&headers);
                     opts.set_body(&wasm_bindgen::JsValue::from_str(&body));
+                    // The page navigates to the login screen the moment the click
+                    // handler returns, and a plain fetch is cancelled with the
+                    // document it was started from. Measured on staging: 2 of 5
+                    // sign-outs never reached the server, so the session stayed
+                    // alive after the user had "logged out" (the server revokes
+                    // 10 of 10 when the request arrives). `keepalive` lets the
+                    // request outlive the page.
+                    // (`RequestInit::set_keepalive` is not exposed by this web-sys
+                    // build, so the member is set directly.)
+                    let _ = js_sys::Reflect::set(
+                        opts.as_ref(),
+                        &wasm_bindgen::JsValue::from_str("keepalive"),
+                        &wasm_bindgen::JsValue::TRUE,
+                    );
 
                     if let Ok(request) = Request::new_with_str_and_init(&logout_url, &opts) {
                         let _ = wasm_bindgen_futures::JsFuture::from(

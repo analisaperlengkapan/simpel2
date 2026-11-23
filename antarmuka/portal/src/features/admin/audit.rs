@@ -45,12 +45,35 @@ fn event_label(event_type: &str) -> String {
         "SUSPICIOUS_ACTIVITY" => "Aktivitas mencurigakan",
         "MFA_SETUP" => "MFA disiapkan",
         "MFA_DISABLE" => "MFA dinonaktifkan",
-        "MFA_BACKUP_CODES" => "Kode pemulihan MFA dibuat ulang",
+        "MFA_BACKUP_CODES" => "Kode pemulihan MFA diakses (lihat atau buat ulang)",
         "ROLE_SWITCH" => "Peran aktif diganti",
         "MFA_ENABLE" => "MFA pengguna diaktifkan admin",
         other => return other.to_string(),
     };
     label.to_string()
+}
+
+/// A JSON value as plain text: nested objects become `a=1, b=2`, arrays become
+/// comma-separated lists, and `null` (and anything made only of nulls) is dropped.
+/// The payload used to print nested objects as raw JSON, braces, quotes and
+/// `"satker_code":null` included.
+fn plain_value(v: &serde_json::Value) -> Option<String> {
+    match v {
+        serde_json::Value::Null => None,
+        serde_json::Value::String(s) => Some(s.clone()),
+        serde_json::Value::Object(m) => {
+            let parts: Vec<String> = m
+                .iter()
+                .filter_map(|(k, v)| plain_value(v).map(|text| format!("{k}={text}")))
+                .collect();
+            (!parts.is_empty()).then(|| parts.join(", "))
+        }
+        serde_json::Value::Array(a) => {
+            let parts: Vec<String> = a.iter().filter_map(plain_value).collect();
+            (!parts.is_empty()).then(|| parts.join(", "))
+        }
+        other => Some(other.to_string()),
+    }
 }
 
 /// Render the audit `details` payload for a human.
@@ -79,17 +102,14 @@ fn event_details(details: Option<&str>) -> String {
         "request_id",
         "user_id",
         "ip",
+        // The actor is the USER column. Their whole role list (six names for an
+        // admin) sat in every admin-action row and was the widest thing in it.
+        "actor",
     ];
     let parts: Vec<String> = map
         .iter()
-        .filter(|(k, v)| !NOISE.contains(&k.as_str()) && !v.is_null())
-        .map(|(k, v)| {
-            let value = match v {
-                serde_json::Value::String(s) => s.clone(),
-                other => other.to_string(),
-            };
-            format!("{k}: {value}")
-        })
+        .filter(|(k, _)| !NOISE.contains(&k.as_str()))
+        .filter_map(|(k, v)| plain_value(v).map(|value| format!("{k}: {value}")))
         .collect();
     if parts.is_empty() {
         return "—".to_string();
@@ -301,7 +321,7 @@ pub fn AuditLogsPage() -> impl IntoView {
                                                             .clone()
                                                             .unwrap_or_else(|| "-".to_string())}
                                                     </td>
-                                                    <td class="px-4 py-2.5 text-gray-500 text-xs">
+                                                    <td class="px-4 py-2.5 text-gray-500 text-xs break-words">
                                                         {event_details(
                                                             log_entry.details.as_deref(),
                                                         )}
@@ -354,5 +374,47 @@ pub fn AuditLogsPage() -> impl IntoView {
                 </div>
             </div>
         </MainLayout>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nested_objects_read_as_plain_text_and_the_actor_is_left_to_the_user_column() {
+        let raw = r#"{"actor":{"roles":["admin","operator_satker"],"username":"199203142014031001"},
+                      "change":{"enabled":false,"satker_code":null,"fields":["enabled"]},
+                      "method":"PUT","status_code":200}"#;
+        let text = event_details(Some(raw));
+        assert!(!text.contains("actor"), "{text}");
+        assert!(
+            !text.contains('{') && !text.contains('"'),
+            "no raw JSON: {text}"
+        );
+        assert!(!text.contains("null"), "{text}");
+        assert!(
+            text.contains("change: enabled=false, fields=enabled"),
+            "{text}"
+        );
+        assert!(
+            text.contains("method: PUT") && text.contains("status_code: 200"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn an_object_of_only_nulls_disappears() {
+        assert_eq!(event_details(Some(r#"{"change":{"a":null}}"#)), "—");
+    }
+
+    #[test]
+    fn unparseable_and_empty_payloads_are_kept_or_dashed() {
+        assert_eq!(
+            event_details(Some("plain text, not json")),
+            "plain text, not json"
+        );
+        assert_eq!(event_details(Some("  ")), "—");
+        assert_eq!(event_details(None), "—");
     }
 }

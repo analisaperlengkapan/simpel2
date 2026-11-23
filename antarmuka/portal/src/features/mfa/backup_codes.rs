@@ -151,7 +151,7 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                         <div class="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
                             <h1 class="text-2xl font-bold">"MFA Backup Codes"</h1>
                             <p class="text-blue-100 mt-1">
-                                "Manage your multi-factor authentication backup codes"
+                                "Kelola kode pemulihan autentikasi multi-faktor Anda"
                             </p>
                         </div>
 
@@ -169,7 +169,7 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                                                 view! {
                                                     <Alert
                                                         variant=AlertVariant::Success
-                                                        title="Backup Codes Available".to_string()
+                                                        title="Kode Pemulihan Tersedia".to_string()
                                                         message=format!(
                                                             "You have {} backup codes remaining",
                                                             status_data.remaining_codes,
@@ -182,7 +182,7 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                                                 view! {
                                                     <Alert
                                                         variant=AlertVariant::Warning
-                                                        title="No Backup Codes".to_string()
+                                                        title="Tidak Ada Kode Pemulihan".to_string()
                                                         message="You don't have any backup codes. Generate new codes below."
                                                             .to_string()
                                                         show=true
@@ -197,7 +197,7 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                             // Warning Section
                             <Alert
                                 variant=AlertVariant::Info
-                                title="Important Security Information".to_string()
+                                title="Informasi Keamanan Penting".to_string()
                                 message="• Backup codes are for emergency access only\n• Each code can only be used once\n• Store codes in a secure, offline location\n• Generate new codes if you suspect compromise\n• Do not share codes with anyone"
                                     .to_string()
                                 show=true
@@ -206,11 +206,11 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                             // Generate Codes Section
                             <div>
                                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                                    "Generate New Backup Codes"
+                                    "Buat Kode Pemulihan Baru"
                                 </h2>
                                 <p class="text-gray-600 dark:text-gray-400 mb-4">
                                     "If you don't have backup codes or need to replace existing ones, generate a new set. "
-                                    "This will invalidate any previously generated codes."
+                                    "Kode yang dibuat sebelumnya tidak akan berlaku lagi."
                                 </p>
 
                                 <label
@@ -240,9 +240,9 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                                 >
                                     {move || {
                                         if loading.get() {
-                                            "Generating..."
+                                            "Membuat..."
                                         } else {
-                                            "Generate New Codes"
+                                            "Buat Kode Baru"
                                         }
                                     }}
                                 </button>
@@ -251,7 +251,7 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                                     status.get().map(|s| s.remaining_codes > 0).unwrap_or(false)
                                 }>
                                     <p class="text-sm text-amber-600 dark:text-amber-400 mt-2">
-                                        "⚠️ Warning: This will replace your existing backup codes"
+                                        "⚠️ Peringatan: kode pemulihan Anda yang ada akan diganti"
                                     </p>
                                 </Show>
                             </div>
@@ -268,7 +268,7 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                                                 <div class="p-6 bg-gray-50 dark:bg-gray-900 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
                                                     <div class="flex justify-between items-center mb-4">
                                                         <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                                                            "Your New Backup Codes"
+                                                            "Kode Pemulihan Baru Anda"
                                                         </h2>
                                                         <div class="flex space-x-2">
                                                             <button
@@ -276,7 +276,7 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                                                                 on:click=move |_| download_codes()
                                                                 class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors"
                                                             >
-                                                                "Download"
+                                                                "Unduh"
                                                             </button>
                                                             <button
                                                                 type="button"
@@ -330,7 +330,7 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                                             view! {
                                                 <Alert
                                                     variant=AlertVariant::Error
-                                                    title="Error".to_string()
+                                                    title="Galat".to_string()
                                                     message=msg
                                                     show=true
                                                 />
@@ -347,13 +347,13 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                             // Instructions Section
                             <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
                                 <h3 class="text-blue-900 dark:text-blue-100 font-semibold mb-3">
-                                    "How to Use Backup Codes"
+                                    "Cara Memakai Kode Pemulihan"
                                 </h3>
                                 <ol class="text-blue-800 dark:text-blue-200 text-sm space-y-2">
                                     <li class="flex items-start">
                                         <span class="font-semibold mr-2">"1."</span>
                                         <span>
-                                            "If you lose access to your authenticator app, go to the login page"
+                                            "Jika Anda kehilangan akses ke aplikasi autentikator, buka halaman masuk"
                                         </span>
                                     </li>
                                     <li class="flex items-start">
@@ -369,13 +369,13 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                                     <li class="flex items-start">
                                         <span class="font-semibold mr-2">"4."</span>
                                         <span>
-                                            "Enter one of your backup codes exactly as shown"
+                                            "Masukkan salah satu kode pemulihan persis seperti yang tertera"
                                         </span>
                                     </li>
                                     <li class="flex items-start">
                                         <span class="font-semibold mr-2">"5."</span>
                                         <span>
-                                            "The code will be permanently disabled after use"
+                                            "Kode tidak berlaku lagi setelah dipakai"
                                         </span>
                                     </li>
                                 </ol>

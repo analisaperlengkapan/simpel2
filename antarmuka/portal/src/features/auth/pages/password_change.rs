@@ -367,6 +367,24 @@ pub fn PasswordChangePage() -> impl IntoView {
                                     }
                                 }} " Huruf besar"
                             </p>
+                            // authenc's policy requires a lower-case letter too (see
+                            // `PasswordPolicyConfig::default`); the list used to omit
+                            // it, so a password that ticked every box could be refused.
+                            <p class=move || {
+                                if new_password.get().chars().any(|c| c.is_lowercase()) {
+                                    "text-green-600"
+                                } else {
+                                    "text-gray-400"
+                                }
+                            }>
+                                {move || {
+                                    if new_password.get().chars().any(|c| c.is_lowercase()) {
+                                        "✅"
+                                    } else {
+                                        "○"
+                                    }
+                                }} " Huruf kecil"
+                            </p>
                             <p class=move || {
                                 if new_password.get().chars().any(|c| c.is_ascii_digit()) {
                                     "text-green-600"

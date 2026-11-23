@@ -537,13 +537,20 @@ impl AuthencApiClient {
         Self::parse_response(resp).await
     }
 
-    /// Finish passkey registration — sends session_id + browser credential
+    /// Finish passkey registration — sends session_id + browser credential.
+    ///
+    /// Success is the status, not the body. The server answers `{id,
+    /// credential_id, message}`, while this used to parse a whole `PasskeyInfo`
+    /// (type, timestamps, authenticator data) that the endpoint has never sent,
+    /// so every registration the server accepted was reported to the user as a
+    /// failure, the list was not refreshed, and the natural reaction, registering
+    /// again, stored a duplicate.
     #[cfg(target_arch = "wasm32")]
     pub async fn webauthn_register_finish(
         &self,
         session_id: &str,
         credential: &serde_json::Value,
-    ) -> Result<PasskeyInfo, String> {
+    ) -> Result<(), String> {
         let body = WebAuthnFinishRequest {
             session_id: session_id.to_string(),
             credential: credential.clone(),
@@ -551,7 +558,7 @@ impl AuthencApiClient {
         let resp = self
             .post("/api/v1/auth/webauthn/register/finish", &body)
             .await?;
-        Self::parse_response(resp).await
+        Self::check_ok(resp).await
     }
 
     /// Start passkey authentication — returns WebAuthn options + session ID
@@ -951,16 +958,8 @@ impl AuthencApiClient {
         &self,
         _sid: &str,
         _c: &serde_json::Value,
-    ) -> Result<PasskeyInfo, String> {
-        Ok(PasskeyInfo {
-            id: "mock".to_string(),
-            nickname: None,
-            credential_type: "public-key".to_string(),
-            created_at: "2026-01-01".to_string(),
-            last_used: None,
-            aaguid: None,
-            is_platform: true,
-        })
+    ) -> Result<(), String> {
+        Ok(())
     }
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn webauthn_authenticate_start(&self) -> Result<WebAuthnStartResponse, String> {
