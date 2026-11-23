@@ -501,7 +501,23 @@ global:
   #
   # rc55 = rc54 + perbaikan tes itu (#1141). Tanpa perubahan kode produk, tanpa migrasi, tanpa perubahan
   # chart: `helm rollback` ke rc53 aman tanpa restore database. rc54 jangan dipromosikan.
-  imageTag: v0.1.0-rc55
+  #
+  # rc56 = rc55 + hasil uji manual RBAC/IAM dan portal (5 PR). Sandi sementara (#1143): akun yang dibuat
+  # admin dari portal mendapat sandi ACAK 20 karakter yang dibuat di peramban dan wajib diganti saat masuk
+  # pertama (sebelumnya semua akun baru memakai `TempPass123!`). Passkey dan IAM (#1144): login tanpa nama
+  # pengguna kini benar-benar berjalan (sebelumnya tak pernah berhasil), state upacara WebAuthn disimpan di
+  # Postgres sehingga 2 replika authenc saling melayani, akun nonaktif tak bisa masuk dengan passkey, sesi
+  # passkey tercatat dan dicabut saat keluar, token yang dicabut ditolak di /auth/me dan refresh, penolakan
+  # IAM tercatat sebagai AUTHZ_FAILURE, "Hentikan sesi" mencabut selama TTL refresh token. UI portal (#1145):
+  # dasbor terbaca di mode terang, dua belas cacat kecil (tanggal notifikasi, label audit, MFA berbahasa
+  # Indonesia, tautan foto ganda, keluar yang kadang tak tercatat). Kripto (#1147): ML-KEM/ML-DSA di
+  # secreton dan authenc pindah dari pqcrypto ke RustCrypto, kunci privat berupa seed. Dependensi (#1146):
+  # cookie/url naik, advisory dibersihkan.
+  #
+  # SATU migrasi: authenc 006 `webauthn_ceremony_sessions` (tabel baru, ADITIF, jalan sebagai hook
+  # pre-upgrade). Tanpa perubahan chart. `helm rollback` ke rc55 aman tanpa restore database: runner migrasi
+  # authenc mengabaikan versi yang tak dikenalnya, tabel baru dibiarkan.
+  imageTag: v0.1.0-rc56
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
