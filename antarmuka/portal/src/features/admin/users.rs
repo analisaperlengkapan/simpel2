@@ -517,19 +517,19 @@ pub fn UsersManagementPage() -> impl IntoView {
     }
 }
 
-/// The account just created and the password the admin has to pass on.
+/// The account just created (or reset) and the password the admin has to pass on.
 #[derive(Clone)]
-struct TempCredential {
-    username: String,
-    password: String,
+pub struct TempCredential {
+    pub username: String,
+    pub password: String,
     /// Whether the account was marked "must change at first login".
-    enforced: bool,
+    pub enforced: bool,
 }
 
 /// Shows the one-time password. Deliberately stays until the admin dismisses it:
 /// a banner that fades out would take the only copy with it.
 #[component]
-fn TempPasswordPanel(credential: TempCredential, on_close: Callback<()>) -> impl IntoView {
+pub fn TempPasswordPanel(credential: TempCredential, on_close: Callback<()>) -> impl IntoView {
     let TempCredential {
         username,
         password,

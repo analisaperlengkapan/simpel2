@@ -9,6 +9,8 @@
 
 use crate::components::feedback::{ErrorBanner, LoadingPanel, SuccessBanner};
 use crate::components::layout::main_layout::MainLayout;
+use crate::features::admin::temp_password;
+use crate::features::admin::users::{TempCredential, TempPasswordPanel};
 use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
 use crate::utils::async_load::load_value_once;
 use crate::utils::authenc_api::{IamUser, RoleInfo, UpdateUserRequest};
@@ -154,8 +156,16 @@ pub fn UserDetailPage() -> impl IntoView {
         });
     }
 
-    // Reset password handler
+    // Reset password handler.
+    //
+    // The backend needs the new password in the request, so the portal makes one
+    // (random, from `crypto.getRandomValues`, see `temp_password`), sets it, marks
+    // the account "must change at first login" and shows it to the admin once.
+    // The panel holds the only copy, so a second reset is refused until the admin
+    // has closed it.
     let (reset_trigger, set_reset_trigger) = signal(0u32);
+    let (resetting, set_resetting) = signal(false);
+    let (temp_credential, set_temp_credential) = signal(Option::<TempCredential>::None);
     {
         let api = api.clone();
         Effect::new(move || {
@@ -163,13 +173,61 @@ pub fn UserDetailPage() -> impl IntoView {
             if count == 0 {
                 return;
             }
+            if resetting.get_untracked() {
+                return;
+            }
+            set_error.set(None);
+            set_success.set(None);
+            if temp_credential.get_untracked().is_some() {
+                set_error.set(Some(
+                    "Tutup panel password sementara di atas (setelah menyalinnya) sebelum mereset lagi."
+                        .to_string(),
+                ));
+                return;
+            }
+            let Some(password) = temp_password::generate() else {
+                set_error.set(Some(
+                    "Gagal reset password: browser ini tidak menyediakan pengacak yang aman, \
+                     jadi password sementara tidak dapat dibuat. Gunakan browser yang lebih baru."
+                        .to_string(),
+                ));
+                return;
+            };
+            set_resetting.set(true);
             let api = api.clone();
             let uid = user_id();
+            let username = user.get_untracked().map(|u| u.username).unwrap_or_default();
             spawn_local(async move {
-                match api.iam_reset_user_password(&uid).await {
-                    Ok(_) => set_success.set(Some("Password berhasil direset".to_string())),
+                match api.iam_reset_user_password(&uid, &password).await {
+                    Ok(_) => {
+                        // The password is now known to the admin: make it temporary.
+                        let must_change = UpdateUserRequest {
+                            email: None,
+                            first_name: None,
+                            last_name: None,
+                            enabled: None,
+                            require_password_change: Some(true),
+                        };
+                        let enforced = match api.iam_update_user(&uid, &must_change).await {
+                            Ok(_) => true,
+                            Err(e) => {
+                                set_error.set(Some(format!(
+                                    "Password direset, tetapi kewajiban ganti password gagal \
+                                     ditetapkan ({e}). Reset sekali lagi setelah panel ditutup."
+                                )));
+                                false
+                            }
+                        };
+                        set_temp_credential.set(Some(TempCredential {
+                            username,
+                            password,
+                            enforced,
+                        }));
+                        set_success.set(Some("Password berhasil direset".to_string()));
+                    }
                     Err(e) => set_error.set(Some(format!("Gagal reset password: {}", e))),
                 }
+                set_resetting.set(false);
             });
         });
     }
@@ -286,6 +344,18 @@ pub fn UserDetailPage() -> impl IntoView {
 
                 {move || success.get().map(|msg| view! { <SuccessBanner message=msg /> })}
                 {move || error.get().map(|msg| view! { <ErrorBanner message=msg /> })}
+                {move || {
+                    temp_credential
+                        .get()
+                        .map(|c| {
+                            view! {
+                                <TempPasswordPanel
+                                    credential=c
+                                    on_close=Callback::new(move |_| set_temp_credential.set(None))
+                                />
+                            }
+                        })
+                }}
 
                 <Show
                     when=move || !loading.get()
@@ -524,13 +594,14 @@ pub fn UserDetailPage() -> impl IntoView {
                                                 "Reset Kata Sandi"
                                             </h4>
                                             <p class="text-sm text-gray-500 mb-4">
-                                                "Kirim tautan reset kata sandi ke email pengguna atau tetapkan kata sandi baru secara langsung."
+                                                "Tetapkan kata sandi sementara yang baru. Kata sandi ditampilkan sekali; pengguna wajib menggantinya saat masuk berikutnya."
                                             </p>
                                             <button
                                                 on:click=move |_| {
                                                     set_reset_trigger.set(reset_trigger.get() + 1)
                                                 }
-                                                class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm"
+                                                disabled=move || resetting.get()
+                                                class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm disabled:opacity-50"
                                             >
                                                 "🔄 Reset Kata Sandi"
                                             </button>

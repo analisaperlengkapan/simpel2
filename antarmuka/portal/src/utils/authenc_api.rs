@@ -775,13 +775,19 @@ impl AuthencApiClient {
         Self::check_ok(resp).await
     }
 
-    /// Reset user password (admin)
+    /// Set a new password for the user (admin). The backend requires the new
+    /// password in the body (`ResetPasswordRequest { new_password }`); the old
+    /// call sent `{}` and always came back 422.
     #[cfg(target_arch = "wasm32")]
-    pub async fn iam_reset_user_password(&self, id: &str) -> Result<(), String> {
+    pub async fn iam_reset_user_password(
+        &self,
+        id: &str,
+        new_password: &str,
+    ) -> Result<(), String> {
         let resp = self
             .post(
                 &format!("/api/v1/iam/users/{}/password/reset", id),
-                &serde_json::json!({}),
+                &serde_json::json!({ "new_password": new_password }),
             )
             .await?;
         Self::check_ok(resp).await
@@ -1105,7 +1111,11 @@ impl AuthencApiClient {
         Ok(())
     }
     #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_reset_user_password(&self, _id: &str) -> Result<(), String> {
+    pub async fn iam_reset_user_password(
+        &self,
+        _id: &str,
+        _new_password: &str,
+    ) -> Result<(), String> {
         Ok(())
     }
     #[cfg(not(target_arch = "wasm32"))]
