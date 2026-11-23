@@ -1,8 +1,8 @@
 //! Post-Quantum Cryptography Readiness Validation Tests
 //!
 //! Tests that exercise REAL post-quantum cryptographic operations using:
-//! - ML-DSA-44 (digital signatures via pqcrypto-mldsa)
-//! - ML-KEM-768 (key encapsulation via pqcrypto-mlkem)
+//! - ML-DSA-44 (digital signatures via RustCrypto ml-dsa)
+//! - ML-KEM-768 (key encapsulation via RustCrypto ml-kem)
 //! - Falcon-512 (compact signatures via pqcrypto-falcon)
 //! - Hybrid Classical + PQ (Ed25519 + ML-DSA, X25519 + ML-KEM)
 //!
@@ -66,7 +66,7 @@ fn test_mldsa_verify_wrong_key_fails() {
 fn test_mldsa_key_sizes() {
     let (pk_size, sk_size, sig_size) = mldsa::key_sizes();
     assert_eq!(pk_size, 1312, "ML-DSA-44 public key size");
-    assert_eq!(sk_size, 2560, "ML-DSA-44 secret key size");
+    assert_eq!(sk_size, 32, "ML-DSA-44 secret key is the 32-byte FIPS 204 seed");
     assert_eq!(sig_size, 2420, "ML-DSA-44 signature size");
 }
 
@@ -158,7 +158,7 @@ fn test_mlkem_wrong_key_decapsulation() {
 fn test_mlkem_key_sizes() {
     let (pk_size, sk_size, ct_size, ss_size) = mlkem::key_sizes();
     assert_eq!(pk_size, 1184, "ML-KEM-768 public key size");
-    assert_eq!(sk_size, 2400, "ML-KEM-768 secret key size");
+    assert_eq!(sk_size, 64, "ML-KEM-768 secret key is the 64-byte FIPS 203 seed");
     assert_eq!(ct_size, 1088, "ML-KEM-768 ciphertext size");
     assert_eq!(ss_size, 32, "ML-KEM-768 shared secret size");
 }
@@ -431,7 +431,7 @@ fn test_nist_mldsa44_parameters() {
     // Validate ML-DSA-44 (formerly Dilithium2) NIST parameter sizes
     let (pk_size, sk_size, sig_size) = mldsa::key_sizes();
     assert_eq!(pk_size, 1312, "NIST ML-DSA-44 public key = 1312 bytes");
-    assert_eq!(sk_size, 2560, "NIST ML-DSA-44 secret key = 2560 bytes");
+    assert_eq!(sk_size, 32, "ML-DSA-44 secret key = 32-byte seed (expanded form is 2560)");
     assert_eq!(sig_size, 2420, "NIST ML-DSA-44 signature = 2420 bytes");
 }
 
@@ -440,7 +440,7 @@ fn test_nist_mlkem768_parameters() {
     // Validate ML-KEM-768 (formerly Kyber768) NIST parameter sizes
     let (pk_size, sk_size, ct_size, ss_size) = mlkem::key_sizes();
     assert_eq!(pk_size, 1184, "NIST ML-KEM-768 public key = 1184 bytes");
-    assert_eq!(sk_size, 2400, "NIST ML-KEM-768 secret key = 2400 bytes");
+    assert_eq!(sk_size, 64, "ML-KEM-768 secret key = 64-byte seed (expanded form is 2400)");
     assert_eq!(ct_size, 1088, "NIST ML-KEM-768 ciphertext = 1088 bytes");
     assert_eq!(ss_size, 32, "NIST ML-KEM-768 shared secret = 32 bytes");
 }

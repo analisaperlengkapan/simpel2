@@ -25,7 +25,7 @@
 | Database | PostgreSQL (tokio-postgres + deadpool-postgres) |
 | Symmetric Crypto | AES-256-GCM, ChaCha20-Poly1305, XChaCha20-Poly1305 |
 | Asymmetric Crypto | Ed25519, ECDSA-P256, ECDSA-secp256k1, X25519 |
-| Post-Quantum | ML-KEM, ML-DSA (via pqcrypto, hybrid mode) |
+| Post-Quantum | ML-KEM, ML-DSA (RustCrypto `ml-kem` / `ml-dsa`, hybrid mode); Falcon (`pqcrypto-falcon`) |
 | Hashing | SHA-256, SHA-384, SHA-512, SHA3-256, SHA3-384, SHA3-512, BLAKE3 |
 | Key Derivation | Argon2id, PBKDF2, HKDF, scrypt |
 | Secret Sharing | Shamir Secret Sharing |

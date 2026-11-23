@@ -1,15 +1,121 @@
 //! ML-KEM (Module-Lattice Key Encapsulation Mechanism) Implementation
 //!
-//! NIST PQC Standard for Post-Quantum Key Exchange
+//! NIST PQC Standard for Post-Quantum Key Exchange (FIPS 203), on the RustCrypto
+//! `ml-kem` crate.
+//!
+//! # Private keys are seeds
+//!
+//! `MLKemKeypair::private_key` holds the 64-byte FIPS 203 seed (`d || z`), the
+//! same length for every variant, not the 1,632 / 2,400 / 3,168-byte expanded
+//! decapsulation key. The decapsulation key is re-derived from the seed when it is
+//! needed. The seed is what RustCrypto recommends storing (it deprecates the
+//! expanded form), it is always valid, and it is 25-50x smaller. The public key,
+//! ciphertext and shared secret are the FIPS 203 byte strings and interoperate
+//! with any other FIPS 203 implementation.
+//!
+//! Because the seed has the same length in every variant, a private key no longer
+//! tells you which variant it belongs to by its length alone: keep the `variant`
+//! next to it, as `MLKemKeypair` does. A ciphertext of the wrong variant is still
+//! refused by its length.
 
 use crate::error::{CryptoError, CryptoResult};
-use pqcrypto_mlkem::*;
-use pqcrypto_traits::kem::{
-    Ciphertext as KemCiphertext, PublicKey as KemPublicKey, SecretKey as KemSecretKey,
-    SharedSecret as KemSharedSecret,
-};
 use serde::{Deserialize, Serialize};
 use std::fmt;
+
+/// Length of the FIPS 203 seed `d || z`, identical for all three parameter sets.
+const SEED_LEN: usize = 64;
+
+/// One entry point per operation over the three RustCrypto parameter sets.
+mod raw {
+    use super::{CryptoError, CryptoResult, MLKemVariant, SEED_LEN};
+    use ml_kem::{
+        Key, Seed,
+        kem::{Decapsulate, Encapsulate, Generate, KeyExport},
+    };
+    use zeroize::Zeroizing;
+
+    /// Run `$body` with `$m` bound to the `ml_kem` module of the variant's parameter set.
+    macro_rules! per_variant {
+        ($variant:expr, $m:ident => $body:block) => {
+            match $variant {
+                MLKemVariant::MLKem512 => {
+                    use ml_kem::ml_kem_512 as $m;
+                    $body
+                }
+                MLKemVariant::MLKem768 => {
+                    use ml_kem::ml_kem_768 as $m;
+                    $body
+                }
+                MLKemVariant::MLKem1024 => {
+                    use ml_kem::ml_kem_1024 as $m;
+                    $body
+                }
+            }
+        };
+    }
+
+    /// A fresh seed from the operating system's random number generator.
+    pub(super) fn random_seed() -> CryptoResult<Zeroizing<[u8; SEED_LEN]>> {
+        <[u8; SEED_LEN]>::try_generate()
+            .map(Zeroizing::new)
+            .map_err(|_| CryptoError::RandomGenerationFailed)
+    }
+
+    /// The public key the seed belongs to.
+    pub(super) fn public_key_of(variant: MLKemVariant, seed: &[u8]) -> CryptoResult<Vec<u8>> {
+        per_variant!(variant, m => {
+            let dk = decapsulation_key::<m::DecapsulationKey>(seed)?;
+            Ok(dk.encapsulation_key().to_bytes().to_vec())
+        })
+    }
+
+    /// Seed bytes -> decapsulation key. Always succeeds for a 64-byte seed.
+    fn decapsulation_key<D: From<Seed>>(seed: &[u8]) -> CryptoResult<D> {
+        let seed = Seed::try_from(seed).map_err(|_| {
+            CryptoError::InvalidKey(format!(
+                "Invalid private key size: expected {SEED_LEN} bytes, got {} bytes",
+                seed.len()
+            ))
+        })?;
+        Ok(D::from(seed))
+    }
+
+    /// `(shared secret, ciphertext)` for the given public key.
+    pub(super) fn encapsulate(
+        variant: MLKemVariant,
+        public_key: &[u8],
+    ) -> CryptoResult<(Vec<u8>, Vec<u8>)> {
+        per_variant!(variant, m => {
+            let invalid = || CryptoError::InvalidKey("Key validation failed".to_string());
+            let key = Key::<m::EncapsulationKey>::try_from(public_key).map_err(|_| invalid())?;
+            // `new` runs the FIPS 203 encapsulation-key checks (length, and that every
+            // coefficient is reduced modulo q).
+            let ek = m::EncapsulationKey::new(&key).map_err(|_| invalid())?;
+            let (ciphertext, shared_secret) = ek.encapsulate();
+            Ok((shared_secret.to_vec(), ciphertext.to_vec()))
+        })
+    }
+
+    /// The decapsulation of every ciphertext, with the key derived once.
+    pub(super) fn decapsulate_all(
+        variant: MLKemVariant,
+        private_key: &[u8],
+        ciphertexts: &[&[u8]],
+    ) -> CryptoResult<Vec<Vec<u8>>> {
+        per_variant!(variant, m => {
+            let dk = decapsulation_key::<m::DecapsulationKey>(private_key)?;
+            ciphertexts
+                .iter()
+                .map(|ciphertext| {
+                    let ct = m::Ciphertext::try_from(*ciphertext).map_err(|_| {
+                        CryptoError::InvalidCiphertext("Ciphertext format invalid".to_string())
+                    })?;
+                    Ok(dk.decapsulate(&ct).to_vec())
+                })
+                .collect()
+        })
+    }
+}
 
 /// ML-KEM variant configurations
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -33,12 +139,11 @@ impl MLKemVariant {
     }
 
     /// Get the private key size in bytes for this variant
+    ///
+    /// The private key is the 64-byte FIPS 203 seed, the same for every variant
+    /// (see the module documentation).
     pub fn private_key_size(&self) -> usize {
-        match self {
-            MLKemVariant::MLKem512 => 1632,
-            MLKemVariant::MLKem768 => 2400,
-            MLKemVariant::MLKem1024 => 3168,
-        }
+        SEED_LEN
     }
 
     /// Get the ciphertext size in bytes for this variant
@@ -84,7 +189,7 @@ impl fmt::Display for MLKemVariant {
 pub struct MLKemKeypair {
     /// Public key for encapsulation
     pub public_key: Vec<u8>,
-    /// Private key for decapsulation
+    /// Private key for decapsulation: the 64-byte FIPS 203 seed (see the module docs)
     pub private_key: Vec<u8>,
     /// Algorithm variant
     pub variant: MLKemVariant,
@@ -93,24 +198,19 @@ pub struct MLKemKeypair {
 impl MLKemKeypair {
     /// Generate a new ML-KEM keypair
     pub fn generate(variant: MLKemVariant) -> CryptoResult<Self> {
-        let (public_key, private_key) = match variant {
-            MLKemVariant::MLKem512 => {
-                let (pk, sk) = mlkem512::keypair();
-                (pk.as_bytes().to_vec(), sk.as_bytes().to_vec())
-            }
-            MLKemVariant::MLKem768 => {
-                let (pk, sk) = mlkem768::keypair();
-                (pk.as_bytes().to_vec(), sk.as_bytes().to_vec())
-            }
-            MLKemVariant::MLKem1024 => {
-                let (pk, sk) = mlkem1024::keypair();
-                (pk.as_bytes().to_vec(), sk.as_bytes().to_vec())
-            }
-        };
+        let seed = raw::random_seed()?;
+        Self::from_seed(variant, &seed[..])
+    }
 
+    /// Rebuild a keypair from its 64-byte seed; the public key is derived from it.
+    ///
+    /// The seed is the `private_key` of a keypair, so this is how a keypair is
+    /// recovered from the private key alone.
+    pub fn from_seed(variant: MLKemVariant, seed: &[u8]) -> CryptoResult<Self> {
+        let public_key = raw::public_key_of(variant, seed)?;
         Ok(Self {
             public_key,
-            private_key,
+            private_key: seed.to_vec(),
             variant,
         })
     }
@@ -136,35 +236,7 @@ impl MLKemKeypair {
             )));
         }
 
-        match self.variant {
-            MLKemVariant::MLKem512 => {
-                let pk = mlkem512::PublicKey::from_bytes(&self.public_key)
-                    .map_err(|_| CryptoError::InvalidKey("Key validation failed".to_string()))?;
-                let (shared_secret, ciphertext) = mlkem512::encapsulate(&pk);
-                Ok((
-                    shared_secret.as_bytes().to_vec(),
-                    ciphertext.as_bytes().to_vec(),
-                ))
-            }
-            MLKemVariant::MLKem768 => {
-                let pk = mlkem768::PublicKey::from_bytes(&self.public_key)
-                    .map_err(|_| CryptoError::InvalidKey("Key validation failed".to_string()))?;
-                let (shared_secret, ciphertext) = mlkem768::encapsulate(&pk);
-                Ok((
-                    shared_secret.as_bytes().to_vec(),
-                    ciphertext.as_bytes().to_vec(),
-                ))
-            }
-            MLKemVariant::MLKem1024 => {
-                let pk = mlkem1024::PublicKey::from_bytes(&self.public_key)
-                    .map_err(|_| CryptoError::InvalidKey("Key validation failed".to_string()))?;
-                let (shared_secret, ciphertext) = mlkem1024::encapsulate(&pk);
-                Ok((
-                    shared_secret.as_bytes().to_vec(),
-                    ciphertext.as_bytes().to_vec(),
-                ))
-            }
-        }
+        raw::encapsulate(self.variant, &self.public_key)
     }
 
     /// Decapsulate a shared secret using the private key and ciphertext
@@ -198,35 +270,11 @@ impl MLKemKeypair {
             )));
         }
 
-        match self.variant {
-            MLKemVariant::MLKem512 => {
-                let sk = mlkem512::SecretKey::from_bytes(&self.private_key)
-                    .map_err(|_| CryptoError::InvalidKey("Key validation failed".to_string()))?;
-                let ct = mlkem512::Ciphertext::from_bytes(ciphertext).map_err(|_| {
-                    CryptoError::InvalidCiphertext("Ciphertext format invalid".to_string())
-                })?;
-                let shared_secret = mlkem512::decapsulate(&ct, &sk);
-                Ok(shared_secret.as_bytes().to_vec())
-            }
-            MLKemVariant::MLKem768 => {
-                let sk = mlkem768::SecretKey::from_bytes(&self.private_key)
-                    .map_err(|_| CryptoError::InvalidKey("Key validation failed".to_string()))?;
-                let ct = mlkem768::Ciphertext::from_bytes(ciphertext).map_err(|_| {
-                    CryptoError::InvalidCiphertext("Ciphertext format invalid".to_string())
-                })?;
-                let shared_secret = mlkem768::decapsulate(&ct, &sk);
-                Ok(shared_secret.as_bytes().to_vec())
-            }
-            MLKemVariant::MLKem1024 => {
-                let sk = mlkem1024::SecretKey::from_bytes(&self.private_key)
-                    .map_err(|_| CryptoError::InvalidKey("Key validation failed".to_string()))?;
-                let ct = mlkem1024::Ciphertext::from_bytes(ciphertext).map_err(|_| {
-                    CryptoError::InvalidCiphertext("Ciphertext format invalid".to_string())
-                })?;
-                let shared_secret = mlkem1024::decapsulate(&ct, &sk);
-                Ok(shared_secret.as_bytes().to_vec())
-            }
-        }
+        let mut shared_secrets =
+            raw::decapsulate_all(self.variant, &self.private_key, &[ciphertext])?;
+        shared_secrets
+            .pop()
+            .ok_or_else(|| CryptoError::Internal("Decapsulation produced no output".to_string()))
     }
 
     /// Get the public key as bytes
@@ -339,34 +387,10 @@ impl MLKemBatchEncapsulator {
 
     /// Encapsulate multiple shared secrets efficiently
     pub fn batch_encapsulate(&self, count: usize) -> CryptoResult<Vec<(Vec<u8>, Vec<u8>)>> {
-        let mut results = Vec::new();
+        let mut results = Vec::with_capacity(count);
 
         for _ in 0..count {
-            let (shared_secret, ciphertext) = match self.variant {
-                MLKemVariant::MLKem512 => {
-                    let pk = mlkem512::PublicKey::from_bytes(&self.public_key).map_err(|_| {
-                        CryptoError::InvalidKey("Invalid ML-KEM-512 public key".to_string())
-                    })?;
-                    let (secret, cipher) = mlkem512::encapsulate(&pk);
-                    (secret.as_bytes().to_vec(), cipher.as_bytes().to_vec())
-                }
-                MLKemVariant::MLKem768 => {
-                    let pk = mlkem768::PublicKey::from_bytes(&self.public_key).map_err(|_| {
-                        CryptoError::InvalidKey("Invalid ML-KEM-768 public key".to_string())
-                    })?;
-                    let (secret, cipher) = mlkem768::encapsulate(&pk);
-                    (secret.as_bytes().to_vec(), cipher.as_bytes().to_vec())
-                }
-                MLKemVariant::MLKem1024 => {
-                    let pk = mlkem1024::PublicKey::from_bytes(&self.public_key).map_err(|_| {
-                        CryptoError::InvalidKey("Invalid ML-KEM-1024 public key".to_string())
-                    })?;
-                    let (secret, cipher) = mlkem1024::encapsulate(&pk);
-                    (secret.as_bytes().to_vec(), cipher.as_bytes().to_vec())
-                }
-            };
-
-            results.push((shared_secret, ciphertext));
+            results.push(raw::encapsulate(self.variant, &self.public_key)?);
         }
 
         Ok(results)
@@ -390,43 +414,7 @@ impl MLKemBatchDecapsulator {
 
     /// Decapsulate multiple ciphertexts efficiently
     pub fn batch_decapsulate(&self, ciphertexts: &[&[u8]]) -> CryptoResult<Vec<Vec<u8>>> {
-        let mut results = Vec::new();
-
-        for ciphertext in ciphertexts {
-            let shared_secret = match self.variant {
-                MLKemVariant::MLKem512 => {
-                    let sk = mlkem512::SecretKey::from_bytes(&self.private_key).map_err(|_| {
-                        CryptoError::InvalidKey("Invalid ML-KEM-512 private key".to_string())
-                    })?;
-                    let ct = mlkem512::Ciphertext::from_bytes(ciphertext).map_err(|_| {
-                        CryptoError::InvalidCiphertext("Invalid ML-KEM-512 ciphertext".to_string())
-                    })?;
-                    mlkem512::decapsulate(&ct, &sk).as_bytes().to_vec()
-                }
-                MLKemVariant::MLKem768 => {
-                    let sk = mlkem768::SecretKey::from_bytes(&self.private_key).map_err(|_| {
-                        CryptoError::InvalidKey("Invalid ML-KEM-768 private key".to_string())
-                    })?;
-                    let ct = mlkem768::Ciphertext::from_bytes(ciphertext).map_err(|_| {
-                        CryptoError::InvalidCiphertext("Invalid ML-KEM-768 ciphertext".to_string())
-                    })?;
-                    mlkem768::decapsulate(&ct, &sk).as_bytes().to_vec()
-                }
-                MLKemVariant::MLKem1024 => {
-                    let sk = mlkem1024::SecretKey::from_bytes(&self.private_key).map_err(|_| {
-                        CryptoError::InvalidKey("Invalid ML-KEM-1024 private key".to_string())
-                    })?;
-                    let ct = mlkem1024::Ciphertext::from_bytes(ciphertext).map_err(|_| {
-                        CryptoError::InvalidCiphertext("Invalid ML-KEM-1024 ciphertext".to_string())
-                    })?;
-                    mlkem1024::decapsulate(&ct, &sk).as_bytes().to_vec()
-                }
-            };
-
-            results.push(shared_secret);
-        }
-
-        Ok(results)
+        raw::decapsulate_all(self.variant, &self.private_key, ciphertexts)
     }
 }
 
@@ -454,17 +442,17 @@ mod tests {
     #[test]
     fn test_mlkem_variant_properties() {
         assert_eq!(MLKemVariant::MLKem512.public_key_size(), 800);
-        assert_eq!(MLKemVariant::MLKem512.private_key_size(), 1632);
+        assert_eq!(MLKemVariant::MLKem512.private_key_size(), 64);
         assert_eq!(MLKemVariant::MLKem512.ciphertext_size(), 768);
         assert_eq!(MLKemVariant::MLKem512.shared_secret_size(), 32);
 
         assert_eq!(MLKemVariant::MLKem768.public_key_size(), 1184);
-        assert_eq!(MLKemVariant::MLKem768.private_key_size(), 2400);
+        assert_eq!(MLKemVariant::MLKem768.private_key_size(), 64);
         assert_eq!(MLKemVariant::MLKem768.ciphertext_size(), 1088);
         assert_eq!(MLKemVariant::MLKem768.shared_secret_size(), 32);
 
         assert_eq!(MLKemVariant::MLKem1024.public_key_size(), 1568);
-        assert_eq!(MLKemVariant::MLKem1024.private_key_size(), 3168);
+        assert_eq!(MLKemVariant::MLKem1024.private_key_size(), 64);
         assert_eq!(MLKemVariant::MLKem1024.ciphertext_size(), 1568);
         assert_eq!(MLKemVariant::MLKem1024.shared_secret_size(), 32);
     }
@@ -474,7 +462,7 @@ mod tests {
         let keypair = MLKemKeypair::generate(MLKemVariant::MLKem512).unwrap();
 
         assert_eq!(keypair.public_key.len(), 800);
-        assert_eq!(keypair.private_key.len(), 1632);
+        assert_eq!(keypair.private_key.len(), 64);
         assert_eq!(keypair.variant, MLKemVariant::MLKem512);
     }
 
@@ -501,7 +489,7 @@ mod tests {
 
         assert_eq!(provider.algorithm_id(), "ML-KEM-1024");
         assert_eq!(provider.public_key_size(), 1568);
-        assert_eq!(provider.private_key_size(), 3168);
+        assert_eq!(provider.private_key_size(), 64);
         assert_eq!(provider.ciphertext_size(), 1568);
         assert_eq!(provider.shared_secret_size(), 32);
     }
@@ -615,5 +603,79 @@ mod tests {
                 "All variants should produce 32-byte shared secrets"
             );
         }
+    }
+
+    #[test]
+    fn test_private_key_is_a_seed_that_rebuilds_the_keypair() {
+        for variant in [
+            MLKemVariant::MLKem512,
+            MLKemVariant::MLKem768,
+            MLKemVariant::MLKem1024,
+        ] {
+            let keypair = MLKemKeypair::generate(variant).unwrap();
+            assert_eq!(keypair.private_key.len(), 64);
+
+            let rebuilt = MLKemKeypair::from_seed(variant, &keypair.private_key).unwrap();
+            assert_eq!(rebuilt.public_key, keypair.public_key);
+
+            // A key exchange that starts from the seed alone still completes.
+            let (secret, ciphertext) = keypair.encapsulate().unwrap();
+            assert_eq!(rebuilt.decapsulate(&ciphertext).unwrap(), secret);
+        }
+    }
+
+    #[test]
+    fn test_seed_of_wrong_length_is_refused() {
+        for len in [0usize, 32, 63, 65, 2400] {
+            let seed = vec![7u8; len];
+            assert!(
+                MLKemKeypair::from_seed(MLKemVariant::MLKem768, &seed).is_err(),
+                "a {len}-byte seed must be refused"
+            );
+        }
+    }
+
+    /// Pins the byte format: a given seed must keep producing the same FIPS 203 public
+    /// key. If a dependency upgrade ever changes this, keys already handed out stop
+    /// matching, and this test is where that shows up.
+    #[test]
+    fn test_seed_to_public_key_is_stable() {
+        let seed: Vec<u8> = (0u8..64).collect();
+        let keypair = MLKemKeypair::from_seed(MLKemVariant::MLKem768, &seed).unwrap();
+        assert_eq!(keypair.public_key.len(), 1184);
+        assert_eq!(
+            hex::encode(&keypair.public_key[..32]),
+            "298aa10d423c8dda069d02bc59e6cdf03a096b8b3da4cab9b80ca4a14907672c"
+        );
+    }
+
+    #[test]
+    fn test_tampered_ciphertext_yields_a_different_secret() {
+        // ML-KEM rejects implicitly: a corrupted ciphertext still decapsulates, to an
+        // unrelated secret, so the caller cannot learn anything from an error.
+        let keypair = MLKemKeypair::generate(MLKemVariant::MLKem768).unwrap();
+        let (secret, mut ciphertext) = keypair.encapsulate().unwrap();
+        ciphertext[10] ^= 0x01;
+        let other = keypair.decapsulate(&ciphertext).unwrap();
+        assert_eq!(other.len(), 32);
+        assert_ne!(other, secret);
+    }
+
+    #[test]
+    fn test_public_key_with_unreduced_coefficients_is_refused() {
+        // 0xFF.. decodes to 12-bit coefficients above q = 3329, which FIPS 203 requires
+        // an encapsulator to reject.
+        let mut keypair = MLKemKeypair::generate(MLKemVariant::MLKem768).unwrap();
+        keypair.public_key = vec![0xFF; MLKemVariant::MLKem768.public_key_size()];
+        assert!(keypair.encapsulate().is_err());
+    }
+
+    #[test]
+    fn test_encapsulations_are_fresh() {
+        let keypair = MLKemKeypair::generate(MLKemVariant::MLKem768).unwrap();
+        let (secret_a, ciphertext_a) = keypair.encapsulate().unwrap();
+        let (secret_b, ciphertext_b) = keypair.encapsulate().unwrap();
+        assert_ne!(ciphertext_a, ciphertext_b);
+        assert_ne!(secret_a, secret_b);
     }
 }

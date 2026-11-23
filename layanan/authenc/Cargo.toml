@@ -79,7 +79,7 @@ integration-tests = []
 admin_console = []
 
 # Quantum-resistant cryptography features
-quantum = ["dep:pqcrypto-mldsa", "dep:pqcrypto-mlkem", "dep:pqcrypto-falcon"]
+quantum = ["dep:ml-dsa", "dep:ml-kem", "dep:pqcrypto-falcon"]
 # tpm = ["dep:tss-esapi"]
 
 [dependencies]
@@ -250,8 +250,16 @@ regex = "1.12.2"
 openssl = "0.10.74"
 
 # Post-Quantum Cryptography
-pqcrypto-mldsa = { version = "0.1.2", optional = true }
-pqcrypto-mlkem = { version = "0.1.1", optional = true }
+ml-dsa = { version = "0.1.2", default-features = false, features = [
+  "alloc",
+  "getrandom",
+  "zeroize",
+], optional = true }
+ml-kem = { version = "0.3.4", default-features = false, features = [
+  "alloc",
+  "getrandom",
+  "zeroize",
+], optional = true }
 pqcrypto-falcon = { version = "0.4.1", optional = true }
 pqcrypto-traits = "0.3.5"
 

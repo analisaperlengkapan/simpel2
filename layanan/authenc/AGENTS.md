@@ -25,7 +25,7 @@
 | gRPC | Tonic + Prost | 0.14.x |
 | Metrics | OpenTelemetry, Prometheus | 0.31+ |
 | Admin UI | Leptos | 0.8.x (feature: admin_console) |
-| Post-Quantum | pqcrypto-mldsa, mlkem, falcon | Optional |
+| Post-Quantum | ml-dsa + ml-kem (RustCrypto), pqcrypto-falcon | Optional |
 
 ### Feature Flags
 
@@ -40,7 +40,7 @@ db = ["dep:tokio-postgres", "dep:deadpool-postgres"]
 metrics = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:tracing-opentelemetry"]
 rdkafka = ["dep:rdkafka"]
 admin_console = ["dep:leptos"]
-quantum = ["dep:pqcrypto-mldsa", "dep:pqcrypto-mlkem", "dep:pqcrypto-falcon"]
+quantum = ["dep:ml-dsa", "dep:ml-kem", "dep:pqcrypto-falcon"]
 ```
 
 ### Authentication Method Status

@@ -35,21 +35,20 @@
 
 #### RUSTSEC-2024-0436: Unmaintained `paste` Crate
 
-**Affected**: `paste` v1.0.15 (transitive via `pqcrypto-mldsa`)
+**Affected**: `paste` v1.0.15 (transitive via the Leptos frontend crates: `leptos`, `tachys`, `reactive_graph`, `leptos-use`, ...)
 **Severity**: Medium
 **Impact**: Crate archived, no longer maintained
 
 **Mitigation Strategy**:
 
 1. ✅ **Assessed**: Procedural macro, low attack surface
-2. ✅ **Prioritized**: Post-quantum crypto more critical
-3. ⏳ **Monitoring**: Waiting for `pqcrypto-mldsa` update
+2. ✅ **Scoped**: compile-time only, reached through the frontend toolchain, not the post-quantum stack (ML-KEM/ML-DSA moved to the RustCrypto `ml-kem` / `ml-dsa` crates)
+3. ⏳ **Monitoring**: Waiting for a Leptos release that drops it
 4. ✅ **Contingency**: Can fork and replace with `pastey` if needed
 
 **Production Recommendation**:
 
-- Continue monitoring `pqcrypto-mldsa` releases
-- Post-quantum cryptography capability prioritized over proc-macro updates
+- Continue monitoring Leptos releases
 - No immediate action required
 
 **Status**: Accepted Risk - Under monitoring

@@ -34,8 +34,7 @@ ignore = ["RUSTSEC-2023-0071"]
 #
 # Justification:
 # - paste is a compile-time only proc-macro crate
-# - Used by pqcrypto-mldsa for post-quantum cryptography
-# - Post-quantum crypto is essential for future security compliance
+# - Pulled in by the Leptos frontend crates (leptos, tachys, reactive_graph, ...)
 # - No runtime code is affected; security risk is minimal
 # - The proc-macro functionality is stable and requires no updates
 #
