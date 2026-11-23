@@ -27,18 +27,20 @@ test.describe('Perlengkapan guards — unauthenticated (AuthGate redirect)', () 
 
   test('protected route redirects an unauthenticated visitor to login', async ({ page }) => {
     await page.goto(PROTECTED_ROUTE, { waitUntil: 'domcontentloaded' });
-    // The guard sets window.location to the login path; allow the WASM app to
-    // mount + run the redirect effect.
-    await page.waitForTimeout(3000);
-    const url = page.url();
-    const redirectedToLogin =
-      LOGIN_HINT.test(url) ||
+    // The guard sets window.location to the login path once the WASM app has mounted and run its
+    // redirect effect. How long that takes depends on the host (the bundle download, the first
+    // paint): a fixed 3 s sleep followed by one look passed on rc53's first staging run and failed
+    // on its second, with the same code. Wait for the redirect instead, up to a generous bound.
+    const redirectedToLogin = async () =>
+      LOGIN_HINT.test(page.url()) ||
       // transient redirect copy from RedirectToPerlengkapanLogin
       (await page.getByText(/Mengalihkan ke halaman login|login|masuk/i).first().isVisible().catch(() => false));
-    expect(
-      redirectedToLogin,
-      `unauthenticated access to ${PROTECTED_ROUTE} should redirect to login (got ${url})`,
-    ).toBeTruthy();
+    await expect
+      .poll(redirectedToLogin, {
+        timeout: 20_000,
+        message: `unauthenticated access to ${PROTECTED_ROUTE} should redirect to login`,
+      })
+      .toBeTruthy();
   });
 });
 
