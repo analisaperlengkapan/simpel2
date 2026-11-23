@@ -143,8 +143,26 @@ async function gotoSeededList(page: Page): Promise<void> {
   await expect(shell(page)).toBeVisible({ timeout: 20000 });
   await page.getByPlaceholder("Cari nama/kode/NUP/merk...").fill(SEED_MARKER);
   await page.getByRole("button", { name: "Terapkan" }).click();
-  await expect.poll(() => visibleNups(page), { timeout: 20000 }).toHaveLength(5);
+  // Against the 624 533-row snapshot one search takes 6-7 s on staging, and this page asks for
+  // four heavy things at once when it opens (the list, the filter options, and the search twice:
+  // once for the typing, once for "Terapkan"), so the answer arrived after 17 s in a measured run
+  // and after more than 20 s in rc54's pipeline run. 20 s left 3 s of margin on a shared host. (The
+  // bound stays under the 60 s a whole test is allowed, so a slow answer is reported as one.)
+  await expect.poll(() => visibleNups(page), { timeout: 45000 }).toHaveLength(5);
 }
+
+/**
+ * The SIMAN finance codes of the two satkers the e2e seed creates (seed-multisatker.sql, section 2).
+ *
+ * Their NAMES are not theirs alone: the 624 533-row snapshot on staging has real satkers called
+ * "KEJAKSAAN NEGERI JAKARTA PUSAT" and "KEJAKSAAN NEGERI JAKARTA SELATAN" too, in a different
+ * wilayah, so anything that picks a satker by name picks the real one on staging and the seeded one
+ * on an empty CI database. The code is unique in both.
+ */
+const SEED_SATKER = {
+  pusat: "006019999010001KD",
+  selatan: "006019999020001KD",
+};
 
 // ---------------------------------------------------------------------------
 // Bank Aset — filters / search / sort / pagination drive the real list
@@ -295,9 +313,16 @@ test.describe("Bank Aset — sebaran + QR code", () => {
     await page.goto(`${BASE}/bank-aset/sebaran`);
     await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect(page.getByText("Sebaran Aset per Satker").first()).toBeVisible();
-    // Real aggregation of the seeded rows — the satkers holding assets must appear.
-    await expect(page.getByText("KEJAKSAAN NEGERI JAKARTA PUSAT").first()).toBeVisible({ timeout: 20000 });
-    await expect(page.getByText("KEJAKSAAN NEGERI JAKARTA SELATAN").first()).toBeVisible();
+    // Real aggregation of the seeded rows — the satkers holding assets must appear. The table is
+    // paged (25 of 556 on staging, ordered by asset count) so the two seeded satkers, which hold
+    // two assets each, are not on its first page there: find each by its code, as a person would.
+    for (const [kode, nama] of [
+      [SEED_SATKER.pusat, "KEJAKSAAN NEGERI JAKARTA PUSAT"],
+      [SEED_SATKER.selatan, "KEJAKSAAN NEGERI JAKARTA SELATAN"],
+    ]) {
+      await page.getByTestId("cari-sebaran").fill(kode);
+      await expect(page.getByTestId("baris-sebaran").getByText(nama)).toBeVisible({ timeout: 20000 });
+    }
   });
 
   test("the map drills from the whole country to a wilayah to one satker", async ({ page, request }) => {
@@ -305,13 +330,16 @@ test.describe("Bank Aset — sebaran + QR code", () => {
     const token = await tokenFor(request, "validator_pusat");
     const res = await request.get(`${API}/bank-aset/sebaran`, { headers: { Authorization: `Bearer ${token}` } });
     expect(res.ok()).toBeTruthy();
-    type Row = { nama_satker: string; lintang: number | null; bujur: number | null; wilayah_kode: string | null; wilayah_nama: string | null; total_aset: number };
+    type Row = { kode_satker: string | null; nama_satker: string; lintang: number | null; bujur: number | null; wilayah_kode: string | null; wilayah_nama: string | null; total_aset: number };
     const satker: Row[] = (await res.json()).data.satker;
     const placed = (r: Row) => r.lintang !== null && r.bujur !== null;
     const wilayah = new Map<string, Row[]>();
     for (const r of satker) wilayah.set(r.wilayah_kode ?? "", [...(wilayah.get(r.wilayah_kode ?? "") ?? []), r]);
-    const dkiKode = satker.find((r) => r.nama_satker === "KEJAKSAAN NEGERI JAKARTA SELATAN")?.wilayah_kode ?? "";
-    const dki = wilayah.get(dkiKode) ?? [];
+    // The seeded Kejari, found by its code (its name also belongs to a real satker on staging), and
+    // the wilayah it sits in: the seed's own two Kejari, under "KEJAKSAAN TINGGI DKI JAKARTA".
+    const seeded = satker.find((r) => r.kode_satker === SEED_SATKER.selatan);
+    expect(seeded, "the seeded Jakarta Selatan Kejari is in the answer").toBeTruthy();
+    const dki = wilayah.get(seeded?.wilayah_kode ?? "") ?? [];
     expect(dki.filter(placed).length, "the seed gives the DKI Kejari a place").toBeGreaterThanOrEqual(2);
 
     await page.goto(`${BASE}/bank-aset/sebaran`);
@@ -325,7 +353,15 @@ test.describe("Bank Aset — sebaran + QR code", () => {
 
     // Level 2: pick the wilayah. The trail follows, the dots become that wilayah's satkers.
     const nama = dki.find((r) => r.wilayah_nama)?.wilayah_nama ?? "";
-    await page.getByRole("button", { name: new RegExp(nama) }).first().click();
+    expect(nama).not.toBe("");
+    // By keyboard: on the national map the dots of neighbouring wilayah overlap (here, the seeded
+    // DKI group sits on top of the real Jakarta one, a few km away), and a pointer click lands on the
+    // centre pixel, which belongs to whichever dot is drawn last. Enter on the focused dot is what
+    // a keyboard user does, and does not depend on who is on top.
+    const titik = page.getByRole("button", { name: new RegExp(`^${nama}:`) });
+    await expect(titik).toHaveCount(1);
+    await titik.focus();
+    await titik.press("Enter");
     await expect(page.getByTestId("panel-wilayah")).toBeVisible();
     await expect(page.getByTestId("peta-remah")).toContainText(nama);
     await expect(page.getByTestId("titik-peta")).toHaveCount(dki.filter(placed).length, { timeout: 10000 });
@@ -350,22 +386,31 @@ test.describe("Bank Aset — sebaran + QR code", () => {
   });
 
   test("the table narrows by search and the satker link lands on its own asset list", async ({ page }) => {
+    // Two searches over 624 533 rows in a row, each allowed up to a minute below.
+    test.setTimeout(180000);
     await page.goto(`${BASE}/bank-aset/sebaran`);
     await expect(page.getByTestId("baris-sebaran")).toBeVisible({ timeout: 20000 });
-    await page.getByTestId("cari-sebaran").fill("jakarta selatan");
+    // By code: the NAME "jakarta selatan" is also a real satker's on staging (and its kode, wilayah and
+    // 1 410 assets are not the seed's), so a name would narrow to two rows there and to one in CI.
+    await page.getByTestId("cari-sebaran").fill(SEED_SATKER.selatan);
     await expect(page.getByTestId("baris-sebaran").locator("tr")).toHaveCount(1);
     await expect(page.getByTestId("hitungan-sebaran")).toContainText("1 dari");
     const link = page.getByTestId("baris-sebaran").getByRole("link", { name: /JAKARTA SELATAN/ });
     await link.click();
     // The list opens already filtered to that satker, and shows only its two assets (identified by
-    // their NUP, which is unique; the displayed names are SIMAN's, not the seed's brand names).
-    await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-B-1", "E2E-B-2"]);
+    // their NUP, which is unique; the displayed names are SIMAN's, not the seed's brand names). The
+    // answer takes as long as any search over 624 533 rows.
+    await expect.poll(() => visibleNups(page), { timeout: 60000 }).toEqual(["E2E-B-1", "E2E-B-2"]);
 
     // Picking another satker from the dropdown replaces the code filter, instead of asking for rows
-    // that carry BOTH satkers' identities (which would be nothing).
+    // that carry BOTH satkers' identities (which would be nothing). The dropdown names a satker by
+    // NAME, and on staging that name also belongs to a real satker with 1 679 assets, so the seed
+    // marker narrows the answer to the seeded two.
     await page.locator("select").last().selectOption("KEJAKSAAN NEGERI JAKARTA PUSAT");
-    await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-A-1", "E2E-A-2"]);
     await expect(page.getByTestId("saring-kode-satker")).toHaveCount(0);
+    await page.getByPlaceholder("Cari nama/kode/NUP/merk...").fill(SEED_MARKER);
+    await page.getByRole("button", { name: "Terapkan" }).click();
+    await expect.poll(() => visibleNups(page), { timeout: 60000 }).toEqual(["E2E-A-1", "E2E-A-2"]);
   });
 
   test("QR generator selects assets and renders label previews", async ({ page }) => {
