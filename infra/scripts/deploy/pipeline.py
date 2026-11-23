@@ -471,12 +471,19 @@ def normalise(line: str) -> str:
     return re.sub(r"\d+", "N", line)[:140]
 
 
+def since_flag(since: str) -> str:
+    """`kubectl logs` takes a duration (`45m`) or a moment (`2026-11-22T23:25:25Z`) with different flags."""
+    if re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", since):
+        return f"--since-time={since}"
+    return f"--since={since}"
+
+
 def logscan(env: str, since: str) -> list[str]:
     ns = ENVS[env]["namespace"]
     problems, error_groups = [], {}
     for p in long_running_pods(ns):
         name = p["metadata"]["name"]
-        proc = sh(["kubectl", "-n", ns, "logs", name, "--all-containers", f"--since={since}", "--tail=20000"], check=False)
+        proc = sh(["kubectl", "-n", ns, "logs", name, "--all-containers", since_flag(since), "--tail=20000"], check=False)
         if proc.returncode != 0:
             # Fail closed: a log that could not be read (access denied, an unreachable kubelet) must not
             # pass for a clean one.
@@ -604,7 +611,11 @@ def cmd_run(a) -> int:
             if subprocess.run(a.e2e_cmd, shell=True).returncode != 0:  # noqa: S602 — the operator's own command
                 raise Failed("the e2e suite failed")
             done("e2e", "passed")
-        problems = logscan(env, a.log_since)
+        # The scan judges what THIS deploy and its suite logged. A fixed look-back (it was 45 minutes) also
+        # read whatever happened before the upgrade began: a person's `kubectl exec psql` that ended
+        # abruptly 26 minutes earlier logged a postgres FATAL, and rc53 was rolled back after a green
+        # 235-test suite.
+        problems = logscan(env, state["deploy_started"] if a.log_since == "deploy" else a.log_since)
         if problems:
             raise Failed("log scan:\n  " + "\n  ".join(problems[:20]))
         done("logscan", "clean")
@@ -707,7 +718,9 @@ def main(argv=None) -> int:
     r.add_argument("--wait", type=int, default=900, help="seconds to wait for rollouts")
     r.add_argument("--max-restarts", type=int, default=3)
     r.add_argument("--smoke-pause", type=float, default=10.0)
-    r.add_argument("--log-since", default="45m")
+    r.add_argument("--log-since", default="deploy",
+                   help="how far back the log scan reads: `deploy` (from when this deploy began, the default) "
+                        "or a duration such as 45m")
     r.add_argument("--allow-downgrade", action="store_true")
     r.add_argument("--no-rollback", action="store_true")
     r.add_argument("--dry-run", action="store_true", help="stop after preflight")

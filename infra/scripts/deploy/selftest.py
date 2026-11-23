@@ -342,6 +342,11 @@ def run(script: Path) -> int:
     check(p.returncode == 0, "Job-owned pods are not judged as long-running pods")
 
     print("S8 e2e and log scan")
+    p, calls = e.run_env("staging", "v0.1.0-rc52", base_scenario())
+    check(p.returncode == 0 and "--since-time=" in calls and "--since=" not in calls,
+          "the log scan reads from the moment the deploy began, not a fixed look-back", calls[-300:])
+    p, calls = e.run_env("staging", "v0.1.0-rc52", base_scenario(), "--log-since", "10m")
+    check("--since=10m" in calls and "--since-time=" not in calls, "an explicit duration is still honoured")
     p, calls = e.run_env("staging", "v0.1.0-rc52", base_scenario(), "--e2e-cmd", "false")
     check(p.returncode == 1 and "helm rollback" in calls, "a failing suite rolls the deploy back")
     for label, line in {"a panic": "thread 'main' panicked at src/a.rs:3", "a FATAL": "FATAL: boom",
