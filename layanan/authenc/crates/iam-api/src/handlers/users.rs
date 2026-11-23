@@ -319,6 +319,23 @@ pub async fn update_user(
     } else {
         None
     };
+    // A move to another satker is a narrowing of what the account may see, so it is
+    // fail-closed: the sessions are cut BEFORE the change and the request is refused
+    // if that cannot be done, leaving everything as it was and the same request safe
+    // to repeat. (Afterwards the same revoke runs again, below, to also cover a token
+    // issued in between.) Revoking only after the change would leave a move reported
+    // as done with the old satker's data still open to the old token, and a retry
+    // would not repair it, since the satker would no longer be changing.
+    let moving = req
+        .satker_code
+        .as_deref()
+        .is_some_and(|after| satker_moved(satker_before.as_deref(), after));
+    if moving {
+        state
+            .try_revoke_user_sessions(id, "satker changing")
+            .await
+            .map_err(crate::error::ApiError)?;
+    }
     let update_req = authenc_types::domain::UpdateUserRequest {
         username: None,
         email: req.email,

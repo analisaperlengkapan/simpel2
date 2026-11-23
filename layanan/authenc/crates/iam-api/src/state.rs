@@ -58,13 +58,21 @@ impl IamApiState {
     /// Failure is logged, not propagated: the administrative change itself has
     /// already been committed and must not be reported as failed.
     pub async fn revoke_user_sessions(&self, user_id: uuid::Uuid, reason: &str) {
-        let expires_at = chrono::Utc::now() + chrono::Duration::days(8);
-        if let Err(e) = self
-            .revocation_store
-            .revoke_user(&user_id.to_string(), expires_at, Some(reason))
-            .await
-        {
+        if let Err(e) = self.try_revoke_user_sessions(user_id, reason).await {
             tracing::error!(%user_id, reason, "could not revoke the user's sessions: {e}");
         }
+    }
+
+    /// The same cut as [`Self::revoke_user_sessions`], for the caller that cannot
+    /// carry on if it did not happen: it is told, instead of reading it in a log.
+    pub async fn try_revoke_user_sessions(
+        &self,
+        user_id: uuid::Uuid,
+        reason: &str,
+    ) -> authenc_types::Result<()> {
+        let expires_at = chrono::Utc::now() + chrono::Duration::days(8);
+        self.revocation_store
+            .revoke_user(&user_id.to_string(), expires_at, Some(reason))
+            .await
     }
 }
