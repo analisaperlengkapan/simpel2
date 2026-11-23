@@ -229,6 +229,10 @@ pub struct UpdateUserRequest {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub enabled: Option<bool>,
+    /// Make the user choose a new password at the next login. Left out of the
+    /// request unless set, so saving the detail form never touches it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub require_password_change: Option<bool>,
 }
 
 /// OAuth2 Client info (read-only inspection; clients are seeded config)

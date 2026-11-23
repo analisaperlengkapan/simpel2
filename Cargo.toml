@@ -284,7 +284,15 @@ rustls-pemfile = "2.2.0"
 rustls-native-certs = "0.8.4"
 flate2 = { version = "1.1.9", features = ["zlib"] }
 tss-esapi = "7.7.0"
-pqcrypto-mldsa = "0.1.2"
+# `avx2` is OFF on purpose: RUSTSEC-2026-0586, PQClean's AVX2 ML-DSA verifier does
+# not check the infinity norm of `z` and so accepts signatures a conforming
+# verifier rejects. The portable verifier (and `neon` on aarch64) is not affected.
+# The advisory has no patched release, so cargo-audit/cargo-deny still list the
+# crate (see the ignore entries and their removal condition in deny.toml).
+pqcrypto-mldsa = { version = "0.1.2", default-features = false, features = [
+  "std",
+  "neon",
+] }
 pqcrypto-mlkem = "0.1.1"
 pqcrypto-falcon = "0.4.1"
 pqcrypto-traits = "0.3.5"

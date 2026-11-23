@@ -31,4 +31,9 @@ ignore = [
   # elliptic-curve 0.13 dan aws-sigv4 1.6.3 (terbaru, masih ^0.5). Penilaian
   # paparan + syarat pencabutan ada di deny.toml.
   "RUSTSEC-2026-0387",
+  # pqcrypto-mldsa / pqcrypto-mlkem conformance advisories (2026-11-20), no patched
+  # release. Exposure assessment, the avx2 mitigation and the removal condition
+  # are in deny.toml.
+  "RUSTSEC-2026-0586",
+  "RUSTSEC-2026-0585",
 ]

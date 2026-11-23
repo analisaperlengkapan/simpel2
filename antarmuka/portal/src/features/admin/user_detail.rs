@@ -140,6 +140,7 @@ pub fn UserDetailPage() -> impl IntoView {
                     first_name: Some(edit_first_name.get()),
                     last_name: Some(edit_last_name.get()),
                     enabled: Some(edit_enabled.get()),
+                    require_password_change: None,
                 };
                 match api.iam_update_user(&uid, &req).await {
                     Ok(_) => {
