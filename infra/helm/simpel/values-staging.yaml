@@ -492,7 +492,16 @@ global:
   # Pipeline (#1138): pemindaian log membaca sejak deploy dimulai, bukan 45 menit ke belakang. Uji (#1139):
   # smoke pengalihan ke login menunggu pengalihan, bukan tidur 3 detik. TANPA migrasi dan tanpa perubahan
   # chart (image authenc ikut berganti): `helm rollback` ke rc53 aman tanpa restore database.
-  imageTag: v0.1.0-rc54
+  #
+  # rc54 TIDAK PERNAH menetap di staging: pipeline men-deploy-nya, 4 dari 237 tes e2e gagal (semuanya
+  # tes Sebaran/daftar di `bankaset-analitik-workflow.spec.ts`, bukan cacat produk) dan staging
+  # di-rollback otomatis ke rc53. Tes-tes itu mengira bentuk database CI yang kosong: satker seed dicari
+  # lewat NAMA padahal satker nyata di staging bernama sama, tabel sebaran berhalaman, dan pencarian di
+  # 624 ribu aset dibatasi 20 detik.
+  #
+  # rc55 = rc54 + perbaikan tes itu (#1141). Tanpa perubahan kode produk, tanpa migrasi, tanpa perubahan
+  # chart: `helm rollback` ke rc53 aman tanpa restore database. rc54 jangan dipromosikan.
+  imageTag: v0.1.0-rc55
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
