@@ -34,11 +34,10 @@ pub fn BankAsetListPage() -> impl IntoView {
     let query = leptos_router::hooks::use_query_map();
     let (satker, set_satker) =
         signal::<String>(query.read_untracked().get("satker").unwrap_or_default());
-    // ...or as `?kode_siman=<code>&nama=<name>`: the exact satker, which a name cannot name when two
-    // satkers share one. `nama` is only what the notice shows.
+    // ...or as `?kode_siman=<code>`: the exact satker, which a name cannot name when two satkers
+    // share one.
     let (kode_siman, set_kode_siman) =
         signal::<String>(query.read_untracked().get("kode_siman").unwrap_or_default());
-    let nama_kode = query.read_untracked().get("nama").unwrap_or_default();
     let (search, set_search) = signal::<String>(String::new());
     let (sort, set_sort) = signal::<String>(String::new());
 
@@ -240,7 +239,8 @@ pub fn BankAsetListPage() -> impl IntoView {
             })
         >
             {move || {
-                let nama = nama_kode.clone();
+                // The name is what the rows say: the code alone is no way to read a notice.
+                let nama = items.get().first().and_then(|i| i.satker.clone()).unwrap_or_default();
                 (!kode_siman.get().is_empty())
                     .then(|| {
                         view! {

@@ -342,15 +342,18 @@ pub fn campur(dari: Kotak, ke: Kotak, t: f64) -> Kotak {
 
 /// Tautan ke Daftar Aset yang sudah disaring ke satu satker.
 pub fn tautan_daftar(nama_satker: &str, kode_siman: Option<&str>) -> String {
-    let nama = urlencoding::encode(nama_satker);
     match kode_siman.map(str::trim).filter(|k| !k.is_empty()) {
-        // By code: a name would merge two satkers that share one. The name only labels the notice.
+        // By code: a name would merge two satkers that share one.
         Some(kode) => format!(
-            "{}?kode_siman={}&nama={nama}",
+            "{}?kode_siman={}",
             path::BANK_ASET_DAFTAR,
             urlencoding::encode(kode)
         ),
-        None => format!("{}?satker={nama}", path::BANK_ASET_DAFTAR),
+        None => format!(
+            "{}?satker={}",
+            path::BANK_ASET_DAFTAR,
+            urlencoding::encode(nama_satker)
+        ),
     }
 }
 
@@ -1305,10 +1308,7 @@ mod tests {
     fn the_link_to_the_list_names_the_satker_by_code_and_only_falls_back_to_the_name() {
         // Two satkers can share a name: the code is what tells them apart.
         let url = tautan_daftar("KEJARI KEMBAR", Some("006015555010001KD"));
-        assert!(
-            url.ends_with("?kode_siman=006015555010001KD&nama=KEJARI%20KEMBAR"),
-            "{url}"
-        );
+        assert!(url.ends_with("?kode_siman=006015555010001KD"), "{url}");
         // A satker with no code can only be asked for by its (encoded) name.
         let url = tautan_daftar("KEJAKSAAN NEGERI A & B", None);
         assert!(
