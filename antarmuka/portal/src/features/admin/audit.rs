@@ -44,6 +44,7 @@ fn event_label(event_type: &str) -> String {
         "AUTHZ_FAILURE" => "Akses ditolak",
         "SUSPICIOUS_ACTIVITY" => "Aktivitas mencurigakan",
         "MFA_SETUP" => "MFA disiapkan",
+        "PASSKEY_REGISTER" => "Passkey didaftarkan",
         "MFA_DISABLE" => "MFA dinonaktifkan",
         "MFA_BACKUP_CODES" => "Kode pemulihan MFA diakses (lihat atau buat ulang)",
         "ROLE_SWITCH" => "Peran aktif diganti",
