@@ -107,8 +107,18 @@ pub fn UsersManagementPage() -> impl IntoView {
             set_creating.set(true);
             set_error.set(None);
 
-            // A previous account's password must not linger beside a new attempt.
-            set_temp_credential.set(None);
+            // The panel holds the ONLY copy of the previous account's password. It
+            // is never replaced behind the admin's back: a second account cannot be
+            // created until they have confirmed they copied it (the Add button is
+            // disabled meanwhile, and this guards the form that was already open).
+            if temp_credential.get_untracked().is_some() {
+                set_creating.set(false);
+                set_error.set(Some(
+                    "Tutup panel password sementara di atas (setelah menyalinnya) sebelum menambah pengguna lain."
+                        .to_string(),
+                ));
+                return;
+            }
 
             spawn_local(async move {
                 // One random password per account. No browser randomness, no
@@ -232,7 +242,15 @@ pub fn UsersManagementPage() -> impl IntoView {
                     </div>
                     <button
                         on:click=move |_| set_show_create_modal.set(true)
-                        class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                        disabled=move || temp_credential.get().is_some()
+                        title=move || {
+                            if temp_credential.get().is_some() {
+                                "Tutup panel password sementara dulu"
+                            } else {
+                                ""
+                            }
+                        }
+                        class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         "+ Tambah Pengguna"
                     </button>
