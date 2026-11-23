@@ -5,6 +5,7 @@
 
 use crate::components::feedback::{EmptyPanel, ErrorBanner, LoadingPanel, SuccessBanner};
 use crate::components::layout::main_layout::MainLayout;
+use crate::features::admin::temp_password;
 use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
 use crate::utils::authenc_api::{CreateUserRequest, IamUser, UpdateUserRequest};
 use leptos::prelude::*;
@@ -39,6 +40,9 @@ pub fn UsersManagementPage() -> impl IntoView {
     let (new_first_name, set_new_first_name) = signal(String::new());
     let (new_last_name, set_new_last_name) = signal(String::new());
     let (creating, set_creating) = signal(false);
+    // The password of the account just created. It exists only here, in memory:
+    // shown once, never stored, gone when the admin closes the panel or leaves.
+    let (temp_credential, set_temp_credential) = signal(Option::<TempCredential>::None);
 
     // Load users
     let load_users = {
@@ -103,11 +107,36 @@ pub fn UsersManagementPage() -> impl IntoView {
             set_creating.set(true);
             set_error.set(None);
 
+            // The panel holds the ONLY copy of the previous account's password. It
+            // is never replaced behind the admin's back: a second account cannot be
+            // created until they have confirmed they copied it (the Add button is
+            // disabled meanwhile, and this guards the form that was already open).
+            if temp_credential.get_untracked().is_some() {
+                set_creating.set(false);
+                set_error.set(Some(
+                    "Tutup panel password sementara di atas (setelah menyalinnya) sebelum menambah pengguna lain."
+                        .to_string(),
+                ));
+                return;
+            }
+
             spawn_local(async move {
+                // One random password per account. No browser randomness, no
+                // account: see `temp_password` for why there is no fallback.
+                let Some(password) = temp_password::generate() else {
+                    set_error.set(Some(
+                        "Gagal membuat pengguna: browser ini tidak menyediakan pengacak yang aman, \
+                         jadi password sementara tidak dapat dibuat. Gunakan browser yang lebih baru."
+                            .to_string(),
+                    ));
+                    set_creating.set(false);
+                    return;
+                };
+                let username = new_username.get();
                 let req = CreateUserRequest {
-                    username: new_username.get(),
+                    username: username.clone(),
                     email: new_email.get(),
-                    password: "TempPass123!".to_string(),
+                    password: password.clone(),
                     first_name: if new_first_name.get().is_empty() {
                         None
                     } else {
@@ -122,7 +151,32 @@ pub fn UsersManagementPage() -> impl IntoView {
                 };
 
                 match api.iam_create_user(&req).await {
-                    Ok(_) => {
+                    Ok(created) => {
+                        // The account now has a password that only the admin has
+                        // seen. Make it temporary: the user must pick their own
+                        // at the first login.
+                        let must_change = UpdateUserRequest {
+                            email: None,
+                            first_name: None,
+                            last_name: None,
+                            enabled: None,
+                            require_password_change: Some(true),
+                        };
+                        let enforced = match api.iam_update_user(&created.id, &must_change).await {
+                            Ok(_) => true,
+                            Err(e) => {
+                                set_error.set(Some(format!(
+                                    "Pengguna dibuat, tetapi kewajiban ganti password gagal \
+                                     ditetapkan ({e}). Nonaktifkan akun ini lalu buat ulang."
+                                )));
+                                false
+                            }
+                        };
+                        set_temp_credential.set(Some(TempCredential {
+                            username,
+                            password,
+                            enforced,
+                        }));
                         set_success.set(Some("Pengguna berhasil dibuat".to_string()));
                         set_show_create_modal.set(false);
                         set_new_username.set(String::new());
@@ -153,6 +207,7 @@ pub fn UsersManagementPage() -> impl IntoView {
                         first_name: None,
                         last_name: None,
                         enabled: Some(enable),
+                        require_password_change: None,
                     };
                     match api.iam_update_user(&user_id, &req).await {
                         Ok(_) => {
@@ -187,7 +242,15 @@ pub fn UsersManagementPage() -> impl IntoView {
                     </div>
                     <button
                         on:click=move |_| set_show_create_modal.set(true)
-                        class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                        disabled=move || temp_credential.get().is_some()
+                        title=move || {
+                            if temp_credential.get().is_some() {
+                                "Tutup panel password sementara dulu"
+                            } else {
+                                ""
+                            }
+                        }
+                        class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         "+ Tambah Pengguna"
                     </button>
@@ -195,6 +258,18 @@ pub fn UsersManagementPage() -> impl IntoView {
 
                 {move || success.get().map(|msg| view! { <SuccessBanner message=msg /> })}
                 {move || error.get().map(|msg| view! { <ErrorBanner message=msg /> })}
+                {move || {
+                    temp_credential
+                        .get()
+                        .map(|c| {
+                            view! {
+                                <TempPasswordPanel
+                                    credential=c
+                                    on_close=Callback::new(move |_| set_temp_credential.set(None))
+                                />
+                            }
+                        })
+                }}
 
                 // Search bar
                 <form on:submit=handle_search class="mb-6">
@@ -411,6 +486,10 @@ pub fn UsersManagementPage() -> impl IntoView {
                                         />
                                     </div>
                                 </div>
+                                <p class="text-sm text-gray-500">
+                                    "Password sementara dibuat otomatis dan ditampilkan sekali setelah "
+                                    "pengguna dibuat. Pengguna wajib menggantinya saat login pertama."
+                                </p>
                                 <div class="flex justify-end gap-3 pt-2">
                                     <button
                                         type="button"
@@ -435,5 +514,60 @@ pub fn UsersManagementPage() -> impl IntoView {
                 </Show>
             </div>
         </MainLayout>
+    }
+}
+
+/// The account just created and the password the admin has to pass on.
+#[derive(Clone)]
+struct TempCredential {
+    username: String,
+    password: String,
+    /// Whether the account was marked "must change at first login".
+    enforced: bool,
+}
+
+/// Shows the one-time password. Deliberately stays until the admin dismisses it:
+/// a banner that fades out would take the only copy with it.
+#[component]
+fn TempPasswordPanel(credential: TempCredential, on_close: Callback<()>) -> impl IntoView {
+    let TempCredential {
+        username,
+        password,
+        enforced,
+    } = credential;
+    view! {
+        <div
+            class="mb-4 p-4 bg-amber-50 border border-amber-300 rounded-lg"
+            role="alert"
+            data-testid="temp-password-panel"
+        >
+            <p class="font-semibold text-amber-900">
+                "Password sementara untuk " <span class="font-mono">{username}</span>
+            </p>
+            <p class="mt-2 text-sm text-amber-900">
+                "Salin dan sampaikan kepada pengguna sekarang. Password ini hanya ditampilkan "
+                "sekali dan tidak dapat dilihat lagi setelah panel ditutup."
+            </p>
+            <code
+                data-testid="temp-password"
+                class="mt-2 inline-block select-all px-3 py-2 bg-white border border-amber-300 rounded font-mono text-lg tracking-wide"
+            >
+                {password}
+            </code>
+            <p class="mt-2 text-sm text-amber-900">
+                {if enforced {
+                    "Pengguna wajib menggantinya saat login pertama."
+                } else {
+                    "Peringatan: kewajiban ganti password belum tertetapkan untuk akun ini."
+                }}
+            </p>
+            <button
+                type="button"
+                on:click=move |_| on_close.run(())
+                class="mt-3 px-3 py-1 text-sm border border-amber-400 rounded hover:bg-amber-100"
+            >
+                "Saya sudah menyalin, tutup"
+            </button>
+        </div>
     }
 }

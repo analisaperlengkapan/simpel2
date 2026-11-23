@@ -329,7 +329,8 @@ test.describe('Portal core — admin (IAM users/roles/audit)', () => {
     const username = `e2etmp${Date.now()}`;
     const email = `${username}@kejaksaan.go.id`;
 
-    // 1. Create via the real admin modal (server assigns TempPass123!).
+    // 1. Create via the real admin modal. The portal generates a random
+    //    password for the account and shows it to the admin once.
     await page.goto(`${PORTAL_URL}/portal/admin/users`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: /Tambah Pengguna/ }).click();
     await expect(page.getByText('Tambah Pengguna Baru')).toBeVisible({ timeout: 10000 });
@@ -338,6 +339,14 @@ test.describe('Portal core — admin (IAM users/roles/audit)', () => {
     await modal.locator('input').nth(1).fill(email);
     await page.getByRole('button', { name: 'Buat Pengguna' }).click();
     await expect(page.getByText('Pengguna berhasil dibuat')).toBeVisible({ timeout: 15000 });
+
+    // The one-time password: 20 characters from the generator's alphabet, never
+    // the fixed literal every account used to share, and the account is marked
+    // "must change at first login".
+    const tempPassword = (await page.getByTestId('temp-password').innerText()).trim();
+    expect(tempPassword).toMatch(/^[A-Za-z0-9!@#$%&*?\-_=+]{20}$/);
+    expect(tempPassword).not.toBe('TempPass123!');
+    await expect(page.getByText('Pengguna wajib menggantinya saat login pertama.')).toBeVisible();
 
     // Backend: the user exists and is enabled.
     const token = await pageToken(page);
@@ -363,7 +372,7 @@ test.describe('Portal core — admin (IAM users/roles/audit)', () => {
     await expect(page2.locator('#captcha-title')).toBeVisible({ timeout: 15000 });
     await expect.poll(() => captcha2(), { timeout: 10000 }).toBeTruthy();
     await page2.locator('#username').fill(username);
-    await page2.locator('#password').fill('TempPass123!');
+    await page2.locator('#password').fill(tempPassword);
     await page2.locator('input[placeholder="Masukkan teks..."]').fill(captcha2()!);
     await Promise.all([
       page2.waitForResponse((r) => r.url().includes('/api/captcha/verify'), { timeout: 15000 }),
@@ -380,15 +389,16 @@ test.describe('Portal core — admin (IAM users/roles/audit)', () => {
       loginBtn2.click(),
     ]);
     expect(loginResp2.status()).toBe(200);
-    // New accounts may or may not carry a forced password change — either way
-    // the change form itself must work.
+    // An account an admin just created carries the temporary password, so the
+    // server must tell the client to force the change.
+    expect((await loginResp2.json()).require_password_change).toBe(true);
     await page2.waitForURL(/\/(dashboard|password)/, { timeout: 15000 });
     await page2.goto(`${PORTAL_URL}/portal/password`, { waitUntil: 'domcontentloaded' });
     await expect(page2.getByRole('heading', { name: 'Ubah Kata Sandi' })).toBeVisible({
       timeout: 15000,
     });
     const pwInputs = page2.locator('form input[type="password"]');
-    await pwInputs.nth(0).fill('TempPass123!');
+    await pwInputs.nth(0).fill(tempPassword);
     await pwInputs.nth(1).fill(newPassword);
     await pwInputs.nth(2).fill(newPassword);
     const [changeResp] = await Promise.all([
@@ -421,7 +431,7 @@ test.describe('Portal core — admin (IAM users/roles/audit)', () => {
     const oldLogin = await page.request.post(`${AUTHENC_URL}/api/v1/auth/login`, {
       data: {
         username,
-        password: 'TempPass123!',
+        password: tempPassword,
         realm: 'master',
         captcha_token: staleVerify.token,
       },

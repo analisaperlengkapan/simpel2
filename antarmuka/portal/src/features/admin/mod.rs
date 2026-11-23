@@ -13,6 +13,7 @@ pub mod client_detail;
 pub mod clients;
 pub mod overview;
 pub mod roles;
+pub mod temp_password;
 pub mod user_detail;
 pub mod users;
 
