@@ -482,7 +482,17 @@ global:
   # dengan pengajuan ulang tak lagi membuat izin macet (409). Tampilan (#1134): kartu yang meluber, tanggal
   # mentah pada penghapusan BMN, FAQ yang terpotong di ponsel. TANPA migrasi dan tanpa perubahan chart:
   # `helm rollback` ke rc52 aman tanpa restore database.
-  imageTag: v0.1.0-rc53
+  #
+  # rc54 = rc53 + Audit Log yang menyebut orangnya dan peta Sebaran bertingkat. Audit Log (#1136): pelaku
+  # dicatat sebagai snapshot saat kejadian, `Nama (NIP)`, untuk transisi workflow, tiket Bantuan dan aksi
+  # pakaian dinas (sebelumnya kosong, `unknown` atau `user:<uuid>`); authenc kini meneruskan login dari klaim
+  # `preferred_username`. Peta Sebaran (#1137): Bank Aset > Sebaran menjadi peta tiga tingkat (Indonesia,
+  # 34 wilayah hukum Kejati, satuan kerja) dengan ringkasan di tiap tingkat dan tautan ke daftar aset yang
+  # tersaring pada satker itu (`kode_siman`); titik aset belum digambar karena GPS aset belum ada di data.
+  # Pipeline (#1138): pemindaian log membaca sejak deploy dimulai, bukan 45 menit ke belakang. Uji (#1139):
+  # smoke pengalihan ke login menunggu pengalihan, bukan tidur 3 detik. TANPA migrasi dan tanpa perubahan
+  # chart (image authenc ikut berganti): `helm rollback` ke rc53 aman tanpa restore database.
+  imageTag: v0.1.0-rc54
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
