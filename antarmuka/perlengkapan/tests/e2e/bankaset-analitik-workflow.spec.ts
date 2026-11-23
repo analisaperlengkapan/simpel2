@@ -300,6 +300,74 @@ test.describe("Bank Aset — sebaran + QR code", () => {
     await expect(page.getByText("KEJAKSAAN NEGERI JAKARTA SELATAN").first()).toBeVisible();
   });
 
+  test("the map drills from the whole country to a wilayah to one satker", async ({ page, request }) => {
+    // Truth from the API, not from the seed's own comments.
+    const token = await tokenFor(request, "validator_pusat");
+    const res = await request.get(`${API}/bank-aset/sebaran`, { headers: { Authorization: `Bearer ${token}` } });
+    expect(res.ok()).toBeTruthy();
+    type Row = { nama_satker: string; lintang: number | null; bujur: number | null; wilayah_kode: string | null; wilayah_nama: string | null; total_aset: number };
+    const satker: Row[] = (await res.json()).data.satker;
+    const placed = (r: Row) => r.lintang !== null && r.bujur !== null;
+    const wilayah = new Map<string, Row[]>();
+    for (const r of satker) wilayah.set(r.wilayah_kode ?? "", [...(wilayah.get(r.wilayah_kode ?? "") ?? []), r]);
+    const dkiKode = satker.find((r) => r.nama_satker === "KEJAKSAAN NEGERI JAKARTA SELATAN")?.wilayah_kode ?? "";
+    const dki = wilayah.get(dkiKode) ?? [];
+    expect(dki.filter(placed).length, "the seed gives the DKI Kejari a place").toBeGreaterThanOrEqual(2);
+
+    await page.goto(`${BASE}/bank-aset/sebaran`);
+    await expect(page.getByTestId("peta-sebaran")).toBeVisible({ timeout: 20000 });
+
+    // Level 1, the country: one dot per wilayah that has a placed satker, and the national summary.
+    const withPlace = [...wilayah.values()].filter((rows) => rows.some(placed)).length;
+    await expect(page.getByTestId("titik-peta")).toHaveCount(withPlace);
+    await expect(page.getByTestId("panel-nasional")).toBeVisible();
+    await expect(page.getByTestId("panel-nasional")).toContainText("Seluruh Indonesia");
+
+    // Level 2: pick the wilayah. The trail follows, the dots become that wilayah's satkers.
+    const nama = dki.find((r) => r.wilayah_nama)?.wilayah_nama ?? "";
+    await page.getByRole("button", { name: new RegExp(nama) }).first().click();
+    await expect(page.getByTestId("panel-wilayah")).toBeVisible();
+    await expect(page.getByTestId("peta-remah")).toContainText(nama);
+    await expect(page.getByTestId("titik-peta")).toHaveCount(dki.filter(placed).length, { timeout: 10000 });
+    // The satker table narrows to the same wilayah.
+    await expect(page.getByTestId("hitungan-sebaran")).toContainText(`${dki.length} dari`);
+
+    // Level 3: pick a satker. Its card, its BMN by jenis, and what GPS the assets have.
+    await page.getByRole("button", { name: /KEJAKSAAN NEGERI JAKARTA SELATAN/ }).first().click();
+    const kartu = page.getByTestId("kartu-satker");
+    await expect(kartu).toContainText("KEJAKSAAN NEGERI JAKARTA SELATAN");
+    await expect(page.getByTestId("rincian-satker")).toContainText("Jenis BMN");
+    await expect(page.getByTestId("rincian-satker")).not.toContainText("Memuat rincian", { timeout: 20000 });
+    await expect(page.getByTestId("gps-satker")).toBeVisible();
+    await expect(kartu.getByRole("link", { name: "Lihat aset satker ini" })).toHaveAttribute("href", /\?kode_siman=/);
+
+    // Back up through the trail.
+    await page.getByTestId("peta-remah").getByRole("button", { name: "Indonesia" }).click();
+    await expect(page.getByTestId("panel-nasional")).toBeVisible();
+    await expect(page.getByTestId("titik-peta")).toHaveCount(withPlace);
+    await expect(page.getByTestId("hitungan-sebaran")).toContainText(`${satker.length} dari`);
+    await expect(page.getByTestId("peta-cakupan")).toContainText(`${satker.filter(placed).length} satker ada di peta`);
+  });
+
+  test("the table narrows by search and the satker link lands on its own asset list", async ({ page }) => {
+    await page.goto(`${BASE}/bank-aset/sebaran`);
+    await expect(page.getByTestId("baris-sebaran")).toBeVisible({ timeout: 20000 });
+    await page.getByTestId("cari-sebaran").fill("jakarta selatan");
+    await expect(page.getByTestId("baris-sebaran").locator("tr")).toHaveCount(1);
+    await expect(page.getByTestId("hitungan-sebaran")).toContainText("1 dari");
+    const link = page.getByTestId("baris-sebaran").getByRole("link", { name: /JAKARTA SELATAN/ });
+    await link.click();
+    // The list opens already filtered to that satker, and shows only its two assets (identified by
+    // their NUP, which is unique; the displayed names are SIMAN's, not the seed's brand names).
+    await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-B-1", "E2E-B-2"]);
+
+    // Picking another satker from the dropdown replaces the code filter, instead of asking for rows
+    // that carry BOTH satkers' identities (which would be nothing).
+    await page.locator("select").last().selectOption("KEJAKSAAN NEGERI JAKARTA PUSAT");
+    await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-A-1", "E2E-A-2"]);
+    await expect(page.getByTestId("saring-kode-satker")).toHaveCount(0);
+  });
+
   test("QR generator selects assets and renders label previews", async ({ page }) => {
     await page.goto(`${BASE}/bank-aset/qrcode`);
     await expect(shell(page)).toBeVisible({ timeout: 20000 });

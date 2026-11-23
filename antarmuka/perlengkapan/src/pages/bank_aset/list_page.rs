@@ -30,7 +30,14 @@ pub fn BankAsetListPage() -> impl IntoView {
     let (jenis, set_jenis) = signal::<String>(String::new());
     let (kategori, set_kategori) = signal::<String>(String::new());
     let (kondisi, set_kondisi) = signal::<String>(String::new());
-    let (satker, set_satker) = signal::<String>(String::new());
+    // The map's "Lihat aset satker ini" arrives here as `?satker=<nama>`.
+    let query = leptos_router::hooks::use_query_map();
+    let (satker, set_satker) =
+        signal::<String>(query.read_untracked().get("satker").unwrap_or_default());
+    // ...or as `?kode_siman=<code>`: the exact satker, which a name cannot name when two satkers
+    // share one.
+    let (kode_siman, set_kode_siman) =
+        signal::<String>(query.read_untracked().get("kode_siman").unwrap_or_default());
     let (search, set_search) = signal::<String>(String::new());
     let (sort, set_sort) = signal::<String>(String::new());
 
@@ -48,6 +55,17 @@ pub fn BankAsetListPage() -> impl IntoView {
     // menang — bukan yang ditanyakan paling akhir — lalu filter kondisi yang baru
     // dipilih tertimpa daftar lama (4 dari 12 percobaan di staging).
     let latest = LatestOnly::new();
+
+    // A `?satker=` from the map is in the signal before the dropdown has any options, and a select
+    // cannot show a value it has no option for, so it is applied again once they have arrived.
+    let satker_select = NodeRef::<leptos::html::Select>::new();
+    Effect::new(move |_| {
+        let _ = satker_opts.get();
+        let v = satker.get();
+        if let Some(el) = satker_select.get() {
+            el.set_value(&v);
+        }
+    });
 
     // Load filter options once on mount (no reactive deps → runs a single time).
     Effect::new(move |_| {
@@ -70,6 +88,7 @@ pub fn BankAsetListPage() -> impl IntoView {
             kategori: some_if_non_empty(&kategori.get()),
             kondisi: some_if_non_empty(&kondisi.get()),
             satker: some_if_non_empty(&satker.get()),
+            kode_siman: some_if_non_empty(&kode_siman.get()),
             search: some_if_non_empty(&search.get()),
             sort: some_if_non_empty(&sort.get()),
         };
@@ -160,6 +179,9 @@ pub fn BankAsetListPage() -> impl IntoView {
             .target()
             .and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
         if let Some(el) = target {
+            // The dropdown names a satker by NAME; the map's link by CODE. Both at once would
+            // demand rows that carry the code AND the name picked, so the newer choice wins.
+            set_kode_siman.set(String::new());
             set_satker.set(el.value());
             set_page.set(1);
         }
@@ -169,6 +191,7 @@ pub fn BankAsetListPage() -> impl IntoView {
         set_kategori.set(String::new());
         set_kondisi.set(String::new());
         set_satker.set(String::new());
+        set_kode_siman.set(String::new());
         set_search.set(String::new());
         set_sort.set(String::new());
         set_page.set(1);
@@ -218,6 +241,37 @@ pub fn BankAsetListPage() -> impl IntoView {
                     .into_any()
             })
         >
+            {move || {
+                // The name is what the rows say: the code alone is no way to read a notice.
+                let nama = items.get().first().and_then(|i| i.satker.clone()).unwrap_or_default();
+                (!kode_siman.get().is_empty())
+                    .then(|| {
+                        view! {
+                            <div
+                                data-testid="saring-kode-satker"
+                                class="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-gold-400/30 bg-gold-400/10 px-4 py-2 text-xs text-slate-200"
+                            >
+                                <span>
+                                    "Disaring ke satker "
+                                    <span class="font-semibold text-gold-300">
+                                        {if nama.is_empty() { kode_siman.get() } else { nama }}
+                                    </span>
+                                    " (kode " {move || kode_siman.get()} ")."
+                                </span>
+                                <button
+                                    type="button"
+                                    class="underline hover:text-white"
+                                    on:click=move |_| {
+                                        set_kode_siman.set(String::new());
+                                        set_page.set(1);
+                                    }
+                                >
+                                    "Hapus penyaring"
+                                </button>
+                            </div>
+                        }
+                    })
+            }}
             <SectionCard
                 title="Filter"
                 description="Batasi daftar berdasarkan kategori, kondisi, atau kata kunci."
@@ -326,6 +380,7 @@ pub fn BankAsetListPage() -> impl IntoView {
                     </div>
                 </form>
                 <select
+                    node_ref=satker_select
                     class="focus-ring mt-3 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
                     on:change=on_satker
                     prop:value=move || satker.get()

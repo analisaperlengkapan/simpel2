@@ -25,6 +25,8 @@ pub struct ListQuery {
     pub kondisi: Option<String>,
     pub satker: Option<String>,
     pub satker_kode: Option<String>,
+    /// SIMAN `kdsatker_keu`, exact: the one identity that never merges two satkers sharing a name.
+    pub kode_siman: Option<String>,
     pub wilayah: Option<String>,
     pub tgl_from: Option<String>,
     pub tgl_to: Option<String>,
@@ -47,6 +49,8 @@ pub struct AsetFilterQuery {
     pub kondisi: Option<String>,
     pub satker: Option<String>,
     pub satker_kode: Option<String>,
+    /// SIMAN `kdsatker_keu`, exact: the one identity that never merges two satkers sharing a name.
+    pub kode_siman: Option<String>,
     pub wilayah: Option<String>,
     pub tgl_from: Option<String>,
     pub tgl_to: Option<String>,
@@ -61,6 +65,7 @@ impl AsetFilterQuery {
             kondisi: self.kondisi,
             satker: self.satker,
             satker_kode: self.satker_kode,
+            kode_siman: self.kode_siman,
             wilayah: self.wilayah,
             tgl_from: self.tgl_from,
             tgl_to: self.tgl_to,
@@ -104,6 +109,7 @@ pub async fn list_bank_aset(
             kondisi: query.kondisi,
             satker: query.satker,
             satker_kode: query.satker_kode,
+            kode_siman: query.kode_siman,
             wilayah: query.wilayah,
             tgl_from: query.tgl_from,
             tgl_to: query.tgl_to,

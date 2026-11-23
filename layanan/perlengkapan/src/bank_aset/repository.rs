@@ -625,6 +625,25 @@ impl BankAsetRepository {
         })
     }
 
+    /// Whether `integrasi.siman_aset` has every column in `columns`.
+    async fn siman_has_columns(
+        &self,
+        client: &deadpool_postgres::Object,
+        columns: &[&str],
+    ) -> AppResult<bool> {
+        let cols: Vec<String> = columns.iter().map(|c| (*c).to_string()).collect();
+        let row = client
+            .query_one(
+                "SELECT COUNT(*)::BIGINT FROM information_schema.columns
+                  WHERE table_schema = 'integrasi' AND table_name = 'siman_aset'
+                    AND column_name = ANY($1)",
+                &[&cols],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        Ok(row.get::<_, i64>(0) as usize == columns.len())
+    }
+
     pub async fn sebaran(&self, scope: &AsetScope) -> AppResult<BankAsetSebaran> {
         let client = self
             .pool
@@ -638,19 +657,93 @@ impl BankAsetRepository {
             .map(|c| format!(" WHERE {c}"))
             .unwrap_or_default();
 
+        // The GPS columns are not in any migration: the SIMAN ingest creates a column for every key
+        // the API payload carries, so an environment whose payload never had them has no such
+        // column, and naming it would turn the whole page into a 500. Count them only when present.
+        let gps_count = if self
+            .siman_has_columns(&client, &["gps_latitude", "gps_longitude"])
+            .await?
+        {
+            "COUNT(*) FILTER (WHERE NULLIF(BTRIM(gps_latitude), '') IS NOT NULL \
+                                AND NULLIF(BTRIM(gps_longitude), '') IS NOT NULL)::BIGINT"
+        } else {
+            "0::BIGINT"
+        };
+
+        // One row per SIMAN satker, with the place MySIMKARI knows it at. The coordinates are
+        // TEXT in the owner's table, so each is parsed only when it IS a number (a CASE, because
+        // WHERE conjuncts have no guaranteed order and a bare cast would abort the whole page on
+        // one bad row), then kept only when both lie inside Indonesia: a swapped pair or a 0,0
+        // placeholder would otherwise put a dot in the ocean off Africa. A satker whose pairing has
+        // no usable place keeps the pairing's `provinsi`.
+        //
+        // `DISTINCT ON` because the code map can hold two MySIMKARI satkers for one SIMAN code,
+        // and a join that fans out would list the satker twice and count its assets twice in the
+        // table's total. A verified pairing wins over an auto-derived one.
         let rows = client
             .query(
                 &format!(
-                    "SELECT
-                    kdsatker_keu AS kode_satker,
-                    COALESCE(nama_satker, 'TIDAK DIKETAHUI') AS nama_satker,
-                    COUNT(*)::BIGINT AS total_aset,
-                    COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8 AS nilai_perolehan,
-                    COUNT(*) FILTER (WHERE UPPER(COALESCE(ur_kondisi, '')) = 'BAIK')::BIGINT AS aset_baik,
-                    COUNT(*) FILTER (WHERE UPPER(COALESCE(ur_kondisi, '')) LIKE 'RUSAK%')::BIGINT AS aset_rusak
-                 FROM integrasi.siman_aset{where_clause}
-                 GROUP BY kdsatker_keu, COALESCE(nama_satker, 'TIDAK DIKETAHUI')
-                 ORDER BY total_aset DESC"
+                    "WITH per_satker AS (
+                        SELECT
+                            -- A blank code is no code (an ingest that writes '' for a satker it cannot
+                            -- code would otherwise fuse every such satker into one dot).
+                            (CASE WHEN BTRIM(COALESCE(kdsatker_keu, '')) = '' THEN NULL ELSE kdsatker_keu END) AS kode_satker,
+                            -- One label for the satker: its most common spelling (ties broken by the
+                            -- name itself, so it never flips between requests).
+                            COALESCE(MODE() WITHIN GROUP (ORDER BY nama_satker), 'TIDAK DIKETAHUI') AS nama_satker,
+                            COUNT(*)::BIGINT AS total_aset,
+                            COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8 AS nilai_perolehan,
+                            COUNT(*) FILTER (WHERE UPPER(COALESCE(ur_kondisi, '')) = 'BAIK')::BIGINT AS aset_baik,
+                            COUNT(*) FILTER (WHERE UPPER(COALESCE(ur_kondisi, '')) LIKE 'RUSAK%')::BIGINT AS aset_rusak,
+                            {gps_count} AS aset_bergps
+                         FROM integrasi.siman_aset{where_clause}
+                         -- By CODE: a code the register spells two ways is still one satker, and
+                         -- grouping on the name too would split its assets across two dots. Rows with
+                         -- no code cannot be identified, so those stay apart by name.
+                         GROUP BY (CASE WHEN BTRIM(COALESCE(kdsatker_keu, '')) = '' THEN NULL ELSE kdsatker_keu END),
+                                  (CASE WHEN BTRIM(COALESCE(kdsatker_keu, '')) = ''
+                                        THEN COALESCE(nama_satker, 'TIDAK DIKETAHUI') END)
+                     ),
+                     tempat AS (
+                        SELECT DISTINCT ON (kdsatker_keu)
+                               kdsatker_keu,
+                               CASE WHEN ok THEN lat END AS lintang,
+                               CASE WHEN ok THEN lon END AS bujur,
+                               provinsi
+                          FROM (
+                            SELECT c.kdsatker_keu, c.verified, m.id,
+                                   raw.lat, raw.lon,
+                                   (raw.lat BETWEEN -11.5 AND 6.5 AND raw.lon BETWEEN 94.0 AND 141.5) AS ok,
+                                   NULLIF(BTRIM(m.provinsi), '') AS provinsi
+                              FROM integrasi.v_satker_code_map c
+                              JOIN integrasi.mysimkari_satker m ON m.kode_satker = c.kode_satker
+                             CROSS JOIN LATERAL (
+                                SELECT CASE WHEN m.lat  ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN m.lat::FLOAT8  END AS lat,
+                                       CASE WHEN m.long ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN m.long::FLOAT8 END AS lon
+                             ) raw
+                             WHERE c.kdsatker_keu IS NOT NULL
+                          ) x
+                         -- A pairing with a usable place beats one without, then a verified one.
+                         ORDER BY kdsatker_keu, (ok IS TRUE) DESC, verified DESC, id
+                     )
+                     ,
+                     -- Nama Kejati per wilayah: persis definisi penyaring wilayah (`filter_options`),
+                     -- digit 6-9 kode SIMAN dengan nama dari `v_satker_wilayah`. Kelompok yang tak
+                     -- punya Kejati (Kejaksaan Agung dan unit pusat) tak punya nama.
+                     nama_wilayah AS (
+                        SELECT substring(c.kdsatker_keu FROM 6 FOR 4) AS wk, MIN(w.wilayah_nama) AS nama
+                          FROM integrasi.v_satker_code_map c
+                          JOIN integrasi.v_satker_wilayah w ON w.kode_satker = c.kode_satker
+                         WHERE c.kdsatker_keu IS NOT NULL
+                         GROUP BY 1
+                     )
+                     SELECT p.*, t.lintang, t.bujur, t.provinsi,
+                            NULLIF(substring(p.kode_satker FROM 6 FOR 4), '') AS wilayah_kode,
+                            nw.nama AS wilayah_nama
+                       FROM per_satker p
+                       LEFT JOIN tempat t ON t.kdsatker_keu = p.kode_satker
+                       LEFT JOIN nama_wilayah nw ON nw.wk = substring(p.kode_satker FROM 6 FOR 4)
+                      ORDER BY p.total_aset DESC, p.nama_satker"
                 ),
                 &as_sql_params(&scope_params),
             )
@@ -666,6 +759,18 @@ impl BankAsetRepository {
                 nilai_perolehan: r.get("nilai_perolehan"),
                 aset_baik: r.get("aset_baik"),
                 aset_rusak: r.get("aset_rusak"),
+                lintang: r.try_get::<_, Option<f64>>("lintang").ok().flatten(),
+                bujur: r.try_get::<_, Option<f64>>("bujur").ok().flatten(),
+                provinsi: r.try_get::<_, Option<String>>("provinsi").ok().flatten(),
+                wilayah_kode: r
+                    .try_get::<_, Option<String>>("wilayah_kode")
+                    .ok()
+                    .flatten(),
+                wilayah_nama: r
+                    .try_get::<_, Option<String>>("wilayah_nama")
+                    .ok()
+                    .flatten(),
+                aset_bergps: r.get("aset_bergps"),
             })
             .collect();
 
@@ -903,6 +1008,8 @@ pub struct AsetFilter {
     /// half and not the other — and `satker` above is a NAME, which two
     /// satkers can share (554 distinct names for 556 distinct codes).
     pub satker_kode: Option<String>,
+    /// SIMAN `kdsatker_keu`, exact. See [`push_asset_filters`].
+    pub kode_siman: Option<String>,
     /// SIMAN wilayah code, digits 6-9 of `kdsatker_keu` — the same expression
     /// [`AsetScope`]'s wilayah tier compares against, so a pusat user filtering
     /// to a region sees exactly what that region's validator sees.
@@ -945,6 +1052,13 @@ pub fn push_asset_filters(
     if let Some(kondisi) = &filter.kondisi {
         params.push(Box::new(kondisi.clone()));
         conditions.push(format!("ur_kondisi = ${}", params.len()));
+    }
+    if let Some(kode) = &filter.kode_siman {
+        // The SIMAN code itself. `satker` (a name) merges two satkers that share one (554 names for
+        // 556 codes on staging), and `satker_kode` (MySIMKARI) maps one code to every SIMAN code
+        // paired with it; this is the only filter that names exactly one satker.
+        params.push(Box::new(kode.clone()));
+        conditions.push(format!("kdsatker_keu = ${}", params.len()));
     }
     if let Some(satker) = &filter.satker {
         params.push(Box::new(satker.clone()));

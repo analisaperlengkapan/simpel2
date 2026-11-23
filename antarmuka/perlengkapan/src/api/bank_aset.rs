@@ -96,6 +96,21 @@ pub struct SebaranSatker {
     pub nilai_perolehan: f64,
     pub aset_baik: i64,
     pub aset_rusak: i64,
+    /// Tempat satker menurut MySIMKARI; kosong bila satker belum punya pasangan atau koordinat.
+    #[serde(default)]
+    pub lintang: Option<f64>,
+    #[serde(default)]
+    pub bujur: Option<f64>,
+    #[serde(default)]
+    pub provinsi: Option<String>,
+    /// Wilayah (Kejati) satker ini: digit 6-9 kode SIMAN, dan nama Kejati-nya bila ada.
+    #[serde(default)]
+    pub wilayah_kode: Option<String>,
+    #[serde(default)]
+    pub wilayah_nama: Option<String>,
+    /// Berapa aset satker ini yang membawa koordinat GPS dari SIMAN.
+    #[serde(default)]
+    pub aset_bergps: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -126,6 +141,8 @@ pub struct ListFilter {
     pub kategori: Option<String>,
     pub kondisi: Option<String>,
     pub satker: Option<String>,
+    /// SIMAN `kdsatker_keu`, exact. Comes from the Sebaran map's link, not from the dropdown.
+    pub kode_siman: Option<String>,
     pub search: Option<String>,
     pub sort: Option<String>,
 }
@@ -169,6 +186,11 @@ pub async fn fetch_list(filter: &ListFilter) -> AppResult<PaginatedResponse<Bank
     if let Some(v) = &filter.satker {
         if !v.is_empty() {
             push_query(&mut url, "satker", v);
+        }
+    }
+    if let Some(v) = &filter.kode_siman {
+        if !v.is_empty() {
+            push_query(&mut url, "kode_siman", v);
         }
     }
     if let Some(v) = &filter.search {
@@ -243,8 +265,13 @@ pub async fn fetch_detail(id: &str) -> AppResult<BankAsetDetail> {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct AsetFilterQuery {
     pub jenis: Option<String>,
-    /// `kdsatker_keu`, not the name: two satkers can share a name.
+    /// The satker's MySIMKARI `kode_satker` (not the SIMAN `kdsatker_keu`, and not the name: two
+    /// satkers can share a name). The server maps it to SIMAN codes through the code map, and
+    /// answers zeros for a code it does not know.
     pub satker_kode: Option<String>,
+    /// The satker's SIMAN code (`kdsatker_keu`), exact: the one filter that names a single satker
+    /// when two of them share a name (554 names for 556 codes on staging).
+    pub kode_siman: Option<String>,
     /// SIMAN `wilayah_kode` (digits 6-9 of `kdsatker_keu`).
     pub wilayah: Option<String>,
     pub tgl_from: Option<String>,
@@ -258,6 +285,7 @@ impl AsetFilterQuery {
         for (k, v) in [
             ("jenis", &self.jenis),
             ("satker_kode", &self.satker_kode),
+            ("kode_siman", &self.kode_siman),
             ("wilayah", &self.wilayah),
             ("tgl_from", &self.tgl_from),
             ("tgl_to", &self.tgl_to),
@@ -342,4 +370,35 @@ pub async fn fetch_filter_options(filter: &AsetFilterQuery) -> AppResult<BankAse
         return Err(AppError::server(resp.message));
     }
     Ok(resp.data)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_drill_down_filter_carries_the_siman_code() {
+        let by_code = AsetFilterQuery {
+            satker_kode: Some("02.28".into()),
+            ..Default::default()
+        };
+        assert_eq!(by_code.to_query(), "?satker_kode=02.28");
+        // The SIMAN code names exactly one satker, even when two of them share a name.
+        let exact = AsetFilterQuery {
+            kode_siman: Some("006010500691160000KD".into()),
+            ..Default::default()
+        };
+        assert_eq!(exact.to_query(), "?kode_siman=006010500691160000KD");
+        assert_eq!(AsetFilterQuery::default().to_query(), "");
+    }
+
+    #[test]
+    fn a_row_from_a_server_that_predates_the_map_still_decodes() {
+        // rc52 answers without the place, the wilayah or the GPS count; the page must not break.
+        let old = r#"{"kode_satker":"K","nama_satker":"S","total_aset":1,"nilai_perolehan":2.0,
+                      "aset_baik":1,"aset_rusak":0}"#;
+        let s: SebaranSatker = serde_json::from_str(old).expect("old shape");
+        assert!(s.lintang.is_none() && s.wilayah_kode.is_none());
+        assert_eq!(s.aset_bergps, 0);
+    }
 }

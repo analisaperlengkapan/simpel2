@@ -6,6 +6,7 @@ mod integration {
     mod audit_trail_test;
     mod bank_aset_dashboard_breakdown_test;
     mod bank_aset_filter_options_test;
+    mod bank_aset_sebaran_test;
     mod dashboard_metrics_test;
     mod dashboard_scope_test;
     mod kebutuhan_analisis_siman_test;

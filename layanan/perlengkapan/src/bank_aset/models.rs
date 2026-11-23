@@ -156,6 +156,21 @@ pub struct SebaranSatker {
     pub nilai_perolehan: f64,
     pub aset_baik: i64,
     pub aset_rusak: i64,
+    /// Lintang dan bujur satker (derajat desimal) dari MySIMKARI, untuk peta sebaran.
+    /// `None` bila satker belum punya pasangan MySIMKARI (mis. perwakilan luar negeri, RS
+    /// Adhyaksa, jaksa agung muda) atau koordinatnya bukan angka atau jatuh di luar Indonesia:
+    /// satker itu tetap dihitung, hanya tak bisa dititik.
+    pub lintang: Option<f64>,
+    pub bujur: Option<f64>,
+    pub provinsi: Option<String>,
+    /// Wilayah (Kejaksaan Tinggi) satker ini, dengan definisi yang sama dengan penyaring wilayah
+    /// dan tier RBAC: digit 6-9 `kdsatker_keu`. `wilayah_nama` adalah nama Kejati-nya; kosong untuk
+    /// kelompok yang tak berada di bawah Kejati mana pun (Kejaksaan Agung dan unit pusat).
+    pub wilayah_kode: Option<String>,
+    pub wilayah_nama: Option<String>,
+    /// Berapa aset satker ini yang membawa koordinat GPS dari SIMAN. Kolomnya ada, tetapi belum
+    /// tentu terisi: titik aset hanya bisa digambar bila angka ini lebih dari nol.
+    pub aset_bergps: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

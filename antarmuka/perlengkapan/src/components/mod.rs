@@ -23,6 +23,8 @@ pub mod panduan;
 pub mod pemakaian_bmn_form;
 pub mod pemakaian_bmn_monitoring;
 pub mod penghapusan_form;
+pub mod peta_indonesia_data;
+pub mod peta_sebaran;
 pub mod profile_menu;
 pub mod reference_picker;
 pub mod role_catalog;

@@ -53,21 +53,25 @@ SET search_path TO authenc, integrasi, public;
 --    who reverts a scope to `mysimkari_satker.wilayah` makes the DKI validator
 --    see Bandung, and the cross-satker assertions go red.
 -- ----------------------------------------------------------------------------
+-- `lat`/`long`/`provinsi` are TEXT in the owner's table (decimal degrees, as MySIMKARI sends
+-- them). The Sebaran map plots a satker only when its pairing has them, so the three Kejari that
+-- hold assets below carry real city coordinates.
 INSERT INTO integrasi.mysimkari_satker
-  (kode_satker, nama_satker, wilayah, tipe_satker, kategori_satker, api_id, parent_id)
+  (kode_satker, nama_satker, wilayah, tipe_satker, kategori_satker, api_id, parent_id,
+   lat, long, provinsi)
 VALUES
   ('0100000', 'KEJAKSAAN AGUNG REPUBLIK INDONESIA', 'PUSAT', 'Kejaksaan Agung',  'pusat',
-   'api-kejagung', NULL),
+   'api-kejagung', NULL, '-6.2408', '106.7979', 'DKI Jakarta'),
   ('0200000', 'KEJAKSAAN TINGGI DKI JAKARTA',       'II',    'Kejaksaan Tinggi', 'A',
-   'api-kejati-dki', 'api-kejagung'),
+   'api-kejati-dki', 'api-kejagung', '-6.2297', '106.8261', 'DKI Jakarta'),
   ('0300000', 'KEJAKSAAN TINGGI JAWA BARAT',        'II',    'Kejaksaan Tinggi', 'A',
-   'api-kejati-jabar', 'api-kejagung'),
+   'api-kejati-jabar', 'api-kejagung', '-6.9034', '107.6186', 'Jawa Barat'),
   ('0200010', 'KEJAKSAAN NEGERI JAKARTA PUSAT',     'II',    'Kejaksaan Negeri', 'daerah',
-   'api-kejari-jakpus', 'api-kejati-dki'),
+   'api-kejari-jakpus', 'api-kejati-dki', '-6.1745', '106.8227', 'DKI Jakarta'),
   ('0200020', 'KEJAKSAAN NEGERI JAKARTA SELATAN',   'II',    'Kejaksaan Negeri', 'daerah',
-   'api-kejari-jaksel', 'api-kejati-dki'),
+   'api-kejari-jaksel', 'api-kejati-dki', '-6.2615', '106.8106', 'DKI Jakarta'),
   ('0300010', 'KEJAKSAAN NEGERI BANDUNG',           'II',    'Kejaksaan Negeri', 'daerah',
-   'api-kejari-bandung', 'api-kejati-jabar')
+   'api-kejari-bandung', 'api-kejati-jabar', '-6.9147', '107.6098', 'Jawa Barat')
 -- DO UPDATE, not DO NOTHING: environments seeded before the hierarchy existed
 -- already hold these kode_satker with NULL api_id/parent_id, and DO NOTHING
 -- would leave them unresolvable forever.
@@ -77,7 +81,10 @@ ON CONFLICT (kode_satker) DO UPDATE SET
   tipe_satker     = EXCLUDED.tipe_satker,
   kategori_satker = EXCLUDED.kategori_satker,
   api_id          = EXCLUDED.api_id,
-  parent_id       = EXCLUDED.parent_id;
+  parent_id       = EXCLUDED.parent_id,
+  lat             = EXCLUDED.lat,
+  long            = EXCLUDED.long,
+  provinsi        = EXCLUDED.provinsi;
 
 -- ----------------------------------------------------------------------------
 -- 2. integrasi: canonical satker code map (kode_satker ↔ SIMAN kdsatker_keu).
