@@ -28,46 +28,17 @@ ignore = [
   "RUSTSEC-2025-0141", # bincode (unmaintained)
   "RUSTSEC-2026-0173", # proc-macro-error2 (unmaintained fork of the above) - transitive macro dep, maintenance-status only
   # pqcrypto-* unmaintained: upstream PQClean project archived (no security
-  # vulnerability, maintenance-status only). These wrap the NIST PQC reference
-  # impls (ML-KEM/ML-DSA/Falcon) used by secreton-crypto + authenc `quantum`.
-  # No drop-in maintained successor yet; the algorithms/params are frozen NIST
-  # standards so the archived code is stable. Track a maintained successor
-  # (e.g. RustCrypto ml-kem/ml-dsa) and migrate when mature.
-  "RUSTSEC-2026-0161", # pqcrypto-mlkem (unmaintained)
+  # vulnerability, maintenance-status only). Only Falcon still uses them, through
+  # secreton-crypto and the authenc `quantum` feature: ML-KEM and ML-DSA moved to
+  # the maintained RustCrypto `ml-kem` / `ml-dsa` crates, which also retired
+  # RUSTSEC-2026-0161/-0166 (unmaintained) and the two PQClean conformance
+  # advisories RUSTSEC-2026-0585/-0586 (no patched release was ever published).
+  # Falcon (FN-DSA) has no RustCrypto implementation to move to. Remove these
+  # three when Falcon moves off pqcrypto or is dropped; `-D advisory-not-detected`
+  # fails the entries the day the crates leave the build graph.
   "RUSTSEC-2026-0162", # pqcrypto-traits (unmaintained)
   "RUSTSEC-2026-0163", # pqcrypto-internals (unmaintained)
   "RUSTSEC-2026-0165", # pqcrypto-falcon (unmaintained)
-  "RUSTSEC-2026-0166", # pqcrypto-mldsa (unmaintained)
-  # Two real (non-maintenance) advisories on the same crates, published
-  # 2026-11-20, with NO patched release ("The crate is unmaintained ... no
-  # patched version is expected"). Both are PQClean conformance defects, and
-  # neither discloses key material or lets a party without the private key
-  # forge anything.
-  #
-  # RUSTSEC-2026-0586, pqcrypto-mldsa <= 0.1.2: with the `avx2` feature on
-  # x86_64 the verifier does not check the infinity norm of `z` (FIPS 204 alg. 8)
-  # and accepts signatures a conforming verifier rejects. MITIGATED, not just
-  # ignored: the workspace dependency now has `default-features = false` with
-  # `std`+`neon`, so the AVX2 verifier is not compiled (`cargo tree -e features
-  # -i pqcrypto-mldsa` shows no `avx2`). The advisory is still listed because
-  # cargo-deny matches on version, not on features. Where it is verified:
-  # secreton-crypto's HybridSignature over signatures this deployment itself
-  # produces.
-  "RUSTSEC-2026-0586",
-  # RUSTSEC-2026-0585, pqcrypto-mlkem <= 0.1.1: encapsulation skips the
-  # encapsulation-key modulus check and decapsulation skips the decapsulation-key
-  # hash check (FIPS 203 sections 7.2 / 7.3). Exposure: the ML-KEM calls in the
-  # shipped crates (secreton-crypto hybrid.rs, pqc/mlkem.rs) run on a keypair this
-  # process generated or loaded from its own storage; the registry entry point
-  # that takes a caller-supplied encapsulation key (`PQCRegistry::encapsulate`)
-  # has no non-test caller that I found. If a peer-supplied key is ever
-  # accepted there, validate it (FIPS 203 7.2) before calling.
-  #
-  # REMOVE BOTH when the PQ stack moves to a maintained implementation (RustCrypto
-  # `ml-kem` / `ml-dsa`, the same successor the block above already tracks), or
-  # sooner if a patched pqcrypto release appears: `-D advisory-not-detected`
-  # fails the ignore the day the advisory stops firing.
-  "RUSTSEC-2026-0585",
   # unsafe-libyaml (unmaintained, no vulnerability). Reached only through
   # serde_yaml 0.9 (itself deprecated) in kube-client 3.1 and the secreton
   # agent / cli / k8s-operator crates — none of which is built into any shipped

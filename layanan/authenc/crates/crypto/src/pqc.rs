@@ -1,8 +1,9 @@
 //! Post-Quantum Cryptography (PQC) wrappers
 //!
-//! This module provides quantum-resistant cryptographic primitives using
-//! the pqcrypto libraries. It includes ML-DSA for digital signatures,
-//! ML-KEM for key encapsulation, and FALCON for compact signatures.
+//! This module provides quantum-resistant cryptographic primitives. ML-DSA
+//! (digital signatures, FIPS 204) and ML-KEM (key encapsulation, FIPS 203) come
+//! from the RustCrypto `ml-dsa` and `ml-kem` crates; FALCON (compact signatures)
+//! comes from `pqcrypto-falcon`, which has no RustCrypto counterpart.
 //!
 //! # Security Considerations
 //! - These algorithms are designed to be resistant to quantum attacks
@@ -23,10 +24,6 @@ use ed25519_dalek::{self, Signer, SigningKey, Verifier, VerifyingKey};
 use hkdf::Hkdf;
 #[cfg(feature = "quantum")]
 use pqcrypto_falcon::falcon512;
-#[cfg(feature = "quantum")]
-use pqcrypto_mldsa::mldsa44;
-#[cfg(feature = "quantum")]
-use pqcrypto_mlkem::mlkem768;
 #[cfg(feature = "quantum")]
 use rand::RngCore;
 #[cfg(feature = "quantum")]
@@ -77,366 +74,340 @@ impl From<pqcrypto_traits::Error> for PqcError {
     }
 }
 
-/// ML-DSA (Dilithium) digital signature wrapper
+/// ML-DSA (Dilithium) digital signature wrapper, on the RustCrypto `ml-dsa` crate
+///
+/// The secret key is the 32-byte FIPS 204 seed, not the 2,560-byte expanded key:
+/// `ml-dsa` loads the expanded form only through a deprecated call that does not
+/// validate its input and panics on malformed bytes, which under `panic = "abort"`
+/// ends the process. A seed is always valid.
 #[cfg(feature = "quantum")]
 pub mod mldsa {
     use super::*;
+    use ml_dsa::{
+        EncodedSignature, EncodedVerifyingKey, Generate, Keypair, MlDsa44, Seed, SigningKey,
+        VerifyingKey, common::getrandom::SysRng,
+    };
+
+    /// Size of an ML-DSA-44 public key
+    const PUBLIC_KEY_LEN: usize = 1312;
+    /// Size of the secret key: the FIPS 204 seed
+    const SECRET_KEY_LEN: usize = 32;
+    /// Size of an ML-DSA-44 signature
+    const SIGNATURE_LEN: usize = 2420;
 
     /// ML-DSA public key
     #[derive(Clone)]
-    pub struct PublicKey(mldsa44::PublicKey);
+    pub struct PublicKey {
+        key: VerifyingKey<MlDsa44>,
+        bytes: EncodedVerifyingKey<MlDsa44>,
+    }
 
-    /// ML-DSA secret key with automatic zeroization
-    /// Stores both secret and public key for proper key management
+    /// ML-DSA secret key; the underlying key is wiped when it is dropped
     pub struct SecretKey {
-        secret: mldsa44::SecretKey,
-        public: mldsa44::PublicKey,
+        key: SigningKey<MlDsa44>,
     }
 
-    impl Drop for SecretKey {
-        fn drop(&mut self) {
-            // Zeroize secret key bytes on drop
-            let bytes =
-                <mldsa44::SecretKey as pqcrypto_traits::sign::SecretKey>::as_bytes(&self.secret);
-
-            // SAFETY: This unsafe block is required to securely zero out secret key material
-            // from memory. This is a critical security operation to prevent key leakage.
-            //
-            // Safety invariants:
-            // 1. bytes.as_ptr() points to valid memory owned by the SecretKey
-            // 2. bytes.len() accurately represents the size of the memory region
-            // 3. Writing zeros to this memory does not create undefined behavior
-            // 4. No other references to this memory exist (exclusive ownership via &mut self)
-            unsafe {
-                std::ptr::write_bytes(bytes.as_ptr() as *mut u8, 0, bytes.len());
-            }
-        }
-    }
-
-    /// ML-DSA signature
-    pub struct Signature(mldsa44::DetachedSignature);
+    /// ML-DSA signature, kept in its FIPS 204 encoding
+    #[derive(Clone)]
+    pub struct Signature(EncodedSignature<MlDsa44>);
 
     impl PublicKey {
         /// Create a public key from bytes
         pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-            if bytes.len() != mldsa44::public_key_bytes() {
+            if bytes.len() != PUBLIC_KEY_LEN {
                 return Err(PqcError::InvalidInput(format!(
                     "Expected {} bytes for public key, got {}",
-                    mldsa44::public_key_bytes(),
+                    PUBLIC_KEY_LEN,
                     bytes.len()
                 )));
             }
-            Ok(PublicKey(
-                <mldsa44::PublicKey as pqcrypto_traits::sign::PublicKey>::from_bytes(bytes)?,
-            ))
+            let encoded = EncodedVerifyingKey::<MlDsa44>::try_from(bytes)
+                .map_err(|_| PqcError::InvalidKey)?;
+            Ok(Self::from_verifying_key(VerifyingKey::decode(&encoded)))
+        }
+
+        fn from_verifying_key(key: VerifyingKey<MlDsa44>) -> Self {
+            let bytes = key.encode();
+            PublicKey { key, bytes }
         }
 
         /// Export public key as bytes
         pub fn as_bytes(&self) -> &[u8] {
-            <mldsa44::PublicKey as pqcrypto_traits::sign::PublicKey>::as_bytes(&self.0)
+            self.bytes.as_slice()
         }
 
         /// Verify a signature
         pub fn verify(&self, message: &[u8], signature: &Signature) -> Result<()> {
-            mldsa44::verify_detached_signature(&signature.0, message, &self.0)
-                .map_err(|_| PqcError::VerificationFailed)
+            let signature = ml_dsa::Signature::<MlDsa44>::decode(&signature.0)
+                .ok_or(PqcError::InvalidSignature)?;
+            if self.key.verify_with_context(message, &[], &signature) {
+                Ok(())
+            } else {
+                Err(PqcError::VerificationFailed)
+            }
         }
     }
 
     impl SecretKey {
-        /// Generate a new key pair with proper key storage
+        /// Generate a new key pair
         pub fn new() -> Result<(PublicKey, SecretKey)> {
-            let (pk, sk) = mldsa44::keypair();
-            let pk_clone = <mldsa44::PublicKey as pqcrypto_traits::sign::PublicKey>::from_bytes(
-                <mldsa44::PublicKey as pqcrypto_traits::sign::PublicKey>::as_bytes(&pk),
-            )?;
-            Ok((
-                PublicKey(pk_clone),
-                SecretKey {
-                    secret: sk,
-                    public: pk,
-                },
-            ))
+            let seed = Seed::try_generate().map_err(|_| PqcError::KeyGenerationFailed)?;
+            let key = SigningKey::<MlDsa44>::from_seed(&seed);
+            let public = PublicKey::from_verifying_key(key.verifying_key());
+            Ok((public, SecretKey { key }))
         }
 
-        /// Create a secret key from bytes
-        /// Note: Public key cannot be derived, must be provided separately
+        /// Restore a secret key from its 32-byte seed, as exported by [`Self::as_bytes`].
+        ///
+        /// The public key is derived from the seed; `pk_bytes` must match it, which
+        /// catches a seed and a public key that belong to different key pairs.
         pub fn from_bytes_with_public(sk_bytes: &[u8], pk_bytes: &[u8]) -> Result<Self> {
-            if sk_bytes.len() != mldsa44::secret_key_bytes() {
+            if sk_bytes.len() != SECRET_KEY_LEN {
                 return Err(PqcError::InvalidInput(format!(
                     "Expected {} bytes for secret key, got {}",
-                    mldsa44::secret_key_bytes(),
+                    SECRET_KEY_LEN,
                     sk_bytes.len()
                 )));
             }
-            if pk_bytes.len() != mldsa44::public_key_bytes() {
-                return Err(PqcError::InvalidInput(format!(
-                    "Expected {} bytes for public key, got {}",
-                    mldsa44::public_key_bytes(),
-                    pk_bytes.len()
-                )));
+            let claimed = PublicKey::from_bytes(pk_bytes)?;
+            let seed = Seed::try_from(sk_bytes).map_err(|_| PqcError::InvalidKey)?;
+            let key = SigningKey::<MlDsa44>::from_seed(&seed);
+            if key.verifying_key().encode() != claimed.bytes {
+                return Err(PqcError::InvalidKey);
             }
-            Ok(SecretKey {
-                secret: <mldsa44::SecretKey as pqcrypto_traits::sign::SecretKey>::from_bytes(
-                    sk_bytes,
-                )?,
-                public: <mldsa44::PublicKey as pqcrypto_traits::sign::PublicKey>::from_bytes(
-                    pk_bytes,
-                )?,
-            })
+            Ok(SecretKey { key })
         }
 
-        /// ⚠️ SECURITY WARNING: Export secret key bytes
+        /// ⚠️ SECURITY WARNING: Export the secret key (the 32-byte seed)
         /// Only use for secure storage/transmission. Ensure zeroization after use.
         pub fn as_bytes(&self) -> Vec<u8> {
-            <mldsa44::SecretKey as pqcrypto_traits::sign::SecretKey>::as_bytes(&self.secret)
-                .to_vec()
+            self.key.to_seed().to_vec()
         }
 
-        /// Sign a message with domain separation
+        /// Sign a message (empty context string, hedged with fresh OS randomness)
         pub fn sign(&self, message: &[u8]) -> Result<Signature> {
-            let sig = mldsa44::detached_sign(message, &self.secret);
-            Ok(Signature(sig))
+            let signature = self
+                .key
+                .expanded_key()
+                .sign_randomized(message, &[], &mut SysRng)
+                .map_err(|_| PqcError::CryptoOperationFailed)?;
+            Ok(Signature(signature.encode()))
         }
 
-        /// Get the corresponding public key (now properly stored)
+        /// Get the corresponding public key
         pub fn public_key(&self) -> PublicKey {
-            PublicKey(
-                <mldsa44::PublicKey as pqcrypto_traits::sign::PublicKey>::from_bytes(
-                    <mldsa44::PublicKey as pqcrypto_traits::sign::PublicKey>::as_bytes(
-                        &self.public,
-                    ),
-                )
-                .expect("Public key bytes should always be valid"),
-            )
+            PublicKey::from_verifying_key(self.key.verifying_key())
         }
     }
 
     impl Signature {
         /// Create a signature from bytes
         pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-            if bytes.len() != mldsa44::signature_bytes() {
+            if bytes.len() != SIGNATURE_LEN {
                 return Err(PqcError::InvalidInput(format!(
                     "Expected {} bytes for signature, got {}",
-                    mldsa44::signature_bytes(),
+                    SIGNATURE_LEN,
                     bytes.len()
                 )));
             }
-            Ok(Signature(<mldsa44::DetachedSignature as pqcrypto_traits::sign::DetachedSignature>::from_bytes(bytes)?))
+            let encoded = EncodedSignature::<MlDsa44>::try_from(bytes)
+                .map_err(|_| PqcError::InvalidSignature)?;
+            // Refuse anything that is not a well-formed FIPS 204 signature up front.
+            ml_dsa::Signature::<MlDsa44>::decode(&encoded).ok_or(PqcError::InvalidSignature)?;
+            Ok(Signature(encoded))
         }
 
         /// Export signature as bytes
         pub fn as_bytes(&self) -> &[u8] {
-            <mldsa44::DetachedSignature as pqcrypto_traits::sign::DetachedSignature>::as_bytes(
-                &self.0,
-            )
+            self.0.as_slice()
         }
     }
 
-    /// Get the sizes of ML-DSA keys and signatures
+    /// Get the sizes of ML-DSA keys and signatures: (public key, secret key, signature)
     pub fn key_sizes() -> (usize, usize, usize) {
-        (
-            mldsa44::public_key_bytes(),
-            mldsa44::secret_key_bytes(),
-            mldsa44::signature_bytes(),
-        )
+        (PUBLIC_KEY_LEN, SECRET_KEY_LEN, SIGNATURE_LEN)
     }
 }
 
-/// ML-KEM (Kyber) key encapsulation mechanism wrapper
+/// ML-KEM (Kyber) key encapsulation mechanism wrapper, on the RustCrypto `ml-kem` crate
+///
+/// The secret key is the 64-byte FIPS 203 seed (`d || z`), not the 2,400-byte
+/// expanded decapsulation key, which RustCrypto deprecates.
 #[cfg(feature = "quantum")]
 pub mod mlkem {
     use super::*;
+    use ml_kem::{
+        DecapsulationKey, EncapsulationKey, Key, MlKem768, Seed,
+        kem::{Ciphertext as KemCiphertext, Decapsulate, Encapsulate, Generate, KeyExport},
+    };
+    use zeroize::Zeroizing;
+
+    /// Size of an ML-KEM-768 public key
+    const PUBLIC_KEY_LEN: usize = 1184;
+    /// Size of the secret key: the FIPS 203 seed
+    const SECRET_KEY_LEN: usize = 64;
+    /// Size of an ML-KEM-768 ciphertext
+    const CIPHERTEXT_LEN: usize = 1088;
+    /// Size of the shared secret
+    const SHARED_SECRET_LEN: usize = 32;
 
     /// ML-KEM public key
     #[derive(Clone)]
-    pub struct PublicKey(mlkem768::PublicKey);
-
-    /// ML-KEM secret key with automatic zeroization
-    pub struct SecretKey {
-        secret: mlkem768::SecretKey,
-        public: mlkem768::PublicKey,
+    pub struct PublicKey {
+        key: EncapsulationKey<MlKem768>,
+        bytes: Key<EncapsulationKey<MlKem768>>,
     }
 
-    impl Drop for SecretKey {
-        fn drop(&mut self) {
-            let bytes =
-                <mlkem768::SecretKey as pqcrypto_traits::kem::SecretKey>::as_bytes(&self.secret);
-
-            // SAFETY: This unsafe block securely zeros out KEM secret key material from memory
-            // to prevent key leakage after the key is no longer needed.
-            //
-            // Safety invariants:
-            // 1. bytes.as_ptr() is valid and points to SecretKey-owned memory
-            // 2. bytes.len() matches the actual memory region size
-            // 3. Zeroing memory does not violate any Rust safety guarantees
-            // 4. Exclusive access guaranteed via Drop's &mut self
-            unsafe {
-                std::ptr::write_bytes(bytes.as_ptr() as *mut u8, 0, bytes.len());
-            }
-        }
+    /// ML-KEM secret key; the underlying key is wiped when it is dropped
+    pub struct SecretKey {
+        key: DecapsulationKey<MlKem768>,
     }
 
     /// ML-KEM ciphertext
     #[derive(Clone)]
-    pub struct Ciphertext(mlkem768::Ciphertext);
+    pub struct Ciphertext(KemCiphertext<MlKem768>);
 
-    /// ML-KEM shared secret with automatic zeroization
-    #[derive(Debug)]
-    pub struct SharedSecret(mlkem768::SharedSecret);
+    /// ML-KEM shared secret, wiped when it is dropped
+    pub struct SharedSecret(Zeroizing<[u8; SHARED_SECRET_LEN]>);
 
-    impl Drop for SharedSecret {
-        fn drop(&mut self) {
-            let bytes =
-                <mlkem768::SharedSecret as pqcrypto_traits::kem::SharedSecret>::as_bytes(&self.0);
-
-            // SAFETY: This unsafe block securely zeros out shared secret material from memory
-            // to prevent secret leakage after key exchange is complete.
-            //
-            // Safety invariants:
-            // 1. bytes.as_ptr() is valid and points to SharedSecret-owned memory
-            // 2. bytes.len() accurately represents the memory region size
-            // 3. Writing zeros is safe and does not create undefined behavior
-            // 4. Exclusive access guaranteed via Drop's &mut self
-            unsafe {
-                std::ptr::write_bytes(bytes.as_ptr() as *mut u8, 0, bytes.len());
-            }
+    // Not derived: a derived `Debug` would print the secret into logs.
+    impl std::fmt::Debug for SharedSecret {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str("SharedSecret(..)")
         }
     }
 
     impl PublicKey {
         /// Create a public key from bytes
         pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-            if bytes.len() != mlkem768::public_key_bytes() {
+            if bytes.len() != PUBLIC_KEY_LEN {
                 return Err(PqcError::InvalidInput(format!(
                     "Expected {} bytes for public key, got {}",
-                    mlkem768::public_key_bytes(),
+                    PUBLIC_KEY_LEN,
                     bytes.len()
                 )));
             }
-            Ok(PublicKey(
-                <mlkem768::PublicKey as pqcrypto_traits::kem::PublicKey>::from_bytes(bytes)?,
-            ))
+            let bytes = Key::<EncapsulationKey<MlKem768>>::try_from(bytes)
+                .map_err(|_| PqcError::InvalidKey)?;
+            // Runs the FIPS 203 encapsulation-key checks (coefficients reduced mod q).
+            let key =
+                EncapsulationKey::<MlKem768>::new(&bytes).map_err(|_| PqcError::InvalidKey)?;
+            Ok(PublicKey { key, bytes })
+        }
+
+        fn from_encapsulation_key(key: &EncapsulationKey<MlKem768>) -> Self {
+            PublicKey {
+                bytes: key.to_bytes(),
+                key: key.clone(),
+            }
         }
 
         /// Export public key as bytes
         pub fn as_bytes(&self) -> &[u8] {
-            <mlkem768::PublicKey as pqcrypto_traits::kem::PublicKey>::as_bytes(&self.0)
+            self.bytes.as_slice()
         }
 
         /// Encapsulate a shared secret
         pub fn encapsulate(&self) -> Result<(Ciphertext, SharedSecret)> {
-            let (ss, ct) = mlkem768::encapsulate(&self.0);
-            Ok((Ciphertext(ct), SharedSecret(ss)))
+            let (ciphertext, shared) = self.key.encapsulate();
+            Ok((Ciphertext(ciphertext), SharedSecret::from_array(&shared)))
         }
     }
 
     impl SecretKey {
-        /// Generate a new key pair with proper key storage
+        /// Generate a new key pair
         pub fn new() -> Result<(PublicKey, SecretKey)> {
-            let (pk, sk) = mlkem768::keypair();
-            let pk_clone = <mlkem768::PublicKey as pqcrypto_traits::kem::PublicKey>::from_bytes(
-                <mlkem768::PublicKey as pqcrypto_traits::kem::PublicKey>::as_bytes(&pk),
-            )?;
-            Ok((
-                PublicKey(pk_clone),
-                SecretKey {
-                    secret: sk,
-                    public: pk,
-                },
-            ))
+            let seed = Seed::try_generate().map_err(|_| PqcError::KeyGenerationFailed)?;
+            let key = DecapsulationKey::<MlKem768>::from_seed(seed);
+            let public = PublicKey::from_encapsulation_key(key.encapsulation_key());
+            Ok((public, SecretKey { key }))
         }
 
-        /// Create a secret key from bytes with public key
+        /// Restore a secret key from its 64-byte seed, as exported by [`Self::as_bytes`].
+        ///
+        /// The public key is derived from the seed; `pk_bytes` must match it, which
+        /// catches a seed and a public key that belong to different key pairs.
         pub fn from_bytes_with_public(sk_bytes: &[u8], pk_bytes: &[u8]) -> Result<Self> {
-            if sk_bytes.len() != mlkem768::secret_key_bytes() {
+            if sk_bytes.len() != SECRET_KEY_LEN {
                 return Err(PqcError::InvalidInput(format!(
                     "Expected {} bytes for secret key, got {}",
-                    mlkem768::secret_key_bytes(),
+                    SECRET_KEY_LEN,
                     sk_bytes.len()
                 )));
             }
-            if pk_bytes.len() != mlkem768::public_key_bytes() {
-                return Err(PqcError::InvalidInput(format!(
-                    "Expected {} bytes for public key, got {}",
-                    mlkem768::public_key_bytes(),
-                    pk_bytes.len()
-                )));
+            let claimed = PublicKey::from_bytes(pk_bytes)?;
+            let seed = Seed::try_from(sk_bytes).map_err(|_| PqcError::InvalidKey)?;
+            let key = DecapsulationKey::<MlKem768>::from_seed(seed);
+            if key.encapsulation_key().to_bytes() != claimed.bytes {
+                return Err(PqcError::InvalidKey);
             }
-            Ok(SecretKey {
-                secret: <mlkem768::SecretKey as pqcrypto_traits::kem::SecretKey>::from_bytes(
-                    sk_bytes,
-                )?,
-                public: <mlkem768::PublicKey as pqcrypto_traits::kem::PublicKey>::from_bytes(
-                    pk_bytes,
-                )?,
-            })
+            Ok(SecretKey { key })
         }
 
-        /// ⚠️ SECURITY WARNING: Export secret key bytes
+        /// ⚠️ SECURITY WARNING: Export the secret key (the 64-byte seed)
         pub fn as_bytes(&self) -> Vec<u8> {
-            <mlkem768::SecretKey as pqcrypto_traits::kem::SecretKey>::as_bytes(&self.secret)
-                .to_vec()
+            // A key built by `new` or `from_bytes_with_public` always has its seed.
+            self.key
+                .to_seed()
+                .map(|seed| seed.to_vec())
+                .unwrap_or_default()
         }
 
         /// Decapsulate a shared secret from ciphertext
         pub fn decapsulate(&self, ciphertext: &Ciphertext) -> Result<SharedSecret> {
-            let ss = mlkem768::decapsulate(&ciphertext.0, &self.secret);
-            Ok(SharedSecret(ss))
+            let shared = self.key.decapsulate(&ciphertext.0);
+            Ok(SharedSecret::from_array(&shared))
         }
 
-        /// Get the corresponding public key (properly stored)
+        /// Get the corresponding public key
         pub fn public_key(&self) -> PublicKey {
-            PublicKey(
-                <mlkem768::PublicKey as pqcrypto_traits::kem::PublicKey>::from_bytes(
-                    <mlkem768::PublicKey as pqcrypto_traits::kem::PublicKey>::as_bytes(
-                        &self.public,
-                    ),
-                )
-                .expect("Public key bytes should always be valid"),
-            )
+            PublicKey::from_encapsulation_key(self.key.encapsulation_key())
         }
     }
 
     impl Ciphertext {
         /// Create a ciphertext from bytes
         pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-            if bytes.len() != mlkem768::ciphertext_bytes() {
+            if bytes.len() != CIPHERTEXT_LEN {
                 return Err(PqcError::InvalidInput(format!(
                     "Expected {} bytes for ciphertext, got {}",
-                    mlkem768::ciphertext_bytes(),
+                    CIPHERTEXT_LEN,
                     bytes.len()
                 )));
             }
             Ok(Ciphertext(
-                <mlkem768::Ciphertext as pqcrypto_traits::kem::Ciphertext>::from_bytes(bytes)?,
+                KemCiphertext::<MlKem768>::try_from(bytes).map_err(|_| PqcError::InvalidKey)?,
             ))
         }
 
         /// Export ciphertext as bytes
         pub fn as_bytes(&self) -> &[u8] {
-            <mlkem768::Ciphertext as pqcrypto_traits::kem::Ciphertext>::as_bytes(&self.0)
+            self.0.as_slice()
         }
     }
 
     impl SharedSecret {
+        fn from_array(bytes: &[u8]) -> Self {
+            let mut secret = Zeroizing::new([0u8; SHARED_SECRET_LEN]);
+            secret.copy_from_slice(bytes);
+            SharedSecret(secret)
+        }
+
         /// Create a shared secret from bytes
         pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-            if bytes.len() != mlkem768::shared_secret_bytes() {
+            if bytes.len() != SHARED_SECRET_LEN {
                 return Err(PqcError::InvalidInput(format!(
                     "Expected {} bytes for shared secret, got {}",
-                    mlkem768::shared_secret_bytes(),
+                    SHARED_SECRET_LEN,
                     bytes.len()
                 )));
             }
-            Ok(SharedSecret(
-                <mlkem768::SharedSecret as pqcrypto_traits::kem::SharedSecret>::from_bytes(bytes)?,
-            ))
+            Ok(Self::from_array(bytes))
         }
 
         /// Export shared secret as bytes (WARNING: Handle with care!)
         pub fn as_bytes(&self) -> &[u8] {
-            <mlkem768::SharedSecret as pqcrypto_traits::kem::SharedSecret>::as_bytes(&self.0)
+            &self.0[..]
         }
     }
 
@@ -450,13 +421,14 @@ pub mod mlkem {
 
     impl Eq for SharedSecret {}
 
-    /// Get the sizes of ML-KEM keys and ciphertext
+    /// Get the sizes of ML-KEM keys and ciphertext:
+    /// (public key, secret key, ciphertext, shared secret)
     pub fn key_sizes() -> (usize, usize, usize, usize) {
         (
-            mlkem768::public_key_bytes(),
-            mlkem768::secret_key_bytes(),
-            mlkem768::ciphertext_bytes(),
-            mlkem768::shared_secret_bytes(),
+            PUBLIC_KEY_LEN,
+            SECRET_KEY_LEN,
+            CIPHERTEXT_LEN,
+            SHARED_SECRET_LEN,
         )
     }
 }
@@ -1299,5 +1271,95 @@ mod tests_quantum {
         // This should use constant-time comparison now
         assert_eq!(ss1, ss2);
         assert!(ss1 == ss2);
+    }
+
+    #[test]
+    fn test_secret_keys_are_seeds_that_restore_the_key_pair() {
+        let (pk, sk) = mldsa::SecretKey::new().unwrap();
+        let seed = sk.as_bytes();
+        assert_eq!(seed.len(), 32);
+        let restored = mldsa::SecretKey::from_bytes_with_public(&seed, pk.as_bytes()).unwrap();
+        assert_eq!(restored.public_key().as_bytes(), pk.as_bytes());
+        let sig = restored.sign(b"from the seed").unwrap();
+        assert!(pk.verify(b"from the seed", &sig).is_ok());
+
+        let (pk, sk) = mlkem::SecretKey::new().unwrap();
+        let seed = sk.as_bytes();
+        assert_eq!(seed.len(), 64);
+        let restored = mlkem::SecretKey::from_bytes_with_public(&seed, pk.as_bytes()).unwrap();
+        let (ct, shared) = pk.encapsulate().unwrap();
+        assert_eq!(restored.decapsulate(&ct).unwrap(), shared);
+    }
+
+    #[test]
+    fn test_a_seed_and_a_public_key_of_different_pairs_are_refused() {
+        let (_, sk_a) = mldsa::SecretKey::new().unwrap();
+        let (pk_b, _) = mldsa::SecretKey::new().unwrap();
+        assert!(
+            mldsa::SecretKey::from_bytes_with_public(&sk_a.as_bytes(), pk_b.as_bytes()).is_err()
+        );
+
+        let (_, sk_a) = mlkem::SecretKey::new().unwrap();
+        let (pk_b, _) = mlkem::SecretKey::new().unwrap();
+        assert!(
+            mlkem::SecretKey::from_bytes_with_public(&sk_a.as_bytes(), pk_b.as_bytes()).is_err()
+        );
+    }
+
+    /// The expanded keys of the previous implementation (2,560 and 2,400 bytes) must be
+    /// refused with an error, not loaded: `ml-dsa`'s loader for them can panic.
+    #[test]
+    fn test_old_expanded_secret_keys_are_refused() {
+        let (pk, _) = mldsa::SecretKey::new().unwrap();
+        assert!(mldsa::SecretKey::from_bytes_with_public(&[0xFF; 2560], pk.as_bytes()).is_err());
+        let (pk, _) = mlkem::SecretKey::new().unwrap();
+        assert!(mlkem::SecretKey::from_bytes_with_public(&[0xFF; 2400], pk.as_bytes()).is_err());
+    }
+
+    #[test]
+    fn test_key_sizes_are_the_fips_sizes() {
+        // Public key, signature, ciphertext and shared secret are the FIPS 203/204 wire
+        // sizes; the secret key is the seed.
+        assert_eq!(mldsa::key_sizes(), (1312, 32, 2420));
+        assert_eq!(mlkem::key_sizes(), (1184, 64, 1088, 32));
+        let (pk, sk) = mldsa::SecretKey::new().unwrap();
+        let sig = sk.sign(b"m").unwrap();
+        assert_eq!(pk.as_bytes().len(), 1312);
+        assert_eq!(sig.as_bytes().len(), 2420);
+        let (pk, _) = mlkem::SecretKey::new().unwrap();
+        let (ct, shared) = pk.encapsulate().unwrap();
+        assert_eq!(pk.as_bytes().len(), 1184);
+        assert_eq!(ct.as_bytes().len(), 1088);
+        assert_eq!(shared.as_bytes().len(), 32);
+    }
+
+    #[test]
+    fn test_mldsa_signatures_are_hedged_and_tampering_is_caught() {
+        let (pk, sk) = mldsa::SecretKey::new().unwrap();
+        let first = sk.sign(b"same message").unwrap();
+        let second = sk.sign(b"same message").unwrap();
+        assert_ne!(first.as_bytes(), second.as_bytes());
+        assert!(pk.verify(b"same message", &first).is_ok());
+        assert!(pk.verify(b"same message", &second).is_ok());
+
+        // The first bytes are the challenge hash, so the signature stays well formed
+        // but no longer verifies.
+        let mut tampered = first.as_bytes().to_vec();
+        tampered[0] ^= 0x01;
+        let tampered = mldsa::Signature::from_bytes(&tampered).unwrap();
+        assert!(pk.verify(b"same message", &tampered).is_err());
+    }
+
+    #[test]
+    fn test_mlkem_public_key_with_unreduced_coefficients_is_refused() {
+        assert!(mlkem::PublicKey::from_bytes(&[0xFF; 1184]).is_err());
+    }
+
+    #[test]
+    fn test_shared_secret_debug_does_not_print_the_secret() {
+        let (pk, _) = mlkem::SecretKey::new().unwrap();
+        let (_, shared) = pk.encapsulate().unwrap();
+        let printed = format!("{shared:?}");
+        assert_eq!(printed, "SharedSecret(..)");
     }
 }

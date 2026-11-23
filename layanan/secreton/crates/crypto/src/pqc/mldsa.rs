@@ -1,12 +1,136 @@
 //! ML-DSA (Module-Lattice Digital Signature Algorithm) Implementation
 //!
-//! NIST PQC Standard for Post-Quantum Digital Signatures
+//! NIST PQC Standard for Post-Quantum Digital Signatures (FIPS 204), on the
+//! RustCrypto `ml-dsa` crate.
+//!
+//! # Private keys are seeds
+//!
+//! `MLDsaKeypair::private_key` holds the 32-byte FIPS 204 seed (`xi`), the same
+//! length for every variant, not the 2,560 / 4,032 / 4,896-byte expanded signing
+//! key. The signing key is re-derived from the seed when it is needed. This is a
+//! safety decision as much as a size one: `ml-dsa` can load the expanded form only
+//! through a deprecated call that does not validate its input and panics on
+//! malformed bytes (every one of 200 random 2,560-byte blobs did), and this
+//! workspace builds with `panic = "abort"`, so a corrupted key would take the whole
+//! process down. A seed is always valid. The public key and the signature are the
+//! FIPS 204 byte strings and interoperate with any other FIPS 204 implementation.
+//!
+//! Because the seed has the same length in every variant, a private key no longer
+//! tells you which variant it belongs to by its length alone: keep the `variant`
+//! next to it, as `MLDsaKeypair` does.
+//!
+//! # Signatures are hedged
+//!
+//! Every signature mixes 32 fresh random bytes from the operating system into the
+//! signing process (FIPS 204's default, "hedged" variant), so signing the same
+//! message twice gives two different, equally valid signatures.
 
 use crate::error::{CryptoError, CryptoResult};
-use pqcrypto_mldsa::*;
-use pqcrypto_traits::sign::{DetachedSignature, PublicKey, SecretKey};
 use serde::{Deserialize, Serialize};
 use std::fmt;
+
+/// Length of the FIPS 204 seed, identical for all three parameter sets.
+const SEED_LEN: usize = 32;
+
+/// One entry point per operation over the three RustCrypto parameter sets.
+mod raw {
+    use super::{CryptoError, CryptoResult, MLDsaVariant, SEED_LEN};
+    use ml_dsa::{
+        EncodedVerifyingKey, Generate, Keypair, MlDsaParams, Seed, Signature, SigningKey,
+        VerifyingKey, common::getrandom::SysRng,
+    };
+    use zeroize::Zeroizing;
+
+    /// Run `$body` with `$p` bound to the `ml_dsa` parameter set of the variant.
+    macro_rules! per_variant {
+        ($variant:expr, $p:ident => $body:block) => {
+            match $variant {
+                MLDsaVariant::MLDsa44 => {
+                    type $p = ml_dsa::MlDsa44;
+                    $body
+                }
+                MLDsaVariant::MLDsa65 => {
+                    type $p = ml_dsa::MlDsa65;
+                    $body
+                }
+                MLDsaVariant::MLDsa87 => {
+                    type $p = ml_dsa::MlDsa87;
+                    $body
+                }
+            }
+        };
+    }
+
+    /// A fresh seed from the operating system's random number generator.
+    pub(super) fn random_seed() -> CryptoResult<Zeroizing<[u8; SEED_LEN]>> {
+        <[u8; SEED_LEN]>::try_generate()
+            .map(Zeroizing::new)
+            .map_err(|_| CryptoError::RandomGenerationFailed)
+    }
+
+    /// Seed bytes -> signing key. Always succeeds for a 32-byte seed.
+    fn signing_key<P: MlDsaParams>(seed: &[u8]) -> CryptoResult<SigningKey<P>> {
+        let seed = Seed::try_from(seed).map_err(|_| {
+            CryptoError::InvalidKey(format!(
+                "Invalid private key size: expected {SEED_LEN} bytes, got {} bytes",
+                seed.len()
+            ))
+        })?;
+        Ok(SigningKey::<P>::from_seed(&seed))
+    }
+
+    /// The public key the seed belongs to.
+    pub(super) fn public_key_of(variant: MLDsaVariant, seed: &[u8]) -> CryptoResult<Vec<u8>> {
+        per_variant!(variant, P => {
+            Ok(signing_key::<P>(seed)?.verifying_key().encode().to_vec())
+        })
+    }
+
+    /// A detached signature over every message, with the key derived once.
+    pub(super) fn sign_all(
+        variant: MLDsaVariant,
+        seed: &[u8],
+        messages: &[&[u8]],
+    ) -> CryptoResult<Vec<Vec<u8>>> {
+        per_variant!(variant, P => {
+            let key = signing_key::<P>(seed)?;
+            let key = key.expanded_key();
+            messages
+                .iter()
+                .map(|message| {
+                    // Empty context string; hedged with fresh OS randomness.
+                    key.sign_randomized(message, &[], &mut SysRng)
+                        .map(|signature| signature.encode().to_vec())
+                        .map_err(|_| CryptoError::SigningFailed("Signing failed".to_string()))
+                })
+                .collect()
+        })
+    }
+
+    /// Whether each `(message, signature)` pair verifies under the public key.
+    ///
+    /// A signature that is not even well formed is an error, not `false`.
+    pub(super) fn verify_all(
+        variant: MLDsaVariant,
+        public_key: &[u8],
+        pairs: &[(&[u8], &[u8])],
+    ) -> CryptoResult<Vec<bool>> {
+        per_variant!(variant, P => {
+            let encoded = EncodedVerifyingKey::<P>::try_from(public_key)
+                .map_err(|_| CryptoError::InvalidKey("Key validation failed".to_string()))?;
+            let key = VerifyingKey::<P>::decode(&encoded);
+            pairs
+                .iter()
+                .map(|(message, signature)| {
+                    let signature = Signature::<P>::try_from(*signature).map_err(|_| {
+                        CryptoError::InvalidSignature("Signature format invalid".to_string())
+                    })?;
+                    Ok(key.verify_with_context(message, &[], &signature))
+                })
+                .collect()
+        })
+    }
+}
 
 /// ML-DSA variant configurations
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -30,27 +154,20 @@ impl MLDsaVariant {
     }
 
     /// Get the private key size in bytes for this variant
+    ///
+    /// The private key is the 32-byte FIPS 204 seed, the same for every variant
+    /// (see the module documentation).
     pub fn private_key_size(&self) -> usize {
-        match self {
-            MLDsaVariant::MLDsa44 => 2560,
-            MLDsaVariant::MLDsa65 => 4032,
-            MLDsaVariant::MLDsa87 => 4896,
-        }
+        SEED_LEN
     }
 
-    /// Get the maximum detached signature size in bytes for this variant
+    /// Get the detached signature size in bytes for this variant
     ///
-    /// Note: Actual signature sizes from pqcrypto-mldsa may vary slightly.
-    /// These values represent typical/maximum sizes from the library implementation.
-    ///
-    /// Reference: FIPS 204 ML-DSA specification
+    /// These are the fixed sizes from the FIPS 204 specification.
     pub fn signature_size(&self) -> usize {
         match self {
-            // ML-DSA-44: NIST spec says 2420, but pqcrypto-mldsa produces ~2420 bytes
             MLDsaVariant::MLDsa44 => 2420,
-            // ML-DSA-65: NIST spec says 3309, but pqcrypto-mldsa produces ~3309 bytes
             MLDsaVariant::MLDsa65 => 3309,
-            // ML-DSA-87: NIST spec says 4627, pqcrypto-mldsa matches
             MLDsaVariant::MLDsa87 => 4627,
         }
     }
@@ -85,7 +202,7 @@ impl fmt::Display for MLDsaVariant {
 pub struct MLDsaKeypair {
     /// Public key
     pub public_key: Vec<u8>,
-    /// Private key
+    /// Private key: the 32-byte FIPS 204 seed (see the module docs)
     pub private_key: Vec<u8>,
     /// Algorithm variant
     pub variant: MLDsaVariant,
@@ -94,24 +211,19 @@ pub struct MLDsaKeypair {
 impl MLDsaKeypair {
     /// Generate a new ML-DSA keypair
     pub fn generate(variant: MLDsaVariant) -> CryptoResult<Self> {
-        let (public_key, private_key) = match variant {
-            MLDsaVariant::MLDsa44 => {
-                let keys = mldsa44::keypair();
-                (keys.0.as_bytes().to_vec(), keys.1.as_bytes().to_vec())
-            }
-            MLDsaVariant::MLDsa65 => {
-                let keys = mldsa65::keypair();
-                (keys.0.as_bytes().to_vec(), keys.1.as_bytes().to_vec())
-            }
-            MLDsaVariant::MLDsa87 => {
-                let keys = mldsa87::keypair();
-                (keys.0.as_bytes().to_vec(), keys.1.as_bytes().to_vec())
-            }
-        };
+        let seed = raw::random_seed()?;
+        Self::from_seed(variant, &seed[..])
+    }
 
+    /// Rebuild a keypair from its 32-byte seed; the public key is derived from it.
+    ///
+    /// The seed is the `private_key` of a keypair, so this is how a keypair is
+    /// recovered from the private key alone.
+    pub fn from_seed(variant: MLDsaVariant, seed: &[u8]) -> CryptoResult<Self> {
+        let public_key = raw::public_key_of(variant, seed)?;
         Ok(Self {
             public_key,
-            private_key,
+            private_key: seed.to_vec(),
             variant,
         })
     }
@@ -145,26 +257,10 @@ impl MLDsaKeypair {
             )));
         }
 
-        match self.variant {
-            MLDsaVariant::MLDsa44 => {
-                let sk = mldsa44::SecretKey::from_bytes(&self.private_key)
-                    .map_err(|_| CryptoError::InvalidKey("Key validation failed".to_string()))?;
-                let detached_sig = mldsa44::detached_sign(message, &sk);
-                Ok(detached_sig.as_bytes().to_vec())
-            }
-            MLDsaVariant::MLDsa65 => {
-                let sk = mldsa65::SecretKey::from_bytes(&self.private_key)
-                    .map_err(|_| CryptoError::InvalidKey("Key validation failed".to_string()))?;
-                let detached_sig = mldsa65::detached_sign(message, &sk);
-                Ok(detached_sig.as_bytes().to_vec())
-            }
-            MLDsaVariant::MLDsa87 => {
-                let sk = mldsa87::SecretKey::from_bytes(&self.private_key)
-                    .map_err(|_| CryptoError::InvalidKey("Key validation failed".to_string()))?;
-                let detached_sig = mldsa87::detached_sign(message, &sk);
-                Ok(detached_sig.as_bytes().to_vec())
-            }
-        }
+        let mut signatures = raw::sign_all(self.variant, &self.private_key, &[message])?;
+        signatures
+            .pop()
+            .ok_or_else(|| CryptoError::Internal("Signing produced no output".to_string()))
     }
 
     /// Verify a detached signature
@@ -205,38 +301,10 @@ impl MLDsaKeypair {
             )));
         }
 
-        match self.variant {
-            MLDsaVariant::MLDsa44 => {
-                let pk = mldsa44::PublicKey::from_bytes(&self.public_key)
-                    .map_err(|_| CryptoError::InvalidKey("Key validation failed".to_string()))?;
-                let detached_sig =
-                    mldsa44::DetachedSignature::from_bytes(signature).map_err(|_| {
-                        CryptoError::InvalidSignature("Signature format invalid".to_string())
-                    })?;
-                let result = mldsa44::verify_detached_signature(&detached_sig, message, &pk);
-                Ok(result.is_ok())
-            }
-            MLDsaVariant::MLDsa65 => {
-                let pk = mldsa65::PublicKey::from_bytes(&self.public_key)
-                    .map_err(|_| CryptoError::InvalidKey("Key validation failed".to_string()))?;
-                let detached_sig =
-                    mldsa65::DetachedSignature::from_bytes(signature).map_err(|_| {
-                        CryptoError::InvalidSignature("Signature format invalid".to_string())
-                    })?;
-                let result = mldsa65::verify_detached_signature(&detached_sig, message, &pk);
-                Ok(result.is_ok())
-            }
-            MLDsaVariant::MLDsa87 => {
-                let pk = mldsa87::PublicKey::from_bytes(&self.public_key)
-                    .map_err(|_| CryptoError::InvalidKey("Key validation failed".to_string()))?;
-                let detached_sig =
-                    mldsa87::DetachedSignature::from_bytes(signature).map_err(|_| {
-                        CryptoError::InvalidSignature("Signature format invalid".to_string())
-                    })?;
-                let result = mldsa87::verify_detached_signature(&detached_sig, message, &pk);
-                Ok(result.is_ok())
-            }
-        }
+        let mut results = raw::verify_all(self.variant, &self.public_key, &[(message, signature)])?;
+        results
+            .pop()
+            .ok_or_else(|| CryptoError::Internal("Verification produced no output".to_string()))
     }
 
     /// Get the public key as bytes
@@ -343,8 +411,8 @@ impl MLDsaBatchSigner {
     /// Create a new batch signer
     ///
     /// # Security Warning
-    /// Batch operations reuse the same private key. Ensure the underlying
-    /// pqcrypto-mldsa library uses fresh randomness for each signature.
+    /// Batch operations reuse the same private key. Each signature still draws
+    /// fresh randomness from the operating system (hedged signing).
     pub fn new(private_key: Vec<u8>, variant: MLDsaVariant) -> CryptoResult<Self> {
         // Validate private key size at construction
         if private_key.len() != variant.private_key_size() {
@@ -371,13 +439,10 @@ impl MLDsaBatchSigner {
     /// Consider using parallel processing for large batches (requires rayon).
     ///
     /// # Security
-    /// - Each signature uses fresh randomness (handled by pqcrypto-mldsa)
+    /// - Each signature uses fresh randomness (hedged ML-DSA, drawn from the OS)
     /// - Recommended batch size: ≤ 1000 messages
     /// - Rate limiting recommended for production use
     pub fn batch_sign(&self, messages: &[&[u8]]) -> CryptoResult<Vec<Vec<u8>>> {
-        // Pre-allocate for performance
-        let mut signatures = Vec::with_capacity(messages.len());
-
         // Recommended batch size limit
         const MAX_BATCH_SIZE: usize = 1000;
         if messages.len() > MAX_BATCH_SIZE {
@@ -396,35 +461,10 @@ impl MLDsaBatchSigner {
                     "Message too large in batch".to_string(),
                 ));
             }
-
-            let signature = match self.variant {
-                MLDsaVariant::MLDsa44 => {
-                    let sk = mldsa44::SecretKey::from_bytes(&self.private_key).map_err(|_| {
-                        CryptoError::InvalidKey("Key validation failed".to_string())
-                    })?;
-                    let detached_sig = mldsa44::detached_sign(message, &sk);
-                    detached_sig.as_bytes().to_vec()
-                }
-                MLDsaVariant::MLDsa65 => {
-                    let sk = mldsa65::SecretKey::from_bytes(&self.private_key).map_err(|_| {
-                        CryptoError::InvalidKey("Key validation failed".to_string())
-                    })?;
-                    let detached_sig = mldsa65::detached_sign(message, &sk);
-                    detached_sig.as_bytes().to_vec()
-                }
-                MLDsaVariant::MLDsa87 => {
-                    let sk = mldsa87::SecretKey::from_bytes(&self.private_key).map_err(|_| {
-                        CryptoError::InvalidKey("Key validation failed".to_string())
-                    })?;
-                    let detached_sig = mldsa87::detached_sign(message, &sk);
-                    detached_sig.as_bytes().to_vec()
-                }
-            };
-
-            signatures.push(signature);
         }
 
-        Ok(signatures)
+        // The signing key is derived once for the whole batch.
+        raw::sign_all(self.variant, &self.private_key, messages)
     }
 }
 
@@ -455,46 +495,12 @@ impl MLDsaBatchVerifier {
             ));
         }
 
-        let mut results = Vec::new();
-
-        for (message, signature) in messages.iter().zip(signatures.iter()) {
-            let is_valid = match self.variant {
-                MLDsaVariant::MLDsa44 => {
-                    let pk = mldsa44::PublicKey::from_bytes(&self.public_key).map_err(|_| {
-                        CryptoError::InvalidKey("Invalid ML-DSA-44 public key".to_string())
-                    })?;
-                    let detached_sig =
-                        mldsa44::DetachedSignature::from_bytes(signature).map_err(|_| {
-                            CryptoError::InvalidSignature("Invalid ML-DSA-44 signature".to_string())
-                        })?;
-                    mldsa44::verify_detached_signature(&detached_sig, message, &pk).is_ok()
-                }
-                MLDsaVariant::MLDsa65 => {
-                    let pk = mldsa65::PublicKey::from_bytes(&self.public_key).map_err(|_| {
-                        CryptoError::InvalidKey("Invalid ML-DSA-65 public key".to_string())
-                    })?;
-                    let detached_sig =
-                        mldsa65::DetachedSignature::from_bytes(signature).map_err(|_| {
-                            CryptoError::InvalidSignature("Invalid ML-DSA-65 signature".to_string())
-                        })?;
-                    mldsa65::verify_detached_signature(&detached_sig, message, &pk).is_ok()
-                }
-                MLDsaVariant::MLDsa87 => {
-                    let pk = mldsa87::PublicKey::from_bytes(&self.public_key).map_err(|_| {
-                        CryptoError::InvalidKey("Invalid ML-DSA-87 public key".to_string())
-                    })?;
-                    let detached_sig =
-                        mldsa87::DetachedSignature::from_bytes(signature).map_err(|_| {
-                            CryptoError::InvalidSignature("Invalid ML-DSA-87 signature".to_string())
-                        })?;
-                    mldsa87::verify_detached_signature(&detached_sig, message, &pk).is_ok()
-                }
-            };
-
-            results.push(is_valid);
-        }
-
-        Ok(results)
+        let pairs: Vec<(&[u8], &[u8])> = messages
+            .iter()
+            .copied()
+            .zip(signatures.iter().copied())
+            .collect();
+        raw::verify_all(self.variant, &self.public_key, &pairs)
     }
 }
 
@@ -507,19 +513,19 @@ mod tests {
     fn test_mldsa_variant_properties() {
         // Test ML-DSA-44
         assert_eq!(MLDsaVariant::MLDsa44.public_key_size(), 1312);
-        assert_eq!(MLDsaVariant::MLDsa44.private_key_size(), 2560);
+        assert_eq!(MLDsaVariant::MLDsa44.private_key_size(), 32);
         assert_eq!(MLDsaVariant::MLDsa44.signature_size(), 2420);
         assert_eq!(MLDsaVariant::MLDsa44.security_level(), "128-bit");
 
         // Test ML-DSA-65
         assert_eq!(MLDsaVariant::MLDsa65.public_key_size(), 1952);
-        assert_eq!(MLDsaVariant::MLDsa65.private_key_size(), 4032);
+        assert_eq!(MLDsaVariant::MLDsa65.private_key_size(), 32);
         assert_eq!(MLDsaVariant::MLDsa65.signature_size(), 3309);
         assert_eq!(MLDsaVariant::MLDsa65.security_level(), "192-bit");
 
         // Test ML-DSA-87
         assert_eq!(MLDsaVariant::MLDsa87.public_key_size(), 2592);
-        assert_eq!(MLDsaVariant::MLDsa87.private_key_size(), 4896);
+        assert_eq!(MLDsaVariant::MLDsa87.private_key_size(), 32);
         assert_eq!(MLDsaVariant::MLDsa87.signature_size(), 4627);
         assert_eq!(MLDsaVariant::MLDsa87.security_level(), "256-bit");
 
@@ -534,7 +540,7 @@ mod tests {
         let keypair = MLDsaKeypair::generate(MLDsaVariant::MLDsa44).unwrap();
 
         assert_eq!(keypair.public_key.len(), 1312);
-        assert_eq!(keypair.private_key.len(), 2560);
+        assert_eq!(keypair.private_key.len(), 32);
         assert_eq!(keypair.variant, MLDsaVariant::MLDsa44);
     }
 
@@ -575,7 +581,7 @@ mod tests {
 
         assert_eq!(provider.algorithm_id(), "ML-DSA-65");
         assert_eq!(provider.public_key_size(), 1952);
-        assert_eq!(provider.private_key_size(), 4032);
+        assert_eq!(provider.private_key_size(), 32);
         assert_eq!(provider.signature_size(), 3309);
     }
 
@@ -682,5 +688,105 @@ mod tests {
             result.is_err() || !result.unwrap(),
             "Cross-variant verification should fail"
         );
+    }
+
+    #[test]
+    fn test_private_key_is_a_seed_that_rebuilds_the_keypair() {
+        for variant in [
+            MLDsaVariant::MLDsa44,
+            MLDsaVariant::MLDsa65,
+            MLDsaVariant::MLDsa87,
+        ] {
+            let keypair = MLDsaKeypair::generate(variant).unwrap();
+            assert_eq!(keypair.private_key.len(), 32);
+
+            let rebuilt = MLDsaKeypair::from_seed(variant, &keypair.private_key).unwrap();
+            assert_eq!(rebuilt.public_key, keypair.public_key);
+
+            let signature = rebuilt.sign(b"signed from the seed alone").unwrap();
+            assert!(
+                keypair
+                    .verify(b"signed from the seed alone", &signature)
+                    .unwrap()
+            );
+        }
+    }
+
+    /// The expanded keys of the previous implementation were 2,560 / 4,032 / 4,896
+    /// bytes. Handing one over must be a clean error, never the abort that
+    /// `ml-dsa`'s unchecked expanded-key loader would cause under `panic = "abort"`.
+    #[test]
+    fn test_keys_of_the_wrong_length_are_refused_without_panicking() {
+        for len in [0usize, 31, 33, 2560, 4032, 4896] {
+            let keypair = MLDsaKeypair {
+                public_key: Vec::new(),
+                private_key: vec![0xFF; len],
+                variant: MLDsaVariant::MLDsa44,
+            };
+            assert!(
+                keypair.sign(b"message").is_err(),
+                "a {len}-byte private key must be refused"
+            );
+            assert!(
+                MLDsaKeypair::from_seed(MLDsaVariant::MLDsa44, &vec![0xFF; len]).is_err(),
+                "a {len}-byte seed must be refused"
+            );
+        }
+    }
+
+    /// Pins the byte format: a given seed must keep producing the same FIPS 204 public
+    /// key. If a dependency upgrade ever changes this, keys already handed out stop
+    /// matching, and this test is where that shows up.
+    #[test]
+    fn test_seed_to_public_key_is_stable() {
+        let seed: Vec<u8> = (0u8..32).collect();
+        let keypair = MLDsaKeypair::from_seed(MLDsaVariant::MLDsa44, &seed).unwrap();
+        assert_eq!(keypair.public_key.len(), 1312);
+        assert_eq!(
+            hex::encode(&keypair.public_key[..32]),
+            "d7b2b47254aae0db45e7930d4a98d2c97d8f1397d1789dafa17024b316e9bec9"
+        );
+    }
+
+    #[test]
+    fn test_signatures_are_hedged() {
+        let keypair = MLDsaKeypair::generate(MLDsaVariant::MLDsa44).unwrap();
+        let first = keypair.sign(b"same message").unwrap();
+        let second = keypair.sign(b"same message").unwrap();
+        assert_ne!(first, second, "each signature draws fresh randomness");
+        assert!(keypair.verify(b"same message", &first).unwrap());
+        assert!(keypair.verify(b"same message", &second).unwrap());
+    }
+
+    #[test]
+    fn test_tampered_signature_and_foreign_key_do_not_verify() {
+        let keypair = MLDsaKeypair::generate(MLDsaVariant::MLDsa44).unwrap();
+        let other = MLDsaKeypair::generate(MLDsaVariant::MLDsa44).unwrap();
+        let mut signature = keypair.sign(b"message").unwrap();
+
+        assert!(!other.verify(b"message", &signature).unwrap());
+
+        // The first bytes are the challenge hash, so this stays well formed.
+        signature[0] ^= 0x01;
+        assert!(!keypair.verify(b"message", &signature).unwrap());
+    }
+
+    #[test]
+    fn test_batch_verify_reports_each_signature() {
+        let keypair = MLDsaKeypair::generate(MLDsaVariant::MLDsa44).unwrap();
+        let good = keypair.sign(b"one").unwrap();
+        let other = keypair.sign(b"two").unwrap();
+
+        let verifier = MLDsaBatchVerifier::new(keypair.public_key.clone(), MLDsaVariant::MLDsa44);
+        let results = verifier
+            .batch_verify(&[b"one", b"two"], &[good.as_slice(), other.as_slice()])
+            .unwrap();
+        assert_eq!(results, vec![true, true]);
+
+        // A signature for another message is false, not an error.
+        let results = verifier
+            .batch_verify(&[b"one", b"two"], &[other.as_slice(), good.as_slice()])
+            .unwrap();
+        assert_eq!(results, vec![false, false]);
     }
 }

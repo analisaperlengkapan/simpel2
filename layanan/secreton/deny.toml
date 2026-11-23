@@ -86,11 +86,10 @@ ignore = [
 
   # Unmaintained paste crate (RUSTSEC-2024-0436)
   # Severity: Medium - crate archived but functional
-  # Impact: Via pqcrypto-mldsa (post-quantum crypto)
-  # Mitigation: Monitor pqcrypto-mldsa updates, fork if needed
-  # Action: PQ crypto more critical than proc-macro maintenance
+  # Impact: Via the Leptos frontend crates (leptos, tachys, reactive_graph, ...)
+  # Mitigation: Compile-time proc-macro only; monitor Leptos releases
   # Status: Accepted risk - awaiting upstream fix
-  { id = "RUSTSEC-2024-0436", reason = "paste unmaintained but functional - via pqcrypto-mldsa, monitoring for upstream updates" },
+  { id = "RUSTSEC-2024-0436", reason = "paste unmaintained but functional - via the Leptos frontend crates, monitoring for upstream updates" },
 ]
 # If this is true, then cargo deny will use the git executable to fetch advisory database.
 # If this is false, then it uses a built-in git library.
