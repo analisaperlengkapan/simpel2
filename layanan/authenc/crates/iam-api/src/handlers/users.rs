@@ -326,6 +326,13 @@ pub async fn update_user(
     // issued in between.) Revoking only after the change would leave a move reported
     // as done with the old satker's data still open to the old token, and a retry
     // would not repair it, since the satker would no longer be changing.
+    //
+    // The price of this order, accepted on purpose: if the update is then rejected
+    // (a taken e-mail address in the same request, say) the account's sessions are
+    // already cut and its user signs in again although nothing moved. That costs one
+    // login; the other order can leave the old scope open. Making the two atomic
+    // would take one transaction around the revocation store and the user update,
+    // which neither takes today.
     let moving = req
         .satker_code
         .as_deref()
