@@ -984,7 +984,7 @@ fn kartu_satker(
 fn RincianSatker(kode: Option<String>) -> impl IntoView {
     // By the SIMAN code, exact: a name would merge two satkers that share one, and the MySIMKARI
     // code would take in every SIMAN code paired with it. No code, no honest filter to ask with.
-    let Some(kode) = kode else {
+    let Some(kode) = kode.filter(|k| !k.trim().is_empty()) else {
         return view! {
             <div data-testid="rincian-satker" class="space-y-2">
                 <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"Jenis BMN"</p>

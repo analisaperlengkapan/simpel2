@@ -179,6 +179,9 @@ pub fn BankAsetListPage() -> impl IntoView {
             .target()
             .and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
         if let Some(el) = target {
+            // The dropdown names a satker by NAME; the map's link by CODE. Both at once would
+            // demand rows that carry the code AND the name picked, so the newer choice wins.
+            set_kode_siman.set(String::new());
             set_satker.set(el.value());
             set_page.set(1);
         }

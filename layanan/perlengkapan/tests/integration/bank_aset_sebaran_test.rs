@@ -260,3 +260,49 @@ async fn a_satker_code_names_exactly_one_satker_even_when_two_share_a_name() {
 
     teardown_test_db(&db_name).await;
 }
+
+#[tokio::test]
+async fn satkers_whose_code_is_blank_are_not_fused_into_one() {
+    // An ingest that writes '' (or spaces) for a satker it cannot code must not make every such
+    // satker one dot, and a blank code is not a code a link or a filter could use.
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let client = db.pool().get().await.unwrap();
+    client
+        .execute(
+            "INSERT INTO integrasi.siman_aset (jenis_aset, nama, ur_kondisi, kdsatker_keu, nama_satker, kd_brg, rph_aset)
+             VALUES ('Peralatan Mesin Non TIK', 'Meja 1', 'Baik', '',    'SATKER TANPA KODE SATU', '3050201002', '100'),
+                    ('Peralatan Mesin Non TIK', 'Meja 2', 'Baik', '   ', 'SATKER TANPA KODE DUA',  '3050201003', '100'),
+                    ('Peralatan Mesin Non TIK', 'Meja 3', 'Baik', NULL,  'SATKER TANPA KODE DUA',  '3050201004', '100')",
+            &[],
+        )
+        .await
+        .unwrap();
+    drop(client);
+    let rows = sebaran(&server).await;
+    let mine: Vec<&Value> = rows
+        .iter()
+        .filter(|r| {
+            r["nama_satker"]
+                .as_str()
+                .is_some_and(|n| n.starts_with("SATKER TANPA KODE"))
+        })
+        .collect();
+    assert_eq!(mine.len(), 2, "one row per name, none fused: {mine:?}");
+    for r in &mine {
+        assert!(
+            r["kode_satker"].is_null(),
+            "a blank code reads as no code: {r}"
+        );
+    }
+    let dua = mine
+        .iter()
+        .find(|r| r["nama_satker"] == "SATKER TANPA KODE DUA")
+        .unwrap();
+    assert_eq!(
+        dua["total_aset"], 2,
+        "blank and NULL codes of one name are one satker"
+    );
+
+    teardown_test_db(&db_name).await;
+}

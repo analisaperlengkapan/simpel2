@@ -685,7 +685,9 @@ impl BankAsetRepository {
                 &format!(
                     "WITH per_satker AS (
                         SELECT
-                            kdsatker_keu AS kode_satker,
+                            -- A blank code is no code (an ingest that writes '' for a satker it cannot
+                            -- code would otherwise fuse every such satker into one dot).
+                            (CASE WHEN BTRIM(COALESCE(kdsatker_keu, '')) = '' THEN NULL ELSE kdsatker_keu END) AS kode_satker,
                             -- One label for the satker: its most common spelling (ties broken by the
                             -- name itself, so it never flips between requests).
                             COALESCE(MODE() WITHIN GROUP (ORDER BY nama_satker), 'TIDAK DIKETAHUI') AS nama_satker,
@@ -698,8 +700,9 @@ impl BankAsetRepository {
                          -- By CODE: a code the register spells two ways is still one satker, and
                          -- grouping on the name too would split its assets across two dots. Rows with
                          -- no code cannot be identified, so those stay apart by name.
-                         GROUP BY kdsatker_keu,
-                                  (CASE WHEN kdsatker_keu IS NULL THEN COALESCE(nama_satker, 'TIDAK DIKETAHUI') END)
+                         GROUP BY (CASE WHEN BTRIM(COALESCE(kdsatker_keu, '')) = '' THEN NULL ELSE kdsatker_keu END),
+                                  (CASE WHEN BTRIM(COALESCE(kdsatker_keu, '')) = ''
+                                        THEN COALESCE(nama_satker, 'TIDAK DIKETAHUI') END)
                      ),
                      tempat AS (
                         SELECT DISTINCT ON (kdsatker_keu)

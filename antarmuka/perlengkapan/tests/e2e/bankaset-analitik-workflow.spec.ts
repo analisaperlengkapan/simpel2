@@ -360,6 +360,12 @@ test.describe("Bank Aset — sebaran + QR code", () => {
     // The list opens already filtered to that satker, and shows only its two assets (identified by
     // their NUP, which is unique; the displayed names are SIMAN's, not the seed's brand names).
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-B-1", "E2E-B-2"]);
+
+    // Picking another satker from the dropdown replaces the code filter, instead of asking for rows
+    // that carry BOTH satkers' identities (which would be nothing).
+    await page.locator("select").last().selectOption("KEJAKSAAN NEGERI JAKARTA PUSAT");
+    await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-A-1", "E2E-A-2"]);
+    await expect(page.getByTestId("saring-kode-satker")).toHaveCount(0);
   });
 
   test("QR generator selects assets and renders label previews", async ({ page }) => {
