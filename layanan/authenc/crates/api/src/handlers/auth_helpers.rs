@@ -101,6 +101,36 @@ pub(crate) fn token_is_exchangeable_for_session(claims: &authenc_crypto::jwt::To
     claims.scope.as_deref() == Some(REFRESH_TOKEN_SCOPE) && !claims_are_mfa_pending(claims)
 }
 
+/// Refuse a token that was revoked before its `exp`.
+///
+/// A signature-valid, unexpired token may still have been revoked: logout,
+/// a role change, the account being disabled. `validate`/`introspect` (which
+/// the other services call) consult the revocation list, but authenc's own
+/// self-service endpoints (`/auth/me`, `/auth/refresh`, passkeys, MFA,
+/// sessions, password change) only verified the signature, so a revoked token
+/// kept working there: it could read the profile, refresh itself and register a
+/// new passkey, which is a standing way back in after the account was cut off.
+///
+/// Fails closed: if the revocation store cannot be read the token is refused,
+/// the same call `validate` makes.
+pub(crate) async fn ensure_not_revoked(
+    state: &Arc<ApiState>,
+    claims: &authenc_crypto::jwt::TokenClaims,
+) -> Result<(), AuthError> {
+    match state
+        .revocation_store
+        .is_revoked(&claims.jti, claims.sid.as_deref(), &claims.sub, claims.iat)
+        .await
+    {
+        Ok(false) => Ok(()),
+        Ok(true) => Err(AuthError::unauthorized("Token has been revoked")),
+        Err(e) => {
+            tracing::error!("Revocation check failed: {}", e);
+            Err(AuthError::unauthorized("Token validation failed"))
+        }
+    }
+}
+
 /// Mint a short-lived (5 min) MFA-pending temp token after a correct password,
 /// when the account requires MFA. Carries `mfa_pending=true` so it cannot be used
 /// as an access token. The MFA verify handlers exchange it for full tokens.
@@ -194,6 +224,8 @@ pub async fn extract_user_from_token(
         return Err(AuthError::unauthorized("MFA verification required"));
     }
 
+    ensure_not_revoked(state, &claims).await?;
+
     // Extract user ID from subject claim
     Uuid::parse_str(&claims.sub).map_err(|_| AuthError::unauthorized("Invalid user ID in token"))
 }
@@ -221,6 +253,8 @@ pub async fn verify_token_from_body(state: &Arc<ApiState>, token: &str) -> Resul
     if claims_are_mfa_pending(&claims) {
         return Err(AuthError::unauthorized("MFA verification required"));
     }
+
+    ensure_not_revoked(state, &claims).await?;
 
     // Extract user ID from subject claim
     Uuid::parse_str(&claims.sub).map_err(|_| AuthError::unauthorized("Invalid user ID in token"))
@@ -296,7 +330,7 @@ pub fn check_password_change_required_from_claims(
 ///
 /// Use this instead of calling `check_password_change_required` followed by
 /// `extract_user_from_token` to avoid verifying the JWT twice.
-pub fn extract_user_with_password_check(
+pub async fn extract_user_with_password_check(
     state: &Arc<ApiState>,
     headers: &HeaderMap,
 ) -> Result<Uuid, AuthError> {
@@ -310,6 +344,8 @@ pub fn extract_user_with_password_check(
     if claims_are_mfa_pending(&claims) {
         return Err(AuthError::unauthorized("MFA verification required"));
     }
+
+    ensure_not_revoked(state, &claims).await?;
 
     check_password_change_required_from_claims(&claims)?;
 

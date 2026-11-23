@@ -149,10 +149,7 @@ pub async fn terminate_session_handler(
 
     let row = state
         .database
-        .query(
-            "SELECT user_id, expires_at FROM sessions WHERE id = $1",
-            &[&target],
-        )
+        .query("SELECT user_id FROM sessions WHERE id = $1", &[&target])
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to look up session");
@@ -169,13 +166,20 @@ pub async fn terminate_session_handler(
     if row.get::<_, Uuid>("user_id") != user_id {
         return Err(not_found());
     }
-    let expires_at: chrono::DateTime<chrono::Utc> = row.get("expires_at");
 
     // Revoke first (fail-closed for any access token carrying this sid), then
     // drop the session row so refresh + listing stop seeing it.
+    //
+    // The revocation must outlive the longest token the session could have
+    // issued, which is the REFRESH token, as logout and the admin/gRPC paths
+    // already do. It was bounded by the session row's own expiry (8 hours), so
+    // once that passed the revocation row was purged and a refresh token taken
+    // from the ended session was accepted again, minting working access tokens
+    // for a session the user had deliberately ended.
+    let revoke_until = chrono::Utc::now() + state.jwt_service.refresh_token_ttl();
     if let Err(e) = state
         .revocation_store
-        .revoke_session(&session_id, expires_at, Some("user_terminated"))
+        .revoke_session(&session_id, revoke_until, Some("user_terminated"))
         .await
     {
         tracing::warn!(error = %e, "Failed to record session revocation");

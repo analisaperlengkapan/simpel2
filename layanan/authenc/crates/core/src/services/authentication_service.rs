@@ -73,6 +73,20 @@ impl AuthenticationServiceImpl {
         }
     }
 
+    /// Open a session for a user whose identity was proven by something other
+    /// than a password, a passkey assertion.
+    ///
+    /// The password login creates its session row inside `authenticate`; a
+    /// passkey login used to skip that and put a random id in the token's `sid`,
+    /// so the session was not listed under *Sesi Aktif*, could not be ended from
+    /// another device, and was invisible to the admin session views. This is the
+    /// same row, from the same store. The caller has already checked that the
+    /// account is enabled.
+    pub async fn establish_session(&self, user_id: UserId) -> Result<SessionId> {
+        let session = self.session_store.create_session(user_id).await?;
+        Ok(SessionId::from_uuid(session.id))
+    }
+
     /// Verify a plaintext password against a stored hash
     pub fn verify_password(&self, password: &str, hash: &str) -> Result<bool> {
         self.password_hasher.verify(password, hash)

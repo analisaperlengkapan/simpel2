@@ -21,6 +21,7 @@ async-trait = { workspace = true }
 
 # WebAuthn dependencies
 webauthn-rs = { workspace = true }
+webauthn-rs-proto = { workspace = true }
 url = { workspace = true }
 
 [dev-dependencies]

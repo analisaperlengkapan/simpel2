@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tracing::{error, info};
 use url::Url;
 use webauthn_rs::prelude::*;
+use webauthn_rs_proto::ResidentKeyRequirement;
 
 use authenc_types::{AuthencError, Result, UserId};
 
@@ -147,8 +148,11 @@ impl WebAuthnService {
             username, user_id.0
         );
 
-        // Generate unique user handle
-        let user_unique_id = uuid::Uuid::new_v4();
+        // The WebAuthn user handle is the user's own id, stable across
+        // registrations. It used to be a fresh random UUID per ceremony, so the
+        // handle an authenticator stored (and hands back at a usernameless
+        // login) pointed at nobody.
+        let user_unique_id = user_id.0;
 
         // Get existing credentials for this user (for excluding from registration)
         let existing_credentials = self
@@ -171,7 +175,7 @@ impl WebAuthnService {
         );
 
         // Start registration ceremony
-        let (ccr, reg_state) = self
+        let (mut ccr, reg_state) = self
             .webauthn
             .start_passkey_registration(
                 user_unique_id,
@@ -183,6 +187,8 @@ impl WebAuthnService {
                 error!("Failed to start passkey registration: {}", e);
                 AuthencError::webauthn(format!("Registration start failed: {}", e))
             })?;
+
+        require_discoverable_credential(&mut ccr);
 
         // Create registration session
         let registration = crate::models::RegistrationSession {
@@ -312,27 +318,43 @@ impl WebAuthnService {
             info!("Starting usernameless passkey authentication (discoverable credentials)");
         }
 
-        // Get allowed credentials
-        let allowed_credentials = if let Some(uid) = user_id {
-            // User-specific authentication (username provided)
-            self.credential_store
-                .get_credentials_for_user(uid)
-                .await
-                .unwrap_or_else(|e| {
-                    error!("Failed to get credentials for user: {}", e);
-                    vec![]
-                })
-        } else {
-            // Usernameless authentication (discoverable credentials)
-            vec![]
+        let Some(uid) = user_id else {
+            // Usernameless: the authenticator chooses the credential. This must
+            // be the discoverable ceremony; a passkey ceremony started with an
+            // empty allow-list cannot be finished (nothing to verify against).
+            let (rcr, state) = self
+                .webauthn
+                .start_discoverable_authentication()
+                .map_err(|e| {
+                    error!("Failed to start discoverable authentication: {}", e);
+                    AuthencError::webauthn(format!("Authentication start failed: {}", e))
+                })?;
+            info!("Usernameless passkey authentication started successfully");
+            return Ok((
+                rcr,
+                crate::models::AuthenticationSession {
+                    user_id: None,
+                    state: crate::models::CeremonyState::Discoverable(state),
+                    created_at: chrono::Utc::now(),
+                },
+            ));
         };
+
+        // User-specific authentication: the allow-list is that user's credentials.
+        let allowed_credentials = self
+            .credential_store
+            .get_credentials_for_user(uid)
+            .await
+            .unwrap_or_else(|e| {
+                error!("Failed to get credentials for user: {}", e);
+                vec![]
+            });
 
         info!(
             "Allowing {} credentials for authentication",
             allowed_credentials.len()
         );
 
-        // Start authentication ceremony
         let (rcr, auth_state) = self
             .webauthn
             .start_passkey_authentication(
@@ -346,16 +368,16 @@ impl WebAuthnService {
                 AuthencError::webauthn(format!("Authentication start failed: {}", e))
             })?;
 
-        // Create authentication session
-        let authentication = crate::models::AuthenticationSession {
-            user_id,
-            state: auth_state,
-            created_at: chrono::Utc::now(),
-        };
-
         info!("Passkey authentication started successfully");
 
-        Ok((rcr, authentication))
+        Ok((
+            rcr,
+            crate::models::AuthenticationSession {
+                user_id,
+                state: crate::models::CeremonyState::Passkey(auth_state),
+                created_at: chrono::Utc::now(),
+            },
+        ))
     }
 
     /// Finish passkey authentication flow
@@ -391,27 +413,73 @@ impl WebAuthnService {
     ) -> Result<crate::models::AuthenticationResult> {
         info!("Finishing passkey authentication");
 
-        // Finish authentication ceremony (verify assertion response)
-        let auth_result = self
-            .webauthn
-            .finish_passkey_authentication(auth, &state.state)
-            .map_err(|e| {
-                error!("Failed to finish passkey authentication: {}", e);
-                crate::models::AuthenticationResult::Failed {
-                    reason: format!("Authentication verification failed: {}", e),
-                }
-            })
-            .map_err(|_| AuthencError::unauthorized("Authentication failed"))?;
+        // Finish the ceremony that was started (verify the assertion), then load
+        // the stored credential it was made with.
+        let (auth_result, credential) = match &state.state {
+            crate::models::CeremonyState::Passkey(passkey_state) => {
+                let result = self
+                    .webauthn
+                    .finish_passkey_authentication(auth, passkey_state)
+                    .map_err(|e| {
+                        error!("Failed to finish passkey authentication: {}", e);
+                        AuthencError::unauthorized("Authentication failed")
+                    })?;
+                let credential = self
+                    .credential_store
+                    .get_credential_by_id(result.cred_id())
+                    .await
+                    .map_err(|e| {
+                        error!("Failed to get credential: {}", e);
+                        AuthencError::not_found("Credential not found")
+                    })?;
+                (result, credential)
+            }
+            crate::models::CeremonyState::Discoverable(discoverable_state) => {
+                // The authenticator picked the credential, so the credential id
+                // it presents is what identifies the user. The user handle in the
+                // assertion is not used: credentials registered before the handle
+                // became the user's id carry a random one.
+                let (_user_handle, presented_id) = self
+                    .webauthn
+                    .identify_discoverable_authentication(auth)
+                    .map_err(|e| {
+                        error!("Failed to identify discoverable credential: {}", e);
+                        AuthencError::unauthorized("Authentication failed")
+                    })?;
+                let credential = self
+                    .credential_store
+                    .get_credential_by_id(&CredentialID::from(presented_id.to_vec()))
+                    .await
+                    .map_err(|e| {
+                        error!("Failed to get credential: {}", e);
+                        AuthencError::unauthorized("Authentication failed")
+                    })?;
+                let result = self
+                    .webauthn
+                    .finish_discoverable_authentication(
+                        auth,
+                        discoverable_state.clone(),
+                        &[DiscoverableKey::from(&credential.cred)],
+                    )
+                    .map_err(|e| {
+                        error!("Failed to finish discoverable authentication: {}", e);
+                        AuthencError::unauthorized("Authentication failed")
+                    })?;
+                (result, credential)
+            }
+        };
 
-        // Get credential from database
-        let credential = self
-            .credential_store
-            .get_credential_by_id(auth_result.cred_id())
-            .await
-            .map_err(|e| {
-                error!("Failed to get credential: {}", e);
-                AuthencError::not_found("Credential not found")
-            })?;
+        // A ceremony started for one user must not be finished with another
+        // user's credential.
+        if let Some(expected) = state.user_id
+            && credential.user_id != expected
+        {
+            error!(
+                "Credential belongs to user {} but the ceremony was started for {}",
+                credential.user_id.0, expected.0
+            );
+            return Err(AuthencError::unauthorized("Authentication failed"));
+        }
 
         // Verify credential counter (replay attack prevention)
         // Note: webauthn-rs handles counter validation internally during finish_passkey_authentication
@@ -619,9 +687,166 @@ impl WebAuthnService {
     }
 }
 
+/// Ask the client for a discoverable (resident) credential.
+///
+/// The portal's primary login is usernameless: the user taps "Masuk dengan
+/// Passkey" without typing a name and the authenticator offers its credential.
+/// An authenticator can only do that for a discoverable credential. webauthn-rs
+/// registers with `residentKey: discouraged`, which platform authenticators
+/// (Touch ID, Windows Hello, Google Password Manager) override on their own but
+/// security keys and virtual authenticators obey, leaving a credential that
+/// registers fine and can never be used to sign in. `required` makes an
+/// authenticator that cannot do it fail at registration, where the user sees it,
+/// instead of at the first login.
+pub(crate) fn require_discoverable_credential(ccr: &mut CreationChallengeResponse) {
+    let selection = ccr
+        .public_key
+        .authenticator_selection
+        .get_or_insert_with(Default::default);
+    selection.resident_key = Some(ResidentKeyRequirement::Required);
+    selection.require_resident_key = true;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    use async_trait::async_trait;
+    use chrono::{DateTime, Utc};
+
+    use crate::models::{CeremonyState, StoredCredential};
+
+    /// A store with no credentials. The ceremonies under test start without one.
+    #[derive(Default)]
+    struct EmptyStore(Mutex<Vec<StoredCredential>>);
+
+    #[async_trait]
+    impl CredentialStore for EmptyStore {
+        async fn store_credential(&self, credential: &StoredCredential) -> Result<()> {
+            self.0.lock().unwrap().push(credential.clone());
+            Ok(())
+        }
+        async fn get_credential(&self, id: uuid::Uuid) -> Result<StoredCredential> {
+            self.0
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|c| c.id == id)
+                .cloned()
+                .ok_or_else(|| AuthencError::not_found("Credential not found"))
+        }
+        async fn get_credential_by_id(&self, cred_id: &CredentialID) -> Result<StoredCredential> {
+            self.0
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|c| &c.cred_id == cred_id)
+                .cloned()
+                .ok_or_else(|| AuthencError::not_found("Credential not found"))
+        }
+        async fn get_credentials_for_user(&self, user_id: UserId) -> Result<Vec<StoredCredential>> {
+            Ok(self
+                .0
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|c| c.user_id == user_id)
+                .cloned()
+                .collect())
+        }
+        async fn delete_credential(&self, _id: uuid::Uuid) -> Result<()> {
+            Ok(())
+        }
+        async fn update_last_used(&self, _id: uuid::Uuid, _ts: DateTime<Utc>) -> Result<()> {
+            Ok(())
+        }
+        async fn update_counter(&self, _id: uuid::Uuid, _counter: u32) -> Result<()> {
+            Ok(())
+        }
+        async fn update_nickname(&self, _id: uuid::Uuid, _nickname: String) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    fn service() -> WebAuthnService {
+        WebAuthnService::new(WebAuthnConfig::default(), Arc::new(EmptyStore::default()))
+            .expect("the default localhost configuration is valid")
+    }
+
+    #[test]
+    fn registration_asks_for_a_discoverable_credential_with_the_users_id_as_handle() {
+        let svc = service();
+        let user_id = UserId(uuid::Uuid::new_v4());
+        let (ccr, _session) = tokio_test::block_on(svc.start_registration(user_id, "ani", "Ani"))
+            .expect("registration starts");
+
+        let selection = ccr
+            .public_key
+            .authenticator_selection
+            .expect("authenticatorSelection is present");
+        assert_eq!(
+            selection.resident_key,
+            Some(ResidentKeyRequirement::Required)
+        );
+        assert!(selection.require_resident_key);
+
+        // The handle is the user's own id, the same one on every registration.
+        let handle: &[u8] = ccr.public_key.user.id.as_ref();
+        assert_eq!(handle, user_id.0.as_bytes());
+        let (again, _) = tokio_test::block_on(svc.start_registration(user_id, "ani", "Ani"))
+            .expect("registration starts again");
+        let handle_again: &[u8] = again.public_key.user.id.as_ref();
+        assert_eq!(handle, handle_again);
+    }
+
+    #[test]
+    fn usernameless_start_is_a_discoverable_ceremony_with_an_empty_allow_list() {
+        let svc = service();
+        let (rcr, session) = tokio_test::block_on(svc.start_authentication(None))
+            .expect("usernameless authentication starts");
+
+        // This is the regression: the state used to be a plain passkey ceremony
+        // built from an empty list, which finish_authentication can never verify.
+        assert!(
+            matches!(session.state, CeremonyState::Discoverable(_)),
+            "usernameless must start the discoverable ceremony"
+        );
+        assert!(session.user_id.is_none());
+        assert!(rcr.public_key.allow_credentials.is_empty());
+    }
+
+    #[test]
+    fn a_named_user_starts_the_passkey_ceremony() {
+        let svc = service();
+        let user_id = UserId(uuid::Uuid::new_v4());
+        let (_rcr, session) = tokio_test::block_on(svc.start_authentication(Some(user_id)))
+            .expect("authentication starts");
+        assert!(matches!(session.state, CeremonyState::Passkey(_)));
+        assert_eq!(session.user_id, Some(user_id));
+    }
+
+    #[test]
+    fn ceremony_state_survives_a_round_trip_through_json() {
+        // The ceremony state is kept in the database between start and finish so
+        // that any replica can finish what another started; it has to serialise.
+        let svc = service();
+        let (_rcr, session) = tokio_test::block_on(svc.start_authentication(None)).expect("starts");
+        let json = serde_json::to_string(&session).expect("serialises");
+        let back: crate::models::AuthenticationSession =
+            serde_json::from_str(&json).expect("deserialises");
+        assert!(matches!(back.state, CeremonyState::Discoverable(_)));
+
+        let (_ccr, reg) = tokio_test::block_on(svc.start_registration(
+            UserId(uuid::Uuid::new_v4()),
+            "ani",
+            "Ani",
+        ))
+        .expect("starts");
+        let json = serde_json::to_string(&reg).expect("serialises");
+        let _: crate::models::RegistrationSession =
+            serde_json::from_str(&json).expect("deserialises");
+    }
 
     #[test]
     fn test_webauthn_config_default() {
