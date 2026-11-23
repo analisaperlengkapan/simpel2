@@ -39,6 +39,9 @@ pub fn UsersManagementPage() -> impl IntoView {
     let (new_email, set_new_email) = signal(String::new());
     let (new_first_name, set_new_first_name) = signal(String::new());
     let (new_last_name, set_new_last_name) = signal(String::new());
+    let (new_nip, set_new_nip) = signal(String::new());
+    let (new_jabatan, set_new_jabatan) = signal(String::new());
+    let (new_satker, set_new_satker) = signal(String::new());
     let (creating, set_creating) = signal(false);
     // The password of the account just created. It exists only here, in memory:
     // shown once, never stored, gone when the admin closes the panel or leaves.
@@ -148,6 +151,9 @@ pub fn UsersManagementPage() -> impl IntoView {
                         Some(new_last_name.get())
                     },
                     enabled: true,
+                    nip: non_empty(&new_nip.get()),
+                    jabatan: non_empty(&new_jabatan.get()),
+                    satker_code: non_empty(&new_satker.get()),
                 };
 
                 match api.iam_create_user(&req).await {
@@ -156,11 +162,8 @@ pub fn UsersManagementPage() -> impl IntoView {
                         // seen. Make it temporary: the user must pick their own
                         // at the first login.
                         let must_change = UpdateUserRequest {
-                            email: None,
-                            first_name: None,
-                            last_name: None,
-                            enabled: None,
                             require_password_change: Some(true),
+                            ..Default::default()
                         };
                         let enforced = match api.iam_update_user(&created.id, &must_change).await {
                             Ok(_) => true,
@@ -183,6 +186,9 @@ pub fn UsersManagementPage() -> impl IntoView {
                         set_new_email.set(String::new());
                         set_new_first_name.set(String::new());
                         set_new_last_name.set(String::new());
+                        set_new_nip.set(String::new());
+                        set_new_jabatan.set(String::new());
+                        set_new_satker.set(String::new());
                         load();
                     }
                     Err(e) => set_error.set(Some(format!("Gagal membuat pengguna: {}", e))),
@@ -203,11 +209,8 @@ pub fn UsersManagementPage() -> impl IntoView {
                 let load = load.clone();
                 spawn_local(async move {
                     let req = UpdateUserRequest {
-                        email: None,
-                        first_name: None,
-                        last_name: None,
                         enabled: Some(enable),
-                        require_password_change: None,
+                        ..Default::default()
                     };
                     match api.iam_update_user(&user_id, &req).await {
                         Ok(_) => {
@@ -486,6 +489,51 @@ pub fn UsersManagementPage() -> impl IntoView {
                                         />
                                     </div>
                                 </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            "NIP"
+                                        </label>
+                                        <input
+                                            type="text"
+                                            inputmode="numeric"
+                                            data-testid="new-user-nip"
+                                            prop:value=new_nip
+                                            on:input=move |ev| set_new_nip.set(event_target_value(&ev))
+                                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            "Jabatan"
+                                        </label>
+                                        <input
+                                            type="text"
+                                            data-testid="new-user-jabatan"
+                                            prop:value=new_jabatan
+                                            on:input=move |ev| {
+                                                set_new_jabatan.set(event_target_value(&ev))
+                                            }
+                                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        "Kode Satker"
+                                    </label>
+                                    <input
+                                        type="text"
+                                        data-testid="new-user-satker"
+                                        prop:value=new_satker
+                                        on:input=move |ev| set_new_satker.set(event_target_value(&ev))
+                                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                                    />
+                                    <p class="mt-1 text-xs text-gray-500">
+                                        "Kode satuan kerja MySIMKARI. Kode ini menentukan data yang dapat "
+                                        "dilihat akun; tanpa kode, akun tidak terkait satker mana pun."
+                                    </p>
+                                </div>
                                 <p class="text-sm text-gray-500">
                                     "Password sementara dibuat otomatis dan ditampilkan sekali setelah "
                                     "pengguna dibuat. Pengguna wajib menggantinya saat login pertama."
@@ -515,6 +563,13 @@ pub fn UsersManagementPage() -> impl IntoView {
             </div>
         </MainLayout>
     }
+}
+
+/// A form field as an optional value: blank (or only spaces) means "not given", so
+/// the backend never stores an empty string where it expects NULL.
+pub(crate) fn non_empty(value: &str) -> Option<String> {
+    let value = value.trim();
+    (!value.is_empty()).then(|| value.to_string())
 }
 
 /// The account just created (or reset) and the password the admin has to pass on.
@@ -569,5 +624,26 @@ pub fn TempPasswordPanel(credential: TempCredential, on_close: Callback<()>) -> 
                 "Saya sudah menyalin, tutup"
             </button>
         </div>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::non_empty;
+
+    #[test]
+    fn blank_form_fields_are_not_given() {
+        assert_eq!(non_empty(""), None);
+        assert_eq!(non_empty("   "), None);
+        assert_eq!(non_empty("\t\n"), None);
+    }
+
+    #[test]
+    fn given_form_fields_are_trimmed() {
+        assert_eq!(
+            non_empty("  199203142014031001 "),
+            Some("199203142014031001".to_string())
+        );
+        assert_eq!(non_empty("Kepala Seksi"), Some("Kepala Seksi".to_string()));
     }
 }
