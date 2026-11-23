@@ -18,12 +18,29 @@ use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
 use lib_ui::utils::formatters::format_iso_wib;
 use phosphor_leptos::{CHART_PIE, FILE_PDF, FILE_XLS, INFO, USERS};
 
-/// Filter-option queries — both keyed `()` because the dropdowns
-/// always show "first 100 active items" regardless of context.
+/// Filter-option queries — both keyed `()` because the dropdowns do not depend
+/// on the context.
+///
+/// Every period, not just the newest page of them. The reports are per
+/// pengajuan, so a period that fell off the first page could not be reported on
+/// at all: on staging the e2e runs had piled the list past 100 and the oldest
+/// period, the one the report tests read, went missing from the dropdown.
 async fn query_pengajuan_options(_: ()) -> Result<Vec<PengajuanPakaianDinas>, AppError> {
-    fetch_pengajuan_pakaian_dinas(1, 100, None)
-        .await
-        .map(|r| r.data)
+    const PER_PAGE: i32 = 100;
+    // A bound, so a wrong `total_pages` can never loop for ever (2,000 periods).
+    const MAX_PAGES: i32 = 20;
+    let mut all = Vec::new();
+    let mut page = 1;
+    loop {
+        let answer = fetch_pengajuan_pakaian_dinas(page, PER_PAGE, None).await?;
+        let total_pages = answer.total_pages;
+        all.extend(answer.data);
+        if page >= total_pages || page >= MAX_PAGES {
+            break;
+        }
+        page += 1;
+    }
+    Ok(all)
 }
 
 async fn query_jenis_options(_: ()) -> Result<Vec<JenisPakaianDinas>, AppError> {
