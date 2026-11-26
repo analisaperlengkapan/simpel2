@@ -79,13 +79,13 @@ impl PakaianDinasRepository {
     }
 
     /// Readiness of one campaign gate (`wilayah` / `pusat`), inside the caller's
-    /// scope. `kecuali` excludes the row the caller is about to act on, so the
-    /// dialog answers "are there OTHERS still behind?" and stays silent when the
-    /// last satker is the one being moved.
+    /// scope. `kecuali` excludes the rows the caller is about to act on (one for
+    /// a single action, many for a bulk move), so the dialog answers "are there
+    /// OTHERS still behind?" and stays silent when the moved rows are the last.
     pub async fn hitung_kesiapan_level(
         &self,
         pengajuan_id: Uuid,
-        kecuali: Option<Uuid>,
+        kecuali: &[Uuid],
         tahap: &str,
         scope: &SatkerScope,
     ) -> AppResult<KesiapanPakaianDinas> {
@@ -95,7 +95,8 @@ impl PakaianDinasRepository {
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
-        let mut params: Vec<BoxedParam> = vec![Box::new(pengajuan_id), Box::new(kecuali)];
+        // Empty list = exclude nothing; `<> ALL('{}')` is true for every row.
+        let mut params: Vec<BoxedParam> = vec![Box::new(pengajuan_id), Box::new(kecuali.to_vec())];
         let scope_sql = scope_and(scope, "ps.satker_id", &mut params);
         // Per-satker counts are materialised in the CTE first: PostgreSQL
         // aggregate FILTER clauses are no place for a correlated subquery, and
@@ -122,7 +123,7 @@ impl PakaianDinasRepository {
                 FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
                 JOIN perlengkapan.pengajuan_pakaian_dinas p ON p.id = ps.pengajuan_id
                 WHERE ps.pengajuan_id = $1
-                  AND ($2::uuid IS NULL OR ps.id <> $2::uuid){scope_sql}
+                  AND ps.id <> ALL($2::uuid[]){scope_sql}
             )
             SELECT
                 COUNT(*) AS total,

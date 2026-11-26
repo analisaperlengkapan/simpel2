@@ -834,5 +834,59 @@ async fn kesiapan_menghitung_yang_belum_mengisi_dan_yang_belum_mengajukan() {
     assert_eq!(k["belum_lengkap"].as_i64(), Some(1), "{k:?}");
     assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
 
+    // A bulk move excludes EVERY selected row: with both participation rows
+    // named, nothing is left behind, so the bulk dialog stays quiet. This is
+    // the comma list the mass-action bar sends.
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker"),
+        "validator_pusat",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    let rows = res.json::<Value>()["data"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let other_id = rows
+        .iter()
+        .find(|r| r["satker_id"].as_str() == Some(SATKER_B))
+        .and_then(|r| r["id"].as_str())
+        .expect("baris SKR002")
+        .to_string();
+    let res = get(
+        &server,
+        &format!(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=wilayah&kecuali={row_id},{other_id}"
+        ),
+        "validator_wilayah",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "kesiapan massal: {:?}", res.text());
+    let k = res.json::<Value>()["data"].clone();
+    assert_eq!(k["total"].as_i64(), Some(0), "{k:?}");
+    assert_eq!(k["lengkap"].as_bool(), Some(true), "{k:?}");
+
+    // A malformed entry is a 400, not a silently dropped row.
+    let res = get(
+        &server,
+        &format!(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=wilayah&kecuali=bukan-uuid"
+        ),
+        "validator_wilayah",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(
+        res.status_code(),
+        400,
+        "kecuali tidak valid: {:?}",
+        res.text()
+    );
+
     teardown_test_db(&db_name).await;
 }

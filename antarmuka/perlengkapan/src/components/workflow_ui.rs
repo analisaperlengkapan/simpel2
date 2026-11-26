@@ -353,6 +353,7 @@ pub fn ConfirmDialog(
 
     view! {
         <div
+            data-testid="dialog-konfirmasi"
             class="fixed inset-0 z-modal flex items-center justify-center bg-black/50 p-4"
             on:click=move |e| {
                 if e.target() == e.current_target() && !is_busy() {
@@ -369,6 +370,7 @@ pub fn ConfirmDialog(
                 <div class="flex justify-end gap-2">
                     <button
                         type="button"
+                        data-testid="konfirmasi-batal"
                         class="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-white/[0.04] disabled:opacity-50"
                         prop:disabled=move || is_busy()
                         on:click=move |_| on_close.run(())
@@ -377,6 +379,7 @@ pub fn ConfirmDialog(
                     </button>
                     <button
                         type="button"
+                        data-testid="konfirmasi-lanjut"
                         class=format!(
                             "rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50 {}",
                             confirm_class,

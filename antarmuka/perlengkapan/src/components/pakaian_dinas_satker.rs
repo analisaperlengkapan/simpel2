@@ -22,8 +22,8 @@ use crate::api::{
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::components::pagination_controls::PaginationControls;
 use crate::components::workflow_ui::{
-    ActionTone, ApprovalDialog, StepStatus, WorkflowAction, WorkflowActions, WorkflowStep,
-    WorkflowTimeline,
+    ActionTone, ApprovalDialog, ConfirmDialog, StepStatus, WorkflowAction, WorkflowActions,
+    WorkflowStep, WorkflowTimeline,
 };
 use crate::features::auth::AuthService;
 use lib_ui::components::icon::AppIcon;
@@ -221,6 +221,17 @@ struct PendingAction {
     warning: Option<String>,
 }
 
+/// A pending bulk move awaiting confirmation. `label` is the move the bar
+/// offers ("Teruskan ke Pusat" / "Setujui (Selesai)"); the warning is the
+/// advisory count of OTHER satker still behind, fetched with every selected row
+/// excluded so the dialog does not warn about the rows it is about to move.
+#[derive(Clone)]
+struct PendingBulk {
+    ids: Vec<String>,
+    label: String,
+    warning: Option<String>,
+}
+
 #[component]
 pub fn PakaianDinasSatkerDetail() -> impl IntoView {
     // Only the satker's operator fills sizes; everyone else reads them. The link
@@ -258,6 +269,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
     // would carry the tick over to the final-approval bar, so that bar's button finished it too.
     let terpilih = RwSignal::new(Vec::<(String, &'static str)>::new());
     let hasil_massal = RwSignal::new(Option::<BulkActionResult>::None);
+    let pending_massal = RwSignal::new(Option::<PendingBulk>::None);
 
     let client: QueryClient = expect_context();
     let list_resource = client.local_resource(query_satker_list, move || {
@@ -355,6 +367,10 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                 }
                 Err(e) => error.set(Some(e.user_message())),
             }
+            // Close the confirmation only once the request is done, so the
+            // dialog's busy state is what the person watches, not a bar that
+            // vanished mid-request.
+            pending_massal.set(None);
             busy.set(false);
         });
     });
@@ -586,7 +602,44 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                 }
                                                 on:click={
                                                     let dipilih = dipilih.clone();
-                                                    move |_| on_massal.run(dipilih())
+                                                    move |_| {
+                                                        let ids = dipilih();
+                                                        if ids.is_empty() {
+                                                            return;
+                                                        }
+                                                        busy.set(true);
+                                                        error.set(None);
+                                                        let pid = pengajuan_id();
+                                                        // The bar's label is the move; the
+                                                        // readiness gate is the level it acts on.
+                                                        let tahap = if label == "Teruskan ke Pusat" {
+                                                            "wilayah"
+                                                        } else {
+                                                            "pusat"
+                                                        };
+                                                        let kecuali = ids.clone();
+                                                        spawn_local(async move {
+                                                            let warning = fetch_kesiapan_pakaian_dinas(
+                                                                    pid,
+                                                                    tahap,
+                                                                    None,
+                                                                    kecuali,
+                                                                )
+                                                                .await
+                                                                .ok()
+                                                                .filter(|k| !k.lengkap)
+                                                                .and_then(|k| ringkasan_kesiapan(&k));
+                                                            pending_massal
+                                                                .set(
+                                                                    Some(PendingBulk {
+                                                                        ids,
+                                                                        label: label.to_string(),
+                                                                        warning,
+                                                                    }),
+                                                                );
+                                                            busy.set(false);
+                                                        });
+                                                    }
                                                 }
                                             >
                                                 {
@@ -791,7 +844,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                     pid,
                                                     tahap,
                                                     None,
-                                                    Some(sid.clone()),
+                                                    vec![sid.clone()],
                                                 )
                                                 .await
                                                 .ok()
@@ -906,6 +959,40 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                 confirm_tone=act.tone
                                 on_confirm=on_confirm
                                 on_close=Callback::new(move |_: ()| pending.set(None))
+                                busy=Signal::derive(move || busy.get())
+                            />
+                        }
+                    })
+            }}
+            // Confirmation for a bulk move. The warning is the same readiness
+            // count a single action shows, with every selected row excluded.
+            {move || {
+                pending_massal
+                    .get()
+                    .map(|b| {
+                        let n = b.ids.len();
+                        let ids = b.ids.clone();
+                        let (title, message) = if b.label == "Teruskan ke Pusat" {
+                            (
+                                format!("Teruskan {n} satker ke Validator Pusat?"),
+                                "Satker terpilih akan diteruskan sekaligus.".to_string(),
+                            )
+                        } else {
+                            (
+                                format!("Setujui {n} satker (Selesai)?"),
+                                "Satker terpilih akan diselesaikan dan tidak bisa diubah lagi."
+                                    .to_string(),
+                            )
+                        };
+                        view! {
+                            <ConfirmDialog
+                                title=title
+                                message=message
+                                warning=b.warning.clone()
+                                confirm_label="Ya, lanjutkan"
+                                confirm_tone=ActionTone::Success
+                                on_confirm=Callback::new(move |_: ()| on_massal.run(ids.clone()))
+                                on_close=Callback::new(move |_: ()| pending_massal.set(None))
                                 busy=Signal::derive(move || busy.get())
                             />
                         }

@@ -892,6 +892,8 @@ test.describe("Pakaian Dinas — bulk approval", () => {
     await pw.getByTestId("pilih-semua").check();
     await expect(pw.getByText("2 dipilih")).toBeVisible();
     await pw.getByTestId("setujui-massal").click();
+    await expect(pw.getByTestId("dialog-konfirmasi")).toBeVisible();
+    await pw.getByTestId("konfirmasi-lanjut").click();
     await expect(pw.getByTestId("hasil-massal")).toContainText("2 satker diproses", { timeout: 15000 });
     expect(await statuses()).toEqual([1004, 1004]);
     await wilayah.close();
@@ -903,6 +905,8 @@ test.describe("Pakaian Dinas — bulk approval", () => {
     await expect(pp.getByTestId("bilah-massal")).toBeVisible({ timeout: 20000 });
     await pp.getByTestId("pilih-semua").check();
     await pp.getByTestId("setujui-massal").click();
+    await expect(pp.getByTestId("dialog-konfirmasi")).toBeVisible();
+    await pp.getByTestId("konfirmasi-lanjut").click();
     await expect(pp.getByTestId("hasil-massal")).toContainText("2 satker diproses", { timeout: 15000 });
     expect(await statuses()).toEqual([1008, 1008]);
     await pusatCtx.close();
@@ -999,11 +1003,23 @@ test.describe("Pakaian Dinas — bulk actions for an account holding both valida
     await expect(approve).toBeVisible();
     await expect(forward.getByTestId("setujui-massal")).toBeDisabled();
 
+    // Pusat's bulk confirmation names the satker wilayah has not forwarded yet,
+    // and cancelling it moves nothing.
+    await approve.getByTestId("pilih-semua").check();
+    await expect(approve).toContainText("1 dipilih");
+    await approve.getByTestId("setujui-massal").click();
+    await expect(page.getByTestId("dialog-peringatan")).toContainText("belum diteruskan");
+    await page.getByTestId("konfirmasi-batal").click();
+    await approve.getByTestId("pilih-semua").uncheck();
+    await expect(approve).toContainText("0 dipilih");
+
     // Ticking the forward bar's "select all" selects its own row only.
     await forward.getByTestId("pilih-semua").check();
     await expect(forward).toContainText("1 dipilih");
     await expect(approve).toContainText("0 dipilih");
     await forward.getByTestId("setujui-massal").click();
+    await expect(page.getByTestId("dialog-konfirmasi")).toBeVisible();
+    await page.getByTestId("konfirmasi-lanjut").click();
     await expect(page.getByTestId("hasil-massal")).toContainText("1 satker diproses", { timeout: 15000 });
 
     const pusat = await tokenFor(request, "validator_pusat");

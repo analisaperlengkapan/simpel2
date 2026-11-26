@@ -1115,13 +1115,14 @@ pub async fn process_validator_action_bulk(
 }
 
 /// `GET /pakaian-dinas/pengajuan/{id}/kesiapan` — pre-flight counts for the
-/// confirmation dialog. `kecuali` is the participation row about to be moved.
+/// confirmation dialog. `kecuali` lists the participation rows about to be
+/// moved (one for a single action, many for a bulk move).
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_kesiapan_pakaian_dinas(
     pengajuan_id: String,
     tahap: &str,
     satker_code: Option<String>,
-    kecuali: Option<String>,
+    kecuali: Vec<String>,
 ) -> Result<KesiapanPakaianDinas, crate::api::AppError> {
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
@@ -1136,8 +1137,14 @@ pub async fn fetch_kesiapan_pakaian_dinas(
     if let Some(kode) = satker_code.filter(|k| !k.trim().is_empty()) {
         url.push_str(&format!("&satker_code={}", kode));
     }
-    if let Some(id) = kecuali.filter(|k| !k.trim().is_empty()) {
-        url.push_str(&format!("&kecuali={}", id));
+    let kecuali = kecuali
+        .iter()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(",");
+    if !kecuali.is_empty() {
+        url.push_str(&format!("&kecuali={}", kecuali));
     }
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -1157,7 +1164,7 @@ pub async fn fetch_kesiapan_pakaian_dinas(
     _pengajuan_id: String,
     _tahap: &str,
     _satker_code: Option<String>,
-    _kecuali: Option<String>,
+    _kecuali: Vec<String>,
 ) -> Result<KesiapanPakaianDinas, crate::api::AppError> {
     Err(crate::api::AppError::Unknown(
         "Server-side stub".to_string(),

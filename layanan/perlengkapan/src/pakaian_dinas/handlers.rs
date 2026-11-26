@@ -70,13 +70,29 @@ pub struct PengajuanFilterQuery {
 }
 
 /// `?tahap=&satker_code=&kecuali=` of the readiness pre-flight.
-/// `tahap` is `satker` | `wilayah` | `pusat`; `kecuali` is the participation
-/// row about to be moved and is left out of the count.
+/// `tahap` is `satker` | `wilayah` | `pusat`; `kecuali` is a comma-separated
+/// list of participation rows about to be moved (one row for a single action,
+/// many for a bulk move), left out of the count.
 #[derive(Debug, Deserialize)]
 pub struct KesiapanQuery {
     pub tahap: String,
     pub satker_code: Option<String>,
-    pub kecuali: Option<Uuid>,
+    pub kecuali: Option<String>,
+}
+
+/// `kecuali` is a comma list so one endpoint serves both a single action and a
+/// bulk move. Blank entries are ignored; anything that is not a UUID is a 400
+/// rather than a silently ignored row.
+fn parse_kecuali(raw: Option<&str>) -> AppResult<Vec<Uuid>> {
+    raw.unwrap_or_default()
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| {
+            Uuid::parse_str(s)
+                .map_err(|_| bad_request("kecuali harus berupa daftar UUID dipisah koma"))
+        })
+        .collect()
 }
 
 #[derive(Debug, Deserialize)]
@@ -690,7 +706,7 @@ pub async fn get_kesiapan_pakaian_dinas(
             pengajuan_id,
             &query.tahap,
             query.satker_code.as_deref(),
-            query.kecuali,
+            &parse_kecuali(query.kecuali.as_deref())?,
             &SatkerScope::from_claims(&claims),
         )
         .await?;

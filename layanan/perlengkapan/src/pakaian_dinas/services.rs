@@ -653,14 +653,15 @@ impl PakaianDinasService {
     ///
     /// `tahap` is `satker` (one operator's roster), `wilayah` (the satker a
     /// wilayah validator still waits on) or `pusat` (the satker/wilayah pusat
-    /// still waits on). `kecuali` is the participation row about to be moved and
-    /// is excluded so the dialog counts only the OTHERS still behind.
+    /// still waits on). `kecuali` lists the participation rows about to be
+    /// moved — one for a single action, many for a bulk move — and is excluded
+    /// so the dialog counts only the OTHERS still behind.
     pub async fn kesiapan(
         &self,
         pengajuan_id: Uuid,
         tahap: &str,
         satker_code: Option<&str>,
-        kecuali: Option<Uuid>,
+        kecuali: &[Uuid],
         scope: &SatkerScope,
     ) -> AppResult<KesiapanPakaianDinas> {
         match tahap {
