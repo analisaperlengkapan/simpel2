@@ -41,54 +41,78 @@ pub struct MenungguPakaianDinas {
 
 // ============ Workflow readiness ============
 
-/// Pre-flight "kesiapan" for one workflow gate (satker / wilayah / pusat).
+/// Pre-flight "kesiapan" for the confirmation dialog shown before a workflow move.
 ///
-/// Advisory, never a hard block: the UI shows these numbers in a confirmation
-/// dialog and the person may still proceed. The counts are computed server-side
-/// so the dialog cannot disagree with the data — the client only ever holds one
-/// page of the satker list, not the whole campaign.
+/// Advisory, never a hard block: the person sees the numbers and may still
+/// proceed. The counts are computed server-side so the dialog cannot disagree
+/// with the data: the client only ever holds one page of the satker list.
+///
+/// **The warning follows the scope of the action**, and so does this shape:
+///
+/// * `tahap = "satker"`: ONE satker. Used by the operator submitting their own
+///   satker and by a validator moving a single satker row on. Only `total` and
+///   `pegawai_belum_diisi` are filled: how many of THAT satker's employees owe a
+///   size and still have none. Nothing about any other satker, because moving
+///   this one does not depend on them.
+/// * `tahap = "wilayah" | "pusat"`: a bulk move of several rows (`terpilih`).
+///   Two groups, never mixed:
+///     - `fokus_*`: the rows being moved. How many are not complete and how many
+///       employees are missing in them.
+///     - the rest, the satker in the caller's scope that are NOT being moved
+///       (`total` of them): `belum_mengajukan` (never submitted, still below the
+///       wilayah) and, for `pusat`, `belum_diteruskan` (the wilayah has not
+///       forwarded them yet).
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct KesiapanPakaianDinas {
-    /// `satker` | `wilayah` | `pusat` — which gate this answers.
+    /// `satker` | `wilayah` | `pusat`: which gate this answers.
     pub tahap: String,
-    /// Nothing outstanding at this gate.
+    /// Nothing outstanding for this action.
     pub lengkap: bool,
-    /// Units the gate covers: pegawai for `satker`, satker for the others.
+    /// `satker`: employees in the satker's roster. `wilayah`/`pusat`: the other
+    /// satker in scope, the ones NOT being moved.
     pub total: i64,
-    /// Pegawai without a saved size (`satker` only).
+    /// `satker` only: employees of that satker without a saved size.
     pub pegawai_belum_diisi: i64,
-    /// Satker that have not submitted to the wilayah validator (1000/1003).
+    /// Bulk only: rows being moved.
+    #[serde(default)]
+    pub fokus_satker: i64,
+    /// Bulk only: of the rows being moved, how many have at least one employee
+    /// without a size.
+    #[serde(default)]
+    pub fokus_belum_lengkap: i64,
+    /// Bulk only: employees without a size in the rows being moved.
+    #[serde(default)]
+    pub fokus_pegawai_belum: i64,
+    /// Bulk only: employees in the roster of the rows being moved.
+    #[serde(default)]
+    pub fokus_pegawai_total: i64,
+    /// Bulk only, outside the moved rows: satker that have not submitted to the
+    /// wilayah validator (1000/1003) and have employees to submit for.
     pub belum_mengajukan: i64,
-    /// Submitted satker whose roster is not fully filled (not 1000/1003/1008).
-    pub belum_lengkap: i64,
-    /// Satker already at the wilayah step but not forwarded to pusat
-    /// (1001/1007/1012).
+    /// Bulk only, outside the moved rows: satker waiting at the wilayah step,
+    /// not forwarded to pusat (1001/1007/1012).
     pub belum_diteruskan: i64,
-    /// Satker already at the pusat step but not finalised (1004/1010).
-    pub belum_selesai: i64,
-    /// Satker finalised (1008).
-    pub selesai: i64,
 }
 
 /// Is a gate complete? Pure so the rule is testable without a database.
 ///
-/// `wilayah` waits on the satker it is about to forward: nobody may still be at
-/// Input/Revisi and no already-submitted satker may be half-filled. `pusat`
-/// additionally waits on the satker wilayah has not forwarded yet — that is the
-/// "wilayah belum mengajukan ke pusat" the confirmation names. Satker at pusat
-/// awaiting their own final approval (`belum_selesai`) are pusat's own queue,
-/// not a subordinate that failed to submit, so they do not make the gate
-/// "incomplete".
+/// `satker`: every employee of the satker has a size. A bulk move is complete
+/// when the rows being moved are all filled AND nobody is left below the level
+/// that moves: for `wilayah` no satker has still to submit; for `pusat` none has
+/// still to submit and none is still waiting at the wilayah. Satker already at
+/// pusat waiting for their own final approval are pusat's own queue, not a
+/// subordinate that failed to submit, so they never make the gate incomplete.
 pub fn kesiapan_lengkap(
     tahap: &str,
+    pegawai_belum_diisi: i64,
+    fokus_belum_lengkap: i64,
     belum_mengajukan: i64,
-    belum_lengkap: i64,
     belum_diteruskan: i64,
 ) -> bool {
     match tahap {
-        "satker" => belum_lengkap == 0,
-        "wilayah" => belum_mengajukan == 0 && belum_lengkap == 0,
-        "pusat" => belum_mengajukan == 0 && belum_lengkap == 0 && belum_diteruskan == 0,
+        "satker" => pegawai_belum_diisi == 0,
+        "wilayah" => fokus_belum_lengkap == 0 && belum_mengajukan == 0,
+        "pusat" => fokus_belum_lengkap == 0 && belum_mengajukan == 0 && belum_diteruskan == 0,
         _ => false,
     }
 }
@@ -187,22 +211,22 @@ mod kesiapan_tests {
 
     #[test]
     fn each_gate_only_waits_on_its_own_outstanding_work() {
-        // satker: only unfilled employees matter.
-        assert!(kesiapan_lengkap("satker", 9, 0, 9));
-        assert!(!kesiapan_lengkap("satker", 0, 1, 0));
+        // satker: only that satker's unfilled employees matter, nothing else.
+        assert!(kesiapan_lengkap("satker", 0, 9, 9, 9));
+        assert!(!kesiapan_lengkap("satker", 1, 0, 0, 0));
 
-        // wilayah: nobody may still be at Input/Revisi and no already-submitted
-        // satker may be half-filled. Satker not yet forwarded are the wilayah's
-        // own queue, so they do not make the gate incomplete.
-        assert!(!kesiapan_lengkap("wilayah", 1, 0, 5));
-        assert!(!kesiapan_lengkap("wilayah", 0, 1, 0));
-        assert!(kesiapan_lengkap("wilayah", 0, 0, 5));
+        // wilayah (bulk): the rows being moved must be complete and no satker may
+        // still be below. Satker waiting at the wilayah itself are its own queue.
+        assert!(!kesiapan_lengkap("wilayah", 0, 1, 0, 0));
+        assert!(!kesiapan_lengkap("wilayah", 0, 0, 1, 0));
+        assert!(kesiapan_lengkap("wilayah", 0, 0, 0, 5));
 
-        // pusat: also waits on what wilayah has not forwarded yet.
-        assert!(!kesiapan_lengkap("pusat", 0, 0, 1));
-        assert!(kesiapan_lengkap("pusat", 0, 0, 0));
+        // pusat (bulk): also waits on what the wilayah has not forwarded yet.
+        assert!(!kesiapan_lengkap("pusat", 0, 0, 0, 1));
+        assert!(!kesiapan_lengkap("pusat", 0, 1, 0, 0));
+        assert!(kesiapan_lengkap("pusat", 0, 0, 0, 0));
 
         // An unknown gate is never silently "complete".
-        assert!(!kesiapan_lengkap("lainnya", 0, 0, 0));
+        assert!(!kesiapan_lengkap("lainnya", 0, 0, 0, 0));
     }
 }
