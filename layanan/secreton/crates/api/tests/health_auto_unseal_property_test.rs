@@ -11,7 +11,7 @@
 //! 1. When auto-unseal is enabled, the health response includes auto_unseal field
 //! 2. When auto-unseal is disabled, the auto_unseal field is None
 //! 3. Provider information is correctly included in the response
-//! 4. All provider types are handled correctly (AWS KMS, GCP KMS, Azure KV, Transit)
+//! 4. All provider types are handled correctly (GCP KMS, Azure KV, Transit)
 //! 5. The response format is consistent and serializable
 //! 6. Sensitive data is not exposed in health responses
 
@@ -23,7 +23,6 @@ use secreton_api::response::{
 /// Provider type for auto-unseal
 #[derive(Debug, Clone, PartialEq)]
 enum ProviderType {
-    AwsKms,
     GcpKms,
     AzureKv,
     Transit,
@@ -32,7 +31,6 @@ enum ProviderType {
 impl ProviderType {
     fn as_str(&self) -> &'static str {
         match self {
-            ProviderType::AwsKms => "aws-kms",
             ProviderType::GcpKms => "gcp-kms",
             ProviderType::AzureKv => "azure-kv",
             ProviderType::Transit => "transit",
@@ -40,7 +38,7 @@ impl ProviderType {
     }
 
     fn requires_region(&self) -> bool {
-        matches!(self, ProviderType::AwsKms | ProviderType::GcpKms)
+        matches!(self, ProviderType::GcpKms)
     }
 
     fn requires_endpoint(&self) -> bool {
@@ -51,7 +49,6 @@ impl ProviderType {
 /// Strategy for generating provider types
 fn provider_type_strategy() -> impl Strategy<Value = ProviderType> {
     prop_oneof![
-        Just(ProviderType::AwsKms),
         Just(ProviderType::GcpKms),
         Just(ProviderType::AzureKv),
         Just(ProviderType::Transit),
@@ -61,27 +58,12 @@ fn provider_type_strategy() -> impl Strategy<Value = ProviderType> {
 /// Strategy for generating key IDs
 fn key_id_strategy() -> impl Strategy<Value = String> {
     prop_oneof![
-        // AWS KMS ARN format
-        "arn:aws:kms:[a-z]{2}-[a-z]+-[0-9]:[0-9]{12}:key/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}",
-        // AWS KMS alias format
-        "alias/[a-z0-9-]{3,20}",
         // GCP KMS resource name format
         "projects/[a-z0-9-]{3,20}/locations/[a-z0-9-]{3,20}/keyRings/[a-z0-9-]{3,20}/cryptoKeys/[a-z0-9-]{3,20}",
         // Azure Key Vault key name
         "[a-z0-9-]{3,20}",
         // Transit key name
         "[a-z0-9-]{3,20}",
-    ]
-}
-
-/// Strategy for generating AWS regions
-fn aws_region_strategy() -> impl Strategy<Value = String> {
-    prop_oneof![
-        Just("us-east-1".to_string()),
-        Just("us-west-2".to_string()),
-        Just("eu-west-1".to_string()),
-        Just("ap-southeast-1".to_string()),
-        Just("ap-northeast-1".to_string()),
     ]
 }
 
@@ -132,7 +114,6 @@ fn auto_unseal_status_strategy() -> impl Strategy<Value = Option<AutoUnsealStatu
                     // Generate region or endpoint based on provider type
                     let region_strategy = if provider_type.requires_region() {
                         match provider_type {
-                            ProviderType::AwsKms => aws_region_strategy().boxed(),
                             ProviderType::GcpKms => gcp_location_strategy().boxed(),
                             _ => Just(String::new()).boxed(),
                         }
@@ -285,7 +266,7 @@ proptest! {
 
             // Check provider-specific requirements
             match provider.as_str() {
-                "aws-kms" | "gcp-kms" => {
+                "gcp-kms" => {
                     // Cloud KMS providers should have region
                     prop_assert!(
                         auto_unseal.provider_region.is_some(),
@@ -343,8 +324,8 @@ proptest! {
 
     /// **Property 5.4: All provider types handled**
     ///
-    /// The health endpoint MUST correctly handle all four provider types:
-    /// AWS KMS, GCP KMS, Azure Key Vault, and Transit.
+    /// The health endpoint MUST correctly handle all three provider types:
+    /// GCP KMS, Azure Key Vault, and Transit.
     #[test]
     fn prop_all_provider_types_handled(provider_type in provider_type_strategy()) {
         let provider_str = provider_type.as_str();
@@ -401,7 +382,7 @@ proptest! {
     /// The health endpoint MUST NOT expose sensitive data such as:
     /// - Encryption keys
     /// - Credentials
-    /// - Full ARNs with account IDs (for AWS)
+    /// - Full resource names with account or project IDs
     ///
     /// Only metadata like provider type, key ID/alias, and region should be included.
     #[test]
@@ -539,12 +520,10 @@ mod unit_tests {
 
     #[test]
     fn test_provider_type_requirements() {
-        assert!(ProviderType::AwsKms.requires_region());
         assert!(ProviderType::GcpKms.requires_region());
         assert!(!ProviderType::AzureKv.requires_region());
         assert!(!ProviderType::Transit.requires_region());
 
-        assert!(!ProviderType::AwsKms.requires_endpoint());
         assert!(!ProviderType::GcpKms.requires_endpoint());
         assert!(ProviderType::AzureKv.requires_endpoint());
         assert!(ProviderType::Transit.requires_endpoint());
@@ -552,7 +531,6 @@ mod unit_tests {
 
     #[test]
     fn test_provider_type_strings() {
-        assert_eq!(ProviderType::AwsKms.as_str(), "aws-kms");
         assert_eq!(ProviderType::GcpKms.as_str(), "gcp-kms");
         assert_eq!(ProviderType::AzureKv.as_str(), "azure-kv");
         assert_eq!(ProviderType::Transit.as_str(), "transit");

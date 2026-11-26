@@ -1,5 +1,7 @@
 # Secreton Auto-Unseal Guide
 
+> **Catatan (2026-11):** penyedia dan layanan AWS (KMS, S3, IAM/STS, CloudHSM) sudah **dihapus dari kode** — deployment ini berjalan di server sendiri / pusat data nasional, tanpa cloud publik. Bagian di dokumen ini yang masih menyebut AWS tidak berlaku dan hanya tersisa sebagai riwayat.
+
 ## Table of Contents
 
 1. [Overview](#overview)
@@ -7,7 +9,6 @@
 3. [Prerequisites](#prerequisites)
 4. [Provider Setup Guides](#provider-setup-guides)
    - [Transit Provider](#transit-provider)
-   - [AWS KMS Provider](#aws-kms-provider)
    - [GCP KMS Provider](#gcp-kms-provider)
    - [Azure Key Vault Provider](#azure-key-vault-provider)
 5. [Configuration](#configuration)
@@ -97,13 +98,6 @@ Auto-unseal is a critical feature that allows Secreton to automatically unseal i
 - Transit engine enabled on the remote Secreton
 - Transit key created for auto-unseal
 - Valid authentication token with encrypt/decrypt permissions
-
-#### AWS KMS Provider
-
-- AWS account with KMS access
-- KMS key created in target region
-- IAM role or access keys with `kms:Encrypt` and `kms:Decrypt` permissions
-- Network access to AWS KMS endpoints
 
 #### GCP KMS Provider
 
@@ -210,13 +204,6 @@ export SECRETON_AUTO_UNSEAL_TRANSIT_TOKEN="hvs.CAESIJ..."
 
 ---
 
-### AWS KMS Provider
-
-The AWS KMS provider is ideal for AWS deployments and supports both IAM roles and access keys.
-
-#### Step 1: Create KMS Key
-
-```bash
 # Create a KMS key for auto-unseal
 aws kms create-key \
   --description "Secreton Auto-Unseal Key" \
@@ -662,7 +649,7 @@ Secreton supports three methods for auto-unseal configuration (in order of prece
 # Enable auto-unseal
 enabled = true
 
-# Provider type: "transit", "aws-kms", "gcp-kms", "azure-kv"
+# Provider type: "transit", "gcp-kms", "azure-kv"
 provider = "aws-kms"
 
 # Fallback to manual unseal if auto-unseal fails
@@ -687,12 +674,6 @@ tls_verify = true
 ca_cert_path = "/etc/secreton/ca.crt"
 ```
 
-#### AWS KMS Provider Settings
-
-```toml
-[auto_unseal.aws_kms]
-key_id = "alias/secreton-auto-unseal"
-region = "us-east-1"
 # Optional: credentials (uses IAM role if omitted)
 access_key_id = "${AWS_ACCESS_KEY_ID}"
 secret_access_key = "${AWS_SECRET_ACCESS_KEY}"

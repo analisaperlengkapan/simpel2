@@ -3,7 +3,6 @@
 //! This crate provides automatic unsealing capabilities using external key management services.
 //! Supported providers:
 //! - Transit: Use another Secreton instance's Transit engine
-//! - AWS KMS: Amazon Web Services Key Management Service
 //! - GCP KMS: Google Cloud Platform Key Management Service
 //! - Azure Key Vault: Microsoft Azure Key Vault
 //!
@@ -52,9 +51,6 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "transit")]
 pub mod transit;
 
-#[cfg(feature = "aws-kms")]
-pub mod aws_kms;
-
 #[cfg(feature = "gcp-kms")]
 pub mod gcp_kms;
 
@@ -76,7 +72,7 @@ pub use fallback::{AutoUnsealManager, UnsealResult};
 /// on startup without manual intervention.
 #[async_trait]
 pub trait AutoUnsealProvider: Send + Sync {
-    /// Provider name (e.g., "aws-kms", "gcp-kms", "azure-kv", "transit")
+    /// Provider name (e.g., "gcp-kms", "azure-kv", "transit")
     fn name(&self) -> &str;
 
     /// Encrypt the master key with the provider's key
@@ -143,7 +139,7 @@ pub trait AutoUnsealProvider: Send + Sync {
 /// Contains information about the auto-unseal provider configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderMetadata {
-    /// Provider type (e.g., "aws-kms", "gcp-kms", "azure-kv", "transit")
+    /// Provider type (e.g., "gcp-kms", "azure-kv", "transit")
     pub provider_type: String,
 
     /// Key identifier (ARN, resource ID, key name, etc.)
@@ -186,16 +182,16 @@ mod tests {
 
     #[test]
     fn test_provider_metadata_construction() {
-        let metadata = ProviderMetadata::new("aws-kms".to_string(), "key-123".to_string())
-            .with_region("us-east-1".to_string())
-            .with_endpoint("https://kms.us-east-1.amazonaws.com".to_string());
+        let metadata = ProviderMetadata::new("gcp-kms".to_string(), "key-123".to_string())
+            .with_region("europe-west1".to_string())
+            .with_endpoint("https://cloudkms.googleapis.com".to_string());
 
-        assert_eq!(metadata.provider_type, "aws-kms");
+        assert_eq!(metadata.provider_type, "gcp-kms");
         assert_eq!(metadata.key_id, "key-123");
-        assert_eq!(metadata.region, Some("us-east-1".to_string()));
+        assert_eq!(metadata.region, Some("europe-west1".to_string()));
         assert_eq!(
             metadata.endpoint,
-            Some("https://kms.us-east-1.amazonaws.com".to_string())
+            Some("https://cloudkms.googleapis.com".to_string())
         );
     }
 

@@ -337,7 +337,6 @@ pub struct SealProviderInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SealProviderType {
     // Cloud Providers
-    AwsKms,
     AzureKeyEngine,
     GcpKms,
 
@@ -346,7 +345,6 @@ pub enum SealProviderType {
     Thales,
     Gemalto,
     AzureDedicatedHsm,
-    AwsCloudHsm,
 
     // Software Providers
     Transit,

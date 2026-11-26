@@ -8,10 +8,6 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use crate::error::{BackupError, Result};
 use crate::metadata::{Backup, BackupMetadata};
 
-pub mod s3;
-
-pub use s3::S3Storage;
-
 /// Trait for backup storage backends
 #[async_trait]
 pub trait BackupStorage: Send + Sync {

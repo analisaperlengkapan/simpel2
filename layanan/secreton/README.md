@@ -27,7 +27,6 @@ Secreton provides encrypted secret storage, transit encryption, PKI certificate 
 │  │  SecretService · TransitEngine · PkiEngine · SshEngine  │  │
 │  │  AuthService · SealService · NamespaceService           │  │
 │  │  DatabaseSecretsEngine · TotpEngine · TransformEngine   │  │
-│  │  AwsEngine                                              │  │
 │  │  RotationEngine · LeaseManager · PolicyService          │  │
 │  │  WrappingService · MfaService                           │  │
 │  │  BackupManager · AuditLogger                            │  │
@@ -55,9 +54,9 @@ layanan/secreton/
 │   ├── grpc/               # gRPC server (Tonic 0.14), proto-generated code, TLS, interceptors
 │   ├── cli/                # CLI binary (clap): seal, secret, transit, policy, audit, backup, replication
 │   ├── agent/              # Sidecar agent: auto-auth, token renewal, template rendering
-│   ├── hsm/                # HSM via PKCS#11: Thales Luna, AWS CloudHSM, SoftHSM2, YubiHSM2
+│   ├── hsm/                # HSM via PKCS#11: Thales Luna, SoftHSM2, YubiHSM2
 │   ├── k8s-operator/       # Kubernetes operator: SecretSync CRD, reconciler
-│   ├── auto-unseal/        # Auto-unseal providers: Transit, AWS KMS, GCP KMS, Azure Key Vault
+│   ├── auto-unseal/        # Auto-unseal providers: Transit, GCP KMS, Azure Key Vault
 │   ├── backup/             # Backup/restore: scheduler, S3/local storage, alerting
 │   ├── health/             # Health check registry: Healthy/Degraded/Unhealthy status
 │   └── replication/        # Performance + DR replication: failover, conflict resolution
@@ -286,7 +285,6 @@ Automatic secret rotation with webhook notifications.
 | TOTP | `/v1/sys/totp` | Time-based OTP key management and code generation/validation |
 | Crypto (HMAC, Random) | `/v1/sys/crypto` | HMAC computation, random byte generation, re-encryption |
 | Transform (FPE/Tokenization) | `/v1/sys/transform` | Format-preserving encryption, tokenization roles |
-| AWS | `/v1/sys/aws` | Dynamic AWS IAM/STS credentials |
 | Zero-Knowledge | `/v1/sys/zk` | Zero-knowledge secret storage |
 | Inject | `/v1/sys/inject` | Environment variable injection |
 | Webhooks | `/v1/sys/webhooks` | Webhook subscriptions and delivery management |
@@ -504,7 +502,7 @@ enabled = true
 address = "0.0.0.0:8201"
 
 [seal]
-type = "shamir"          # shamir, aws-kms, gcp-kms, azure-kv
+type = "shamir"          # shamir, gcp-kms, azure-kv
 
 [seal.shamir]
 shares = 5
@@ -525,7 +523,6 @@ metrics_path = "/metrics"
 **Auto-unseal providers:**
 
 - `shamir` — Manual unseal with key shares (default).
-- `aws-kms` — AWS KMS.
 - `gcp-kms` — Google Cloud KMS.
 - `azure-kv` — Azure Key Vault.
 

@@ -95,7 +95,6 @@
 
 pub mod admin;
 pub mod auth;
-pub mod aws;
 pub mod classification;
 pub mod crypto;
 pub mod dynamic;
@@ -154,7 +153,6 @@ pub fn create_protected_router(_config: &ApiConfig, services: Arc<ServiceContain
         .nest("/transform", transform::create_routes())
         .nest("/pki", pki::create_routes())
         .nest("/ssh", ssh::create_routes())
-        .nest("/aws", aws::create_routes())
         .nest("/rotation", rotation::create_routes())
         .nest("/zk", zero_knowledge::create_routes())
         .nest("/inject", inject::create_routes())

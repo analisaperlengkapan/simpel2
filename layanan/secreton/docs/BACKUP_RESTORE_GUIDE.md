@@ -1,5 +1,7 @@
 # Secreton Backup & Restore Guide
 
+> **Catatan (2026-11):** penyedia dan layanan AWS (KMS, S3, IAM/STS, CloudHSM) sudah **dihapus dari kode** — deployment ini berjalan di server sendiri / pusat data nasional, tanpa cloud publik. Bagian di dokumen ini yang masih menyebut AWS tidak berlaku dan hanya tersisa sebagai riwayat.
+
 **Version:** 2.0
 **Last Updated:** February 18, 2026
 **Status:** Production Ready
@@ -24,7 +26,7 @@
 Secreton provides comprehensive automated backup and restore capabilities to protect your secrets, configuration, and audit logs from data loss. The backup system supports:
 
 - **Automated Scheduled Backups**: Cron-based scheduling for hands-free operation
-- **Multiple Storage Backends**: Local filesystem, S3-compatible storage (AWS S3, MinIO, Wasabi, etc.)
+- **Multiple Storage Backends**: Local filesystem (the S3-compatible backend was removed with the AWS SDK)
 - **Encryption at Rest**: ChaCha20-Poly1305 encryption with separate backup keys
 - **Compression**: Gzip compression to reduce storage costs (50-70% reduction)
 - **Point-in-Time Recovery**: Restore to any previous backup
@@ -100,63 +102,12 @@ verify_after_backup = true
 type = "local"
 path = "/var/backups/secreton"
 
-# Or use S3
-# type = "s3"
-# bucket = "secreton-backups"
-# region = "us-east-1"
-# prefix = "production/"
 ```
 
 Restart Secreton to apply changes.
 
 ---
 
-## S3-Compatible Storage Setup
-
-### AWS S3
-
-#### 1. Create S3 Bucket
-
-```bash
-aws s3 mb s3://secreton-backups --region us-east-1
-```
-
-#### 2. Create IAM Policy
-
-Create `secreton-backup-policy.json`:
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:PutObject",
-        "s3:GetObject",
-        "s3:DeleteObject",
-        "s3:ListBucket"
-      ],
-      "Resource": [
-        "arn:aws:s3:::secreton-backups",
-        "arn:aws:s3:::secreton-backups/*"
-      ]
-    }
-  ]
-}
-```
-
-Apply the policy:
-
-```bash
-aws iam create-policy \
-  --policy-name SecretonBackupPolicy \
-  --policy-document file://secreton-backup-policy.json
-```
-
-#### 3. Attach Policy to IAM Role/User
-
-```bash
 # For EC2 instance role
 aws iam attach-role-policy \
   --role-name secreton-instance-role \

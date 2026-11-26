@@ -34,7 +34,6 @@ async fn create_test_pool() -> Arc<deadpool_postgres::Pool> {
 /// Strategy for generating ProviderType
 fn provider_type_strategy() -> impl Strategy<Value = ProviderType> {
     prop_oneof![
-        Just(ProviderType::AwsKms),
         Just(ProviderType::GcpKms),
         Just(ProviderType::AzureKv),
         Just(ProviderType::Transit),
@@ -44,12 +43,6 @@ fn provider_type_strategy() -> impl Strategy<Value = ProviderType> {
 /// Strategy for generating provider key IDs
 fn provider_key_id_strategy(provider_type: ProviderType) -> impl Strategy<Value = String> {
     match provider_type {
-        ProviderType::AwsKms => {
-            // AWS KMS ARN format
-            "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
-                .prop_map(|uuid| format!("arn:aws:kms:us-east-1:123456789012:key/{}", uuid))
-                .boxed()
-        }
         ProviderType::GcpKms => {
             // GCP KMS resource name format
             "[a-z0-9-]{5,20}"
@@ -77,12 +70,6 @@ fn provider_key_id_strategy(provider_type: ProviderType) -> impl Strategy<Value 
 /// Strategy for generating provider regions
 fn provider_region_strategy(provider_type: ProviderType) -> impl Strategy<Value = Option<String>> {
     match provider_type {
-        ProviderType::AwsKms => prop_oneof![
-            Just(Some("us-east-1".to_string())),
-            Just(Some("us-west-2".to_string())),
-            Just(Some("eu-west-1".to_string())),
-        ]
-        .boxed(),
         ProviderType::GcpKms => prop_oneof![
             Just(Some("us-central1".to_string())),
             Just(Some("europe-west1".to_string())),
@@ -472,7 +459,6 @@ proptest! {
 
             // Test filtering for each provider type
             for provider_type in &[
-                ProviderType::AwsKms,
                 ProviderType::GcpKms,
                 ProviderType::AzureKv,
                 ProviderType::Transit,
@@ -536,7 +522,6 @@ mod unit_tests {
         }
 
         // Verify all provider types are generated
-        assert!(types_seen.contains("AwsKms"));
         assert!(types_seen.contains("GcpKms"));
         assert!(types_seen.contains("AzureKv"));
         assert!(types_seen.contains("Transit"));
