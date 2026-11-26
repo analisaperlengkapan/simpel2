@@ -199,6 +199,16 @@ Menampilkan:
 3. **Ambil Keputusan**
    - **Approve**: Forward ke Kejagung
    - **Revisi**: Return ke Kejari dengan catatan
+   - Sebelum diteruskan, muncul konfirmasi **"Teruskan ke Validator Pusat?"**
+     yang menyebut jumlah satker di wilayah Anda yang **belum mengisi lengkap**
+     atau **belum mengajukan** ke wilayah. Penerusan **tidak diblokir**: Anda
+     tetap boleh meneruskan, dan satker itu masih bisa dilengkapi bila
+     pengajuannya dikembalikan. Bila semua sudah lengkap, konfirmasi tampil
+     tanpa peringatan.
+   - Untuk beberapa satker sekaligus, konfirmasi yang sama muncul sekali.
+     Baris yang tahapnya sudah berpindah di antara Anda membuka dialog dan
+     menekan konfirmasi **ditolak sendiri** dengan alasannya; sisanya tetap
+     diproses.
 
 ### Validator Pusat (Kejagung)
 
@@ -214,6 +224,11 @@ Menampilkan:
 
 3. **Approve Final**
    - Klik **"Approve"**
+   - Sebelum kegiatan diselesaikan, muncul konfirmasi **"Selesaikan Kegiatan
+     Pakaian Dinas?"** yang menyebut jumlah satker yang belum mengisi
+     lengkap/belum mengajukan ke wilayah, dan jumlah satker yang belum
+     diteruskan ke pusat. Penyelesaian **tidak diblokir**, tetapi satker yang
+     belum masuk tidak ikut tercatat pada kegiatan ini.
    - Data akan masuk ke master pegawai_pakaian_dinas
 
 4. **Generate Laporan**

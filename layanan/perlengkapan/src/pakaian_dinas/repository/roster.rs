@@ -119,8 +119,11 @@ impl PakaianDinasRepository {
         snapshot_at: Option<DateTime<Utc>>,
     ) -> AppResult<Vec<tokio_postgres::Row>> {
         // "Keluarkan dari Pengajuan" deletes the participation row but not the
-        // roster member; the exclusion table (V020) is what keeps the person off
-        // this list and out of every readiness denominator.
+        // roster member; the exclusion table (V020) is what keeps the person out
+        // of every readiness denominator. The row is still RETURNED, flagged, so
+        // the operator can put the person back — hiding it here stranded them:
+        // the only way to undo an exclusion was to save a size for a form the
+        // list no longer offered.
         let rows = if snapshot_at.is_some() {
             // Snapshot beku: orangnya persis seperti saat kampanye dibuat.
             client
@@ -129,16 +132,16 @@ impl PakaianDinasRepository {
                     SELECT snap.nip, snap.nama_pegawai AS nama, snap.jabatan,
                            snap.pangkat AS golpang, snap.gol_kd, snap.eselon,
                            snap.jenis_kelamin AS jk, snap.jenis AS jenis_jabatan_terakhir,
-                           snap.foto
+                           snap.foto,
+                           EXISTS (
+                               SELECT 1
+                               FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_dikeluarkan d
+                               WHERE d.pengajuan_id = snap.pengajuan_id
+                                 AND d.satker_id = snap.satker_id
+                                 AND d.nip = snap.nip
+                           ) AS dikeluarkan
                     FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_snapshot snap
                     WHERE snap.pengajuan_id = $1 AND snap.satker_id = $2
-                      AND NOT EXISTS (
-                          SELECT 1
-                          FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_dikeluarkan d
-                          WHERE d.pengajuan_id = snap.pengajuan_id
-                            AND d.satker_id = snap.satker_id
-                            AND d.nip = snap.nip
-                      )
                     ORDER BY snap.nama_pegawai ASC
                     "#,
                     &[&pengajuan_id, &satker_code],
@@ -151,17 +154,17 @@ impl PakaianDinasRepository {
                     &format!(
                         r#"
                         SELECT p.nip, p.nama, p.jabatan, p.golpang, p.gol_kd, p.eselon,
-                               p.jk, p.jenis_jabatan_terakhir, p.foto
+                               p.jk, p.jenis_jabatan_terakhir, p.foto,
+                               EXISTS (
+                                   SELECT 1
+                                   FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_dikeluarkan d
+                                   WHERE d.pengajuan_id = $1
+                                     AND d.satker_id = $2
+                                     AND d.nip = p.nip
+                               ) AS dikeluarkan
                         FROM integrasi.mysimkari_pegawai p
                         {join}
                         WHERE {kode_satker} = $2
-                          AND NOT EXISTS (
-                              SELECT 1
-                              FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_dikeluarkan d
-                              WHERE d.pengajuan_id = $1
-                                AND d.satker_id = $2
-                                AND d.nip = p.nip
-                          )
                         ORDER BY p.nama ASC
                         "#,
                         join = PEGAWAI_SATKER_JOIN_SQL,
@@ -291,16 +294,25 @@ impl PakaianDinasRepository {
                 // Counting the row as filled hid those people from the operator
                 // dialog and from both readiness counts.
                 let sudah_diisi = simpanan.is_some_and(|(_, ukuran)| !ukuran.is_empty());
-                let (with_hijab, ukuran) = simpanan.cloned().unwrap_or((false, Vec::new()));
+                let (tersimpan_hijab, ukuran) = simpanan.cloned().unwrap_or((false, Vec::new()));
                 // Saran hanya untuk yang belum diisi: yang sudah diisi memakai
                 // isinya sendiri.
-                let profil_pegawai = profil.get(&nip).filter(|_| !sudah_diisi);
-                let saran = profil_pegawai
+                let saran = profil
+                    .get(&nip)
+                    .filter(|_| !sudah_diisi)
                     .map(|p| p.saran_untuk(&pakaian))
                     .unwrap_or_default();
-                let with_hijab = profil_pegawai.map_or(with_hijab, |p| p.with_hijab);
+                // Hijab: pilihan yang SUDAH tersimpan pada pengajuan menang,
+                // termasuk saat formulirnya masih kosong — operator bisa
+                // menyimpan centang lebih dulu dan ukurannya menyusul. Profil
+                // hanya menjadi nilai awal bila baris partisipasinya belum ada.
+                let with_hijab = match simpanan {
+                    Some(_) => tersimpan_hijab,
+                    None => profil.get(&nip).is_some_and(|p| p.with_hijab),
+                };
                 RosterPegawai {
                     sudah_diisi,
+                    dikeluarkan: row.get("dikeluarkan"),
                     saran,
                     nip,
                     nama: row.get("nama"),
@@ -426,6 +438,7 @@ impl PakaianDinasRepository {
             .transaction()
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
+        kunci_baris_satker(&tx, pengajuan_satker_id).await?;
 
         let pegawai_row = tx
             .query_opt(
@@ -600,6 +613,7 @@ impl PakaianDinasRepository {
             .transaction()
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
+        kunci_baris_satker(&tx, pengajuan_satker_id).await?;
         tx.execute(
             r#"
             DELETE FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran
@@ -634,6 +648,78 @@ impl PakaianDinasRepository {
         tx.commit().await.map_err(|e| bad_request(&e.to_string()))?;
         Ok(())
     }
+
+    /// Masukkan kembali pegawai yang sebelumnya dikeluarkan. Hanya pengecualian
+    /// yang dihapus: ukurannya tetap kosong sampai operator mengisinya, jadi
+    /// orang itu kembali muncul sebagai "belum mengisi" — persis seperti
+    /// sebelum ia dikeluarkan.
+    pub async fn masukkan_kembali_pegawai(
+        &self,
+        pengajuan_id: Uuid,
+        satker_code: &str,
+        nip: &str,
+        scope: &SatkerScope,
+    ) -> AppResult<()> {
+        let satker = self
+            .pengajuan_satker_row(pengajuan_id, satker_code, scope)
+            .await?;
+        let pengajuan_satker_id = satker.id;
+        if !STATUS_DAPAT_DIUBAH.contains(&satker.aktivitas_id) {
+            return Err(bad_request(
+                "Pengajuan satker ini sudah diajukan, isinya tidak dapat diubah lagi",
+            ));
+        }
+        self.pastikan_periode(pengajuan_id, true).await?;
+        let mut client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let tx = client
+            .transaction()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        kunci_baris_satker(&tx, pengajuan_satker_id).await?;
+        let kembali = tx
+            .execute(
+                "DELETE FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_dikeluarkan
+                 WHERE pengajuan_id = $1 AND satker_id = $2 AND nip = $3",
+                &[&pengajuan_id, &satker_code, &nip],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        if kembali == 0 {
+            return Err(AppError::NotFound(format!(
+                "Pegawai {nip} tidak sedang dikeluarkan dari pengajuan ini"
+            )));
+        }
+        tx.commit().await.map_err(|e| bad_request(&e.to_string()))?;
+        Ok(())
+    }
+}
+
+/// Serialise everything that writes one satker's roster (saving a size,
+/// excluding an employee, putting them back). Without it a save and an
+/// exclusion for the same NIP can both commit — leaving a size row AND an
+/// exclusion, so the person is hidden from the roster yet still counted in the
+/// procurement recap.
+async fn kunci_baris_satker(
+    tx: &tokio_postgres::Transaction<'_>,
+    pengajuan_satker_id: Uuid,
+) -> AppResult<()> {
+    let locked = tx
+        .query_opt(
+            "SELECT 1 FROM perlengkapan.pengajuan_pakaian_dinas_satker WHERE id = $1 FOR UPDATE",
+            &[&pengajuan_satker_id],
+        )
+        .await
+        .map_err(|e| bad_request(&e.to_string()))?;
+    if locked.is_none() {
+        return Err(AppError::NotFound(
+            "Pengajuan satker tidak ditemukan".to_string(),
+        ));
+    }
+    Ok(())
 }
 
 /// Baris satker satu pengajuan, apa yang dibutuhkan pemanggilnya.

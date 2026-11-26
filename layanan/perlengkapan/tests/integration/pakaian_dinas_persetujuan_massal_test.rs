@@ -215,6 +215,61 @@ async fn aksi_tunggal_menolak_tahap_yang_sudah_berpindah() {
     teardown_test_db(&db_name).await;
 }
 
+/// The same race on an account that holds BOTH validator roles — the account
+/// the guard exists for. The acting role alone cannot tell "Teruskan" from
+/// "Selesaikan" for such a user, so the dialog's pinned stage must decide.
+#[tokio::test]
+async fn akun_dua_peran_tidak_menuntaskan_lewat_dialog_teruskan_yang_basi() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let (campaign, row) = dua_baris(&server).await.remove(0);
+    const DUA_PERAN: &str = "validator_wilayah,validator_pusat";
+
+    satu(&server, "operator_satker", &row, "submit").await;
+    // Another wilayah validator forwards it while the dual-role dialog is open.
+    satu(&server, "validator_wilayah", &row, "approve").await;
+    assert_eq!(status(&server, &campaign).await, 1004);
+
+    let res = post(
+        &server,
+        "/pakaian-dinas/validator-action",
+        DUA_PERAN,
+        PUSAT,
+        SATKER_A,
+        json!({
+            "pengajuan_satker_id": row,
+            "aksi": "approve",
+            "tahap": "wilayah",
+        }),
+    )
+    .await;
+    assert_eq!(res.status_code(), 409, "{:?}", res.text());
+    assert_eq!(
+        status(&server, &campaign).await,
+        1004,
+        "tetap menunggu Pusat, bukan Selesai"
+    );
+
+    // And the same account CAN finalise it from the pusat gate.
+    let res = post(
+        &server,
+        "/pakaian-dinas/validator-action",
+        DUA_PERAN,
+        PUSAT,
+        SATKER_A,
+        json!({
+            "pengajuan_satker_id": row,
+            "aksi": "approve",
+            "tahap": "pusat",
+        }),
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    assert_eq!(status(&server, &campaign).await, 1008);
+
+    teardown_test_db(&db_name).await;
+}
+
 #[tokio::test]
 async fn pusat_menyetujui_massal_sampai_selesai() {
     let (app, _db, db_name) = setup_test_app().await;

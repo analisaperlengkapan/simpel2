@@ -29,7 +29,7 @@ use crate::api::pakaian_dinas::{
     PengajuanPakaianItem, PengajuanSatkerAktivitas, RosterPegawai, RosterPengisian,
     SimpanUkuranPegawaiRequest, UkuranPegawaiItem, ValidatorActionRequest, fetch_master_ukuran,
     fetch_pakaian_satker_aktivitas, fetch_roster_pengisian, keluarkan_pegawai_dari_pengajuan,
-    process_validator_action, simpan_ukuran_pegawai,
+    masukkan_kembali_pegawai, process_validator_action, simpan_ukuran_pegawai,
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::components::workflow_ui::{ActionTone, ConfirmDialog};
@@ -333,6 +333,8 @@ fn halaman(
     let id_catatan_revisi = data.pengajuan_satker_id.clone();
     let kode_pengajuan = data.pengajuan_satker_id.clone();
     let _ = kode_pengajuan;
+    // `view!` consumes the URL for the back link before the table is built.
+    let id_untuk_tabel = pengajuan_id_url.clone();
     let satker_kode = data.satker_kode.clone();
     let kode_tampil = satker_kode.clone();
     let kode_fallback = satker_kode.clone();
@@ -456,16 +458,128 @@ fn halaman(
                 }
                     .into_any()
             } else {
-                tabel(
+                daftar_pegawai(
                     data.pegawai.clone(),
                     pakaian.clone(),
                     dapat_diubah,
                     sedang_diisi,
+                    id_untuk_tabel.clone(),
                     satker_kode.clone(),
                     refresh,
+                    pesan,
+                    sibuk,
                 )
             }}
         </SectionCard>
+    }
+    .into_any()
+}
+
+/// The employee list plus the people the operator excluded. Excluded people
+/// are NOT in the table (they owe no size), but they stay visible with a way
+/// back: excluding is a judgement call that gets reversed, and the only other
+/// undo was a size form the table no longer offered.
+fn daftar_pegawai(
+    pegawai: Vec<RosterPegawai>,
+    pakaian: Vec<PengajuanPakaianItem>,
+    dapat_diubah: bool,
+    sedang_diisi: RwSignal<Option<RosterPegawai>>,
+    pengajuan_id: String,
+    satker_kode: String,
+    refresh: RwSignal<i32>,
+    pesan: RwSignal<Option<String>>,
+    sibuk: RwSignal<bool>,
+) -> AnyView {
+    let (aktif, dikeluarkan): (Vec<_>, Vec<_>) = pegawai.into_iter().partition(|p| !p.dikeluarkan);
+    let jumlah_dikeluarkan = dikeluarkan.len();
+    let tabel_aktif = tabel(
+        aktif,
+        pakaian,
+        dapat_diubah,
+        sedang_diisi,
+        satker_kode.clone(),
+        refresh,
+    );
+    view! {
+        <div class="space-y-4">
+            {tabel_aktif}
+            {(jumlah_dikeluarkan > 0 && dapat_diubah)
+                .then(|| {
+                    view! {
+                        <div
+                            data-testid="pengisian-dikeluarkan"
+                            class="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3"
+                        >
+                            <p class="text-sm font-medium text-slate-200">
+                                "Dikeluarkan dari pengajuan (" {jumlah_dikeluarkan} ")"
+                            </p>
+                            <p class="mt-1 text-xs text-slate-500">
+                                "Tidak dihitung sebagai belum mengisi. Masukkan kembali bila pegawai ini ternyata memerlukan pakaian dinas."
+                            </p>
+                            <ul class="mt-3 divide-y divide-white/[0.04]">
+                                {dikeluarkan
+                                    .into_iter()
+                                    .map(|p| {
+                                        baris_dikeluarkan(
+                                            p,
+                                            pengajuan_id.clone(),
+                                            satker_kode.clone(),
+                                            refresh,
+                                            pesan,
+                                            sibuk,
+                                        )
+                                    })
+                                    .collect_view()}
+                            </ul>
+                        </div>
+                    }
+                })}
+        </div>
+    }
+    .into_any()
+}
+
+fn baris_dikeluarkan(
+    p: RosterPegawai,
+    pengajuan_id: String,
+    satker_kode: String,
+    refresh: RwSignal<i32>,
+    pesan: RwSignal<Option<String>>,
+    sibuk: RwSignal<bool>,
+) -> AnyView {
+    let nip = p.nip.clone();
+    let on_click = move |_| {
+        if sibuk.get() {
+            return;
+        }
+        sibuk.set(true);
+        pesan.set(None);
+        let (pid, kode, nip) = (pengajuan_id.clone(), satker_kode.clone(), nip.clone());
+        spawn_local(async move {
+            match masukkan_kembali_pegawai(pid, kode, nip).await {
+                Ok(_) => refresh.update(|v| *v += 1),
+                Err(e) => pesan.set(Some(e.user_message())),
+            }
+            sibuk.set(false);
+        });
+    };
+    view! {
+        <li class="flex items-center justify-between gap-3 py-2">
+            <div>
+                <p class="text-sm text-slate-200">{p.nama.clone()}</p>
+                <p class="text-xs text-slate-500">{p.nip.clone()}</p>
+            </div>
+            <button
+                type="button"
+                data-testid="masukkan-kembali"
+                class="rounded-lg border border-white/10 px-3 py-1.5 text-sm text-slate-200 transition hover:bg-white/[0.04] disabled:opacity-50"
+                prop:disabled=move || sibuk.get()
+                on:click=on_click
+                title="Kembalikan pegawai ini ke daftar yang harus diisi"
+            >
+                "Masukkan kembali"
+            </button>
+        </li>
     }
     .into_any()
 }

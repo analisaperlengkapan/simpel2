@@ -696,6 +696,12 @@ pub struct RosterPegawai {
     pub foto: Option<String>,
     pub with_hijab: bool,
     pub sudah_diisi: bool,
+    /// Pegawai ini sengaja dikeluarkan operator dari pengajuan (tidak
+    /// memerlukan pakaian dinas). Tidak dihitung di kesiapan dan tidak
+    /// ditampilkan bersama pegawai yang harus diisi, tetapi tetap dikirim
+    /// supaya operator bisa memasukkannya kembali.
+    #[serde(default)]
+    pub dikeluarkan: bool,
     pub ukuran: Vec<UkuranPegawaiItem>,
     /// Ukuran yang sudah tercatat untuk pegawai ini di profilnya (halaman
     /// Ukuran), dipetakan ke kolom kampanye menurut kelompoknya (baju, celana,

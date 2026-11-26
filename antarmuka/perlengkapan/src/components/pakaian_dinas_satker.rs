@@ -18,8 +18,8 @@ use leptos_router::hooks::use_params_map;
 use crate::api::{
     AppError, BulkActionResult, BulkValidatorActionRequest, PaginatedResponse, PengajuanSatker,
     PengajuanSatkerAktivitas, ValidatorActionRequest, aktivitas_is_revisi, aktivitas_label,
-    fetch_kesiapan_pakaian_dinas, fetch_pakaian_satker_aktivitas, fetch_pengajuan_satker_terfilter,
-    process_validator_action, process_validator_action_bulk, ringkasan_kesiapan,
+    fetch_pakaian_satker_aktivitas, fetch_pengajuan_satker_terfilter, process_validator_action,
+    process_validator_action_bulk,
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::components::pagination_controls::PaginationControls;
@@ -28,6 +28,7 @@ use crate::components::workflow_ui::{
     WorkflowStep, WorkflowTimeline,
 };
 use crate::features::auth::AuthService;
+use crate::features::pakaian_dinas::api::{fetch_kesiapan_pakaian_dinas, ringkasan_kesiapan};
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::PENCIL_SIMPLE;
 
@@ -238,6 +239,25 @@ struct PendingBulk {
     warning: Option<String>,
     /// Gate this bar acts on, pinned when the dialog opened.
     tahap: &'static str,
+}
+
+/// Names for the rows a bulk move refused. The reason alone ("tahap pengajuan
+/// sudah berpindah") does not say WHICH row, and a bulk move can refuse several
+/// at once; the page in hand already holds the names.
+fn nama_satker_per_id(
+    list: Option<Result<PaginatedResponse<PengajuanSatker>, AppError>>,
+) -> HashMap<String, String> {
+    match list {
+        Some(Ok(resp)) => resp
+            .data
+            .iter()
+            .map(|s| {
+                let label = s.satker_nama.clone().unwrap_or_else(|| s.satker_id.clone());
+                (s.id.clone(), label)
+            })
+            .collect(),
+        _ => HashMap::new(),
+    }
 }
 
 /// The gate a status is waiting on: `satker` while it is still being filled,
@@ -511,23 +531,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                     .map(|h| {
                         let berhasil = h.berhasil.len();
                         let gagal = h.gagal;
-                        // The reason alone ("tahap pengajuan sudah berpindah")
-                        // does not say WHICH row, and a bulk move can refuse
-                        // several at once. Name them from the page in hand.
-                        let nama: HashMap<String, String> = match list_resource.get() {
-                            Some(Ok(resp)) => resp
-                                .data
-                                .iter()
-                                .map(|s| {
-                                    let label = s
-                                        .satker_nama
-                                        .clone()
-                                        .unwrap_or_else(|| s.satker_id.clone());
-                                    (s.id.clone(), label)
-                                })
-                                .collect(),
-                            _ => HashMap::new(),
-                        };
+                        let nama = nama_satker_per_id(list_resource.get());
                         view! {
                             <div
                                 data-testid="hasil-massal"
@@ -672,10 +676,10 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                         let kecuali = ids.clone();
                                                         spawn_local(async move {
                                                             let warning = fetch_kesiapan_pakaian_dinas(
-                                                                    pid,
+                                                                    &pid,
                                                                     tahap,
                                                                     None,
-                                                                    kecuali,
+                                                                    &kecuali,
                                                                 )
                                                                 .await
                                                                 .ok()
@@ -890,10 +894,10 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                             busy.set(true);
                                             spawn_local(async move {
                                                 let warning = fetch_kesiapan_pakaian_dinas(
-                                                    pid,
+                                                    &pid,
                                                     tahap,
                                                     None,
-                                                    vec![sid.clone()],
+                                                    &[sid.clone()],
                                                 )
                                                 .await
                                                 .ok()

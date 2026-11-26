@@ -1453,9 +1453,58 @@ pub async fn hapus_pegawai_dari_pengajuan(
     )))
 }
 
+/// Masukkan kembali pegawai yang sebelumnya dikeluarkan dari pengajuan.
+pub async fn masukkan_kembali_pegawai(
+    State(service): State<PakaianDinasService>,
+    Path((pengajuan_id, satker_code, nip)): Path<(Uuid, String, String)>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<RosterPengisian>>, AppError> {
+    // Same gate as excluding them: the satker's own operator, on a row that is
+    // still editable.
+    claims.require_role("operator_satker")?;
+    let scope = SatkerScope::from_claims(&claims);
+    service
+        .repository
+        .masukkan_kembali_pegawai(pengajuan_id, &satker_code, &nip, &scope)
+        .await?;
+    let roster = service
+        .repository
+        .get_roster_pengisian(pengajuan_id, &satker_code, &scope)
+        .await?;
+    Ok(Json(ApiResponse::success(
+        roster,
+        "Pegawai dimasukkan kembali ke pengajuan".to_string(),
+    )))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_kecuali_reads_a_comma_list_and_ignores_blanks() {
+        assert_eq!(parse_kecuali(None).unwrap(), Vec::<Uuid>::new());
+        assert_eq!(parse_kecuali(Some("")).unwrap(), Vec::<Uuid>::new());
+        assert_eq!(parse_kecuali(Some(" , ,")).unwrap(), Vec::<Uuid>::new());
+
+        let a = Uuid::new_v4();
+        let b = Uuid::new_v4();
+        // Spaces around an entry are an artefact of the query string, not a
+        // reason to refuse the whole pre-flight.
+        assert_eq!(
+            parse_kecuali(Some(&format!(" {a} , {b} ,"))).unwrap(),
+            vec![a, b]
+        );
+    }
+
+    #[test]
+    fn parse_kecuali_refuses_a_value_that_is_not_a_uuid() {
+        let a = Uuid::new_v4();
+        // Mixed valid/invalid must not silently drop the bad entry: the count
+        // would then include the row the caller is about to move.
+        let err = parse_kecuali(Some(&format!("{a},bukan-uuid"))).unwrap_err();
+        assert!(matches!(err, AppError::BadRequest(_)), "{err:?}");
+    }
 
     #[test]
     fn test_query_params_default() {

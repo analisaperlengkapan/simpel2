@@ -554,6 +554,32 @@ point any more, and should not be re-added as it was. The page lived under `/adm
   in `antarmuka/perlengkapan/src/components/reference_picker.rs` (NIP for the
   delegate, a list of the roles the caller holds) instead of free text.
 
+### 3b. Pakaian Dinas: Gates, Readiness and "Keluarkan dari Pengajuan"
+
+The campaign workflow has three gates — `satker` (operator → wilayah),
+`wilayah` (wilayah → pusat), `pusat` (pusat finishes the activity). Three
+contracts hold it together; changing one means changing all three:
+
+- **Readiness counts PEOPLE, not participation rows.** `GET
+  /pakaian-dinas/pengajuan/{id}/kesiapan?tahap=&satker_code=&kecuali=` returns
+  `KesiapanPakaianDinas`. `kecuali` lists the rows the caller is about to move
+  so they do not count against them. It is advisory: the person may proceed.
+- **Every mutating validator action carries `tahap`** (single and bulk). The
+  server re-validates the row's current gate per row; a stale dialog (row moved
+  underneath it) is refused with 409 instead of performing the *other* gate's
+  action. This matters most for an account holding both validator roles, where
+  the acting role alone cannot tell "Teruskan" from "Selesaikan".
+- **Exclusion is a flag, not a delete.** `pengajuan_pakaian_dinas_pegawai_dikeluarkan`
+  (V020) records it; the roster list returns the row with `dikeluarkan: true`
+  so the operator can `DELETE .../pegawai/{nip}/keluarkan` to put them back.
+  Readiness and recap leave excluded people out of the denominator. Hiding the
+  row instead (the first version) left no way back: the documented recovery was
+  "save their size again", a form the list no longer offered.
+- **One writer per satker row.** `repository::roster::kunci_baris_satker` takes
+  `SELECT ... FOR UPDATE` on `pengajuan_pakaian_dinas_satker` before any roster
+  write (save size / exclude / put back); otherwise a save and an exclusion for
+  the same NIP can both commit.
+
 ### 4. Add a Secreton-backed Service Credential
 
 `main.rs` already creates a single `SecretonClient` and keeps it alive

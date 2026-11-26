@@ -94,6 +94,20 @@ pub(crate) async fn put(
     req.await
 }
 
+pub(crate) async fn delete(
+    server: &TestServer,
+    path: &str,
+    role: &str,
+    user: &str,
+    satker: &str,
+) -> axum_test::TestResponse {
+    let mut req = server.delete(path);
+    for (k, v) in headers(role, user, satker) {
+        req = req.add_header(k, v);
+    }
+    req.await
+}
+
 /// Kampanye PDH dengan satu kolom BAJU, menyasar SKR001 dan SKR002.
 /// Mengembalikan `(pengajuan_id, pakaian_id)`.
 /// A campaign window that contains today, whenever the test runs. The dates are
@@ -1047,15 +1061,13 @@ async fn pegawai_yang_dikeluarkan_tidak_lagi_dihitung_belum_mengisi() {
     let res = req.await;
     assert_eq!(res.status_code(), 200, "keluarkan: {:?}", res.text());
 
+    // Still on the list, flagged — that is what makes "Masukkan kembali"
+    // reachable. Hiding the row was the bug: the way back was a size form the
+    // list no longer offered.
     let data = roster(&server, &pengajuan_id).await;
-    assert!(
-        !data["pegawai"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|p| p["nip"].as_str() == Some(NIP_D)),
-        "yang dikeluarkan tidak ditawarkan lagi: {data:?}"
-    );
+    let d = pegawai_dari_roster(&data, NIP_D);
+    assert_eq!(d["dikeluarkan"].as_bool(), Some(true), "{d:?}");
+    assert_eq!(d["sudah_diisi"].as_bool(), Some(false), "{d:?}");
 
     let k = kesiapan_satker(&server, &pengajuan_id).await;
     assert_eq!(
@@ -1066,7 +1078,18 @@ async fn pegawai_yang_dikeluarkan_tidak_lagi_dihitung_belum_mengisi() {
     assert_eq!(k["pegawai_belum_diisi"].as_i64(), Some(0), "{k:?}");
     assert_eq!(k["lengkap"].as_bool(), Some(true), "{k:?}");
 
-    // Saving a size for them again puts them back in the submission.
+    // Putting them back (or saving a size for them) restores the debt.
+    let res = delete(
+        &server,
+        &format!(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai/{NIP_D}/keluarkan"
+        ),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
     simpan_ukuran(&server, &pengajuan_id, NIP_D, &pakaian_id, "M").await;
     let k = kesiapan_satker(&server, &pengajuan_id).await;
     assert_eq!(k["total"].as_i64(), Some(2), "kembali masuk: {k:?}");
@@ -1215,6 +1238,86 @@ async fn satker_tanpa_pegawai_tidak_menahan_peringatan() {
     assert_eq!(k["belum_mengajukan"].as_i64(), Some(0), "{k:?}");
     assert_eq!(k["belum_lengkap"].as_i64(), Some(0), "{k:?}");
     assert_eq!(k["lengkap"].as_bool(), Some(true), "{k:?}");
+
+    teardown_test_db(&db_name).await;
+}
+
+// ============================================================================
+// "Keluarkan dari Pengajuan" must be reversible from the screen. Excluding used
+// to delete the employee from the list, and the only documented way back was
+// "fill their size again" — a form the list no longer offered.
+// ============================================================================
+
+fn pegawai_dari_roster(data: &Value, nip: &str) -> Value {
+    data["pegawai"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["nip"] == nip)
+        .unwrap_or_else(|| panic!("pegawai {nip} tidak ada di roster: {data}"))
+        .clone()
+}
+
+#[tokio::test]
+async fn pegawai_yang_dikeluarkan_tetap_terdaftar_dan_bisa_dimasukkan_kembali() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    tambah_pegawai(&db, NIP_D, "api-skr001", "Pegawai Uji D", "P").await;
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+    simpan_ukuran(&server, &pengajuan_id, NIP_A, &pakaian_id, "L").await;
+
+    // D has no size yet: two people owe one.
+    let data = kesiapan_satker(&server, &pengajuan_id).await;
+    assert_eq!(data["pegawai_belum_diisi"], 1, "{data}");
+
+    let res = delete(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai/{NIP_D}"),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+
+    // Still listed, flagged, and no longer owed a size.
+    let data = roster(&server, &pengajuan_id).await;
+    let d = pegawai_dari_roster(&data, NIP_D);
+    assert_eq!(d["dikeluarkan"], true, "{d}");
+    assert_eq!(d["sudah_diisi"], false, "{d}");
+    let kesiapan = kesiapan_satker(&server, &pengajuan_id).await;
+    assert_eq!(kesiapan["pegawai_belum_diisi"], 0, "{kesiapan}");
+
+    // Put back: listed as active again and counted as not filled.
+    let res = delete(
+        &server,
+        &format!(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai/{NIP_D}/keluarkan"
+        ),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    let data = roster(&server, &pengajuan_id).await;
+    let d = pegawai_dari_roster(&data, NIP_D);
+    assert_eq!(d["dikeluarkan"], false, "{d}");
+    let kesiapan = kesiapan_satker(&server, &pengajuan_id).await;
+    assert_eq!(kesiapan["pegawai_belum_diisi"], 1, "{kesiapan}");
+
+    // Putting back someone who is not excluded says so instead of pretending.
+    let res = delete(
+        &server,
+        &format!(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai/{NIP_D}/keluarkan"
+        ),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 404, "{:?}", res.text());
 
     teardown_test_db(&db_name).await;
 }

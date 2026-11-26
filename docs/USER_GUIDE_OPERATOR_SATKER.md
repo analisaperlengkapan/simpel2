@@ -145,9 +145,10 @@ Jika pengajuan dikembalikan untuk revisi:
    - Sebelum terkirim, sistem menghitung pegawai yang **belum mengisi ukuran**.
      Bila masih ada, muncul konfirmasi: *"Masih ada N pegawai yang belum
      mengisi ukuran. Tetap ajukan?"* — pengajuan **tidak diblokir**, tetapi
-     satker Anda akan tercatat "diajukan, belum lengkap" di Validator Wilayah
-     sampai ukurannya dilengkapi (ukuran masih bisa diubah selama statusnya
-     belum diteruskan).
+     satker Anda akan tercatat "diajukan, belum lengkap" di Validator Wilayah.
+     Setelah diajukan, ukuran **tidak dapat diubah** lagi sampai Validator
+     Wilayah mengembalikan pengajuan ke satker Anda (status "Dikembalikan");
+     ketika itu ukurannya bisa dilengkapi lalu diajukan ulang.
    - Pengajuan akan masuk ke alur persetujuan 3 tingkat:
      1. Kejari (Pimpinan Satker)
      2. Kejati (Validator Wilayah)
@@ -162,11 +163,14 @@ Beberapa pegawai kadang tidak memerlukan pakaian dinas pada periode berjalan
 2. Klik **"Isi Ukuran"** pada baris pegawai, lalu **"Keluarkan dari
    Pengajuan"**.
 
-Pegawai tersebut hilang dari daftar dan **tidak lagi dihitung** sebagai "belum
-mengisi" — baik pada konfirmasi Submit di atas maupun pada hitungan kesiapan
-Validator Wilayah/Pusat. Data historisnya tidak dihapus: bila ia ternyata tetap
-memerlukan pakaian dinas, cukup isi ukurannya lagi dan ia kembali masuk
-pengajuan.
+Pegawai tersebut pindah ke bagian **"Dikeluarkan dari pengajuan"** di bawah
+daftar pegawai dan **tidak lagi dihitung** sebagai "belum mengisi" — baik pada
+konfirmasi Submit di atas maupun pada hitungan kesiapan Validator
+Wilayah/Pusat. Data historisnya tidak dihapus.
+
+Bila ternyata ia tetap memerlukan pakaian dinas, buka bagian "Dikeluarkan dari
+pengajuan" dan klik **"Masukkan kembali"**. Ia kembali muncul di daftar utama
+sebagai "belum mengisi" sampai ukurannya diisi.
 
 > Catatan: menyimpan formulir ukuran **tanpa memilih ukuran apa pun** tidak
 > dihitung sebagai "sudah mengisi". Pilih minimal satu ukuran, atau gunakan

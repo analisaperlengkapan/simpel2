@@ -249,6 +249,10 @@ pub fn create_routes(state: AppState) -> Router {
                 .delete(pakaian_dinas::hapus_pegawai_dari_pengajuan),
         )
         .route(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{satker_code}/pegawai/{nip}/keluarkan",
+            delete(pakaian_dinas::masukkan_kembali_pegawai),
+        )
+        .route(
             "/pakaian-dinas/satker/{id}",
             get(pakaian_dinas::get_pengajuan_satker_by_id),
         )
