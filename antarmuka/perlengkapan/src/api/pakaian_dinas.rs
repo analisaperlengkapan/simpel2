@@ -237,6 +237,11 @@ pub struct ValidatorActionRequest {
     pub pengajuan_satker_id: String,
     pub aksi: String,
     pub komentar: Option<String>,
+    /// Gate the dialog was opened for (`satker` | `wilayah` | `pusat`). The
+    /// server refuses the move if the row has since left that gate, so a
+    /// "Teruskan" confirmation can never become a final approval.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tahap: Option<String>,
 }
 
 /// Pegawai Pakaian Dinas (Employee uniform sizes).
@@ -990,6 +995,11 @@ pub struct BulkValidatorActionRequest {
     pub aksi: String,
     #[serde(default)]
     pub komentar: Option<String>,
+    /// Required by the server: the gate every selected row must still be at.
+    /// Rows that moved on come back as failures instead of being re-read as
+    /// the next role's move.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tahap: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -1542,6 +1552,10 @@ pub struct RosterPegawai {
     pub with_hijab: bool,
     #[serde(default)]
     pub sudah_diisi: bool,
+    /// Excluded from the pengajuan by the operator ("Keluarkan dari Pengajuan").
+    /// Still listed so it can be put back; never counted as a person to fill.
+    #[serde(default)]
+    pub dikeluarkan: bool,
     #[serde(default)]
     pub ukuran: Vec<UkuranPegawaiItem>,
     /// What the pegawai's own profile already records, mapped to the campaign's

@@ -102,6 +102,25 @@ impl SatkerScope {
         }
     }
 
+    /// Scope for a WRITE that must stay inside the caller's OWN satker.
+    ///
+    /// [`Self::from_claims`] widens to the wilayah tier as soon as the caller
+    /// holds `validator_wilayah`, which is right for reading a region and wrong
+    /// for writing a roster: an account that is both operator and wilayah
+    /// validator would otherwise edit a neighbouring satker's roster by naming
+    /// its code. Role gates (`require_role("operator_satker")`) say WHO may
+    /// write, not WHICH satker; this says which. No satker in the token means
+    /// [`Self::Denied`], so the write reaches nothing.
+    pub fn own_satker_from_claims(claims: &Claims) -> Self {
+        claims
+            .satker_code
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|code| Self::Satker(code.to_string()))
+            .unwrap_or(Self::Denied)
+    }
+
     /// Object-level counterpart of [`Self::push_condition`]: apakah `code` masuk
     /// dalam scope ini, untuk tier yang **tak butuh DB**?
     ///
@@ -412,6 +431,42 @@ mod tests {
                 SatkerScope::Satker("02.28".to_string())
             );
         }
+    }
+
+    #[test]
+    fn a_write_scope_never_widens_to_the_wilayah() {
+        let mut c = Claims::with_roles(Uuid::nil(), "u", ["operator_satker", "validator_wilayah"]);
+        c.satker_code = Some("02.28".to_string());
+        // Reading the region is fine; writing it is not.
+        assert_eq!(
+            SatkerScope::from_claims(&c),
+            SatkerScope::Wilayah("02.28".to_string())
+        );
+        assert_eq!(
+            SatkerScope::own_satker_from_claims(&c),
+            SatkerScope::Satker("02.28".to_string())
+        );
+
+        let mut pusat =
+            Claims::with_roles(Uuid::nil(), "u", ["operator_satker", "validator_pusat"]);
+        pusat.satker_code = Some("02.28".to_string());
+        assert_eq!(SatkerScope::from_claims(&pusat), SatkerScope::All);
+        assert_eq!(
+            SatkerScope::own_satker_from_claims(&pusat),
+            SatkerScope::Satker("02.28".to_string())
+        );
+    }
+
+    #[test]
+    fn a_write_scope_without_a_satker_fails_closed() {
+        assert_eq!(
+            SatkerScope::own_satker_from_claims(&claims("operator_satker", None)),
+            SatkerScope::Denied
+        );
+        assert_eq!(
+            SatkerScope::own_satker_from_claims(&claims("operator_satker", Some("   "))),
+            SatkerScope::Denied
+        );
     }
 
     #[test]

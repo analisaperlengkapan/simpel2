@@ -225,12 +225,15 @@ impl AuthencClient {
             let mut satker_code = None;
             let mut nip = None;
 
-            // `mock::<role>::<user_id>::<satker_code>[::<nip>]`
+            // `mock::<role>[,<role>...]::<user_id>::<satker_code>[::<nip>]`
             //
             // The trailing NIP is optional and dev-only. Without it every
             // NIP-gated endpoint (the personal-ukuran pair, which resolves the
             // employee from this claim rather than from a body field) returns
-            // 400 and cannot be covered below the e2e layer at all.
+            // 400 and cannot be covered below the e2e layer at all. Roles are
+            // comma-separated so a fixture can hold two at once (the seeded
+            // administrator holds both validator roles, and that is exactly the
+            // account a stale-dialog race needs).
             if token.starts_with("mock::") {
                 let parts: Vec<&str> = token.split("::").collect();
                 if parts.len() >= 4 {
@@ -254,7 +257,12 @@ impl AuthencClient {
                 nip,
                 jabatan: None,
                 satker_code,
-                realm_roles: vec![role],
+                realm_roles: role
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|r| !r.is_empty())
+                    .map(str::to_string)
+                    .collect(),
                 require_password_change: None,
                 mfa_setup_required: None,
             })

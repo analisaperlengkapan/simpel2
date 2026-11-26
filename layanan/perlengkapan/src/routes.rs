@@ -249,6 +249,10 @@ pub fn create_routes(state: AppState) -> Router {
                 .delete(pakaian_dinas::hapus_pegawai_dari_pengajuan),
         )
         .route(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{satker_code}/pegawai/{nip}/keluarkan",
+            delete(pakaian_dinas::masukkan_kembali_pegawai),
+        )
+        .route(
             "/pakaian-dinas/satker/{id}",
             get(pakaian_dinas::get_pengajuan_satker_by_id),
         )
@@ -268,6 +272,12 @@ pub fn create_routes(state: AppState) -> Router {
         .route(
             "/pakaian-dinas/menunggu",
             get(pakaian_dinas::get_menunggu_pakaian_dinas),
+        )
+        // Pre-flight readiness for the confirmation dialogs before a level
+        // advances (operator submit / wilayah forward / pusat finalise).
+        .route(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan",
+            get(pakaian_dinas::get_kesiapan_pakaian_dinas),
         )
         // Personal Uniform Sizes
         .route(

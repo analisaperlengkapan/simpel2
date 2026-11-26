@@ -68,6 +68,7 @@ async fn massal(
     role: &str,
     ids: &[String],
     aksi: &str,
+    tahap: &str,
 ) -> axum_test::TestResponse {
     post(
         server,
@@ -75,7 +76,12 @@ async fn massal(
         role,
         PUSAT,
         SATKER_A,
-        json!({"pengajuan_satker_ids": ids, "aksi": aksi, "komentar": "disetujui massal"}),
+        json!({
+            "pengajuan_satker_ids": ids,
+            "aksi": aksi,
+            "komentar": "disetujui massal",
+            "tahap": tahap,
+        }),
     )
     .await
 }
@@ -111,6 +117,7 @@ async fn wilayah_meneruskan_banyak_satker_sekaligus_dan_yang_salah_tahap_ditolak
         "validator_wilayah",
         &[a.1.clone(), b.1.clone()],
         "approve",
+        "wilayah",
     )
     .await;
     assert_eq!(res.status_code(), 200, "{:?}", res.text());
@@ -134,6 +141,135 @@ async fn wilayah_meneruskan_banyak_satker_sekaligus_dan_yang_salah_tahap_ditolak
     teardown_test_db(&db_name).await;
 }
 
+/// The reported bug: Rina opens "Teruskan" for a row at 1001, Budi forwards it
+/// to 1004, Rina confirms. Before the fix the server re-read 1004 and, because
+/// Rina also holds `validator_pusat`, recorded a FINAL approval from a dialog
+/// that said "forward". The pinned stage must refuse instead.
+#[tokio::test]
+async fn massal_menolak_baris_yang_berpindah_setelah_dialog_dibuka() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let (campaign, row) = dua_baris(&server).await.remove(0);
+
+    satu(&server, "operator_satker", &row, "submit").await;
+    // Budi forwards it while Rina's dialog is open.
+    satu(&server, "validator_wilayah", &row, "approve").await;
+    assert_eq!(status(&server, &campaign).await, 1004);
+
+    // Rina's stale "Teruskan" confirmation.
+    let res = massal(
+        &server,
+        "validator_wilayah",
+        std::slice::from_ref(&row),
+        "approve",
+        "wilayah",
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    let body = res.json::<Value>();
+    assert!(
+        body["data"]["berhasil"].as_array().unwrap().is_empty(),
+        "tidak boleh ada yang bergeser: {body:?}"
+    );
+    assert_eq!(
+        body["data"]["gagal"].as_array().unwrap().len(),
+        1,
+        "{body:?}"
+    );
+    assert!(
+        body["data"]["gagal"][0]["alasan"]
+            .as_str()
+            .unwrap()
+            .contains("berpindah"),
+        "sebabnya menyebut tahap yang berubah: {body:?}"
+    );
+    assert_eq!(
+        status(&server, &campaign).await,
+        1004,
+        "tetap menunggu Pusat, bukan Selesai"
+    );
+
+    teardown_test_db(&db_name).await;
+}
+
+#[tokio::test]
+async fn aksi_tunggal_menolak_tahap_yang_sudah_berpindah() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let (campaign, row) = dua_baris(&server).await.remove(0);
+    satu(&server, "operator_satker", &row, "submit").await;
+    satu(&server, "validator_wilayah", &row, "approve").await;
+
+    let res = post(
+        &server,
+        "/pakaian-dinas/validator-action",
+        "validator_wilayah",
+        PUSAT,
+        SATKER_A,
+        json!({"pengajuan_satker_id": row, "aksi": "approve", "tahap": "wilayah"}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 409, "{:?}", res.text());
+    assert_eq!(status(&server, &campaign).await, 1004);
+
+    teardown_test_db(&db_name).await;
+}
+
+/// The same race on an account that holds BOTH validator roles — the account
+/// the guard exists for. The acting role alone cannot tell "Teruskan" from
+/// "Selesaikan" for such a user, so the dialog's pinned stage must decide.
+#[tokio::test]
+async fn akun_dua_peran_tidak_menuntaskan_lewat_dialog_teruskan_yang_basi() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let (campaign, row) = dua_baris(&server).await.remove(0);
+    const DUA_PERAN: &str = "validator_wilayah,validator_pusat";
+
+    satu(&server, "operator_satker", &row, "submit").await;
+    // Another wilayah validator forwards it while the dual-role dialog is open.
+    satu(&server, "validator_wilayah", &row, "approve").await;
+    assert_eq!(status(&server, &campaign).await, 1004);
+
+    let res = post(
+        &server,
+        "/pakaian-dinas/validator-action",
+        DUA_PERAN,
+        PUSAT,
+        SATKER_A,
+        json!({
+            "pengajuan_satker_id": row,
+            "aksi": "approve",
+            "tahap": "wilayah",
+        }),
+    )
+    .await;
+    assert_eq!(res.status_code(), 409, "{:?}", res.text());
+    assert_eq!(
+        status(&server, &campaign).await,
+        1004,
+        "tetap menunggu Pusat, bukan Selesai"
+    );
+
+    // And the same account CAN finalise it from the pusat gate.
+    let res = post(
+        &server,
+        "/pakaian-dinas/validator-action",
+        DUA_PERAN,
+        PUSAT,
+        SATKER_A,
+        json!({
+            "pengajuan_satker_id": row,
+            "aksi": "approve",
+            "tahap": "pusat",
+        }),
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    assert_eq!(status(&server, &campaign).await, 1008);
+
+    teardown_test_db(&db_name).await;
+}
+
 #[tokio::test]
 async fn pusat_menyetujui_massal_sampai_selesai() {
     let (app, _db, db_name) = setup_test_app().await;
@@ -145,7 +281,7 @@ async fn pusat_menyetujui_massal_sampai_selesai() {
     }
     let ids: Vec<String> = dua.iter().map(|d| d.1.clone()).collect();
 
-    let res = massal(&server, "validator_pusat", &ids, "approve").await;
+    let res = massal(&server, "validator_pusat", &ids, "approve", "pusat").await;
     assert_eq!(res.status_code(), 200, "{:?}", res.text());
     let body = res.json::<Value>();
     assert_eq!(
@@ -175,11 +311,11 @@ async fn massal_tidak_melonggarkan_peran_dan_hanya_menyetujui() {
     }
 
     // Operator tidak boleh memakai jalur massal.
-    let res = massal(&server, "operator_satker", &ids, "approve").await;
+    let res = massal(&server, "operator_satker", &ids, "approve", "wilayah").await;
     assert_eq!(res.status_code(), 403, "{:?}", res.text());
 
     // Pusat tidak boleh menyetujui baris yang masih menunggu wilayah: ditolak per baris.
-    let res = massal(&server, "validator_pusat", &ids, "approve").await;
+    let res = massal(&server, "validator_pusat", &ids, "approve", "wilayah").await;
     assert_eq!(res.status_code(), 200, "{:?}", res.text());
     let body = res.json::<Value>();
     assert!(
@@ -196,10 +332,10 @@ async fn massal_tidak_melonggarkan_peran_dan_hanya_menyetujui() {
     }
 
     // Mengembalikan tidak lewat jalur massal (butuh catatan sendiri-sendiri).
-    let res = massal(&server, "validator_wilayah", &ids, "reject").await;
+    let res = massal(&server, "validator_wilayah", &ids, "reject", "wilayah").await;
     assert_eq!(res.status_code(), 400, "{:?}", res.text());
     // Kosong ditolak.
-    let res = massal(&server, "validator_wilayah", &[], "approve").await;
+    let res = massal(&server, "validator_wilayah", &[], "approve", "wilayah").await;
     assert_eq!(res.status_code(), 400, "{:?}", res.text());
 
     teardown_test_db(&db_name).await;

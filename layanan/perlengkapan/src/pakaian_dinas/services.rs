@@ -11,7 +11,7 @@ use uuid::Uuid;
 use super::models::*;
 use super::repository::PakaianDinasRepository;
 use crate::contracts::AuditSink;
-use crate::shared::error::{AppError, AppResult, bad_request};
+use crate::shared::error::{AppError, AppResult, bad_request, conflict};
 use crate::shared::grpc::clients::IntegrasiClient;
 use crate::shared::grpc::clients::integrasi::v1::{DataSource, SyncState};
 use crate::shared::satker_scope::SatkerScope;
@@ -554,6 +554,15 @@ impl PakaianDinasService {
             .get_pengajuan_satker_by_id(request.pengajuan_satker_id, scope)
             .await?;
 
+        // The stage the caller saw when they opened the dialog. Without this,
+        // a dual-role account could open "Teruskan" on a wilayah-stage row,
+        // lose the race to another validator, and have its confirmation read as
+        // the pusat move — finalising the campaign from a dialog that said
+        // "forward". A row that has moved on is a conflict, not a new decision.
+        if let Some(tahap) = request.tahap.as_deref() {
+            Self::pastikan_tahap(satker.aktivitas_id, tahap)?;
+        }
+
         // Determine next status based on current status, action, and role.
         // Invalid (status, action, role) combos return 422 here — this doubles
         // as the RBAC + workflow guard for the validator action.
@@ -578,6 +587,7 @@ impl PakaianDinasService {
         self.repository
             .transition_satker_with_activity(
                 request.pengajuan_satker_id,
+                satker.aktivitas_id,
                 next_status,
                 request.komentar.clone(),
                 Some(user_nip),
@@ -646,6 +656,43 @@ impl PakaianDinasService {
             jumlah,
             peran: peran.to_string(),
         })
+    }
+
+    /// Pre-flight readiness for one workflow gate, for the confirmation dialog
+    /// the UI shows before advancing. Advisory: it never blocks a transition.
+    ///
+    /// `tahap` is `satker` (one operator's roster), `wilayah` (the satker a
+    /// wilayah validator still waits on) or `pusat` (the satker/wilayah pusat
+    /// still waits on). `kecuali` lists the participation rows about to be
+    /// moved — one for a single action, many for a bulk move — and is excluded
+    /// so the dialog counts only the OTHERS still behind.
+    pub async fn kesiapan(
+        &self,
+        pengajuan_id: Uuid,
+        tahap: &str,
+        satker_code: Option<&str>,
+        kecuali: &[Uuid],
+        scope: &SatkerScope,
+    ) -> AppResult<KesiapanPakaianDinas> {
+        match tahap {
+            "satker" => {
+                let kode = satker_code
+                    .map(str::trim)
+                    .filter(|k| !k.is_empty())
+                    .ok_or_else(|| bad_request("satker_code wajib diisi untuk tahap satker"))?;
+                self.repository
+                    .hitung_kesiapan_satker(pengajuan_id, kode, scope)
+                    .await
+            }
+            "wilayah" | "pusat" => {
+                self.repository
+                    .hitung_kesiapan_level(pengajuan_id, kecuali, tahap, scope)
+                    .await
+            }
+            _ => Err(bad_request(
+                "Tahap kesiapan harus 'satker', 'wilayah', atau 'pusat'",
+            )),
+        }
     }
 
     /// Remember the caller as somebody who can be told things (see
@@ -748,6 +795,39 @@ impl PakaianDinasService {
             }
         }
         Err(first_err.unwrap_or_else(|| bad_request("Akun tidak memiliki role untuk aksi ini")))
+    }
+
+    /// The statuses each gate may act on. Mirrors the frontend's
+    /// `status_query`/`tahap_untuk_status`: `satker` = still being filled (or sent back),
+    /// `wilayah` = waiting on the wilayah validator (fresh submission or one
+    /// pusat returned), `pusat` = waiting on the pusat validator.
+    pub(crate) fn status_pada_tahap(status: i32, tahap: &str) -> bool {
+        match tahap {
+            "satker" => matches!(status, 1000 | 1003),
+            "wilayah" => matches!(status, 1001 | 1007 | 1012),
+            "pusat" => matches!(status, 1004 | 1010),
+            _ => false,
+        }
+    }
+
+    /// Refuse a move whose row is no longer at the stage the caller saw. An
+    /// unknown stage is the caller's mistake (400); a moved row is a conflict
+    /// (409) so the UI can tell "reload and retry" from "bad request".
+    fn pastikan_tahap(status: i32, tahap: &str) -> AppResult<()> {
+        if !matches!(tahap, "satker" | "wilayah" | "pusat") {
+            return Err(bad_request(
+                "Tahap harus salah satu dari: satker, wilayah, pusat",
+            ));
+        }
+        if Self::status_pada_tahap(status, tahap) {
+            return Ok(());
+        }
+        let label = AktivitasStatus::from_i32(status)
+            .map(|s| s.label().to_string())
+            .unwrap_or_else(|| status.to_string());
+        Err(conflict(&format!(
+            "Satker ini sudah berpindah dari tahap '{tahap}' (status sekarang '{label}'). Muat ulang daftar lalu ulangi aksinya."
+        )))
     }
 
     /// Determine the next workflow status based on current status and action
@@ -870,6 +950,21 @@ impl PakaianDinasService {
                 "Aksi massal hanya untuk menyetujui; pengembalian diisi satu per satu karena butuh catatan sendiri",
             ));
         }
+        // Required: without it a bar labelled "Teruskan" can be read as the
+        // pusat move for any row another validator already forwarded.
+        let tahap = match request.tahap.as_deref() {
+            Some(t @ ("wilayah" | "pusat")) => t.to_string(),
+            Some(_) => {
+                return Err(bad_request(
+                    "Tahap aksi massal harus 'wilayah' atau 'pusat'",
+                ));
+            }
+            None => {
+                return Err(bad_request(
+                    "Aksi massal harus menyebutkan tahap ('wilayah' atau 'pusat')",
+                ));
+            }
+        };
         let mut seen = std::collections::HashSet::new();
         let ids: Vec<Uuid> = request
             .pengajuan_satker_ids
@@ -894,6 +989,7 @@ impl PakaianDinasService {
                 pengajuan_satker_id: id,
                 aksi: request.aksi.clone(),
                 komentar: request.komentar.clone(),
+                tahap: Some(tahap.clone()),
             };
             match self
                 .process_validator_action(one, aktor, user_roles, scope)

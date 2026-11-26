@@ -32,7 +32,10 @@ use crate::api::pakaian_dinas::{
     process_validator_action, simpan_ukuran_pegawai,
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
-use crate::features::pakaian_dinas::api::{fetch_ukuran_grup, kelompokkan_ukuran};
+use crate::components::workflow_ui::{ActionTone, ConfirmDialog};
+use crate::features::pakaian_dinas::api::{
+    fetch_ukuran_grup, hitung_pengisian, kelompokkan_ukuran, masukkan_kembali_pegawai,
+};
 use lib_ui::components::icon::AppIcon;
 use lib_ui::utils::formatters::{format_iso_local, format_iso_wib};
 use phosphor_leptos::{
@@ -93,6 +96,16 @@ async fn query_ukuran(_key: ()) -> Result<DaftarUkuran, crate::api::AppError> {
     })
 }
 
+/// What the "Ajukan" button waits for the person to confirm: which satker row,
+/// and how many of its employees still have no size. The counts are read from
+/// the roster already on screen, which is the same server data the submit uses.
+#[derive(Clone)]
+struct AjukanPending {
+    pengajuan_satker_id: String,
+    belum: usize,
+    total: usize,
+}
+
 #[component]
 pub fn PakaianDinasPengisian() -> impl IntoView {
     let params = use_params_map();
@@ -111,6 +124,9 @@ pub fn PakaianDinasPengisian() -> impl IntoView {
     let sedang_diisi = RwSignal::new(Option::<RosterPegawai>::None);
     let pesan = RwSignal::new(Option::<String>::None);
     let sibuk = RwSignal::new(false);
+    // Pengajuan yang menunggu konfirmasi "Ajukan" — kalau ada pegawai yang
+    // belum mengisi, modal-nya memberi peringatan sebelum tetap mengajukan.
+    let konfirmasi = RwSignal::new(Option::<AjukanPending>::None);
 
     let ajukan = Callback::new(move |pengajuan_satker_id: String| {
         sibuk.set(true);
@@ -120,6 +136,7 @@ pub fn PakaianDinasPengisian() -> impl IntoView {
                 pengajuan_satker_id,
                 aksi: "submit".to_string(),
                 komentar: None,
+                tahap: Some("satker".to_string()),
             };
             match process_validator_action(req).await {
                 Ok(_) => refresh.update(|v| *v += 1),
@@ -149,7 +166,15 @@ pub fn PakaianDinasPengisian() -> impl IntoView {
                     if let Err(e) = daftar_ukuran {
                         return view! { <ErrorState error=e /> }.into_any();
                     }
-                    halaman(data, pengajuan_id(), sedang_diisi, pesan, sibuk, refresh, ajukan)
+                    halaman(
+                        data,
+                        pengajuan_id(),
+                        sedang_diisi,
+                        pesan,
+                        sibuk,
+                        refresh,
+                        konfirmasi,
+                    )
                 }}
             </Suspense>
 
@@ -179,6 +204,48 @@ pub fn PakaianDinasPengisian() -> impl IntoView {
                                 />
                             }
                         })
+                    })
+            }}
+
+            // Confirmation before submitting to the wilayah validator. The
+            // roster is already on screen, so the counts come from it: no extra
+            // round-trip, and the number shown is the number the server has.
+            {move || {
+                konfirmasi
+                    .get()
+                    .map(|p| {
+                        let pesan = format!(
+                            "Ukuran {} pegawai satker ini akan diajukan ke Validator Wilayah. Setelah diajukan, ukurannya tidak dapat diubah sampai dikembalikan.",
+                            p.total,
+                        );
+                        let warning = (p.belum > 0)
+                            .then(|| {
+                                format!(
+                                    "{} dari {} pegawai belum mengisi ukuran. Anda tetap dapat mengajukan sekarang, tetapi mereka baru bisa dilengkapi bila Validator Wilayah mengembalikan pengajuan ini.",
+                                    p.belum, p.total,
+                                )
+                            });
+                        let id_lanjut = p.pengajuan_satker_id.clone();
+                        let label = if warning.is_some() {
+                            "Tetap Ajukan"
+                        } else {
+                            "Ajukan"
+                        };
+                        view! {
+                            <ConfirmDialog
+                                title="Ajukan ke Validator Wilayah?"
+                                message=pesan
+                                warning=warning
+                                confirm_label=label.to_string()
+                                confirm_tone=ActionTone::Success
+                                busy=Signal::derive(move || sibuk.get())
+                                on_confirm=Callback::new(move |_: ()| {
+                                    konfirmasi.set(None);
+                                    ajukan.run(id_lanjut.clone());
+                                })
+                                on_close=Callback::new(move |_: ()| konfirmasi.set(None))
+                            />
+                        }
                     })
             }}
         </PageLayout>
@@ -241,6 +308,24 @@ fn CatatanRevisi(pengajuan_satker_id: String) -> impl IntoView {
     }
 }
 
+/// Only the satker's OWN operator edits this roster.
+///
+/// A validator who also holds `operator_satker` may READ any satker in their
+/// region (the roster endpoint allows it), but the server confines writes to
+/// their own satker (404 otherwise). Enabling the form for someone else's
+/// satker would collect sizes that can never be saved.
+fn boleh_mengisi(sesi: Option<&crate::features::auth::UserSession>, satker_kode: &str) -> bool {
+    let Some(sesi) = sesi else {
+        return false;
+    };
+    sesi.has_role("operator_satker")
+        && sesi
+            .satker_code
+            .as_deref()
+            .map(str::trim)
+            .is_some_and(|kode| !kode.is_empty() && kode == satker_kode.trim())
+}
+
 #[allow(clippy::too_many_arguments)]
 fn halaman(
     data: RosterPengisian,
@@ -251,16 +336,20 @@ fn halaman(
     pesan: RwSignal<Option<String>>,
     sibuk: RwSignal<bool>,
     refresh: RwSignal<i32>,
-    ajukan: Callback<String>,
+    konfirmasi: RwSignal<Option<AjukanPending>>,
 ) -> AnyView {
-    let total = data.pegawai.len();
-    let terisi = data.pegawai.iter().filter(|p| p.sudah_diisi).count();
+    // Orang yang dikeluarkan tidak berutang ukuran, jadi ia tidak boleh muncul
+    // di penyebut "x dari y sudah diisi" maupun di peringatan "Ajukan" —
+    // server (kesiapan) juga tidak menghitungnya.
+    let hitung = hitung_pengisian(&data.pegawai);
+    let (total, terisi) = (hitung.total, hitung.terisi);
     // Only the satker's own operator edits; a validator or administrator who opens
     // the page is reading it. The server refuses anyone else's write, so the
     // controls would only ever answer an error.
-    let boleh_isi = crate::features::auth::AuthService::load_session()
-        .map(|s| s.has_role("operator_satker"))
-        .unwrap_or(false);
+    let boleh_isi = boleh_mengisi(
+        crate::features::auth::AuthService::load_session().as_ref(),
+        &data.satker_kode,
+    );
     let terkunci = !data.dapat_diubah;
     let dapat_diubah = data.dapat_diubah && boleh_isi;
     let pengajuan_satker_id = data.pengajuan_satker_id.clone();
@@ -268,6 +357,8 @@ fn halaman(
     let id_catatan_revisi = data.pengajuan_satker_id.clone();
     let kode_pengajuan = data.pengajuan_satker_id.clone();
     let _ = kode_pengajuan;
+    // `view!` consumes the URL for the back link before the table is built.
+    let id_untuk_tabel = pengajuan_id_url.clone();
     let satker_kode = data.satker_kode.clone();
     let kode_tampil = satker_kode.clone();
     let kode_fallback = satker_kode.clone();
@@ -310,7 +401,16 @@ fn halaman(
                         }
                         on:click={
                             let id = pengajuan_satker_id.clone();
-                            move |_| ajukan.run(id.clone())
+                            move |_| {
+                                konfirmasi
+                                    .set(
+                                        Some(AjukanPending {
+                                            pengajuan_satker_id: id.clone(),
+                                            belum: hitung.belum(),
+                                            total,
+                                        }),
+                                    )
+                            }
                         }
                     >
                         <AppIcon icon=PAPER_PLANE_TILT />
@@ -382,16 +482,126 @@ fn halaman(
                 }
                     .into_any()
             } else {
-                tabel(
+                daftar_pegawai(
                     data.pegawai.clone(),
                     pakaian.clone(),
                     dapat_diubah,
                     sedang_diisi,
-                    satker_kode.clone(),
-                    refresh,
+                    AksiRoster {
+                        pengajuan_id: id_untuk_tabel.clone(),
+                        satker_kode: satker_kode.clone(),
+                        refresh,
+                        pesan,
+                        sibuk,
+                    },
                 )
             }}
         </SectionCard>
+    }
+    .into_any()
+}
+
+/// What every roster row action needs: which campaign and satker it writes to,
+/// plus the three page signals (refresh counter, message, busy flag).
+#[derive(Clone)]
+struct AksiRoster {
+    pengajuan_id: String,
+    satker_kode: String,
+    refresh: RwSignal<i32>,
+    pesan: RwSignal<Option<String>>,
+    sibuk: RwSignal<bool>,
+}
+
+/// The employee list plus the people the operator excluded. Excluded people
+/// are NOT in the table (they owe no size), but they stay visible with a way
+/// back: excluding is a judgement call that gets reversed, and the only other
+/// undo was a size form the table no longer offered.
+fn daftar_pegawai(
+    pegawai: Vec<RosterPegawai>,
+    pakaian: Vec<PengajuanPakaianItem>,
+    dapat_diubah: bool,
+    sedang_diisi: RwSignal<Option<RosterPegawai>>,
+    aksi: AksiRoster,
+) -> AnyView {
+    let (aktif, dikeluarkan): (Vec<_>, Vec<_>) = pegawai.into_iter().partition(|p| !p.dikeluarkan);
+    let jumlah_dikeluarkan = dikeluarkan.len();
+    let tabel_aktif = tabel(
+        aktif,
+        pakaian,
+        dapat_diubah,
+        sedang_diisi,
+        aksi.satker_kode.clone(),
+        aksi.refresh,
+    );
+    view! {
+        <div class="space-y-4">
+            {tabel_aktif}
+            {(jumlah_dikeluarkan > 0 && dapat_diubah)
+                .then(|| {
+                    view! {
+                        <div
+                            data-testid="pengisian-dikeluarkan"
+                            class="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3"
+                        >
+                            <p class="text-sm font-medium text-slate-200">
+                                "Dikeluarkan dari pengajuan (" {jumlah_dikeluarkan} ")"
+                            </p>
+                            <p class="mt-1 text-xs text-slate-500">
+                                "Tidak dihitung sebagai belum mengisi. Masukkan kembali bila pegawai ini ternyata memerlukan pakaian dinas."
+                            </p>
+                            <ul class="mt-3 divide-y divide-white/[0.04]">
+                                {dikeluarkan
+                                    .into_iter()
+                                    .map(|p| baris_dikeluarkan(p, aksi.clone()))
+                                    .collect_view()}
+                            </ul>
+                        </div>
+                    }
+                })}
+        </div>
+    }
+    .into_any()
+}
+
+fn baris_dikeluarkan(p: RosterPegawai, aksi: AksiRoster) -> AnyView {
+    let nip = p.nip.clone();
+    let sibuk = aksi.sibuk;
+    let on_click = move |_| {
+        if aksi.sibuk.get() {
+            return;
+        }
+        aksi.sibuk.set(true);
+        aksi.pesan.set(None);
+        let (pid, kode, nip) = (
+            aksi.pengajuan_id.clone(),
+            aksi.satker_kode.clone(),
+            nip.clone(),
+        );
+        spawn_local(async move {
+            match masukkan_kembali_pegawai(&pid, &kode, &nip).await {
+                Ok(_) => aksi.refresh.update(|v| *v += 1),
+                Err(e) => aksi.pesan.set(Some(e.user_message())),
+            }
+            aksi.sibuk.set(false);
+        });
+    };
+    view! {
+        <li class="flex items-center justify-between gap-3 py-2">
+            <div>
+                <p class="text-sm text-slate-200">{p.nama.clone()}</p>
+                <p class="text-xs text-slate-500">{p.nip.clone()}</p>
+            </div>
+            <button
+                type="button"
+                data-testid="masukkan-kembali"
+                class="rounded-lg border border-white/10 px-3 py-1.5 text-sm text-slate-200 transition hover:bg-white/[0.04] disabled:opacity-50"
+                prop:disabled=move || sibuk.get()
+                on:click=on_click
+                title="Kembalikan pegawai ini ke daftar yang harus diisi"
+            >
+                "Masukkan kembali"
+            </button>
+        </li>
     }
     .into_any()
 }
@@ -659,8 +869,6 @@ fn DialogUkuran(
     let jabatan = pegawai.jabatan.clone().unwrap_or_else(|| "-".to_string());
     let pangkat = pegawai.pangkat.clone().unwrap_or_else(|| "-".to_string());
     let perempuan = pegawai.jenis_kelamin.eq_ignore_ascii_case("P");
-    let sudah_diisi = pegawai.sudah_diisi;
-
     view! {
         <div
             data-testid="dialog-ukuran"
@@ -800,17 +1008,16 @@ fn DialogUkuran(
                 </Show>
 
                 <div class="mt-6 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
-                    <Show when=move || sudah_diisi>
-                        <button
-                            type="button"
-                            class="rounded-lg border border-danger-500/30 px-4 py-2 text-sm text-danger-300 transition hover:bg-danger-500/10 disabled:opacity-50"
-                            prop:disabled=move || sibuk.get()
-                            on:click=keluarkan
-                            title="Untuk pegawai yang tidak memerlukan pakaian dinas"
-                        >
-                            "Keluarkan dari Pengajuan"
-                        </button>
-                    </Show>
+                    <button
+                        type="button"
+                        data-testid="keluarkan-pegawai"
+                        class="rounded-lg border border-danger-500/30 px-4 py-2 text-sm text-danger-300 transition hover:bg-danger-500/10 disabled:opacity-50"
+                        prop:disabled=move || sibuk.get()
+                        on:click=keluarkan
+                        title="Untuk pegawai yang tidak memerlukan pakaian dinas"
+                    >
+                        "Keluarkan dari Pengajuan"
+                    </button>
                     <div class="ml-auto flex gap-3">
                         <button
                             type="button"
@@ -832,5 +1039,67 @@ fn DialogUkuran(
                 </div>
             </div>
         </div>
+    }
+}
+
+#[cfg(test)]
+mod boleh_mengisi_tests {
+    use super::boleh_mengisi;
+    use crate::features::auth::UserSession;
+
+    fn sesi(roles: &[&str], satker: Option<&str>) -> UserSession {
+        UserSession {
+            user_id: "u".to_string(),
+            username: "u".to_string(),
+            name: "U".to_string(),
+            email: None,
+            nip: None,
+            jabatan: None,
+            satker_code: satker.map(str::to_string),
+            satker_id: None,
+            satker_nama: None,
+            roles: roles.iter().map(|r| r.to_string()).collect(),
+            role: roles.first().copied().unwrap_or("").to_string(),
+            expires_at: None,
+        }
+    }
+
+    #[test]
+    fn the_own_satker_operator_may_fill() {
+        assert!(boleh_mengisi(
+            Some(&sesi(&["operator_satker"], Some("SKR001"))),
+            "SKR001"
+        ));
+        assert!(boleh_mengisi(
+            Some(&sesi(&["operator_satker"], Some(" SKR001 "))),
+            "SKR001"
+        ));
+    }
+
+    #[test]
+    fn a_dual_role_account_may_read_but_not_fill_another_satker() {
+        let s = sesi(&["operator_satker", "validator_wilayah"], Some("SKR001"));
+        assert!(boleh_mengisi(Some(&s), "SKR001"));
+        assert!(
+            !boleh_mengisi(Some(&s), "SKR002"),
+            "server menolak simpanan ke satker lain; formulirnya jangan diaktifkan"
+        );
+    }
+
+    #[test]
+    fn readers_and_sessions_without_a_satker_may_not_fill() {
+        assert!(!boleh_mengisi(
+            Some(&sesi(&["validator_wilayah"], Some("SKR001"))),
+            "SKR001"
+        ));
+        assert!(!boleh_mengisi(
+            Some(&sesi(&["operator_satker"], None)),
+            "SKR001"
+        ));
+        assert!(!boleh_mengisi(
+            Some(&sesi(&["operator_satker"], Some("  "))),
+            "SKR001"
+        ));
+        assert!(!boleh_mengisi(None, "SKR001"));
     }
 }

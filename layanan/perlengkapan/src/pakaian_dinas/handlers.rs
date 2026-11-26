@@ -69,6 +69,32 @@ pub struct PengajuanFilterQuery {
     pub tahun: Option<i32>,
 }
 
+/// `?tahap=&satker_code=&kecuali=` of the readiness pre-flight.
+/// `tahap` is `satker` | `wilayah` | `pusat`; `kecuali` is a comma-separated
+/// list of participation rows about to be moved (one row for a single action,
+/// many for a bulk move), left out of the count.
+#[derive(Debug, Deserialize)]
+pub struct KesiapanQuery {
+    pub tahap: String,
+    pub satker_code: Option<String>,
+    pub kecuali: Option<String>,
+}
+
+/// `kecuali` is a comma list so one endpoint serves both a single action and a
+/// bulk move. Blank entries are ignored; anything that is not a UUID is a 400
+/// rather than a silently ignored row.
+fn parse_kecuali(raw: Option<&str>) -> AppResult<Vec<Uuid>> {
+    raw.unwrap_or_default()
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| {
+            Uuid::parse_str(s)
+                .map_err(|_| bad_request("kecuali harus berupa daftar UUID dipisah koma"))
+        })
+        .collect()
+}
+
 #[derive(Debug, Deserialize)]
 pub struct LaporanRekapQuery {
     pub pengajuan_id: Uuid,
@@ -661,6 +687,33 @@ pub async fn get_menunggu_pakaian_dinas(
     Ok(Json(ApiResponse::success(
         item,
         "Pekerjaan pakaian dinas yang menunggu".to_string(),
+    )))
+}
+
+/// GET /pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan
+///
+/// Pre-flight counts for the confirmation dialog shown before a level advances
+/// (operator submit, wilayah forward, pusat finalise). Advisory — it never
+/// blocks; the client shows the warning and the person decides.
+pub async fn get_kesiapan_pakaian_dinas(
+    State(service): State<PakaianDinasService>,
+    Path(pengajuan_id): Path<Uuid>,
+    Query(query): Query<KesiapanQuery>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<KesiapanPakaianDinas>>, AppError> {
+    let item = service
+        .kesiapan(
+            pengajuan_id,
+            &query.tahap,
+            query.satker_code.as_deref(),
+            &parse_kecuali(query.kecuali.as_deref())?,
+            &SatkerScope::from_claims(&claims),
+        )
+        .await?;
+
+    Ok(Json(ApiResponse::success(
+        item,
+        "Kesiapan pengajuan pakaian dinas berhasil diambil".to_string(),
     )))
 }
 
@@ -1358,7 +1411,9 @@ pub async fn simpan_ukuran_pegawai(
     // WHICH satker; with no role gate a validator_pusat (scope `All`) could
     // rewrite any employee's record in the country.
     claims.require_role("operator_satker")?;
-    let scope = SatkerScope::from_claims(&claims);
+    // Write scope, not read scope: an account that is also a wilayah validator
+    // reads its region but may only write its own satker's roster.
+    let scope = SatkerScope::own_satker_from_claims(&claims);
     service
         .repository
         .simpan_ukuran_pegawai(pengajuan_id, &satker_code, &nip, &request, &scope)
@@ -1385,7 +1440,7 @@ pub async fn hapus_pegawai_dari_pengajuan(
     // WHICH satker; with no role gate a validator_pusat (scope `All`) could
     // rewrite any employee's record in the country.
     claims.require_role("operator_satker")?;
-    let scope = SatkerScope::from_claims(&claims);
+    let scope = SatkerScope::own_satker_from_claims(&claims);
     service
         .repository
         .hapus_pegawai_dari_pengajuan(pengajuan_id, &satker_code, &nip, &scope)
@@ -1400,9 +1455,58 @@ pub async fn hapus_pegawai_dari_pengajuan(
     )))
 }
 
+/// Masukkan kembali pegawai yang sebelumnya dikeluarkan dari pengajuan.
+pub async fn masukkan_kembali_pegawai(
+    State(service): State<PakaianDinasService>,
+    Path((pengajuan_id, satker_code, nip)): Path<(Uuid, String, String)>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<RosterPengisian>>, AppError> {
+    // Same gate as excluding them: the satker's own operator, on a row that is
+    // still editable.
+    claims.require_role("operator_satker")?;
+    let scope = SatkerScope::own_satker_from_claims(&claims);
+    service
+        .repository
+        .masukkan_kembali_pegawai(pengajuan_id, &satker_code, &nip, &scope)
+        .await?;
+    let roster = service
+        .repository
+        .get_roster_pengisian(pengajuan_id, &satker_code, &scope)
+        .await?;
+    Ok(Json(ApiResponse::success(
+        roster,
+        "Pegawai dimasukkan kembali ke pengajuan".to_string(),
+    )))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_kecuali_reads_a_comma_list_and_ignores_blanks() {
+        assert_eq!(parse_kecuali(None).unwrap(), Vec::<Uuid>::new());
+        assert_eq!(parse_kecuali(Some("")).unwrap(), Vec::<Uuid>::new());
+        assert_eq!(parse_kecuali(Some(" , ,")).unwrap(), Vec::<Uuid>::new());
+
+        let a = Uuid::new_v4();
+        let b = Uuid::new_v4();
+        // Spaces around an entry are an artefact of the query string, not a
+        // reason to refuse the whole pre-flight.
+        assert_eq!(
+            parse_kecuali(Some(&format!(" {a} , {b} ,"))).unwrap(),
+            vec![a, b]
+        );
+    }
+
+    #[test]
+    fn parse_kecuali_refuses_a_value_that_is_not_a_uuid() {
+        let a = Uuid::new_v4();
+        // Mixed valid/invalid must not silently drop the bad entry: the count
+        // would then include the row the caller is about to move.
+        let err = parse_kecuali(Some(&format!("{a},bukan-uuid"))).unwrap_err();
+        assert!(matches!(err, AppError::BadRequest(_)), "{err:?}");
+    }
 
     #[test]
     fn test_query_params_default() {

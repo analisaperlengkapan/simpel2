@@ -7,6 +7,8 @@
 //! on submissions pending wilayah review; Validator Pusat on those forwarded to
 //! pusat. Everyone else sees the timeline read-only.
 
+use std::collections::HashMap;
+
 use leptos::html;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -22,10 +24,11 @@ use crate::api::{
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::components::pagination_controls::PaginationControls;
 use crate::components::workflow_ui::{
-    ActionTone, ApprovalDialog, StepStatus, WorkflowAction, WorkflowActions, WorkflowStep,
-    WorkflowTimeline,
+    ActionTone, ApprovalDialog, ConfirmDialog, StepStatus, WorkflowAction, WorkflowActions,
+    WorkflowStep, WorkflowTimeline,
 };
 use crate::features::auth::AuthService;
+use crate::features::pakaian_dinas::api::{fetch_kesiapan_pakaian_dinas, ringkasan_kesiapan};
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::PENCIL_SIMPLE;
 
@@ -216,6 +219,65 @@ struct PendingAction {
     title: String,
     tone: ActionTone,
     require_note: bool,
+    /// Advisory "others still behind" warning fetched before the dialog opened.
+    /// `None` = nothing outstanding (or the readiness call failed).
+    warning: Option<String>,
+    /// Gate this dialog was opened for. Sent back with the action so the server
+    /// refuses a row another validator moved while the dialog was open.
+    tahap: &'static str,
+    satker_nama: Option<String>,
+}
+
+/// A pending bulk move awaiting confirmation. `label` is the move the bar
+/// offers ("Teruskan ke Pusat" / "Setujui (Selesai)"); the warning is the
+/// advisory count of OTHER satker still behind, fetched with every selected row
+/// excluded so the dialog does not warn about the rows it is about to move.
+#[derive(Clone)]
+struct PendingBulk {
+    ids: Vec<String>,
+    label: String,
+    warning: Option<String>,
+    /// Gate this bar acts on, pinned when the dialog opened.
+    tahap: &'static str,
+}
+
+/// Names for the rows a bulk move refused. The reason alone ("tahap pengajuan
+/// sudah berpindah") does not say WHICH row, and a bulk move can refuse several
+/// at once; the page in hand already holds the names.
+fn nama_satker_per_id(
+    list: Option<Result<PaginatedResponse<PengajuanSatker>, AppError>>,
+) -> HashMap<String, String> {
+    match list {
+        Some(Ok(resp)) => resp
+            .data
+            .iter()
+            .map(|s| {
+                let label = s.satker_nama.clone().unwrap_or_else(|| s.satker_id.clone());
+                (s.id.clone(), label)
+            })
+            .collect(),
+        _ => HashMap::new(),
+    }
+}
+
+/// The gate a status is waiting on: `satker` while it is still being filled,
+/// `wilayah` when the wilayah validator owes a move, `pusat` when pusat does.
+fn tahap_untuk_status(status: i32) -> &'static str {
+    match status {
+        1000 | 1003 => "satker",
+        1001 | 1007 | 1012 => "wilayah",
+        _ => "pusat",
+    }
+}
+
+/// The gate a bulk bar acts on. The label names the move; the gate names the
+/// level it moves from, which is what the readiness count and the server check.
+fn tahap_untuk_label(label: &str) -> &'static str {
+    if label == "Teruskan ke Pusat" {
+        "wilayah"
+    } else {
+        "pusat"
+    }
 }
 
 #[component]
@@ -255,6 +317,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
     // would carry the tick over to the final-approval bar, so that bar's button finished it too.
     let terpilih = RwSignal::new(Vec::<(String, &'static str)>::new());
     let hasil_massal = RwSignal::new(Option::<BulkActionResult>::None);
+    let pending_massal = RwSignal::new(Option::<PendingBulk>::None);
 
     let client: QueryClient = expect_context();
     let list_resource = client.local_resource(query_satker_list, move || {
@@ -309,6 +372,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
             } else {
                 Some(note)
             },
+            tahap: Some(act.tahap.to_string()),
         };
         spawn_local(async move {
             match process_validator_action(req).await {
@@ -331,7 +395,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
 
     // Approve every ticked satker in one request. Each goes through the same
     // per-row checks a single approval does; the answer says which went through.
-    let on_massal = Callback::new(move |ids: Vec<String>| {
+    let on_massal = Callback::new(move |(ids, tahap): (Vec<String>, &'static str)| {
         if ids.is_empty() {
             return;
         }
@@ -342,6 +406,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
             pengajuan_satker_ids: ids,
             aksi: "approve".to_string(),
             komentar: None,
+            tahap: Some(tahap.to_string()),
         };
         spawn_local(async move {
             match process_validator_action_bulk(req).await {
@@ -352,6 +417,10 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                 }
                 Err(e) => error.set(Some(e.user_message())),
             }
+            // Close the confirmation only once the request is done, so the
+            // dialog's busy state is what the person watches, not a bar that
+            // vanished mid-request.
+            pending_massal.set(None);
             busy.set(false);
         });
     });
@@ -462,6 +531,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                     .map(|h| {
                         let berhasil = h.berhasil.len();
                         let gagal = h.gagal;
+                        let nama = nama_satker_per_id(list_resource.get());
                         view! {
                             <div
                                 data-testid="hasil-massal"
@@ -478,7 +548,17 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                 <ul class="mt-1 list-disc pl-5 text-warning-300">
                                     {gagal
                                         .into_iter()
-                                        .map(|g| view! { <li>{g.alasan}</li> })
+                                        .map(|g| {
+                                            let label = nama.get(&g.pengajuan_satker_id).cloned();
+                                            view! {
+                                                <li>
+                                                    {match label {
+                                                        Some(n) => format!("{n}: {}", g.alasan),
+                                                        None => g.alasan,
+                                                    }}
+                                                </li>
+                                            }
+                                        })
                                         .collect_view()}
                                 </ul>
                             </div>
@@ -562,6 +642,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                 data-testid="pilih-semua"
                                                 class="h-4 w-4 rounded border-white/20 bg-white/[0.04]"
                                                 prop:checked=semua_terpilih
+                                                prop:disabled=move || busy.get()
                                                 on:change=ubah_semua
                                             />
                                             {teks}
@@ -583,7 +664,39 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                 }
                                                 on:click={
                                                     let dipilih = dipilih.clone();
-                                                    move |_| on_massal.run(dipilih())
+                                                    move |_| {
+                                                        let ids = dipilih();
+                                                        if ids.is_empty() {
+                                                            return;
+                                                        }
+                                                        busy.set(true);
+                                                        error.set(None);
+                                                        let pid = pengajuan_id();
+                                                        let tahap = tahap_untuk_label(label);
+                                                        let kecuali = ids.clone();
+                                                        spawn_local(async move {
+                                                            let warning = fetch_kesiapan_pakaian_dinas(
+                                                                    &pid,
+                                                                    tahap,
+                                                                    None,
+                                                                    &kecuali,
+                                                                )
+                                                                .await
+                                                                .ok()
+                                                                .filter(|k| !k.lengkap)
+                                                                .and_then(|k| ringkasan_kesiapan(&k));
+                                                            pending_massal
+                                                                .set(
+                                                                    Some(PendingBulk {
+                                                                        ids,
+                                                                        label: label.to_string(),
+                                                                        warning,
+                                                                        tahap,
+                                                                    }),
+                                                                );
+                                                            busy.set(false);
+                                                        });
+                                                    }
                                                 }
                                             >
                                                 {
@@ -673,6 +786,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                                                     .iter()
                                                                                     .any(|(x, l)| *x == id_cek && *l == aksi_baris)
                                                                             }
+                                                                            prop:disabled=move || busy.get()
                                                                             on:change=move |ev| {
                                                                                 let on = event_target_checked(&ev);
                                                                                 let id = id_pilih.clone();
@@ -762,23 +876,58 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                             Some((approve_label, reject_label)) => {
                                 let sid_a = s.id.clone();
                                 let sid_r = s.id.clone();
+                                let pid_a = s.pengajuan_id.clone();
                                 let approve_title = approve_label.to_string();
                                 let reject_title = reject_label.to_string();
+                                let satker_nama = s.satker_nama.clone();
+                                let nama_r = s.satker_nama.clone();
+                                let tahap = tahap_untuk_status(code);
                                 vec![
                                     WorkflowAction::new(
                                         approve_label,
                                         ActionTone::Success,
                                         Callback::new(move |_: ()| {
-                                            pending
-                                                .set(
-                                                    Some(PendingAction {
-                                                        satker_id: sid_a.clone(),
-                                                        aksi: "approve".to_string(),
-                                                        title: approve_title.clone(),
-                                                        tone: ActionTone::Success,
-                                                        require_note: false,
-                                                    }),
-                                                );
+                                            let sid = sid_a.clone();
+                                            let pid = pid_a.clone();
+                                            let title = approve_title.clone();
+                                            let nama = satker_nama.clone();
+                                            busy.set(true);
+                                            spawn_local(async move {
+                                                let warning = fetch_kesiapan_pakaian_dinas(
+                                                    &pid,
+                                                    tahap,
+                                                    None,
+                                                    std::slice::from_ref(&sid),
+                                                )
+                                                .await
+                                                .ok()
+                                                .filter(|k| !k.lengkap)
+                                                .and_then(|k| ringkasan_kesiapan(&k));
+                                                // The count is a round-trip; the panel
+                                                // may have moved to another satker in the
+                                                // meantime. Opening then would act on a row
+                                                // the person is no longer looking at.
+                                                if selected.get().map(|s| s.id).as_deref()
+                                                    != Some(sid.as_str())
+                                                {
+                                                    busy.set(false);
+                                                    return;
+                                                }
+                                                pending
+                                                    .set(
+                                                        Some(PendingAction {
+                                                            satker_id: sid,
+                                                            aksi: "approve".to_string(),
+                                                            title,
+                                                            tone: ActionTone::Success,
+                                                            require_note: false,
+                                                            warning,
+                                                            tahap,
+                                                            satker_nama: nama,
+                                                        }),
+                                                    );
+                                                busy.set(false);
+                                            });
                                         }),
                                     ),
                                     WorkflowAction::new(
@@ -793,6 +942,9 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                         title: reject_title.clone(),
                                                         tone: ActionTone::Danger,
                                                         require_note: true,
+                                                        warning: None,
+                                                        tahap,
+                                                        satker_nama: nama_r.clone(),
                                                     }),
                                                 );
                                         }),
@@ -860,9 +1012,14 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                 pending
                     .get()
                     .map(|act| {
+                        let judul = match act.satker_nama.as_deref() {
+                            Some(nama) => format!("{} — {}", act.title, nama),
+                            None => act.title.clone(),
+                        };
                         view! {
                             <ApprovalDialog
-                                title=act.title.clone()
+                                title=judul
+                                warning=act.warning.clone()
                                 note_label=if act.require_note {
                                     "Alasan / Catatan (wajib)".to_string()
                                 } else {
@@ -878,13 +1035,47 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                         }
                     })
             }}
+            {move || {
+                pending_massal
+                    .get()
+                    .map(|b| {
+                        let n = b.ids.len();
+                        let ids = b.ids.clone();
+                        let (title, message) = if b.label == "Teruskan ke Pusat" {
+                            (
+                                format!("Teruskan {n} satker ke Validator Pusat?"),
+                                "Satker terpilih akan diteruskan sekaligus.".to_string(),
+                            )
+                        } else {
+                            (
+                                format!("Setujui {n} satker (Selesai)?"),
+                                "Satker terpilih akan diselesaikan dan tidak bisa diubah lagi."
+                                    .to_string(),
+                            )
+                        };
+                        view! {
+                            <ConfirmDialog
+                                title=title
+                                message=message
+                                warning=b.warning.clone()
+                                confirm_label="Ya, lanjutkan"
+                                confirm_tone=ActionTone::Success
+                                on_confirm=Callback::new(move |_: ()| {
+                                    on_massal.run((ids.clone(), b.tahap))
+                                })
+                                on_close=Callback::new(move |_: ()| pending_massal.set(None))
+                                busy=Signal::derive(move || busy.get())
+                            />
+                        }
+                    })
+            }}
         </PageLayout>
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{aksi_untuk, kelompok_massal, status_query};
+    use super::{aksi_untuk, kelompok_massal, status_query, tahap_untuk_label, tahap_untuk_status};
 
     fn baris() -> Vec<(String, i32)> {
         // Two waiting at wilayah (one of them returned by pusat), two at pusat, one with nobody's
@@ -897,6 +1088,34 @@ mod tests {
             ("p2".into(), 1010),
             ("s1".into(), 1008),
         ]
+    }
+
+    /// The dialog's `tahap` and the readiness gate must agree with the status
+    /// the row is actually in, and every status the workflow can produce must
+    /// have a readable label (the previous gap: a returned row showed "Dalam
+    /// Proses" and offered no action).
+    #[test]
+    fn every_reachable_status_has_a_gate_and_a_label() {
+        for (code, gate) in [
+            (1000, "satker"),
+            (1003, "satker"),
+            (1001, "wilayah"),
+            (1007, "wilayah"),
+            (1012, "wilayah"),
+            (1004, "pusat"),
+            (1010, "pusat"),
+            (1008, "pusat"),
+        ] {
+            assert_eq!(tahap_untuk_status(code), gate, "status {code}");
+            assert_ne!(
+                crate::api::aktivitas_label(code),
+                "Dalam Proses",
+                "status {code} needs a real label"
+            );
+        }
+        // The bar's label names the move; the gate names the level it acts from.
+        assert_eq!(tahap_untuk_label("Teruskan ke Pusat"), "wilayah");
+        assert_eq!(tahap_untuk_label("Setujui (Selesai)"), "pusat");
     }
 
     #[test]

@@ -94,6 +94,20 @@ pub(crate) async fn put(
     req.await
 }
 
+pub(crate) async fn delete(
+    server: &TestServer,
+    path: &str,
+    role: &str,
+    user: &str,
+    satker: &str,
+) -> axum_test::TestResponse {
+    let mut req = server.delete(path);
+    for (k, v) in headers(role, user, satker) {
+        req = req.add_header(k, v);
+    }
+    req.await
+}
+
 /// Kampanye PDH dengan satu kolom BAJU, menyasar SKR001 dan SKR002.
 /// Mengembalikan `(pengajuan_id, pakaian_id)`.
 /// A campaign window that contains today, whenever the test runs. The dates are
@@ -722,6 +736,777 @@ async fn aksi_validator_pakaian_dinas_tercatat_di_jejak_audit_beserta_pelakunya(
     assert!(
         !nama.trim().is_empty() && nama != "unknown",
         "nama pelaku harus terbaca manusia, bukan penanda kosong: {entry:?}"
+    );
+
+    teardown_test_db(&db_name).await;
+}
+
+/// The confirmation dialogs need counts the client cannot compute — it only
+/// holds one page of the satker list. This pins the two questions they ask:
+/// "how many employees of mine are still unfilled?" and "which satker are still
+/// behind me?".
+#[tokio::test]
+async fn kesiapan_menghitung_yang_belum_mengisi_dan_yang_belum_mengajukan() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let (pengajuan_id, _) = buat_kampanye(&server).await;
+
+    // Pusat: both satker are still at Input, so neither has asked the wilayah
+    // validator for anything yet.
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=pusat"),
+        "validator_pusat",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "kesiapan pusat: {:?}", res.text());
+    let k = res.json::<Value>()["data"].clone();
+    assert_eq!(k["tahap"].as_str(), Some("pusat"));
+    assert_eq!(k["total"].as_i64(), Some(2), "{k:?}");
+    assert_eq!(k["belum_mengajukan"].as_i64(), Some(2), "{k:?}");
+    assert_eq!(k["belum_lengkap"].as_i64(), Some(0), "{k:?}");
+    assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
+
+    // The operator's own gate counts employees, not satker.
+    let res = get(
+        &server,
+        &format!(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=satker&satker_code={SATKER_A}"
+        ),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "kesiapan satker: {:?}", res.text());
+    let k = res.json::<Value>()["data"].clone();
+    assert_eq!(k["total"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["pegawai_belum_diisi"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
+
+    // Submit SKR001 without filling anybody: allowed (the dialog only warns),
+    // and from here the row counts as "submitted but incomplete".
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker"),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    let row_id = res.json::<Value>()["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["satker_id"].as_str() == Some(SATKER_A))
+        .and_then(|r| r["id"].as_str())
+        .expect("baris SKR001")
+        .to_string();
+    let res = post(
+        &server,
+        "/pakaian-dinas/validator-action",
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+        json!({"pengajuan_satker_id": row_id, "aksi": "submit"}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "ajukan: {:?}", res.text());
+
+    // Pusat excludes the row it is about to act on: the remaining satker is
+    // still at Input.
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=pusat&kecuali={row_id}"),
+        "validator_pusat",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "kesiapan pusat: {:?}", res.text());
+    let k = res.json::<Value>()["data"].clone();
+    assert_eq!(k["total"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["belum_mengajukan"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
+
+    // Wilayah: SKR001 was submitted but has no sizes, SKR002 has not submitted
+    // at all. The two failures are reported separately.
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=wilayah"),
+        "validator_wilayah",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "kesiapan wilayah: {:?}", res.text());
+    let k = res.json::<Value>()["data"].clone();
+    assert_eq!(k["total"].as_i64(), Some(2), "{k:?}");
+    assert_eq!(k["belum_mengajukan"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["belum_lengkap"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
+
+    // A bulk move excludes EVERY selected row: with both participation rows
+    // named, nothing is left behind, so the bulk dialog stays quiet. This is
+    // the comma list the mass-action bar sends.
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker"),
+        "validator_pusat",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    let rows = res.json::<Value>()["data"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let other_id = rows
+        .iter()
+        .find(|r| r["satker_id"].as_str() == Some(SATKER_B))
+        .and_then(|r| r["id"].as_str())
+        .expect("baris SKR002")
+        .to_string();
+    let res = get(
+        &server,
+        &format!(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=wilayah&kecuali={row_id},{other_id}"
+        ),
+        "validator_wilayah",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "kesiapan massal: {:?}", res.text());
+    let k = res.json::<Value>()["data"].clone();
+    assert_eq!(k["total"].as_i64(), Some(0), "{k:?}");
+    assert_eq!(k["lengkap"].as_bool(), Some(true), "{k:?}");
+
+    // A malformed entry is a 400, not a silently dropped row.
+    let res = get(
+        &server,
+        &format!(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=wilayah&kecuali=bukan-uuid"
+        ),
+        "validator_wilayah",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(
+        res.status_code(),
+        400,
+        "kecuali tidak valid: {:?}",
+        res.text()
+    );
+
+    teardown_test_db(&db_name).await;
+}
+
+// ============================================================================
+// Readiness must count PEOPLE, not rows. The four tests below pin the cases
+// where the old "count participation rows" definition lied: an empty form
+// saved, an employee the operator removed, an employee who transferred out of
+// a legacy (unsnapshotted) campaign, and a satker with nobody to fill in.
+// ============================================================================
+
+const NIP_D: &str = "19800101000000004";
+const NIP_E: &str = "19800101000000005";
+
+async fn tambah_pegawai(
+    db: &layanan_perlengkapan::shared::db::Database,
+    nip: &str,
+    satker_api_id: &str,
+    nama: &str,
+    jk: &str,
+) {
+    let client = db.pool().get().await.unwrap();
+    client
+        .execute(
+            "INSERT INTO integrasi.mysimkari_pegawai (nip, nama, satker_id, nama_satker, jabatan, jk)
+             VALUES ($1, $2, $3, 'SATKER UJI', 'Staf', $4)
+             ON CONFLICT (nip) DO UPDATE SET satker_id = EXCLUDED.satker_id",
+            &[&nip, &nama, &satker_api_id, &jk],
+        )
+        .await
+        .unwrap();
+}
+
+async fn simpan_ukuran(
+    server: &TestServer,
+    pengajuan_id: &str,
+    nip: &str,
+    pakaian_id: &str,
+    ukuran: &str,
+) {
+    let res = put(
+        server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai/{nip}"),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+        json!({"with_hijab": false, "ukuran": [{"pakaian_id": pakaian_id, "ukuran": ukuran}]}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "simpan {nip}: {:?}", res.text());
+}
+
+async fn simpan_kosong(server: &TestServer, pengajuan_id: &str, nip: &str) {
+    let res = put(
+        server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai/{nip}"),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+        json!({"with_hijab": false, "ukuran": []}),
+    )
+    .await;
+    assert_eq!(
+        res.status_code(),
+        200,
+        "simpan kosong {nip}: {:?}",
+        res.text()
+    );
+}
+
+async fn roster(server: &TestServer, pengajuan_id: &str) -> Value {
+    let res = get(
+        server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai"),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "roster: {:?}", res.text());
+    res.json::<Value>()["data"].clone()
+}
+
+async fn kesiapan_satker(server: &TestServer, pengajuan_id: &str) -> Value {
+    let res = get(
+        server,
+        &format!(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=satker&satker_code={SATKER_A}"
+        ),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "kesiapan satker: {:?}", res.text());
+    res.json::<Value>()["data"].clone()
+}
+
+#[tokio::test]
+async fn ukuran_kosong_tidak_dihitung_sudah_mengisi() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    tambah_pegawai(&db, NIP_D, "api-skr001", "Pegawai Uji D", "P").await;
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+
+    simpan_ukuran(&server, &pengajuan_id, NIP_A, &pakaian_id, "L").await;
+    // The operator opens D's form and saves it without choosing anything. The
+    // row is created; no size is.
+    simpan_kosong(&server, &pengajuan_id, NIP_D).await;
+
+    let data = roster(&server, &pengajuan_id).await;
+    let d = data["pegawai"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["nip"].as_str() == Some(NIP_D))
+        .expect("D ada di roster");
+    assert_eq!(
+        d["sudah_diisi"].as_bool(),
+        Some(false),
+        "formulir kosong bukan isian: {d:?}"
+    );
+    assert!(d["ukuran"].as_array().unwrap().is_empty(), "{d:?}");
+
+    let k = kesiapan_satker(&server, &pengajuan_id).await;
+    assert_eq!(k["total"].as_i64(), Some(2), "{k:?}");
+    assert_eq!(
+        k["pegawai_belum_diisi"].as_i64(),
+        Some(1),
+        "D belum mengisi walau barisnya ada: {k:?}"
+    );
+    assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
+
+    teardown_test_db(&db_name).await;
+}
+
+#[tokio::test]
+async fn pegawai_yang_dikeluarkan_tidak_lagi_dihitung_belum_mengisi() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    tambah_pegawai(&db, NIP_D, "api-skr001", "Pegawai Uji D", "P").await;
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+
+    simpan_ukuran(&server, &pengajuan_id, NIP_A, &pakaian_id, "L").await;
+    simpan_ukuran(&server, &pengajuan_id, NIP_D, &pakaian_id, "M").await;
+    assert_eq!(
+        kesiapan_satker(&server, &pengajuan_id).await["pegawai_belum_diisi"].as_i64(),
+        Some(0)
+    );
+
+    // D does not need a uniform: the operator removes them.
+    let mut req = server.delete(&format!(
+        "/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai/{NIP_D}"
+    ));
+    for (k, v) in headers("operator_satker", OPERATOR, SATKER_A) {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    assert_eq!(res.status_code(), 200, "keluarkan: {:?}", res.text());
+
+    // Still on the list, flagged — that is what makes "Masukkan kembali"
+    // reachable. Hiding the row was the bug: the way back was a size form the
+    // list no longer offered.
+    let data = roster(&server, &pengajuan_id).await;
+    let d = pegawai_dari_roster(&data, NIP_D);
+    assert_eq!(d["dikeluarkan"].as_bool(), Some(true), "{d:?}");
+    assert_eq!(d["sudah_diisi"].as_bool(), Some(false), "{d:?}");
+
+    let k = kesiapan_satker(&server, &pengajuan_id).await;
+    assert_eq!(
+        k["total"].as_i64(),
+        Some(1),
+        "D keluar dari penyebut: {k:?}"
+    );
+    assert_eq!(k["pegawai_belum_diisi"].as_i64(), Some(0), "{k:?}");
+    assert_eq!(k["lengkap"].as_bool(), Some(true), "{k:?}");
+
+    // Putting them back (or saving a size for them) restores the debt.
+    let res = delete(
+        &server,
+        &format!(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai/{NIP_D}/keluarkan"
+        ),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    simpan_ukuran(&server, &pengajuan_id, NIP_D, &pakaian_id, "M").await;
+    let k = kesiapan_satker(&server, &pengajuan_id).await;
+    assert_eq!(k["total"].as_i64(), Some(2), "kembali masuk: {k:?}");
+    assert_eq!(k["pegawai_belum_diisi"].as_i64(), Some(0), "{k:?}");
+
+    teardown_test_db(&db_name).await;
+}
+
+/// A legacy campaign (no snapshot) reads the live roster. A size saved by an
+/// employee who has since transferred must not stand in for their replacement:
+/// the counts are matched by NIP, not "rows vs people".
+#[tokio::test]
+async fn ukuran_pegawai_yang_pindah_tidak_menutupi_pengganti() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+
+    // Make it a legacy campaign: no frozen roster, so the live branch applies.
+    let pid = uuid::Uuid::parse_str(&pengajuan_id).unwrap();
+    let client = db.pool().get().await.unwrap();
+    client
+        .execute(
+            "UPDATE perlengkapan.pengajuan_pakaian_dinas
+             SET roster_snapshot_at = NULL WHERE id = $1",
+            &[&pid],
+        )
+        .await
+        .unwrap();
+    client
+        .execute(
+            "DELETE FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_snapshot
+             WHERE pengajuan_id = $1",
+            &[&pid],
+        )
+        .await
+        .unwrap();
+
+    simpan_ukuran(&server, &pengajuan_id, NIP_A, &pakaian_id, "L").await;
+    let k = kesiapan_satker(&server, &pengajuan_id).await;
+    assert_eq!(k["total"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["pegawai_belum_diisi"].as_i64(), Some(0), "{k:?}");
+
+    // A transfers out; E transfers in. The satker still has one person.
+    client
+        .execute(
+            "UPDATE integrasi.mysimkari_pegawai SET satker_id = 'api-skr002' WHERE nip = $1",
+            &[&NIP_A],
+        )
+        .await
+        .unwrap();
+    tambah_pegawai(&db, NIP_E, "api-skr001", "Pegawai Uji E", "L").await;
+
+    let data = roster(&server, &pengajuan_id).await;
+    let nips: Vec<&str> = data["pegawai"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|p| p["nip"].as_str())
+        .collect();
+    assert_eq!(nips, vec![NIP_E], "roster hidup: hanya yang ada sekarang");
+
+    let k = kesiapan_satker(&server, &pengajuan_id).await;
+    assert_eq!(k["total"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(
+        k["pegawai_belum_diisi"].as_i64(),
+        Some(1),
+        "ukuran A tidak boleh menutupi E: {k:?}"
+    );
+    assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
+
+    teardown_test_db(&db_name).await;
+}
+
+/// A satker with nobody in the roster cannot be submitted (the button needs at
+/// least one size), so counting it as "belum mengajukan" made the warning — and
+/// `lengkap` — unreachable forever.
+#[tokio::test]
+async fn satker_tanpa_pegawai_tidak_menahan_peringatan() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let client = db.pool().get().await.unwrap();
+    client
+        .execute(
+            "DELETE FROM integrasi.mysimkari_pegawai WHERE satker_id = 'api-skr002'",
+            &[],
+        )
+        .await
+        .unwrap();
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=wilayah"),
+        "validator_wilayah",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    let k = res.json::<Value>()["data"].clone();
+    assert_eq!(k["total"].as_i64(), Some(2), "{k:?}");
+    assert_eq!(
+        k["belum_mengajukan"].as_i64(),
+        Some(1),
+        "hanya satker yang punya pegawai: {k:?}"
+    );
+    assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
+
+    // SKR001 fills in and submits; the empty satker does not hold the gate open.
+    simpan_ukuran(&server, &pengajuan_id, NIP_A, &pakaian_id, "L").await;
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker"),
+        "validator_pusat",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    let row_id = res.json::<Value>()["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["satker_id"].as_str() == Some(SATKER_A))
+        .and_then(|r| r["id"].as_str())
+        .unwrap()
+        .to_string();
+    let res = post(
+        &server,
+        "/pakaian-dinas/validator-action",
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+        json!({"pengajuan_satker_id": row_id, "aksi": "submit", "tahap": "satker"}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "ajukan: {:?}", res.text());
+
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=wilayah"),
+        "validator_wilayah",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    let k = res.json::<Value>()["data"].clone();
+    assert_eq!(k["belum_mengajukan"].as_i64(), Some(0), "{k:?}");
+    assert_eq!(k["belum_lengkap"].as_i64(), Some(0), "{k:?}");
+    assert_eq!(k["lengkap"].as_bool(), Some(true), "{k:?}");
+
+    teardown_test_db(&db_name).await;
+}
+
+// ============================================================================
+// "Keluarkan dari Pengajuan" must be reversible from the screen. Excluding used
+// to delete the employee from the list, and the only documented way back was
+// "fill their size again" — a form the list no longer offered.
+// ============================================================================
+
+fn pegawai_dari_roster(data: &Value, nip: &str) -> Value {
+    data["pegawai"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["nip"] == nip)
+        .unwrap_or_else(|| panic!("pegawai {nip} tidak ada di roster: {data}"))
+        .clone()
+}
+
+#[tokio::test]
+async fn pegawai_yang_dikeluarkan_tetap_terdaftar_dan_bisa_dimasukkan_kembali() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    tambah_pegawai(&db, NIP_D, "api-skr001", "Pegawai Uji D", "P").await;
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+    simpan_ukuran(&server, &pengajuan_id, NIP_A, &pakaian_id, "L").await;
+
+    // D has no size yet: two people owe one.
+    let data = kesiapan_satker(&server, &pengajuan_id).await;
+    assert_eq!(data["pegawai_belum_diisi"], 1, "{data}");
+
+    let res = delete(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai/{NIP_D}"),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+
+    // Still listed, flagged, and no longer owed a size.
+    let data = roster(&server, &pengajuan_id).await;
+    let d = pegawai_dari_roster(&data, NIP_D);
+    assert_eq!(d["dikeluarkan"], true, "{d}");
+    assert_eq!(d["sudah_diisi"], false, "{d}");
+    let kesiapan = kesiapan_satker(&server, &pengajuan_id).await;
+    assert_eq!(kesiapan["pegawai_belum_diisi"], 0, "{kesiapan}");
+
+    // Put back: listed as active again and counted as not filled.
+    let res = delete(
+        &server,
+        &format!(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai/{NIP_D}/keluarkan"
+        ),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    let data = roster(&server, &pengajuan_id).await;
+    let d = pegawai_dari_roster(&data, NIP_D);
+    assert_eq!(d["dikeluarkan"], false, "{d}");
+    let kesiapan = kesiapan_satker(&server, &pengajuan_id).await;
+    assert_eq!(kesiapan["pegawai_belum_diisi"], 1, "{kesiapan}");
+
+    // Putting back someone who is not excluded says so instead of pretending.
+    let res = delete(
+        &server,
+        &format!(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai/{NIP_D}/keluarkan"
+        ),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 404, "{:?}", res.text());
+
+    teardown_test_db(&db_name).await;
+}
+
+/// An account that is both operator and wilayah validator reads its region but
+/// must only WRITE its own satker's roster. `SatkerScope::from_claims` widens to
+/// the wilayah for reads; the write path takes `own_satker_from_claims`.
+#[tokio::test]
+async fn operator_berperan_ganda_tidak_menulis_roster_satker_lain() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let nip_b = "19850505000000002";
+    tambah_pegawai(&db, nip_b, "api-skr002", "Pegawai Uji B", "P").await;
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+
+    // SKR002's own operator excludes them, so there is a real exclusion to undo.
+    let res = delete(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_B}/pegawai/{nip_b}"),
+        "operator_satker",
+        OPERATOR,
+        SATKER_B,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+
+    const DUA_PERAN: &str = "operator_satker,validator_wilayah";
+
+    // Undo it as a dual-role account whose own satker is SKR001.
+    let res = delete(
+        &server,
+        &format!(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_B}/pegawai/{nip_b}/keluarkan"
+        ),
+        DUA_PERAN,
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(
+        res.status_code(),
+        404,
+        "menulis roster satker lain harus 404: {:?}",
+        res.text()
+    );
+
+    // Saving a size is the same write, so it is refused the same way.
+    let res = put(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_B}/pegawai/{nip_b}"),
+        DUA_PERAN,
+        OPERATOR,
+        SATKER_A,
+        json!({"with_hijab": false, "ukuran": [{"pakaian_id": pakaian_id, "ukuran": "L"}]}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 404, "{:?}", res.text());
+
+    // The exclusion is still in force: nothing above changed SKR002's roster.
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_B}/pegawai"),
+        "validator_wilayah",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    let data = res.json::<Value>()["data"].clone();
+    let b = data["pegawai"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["nip"] == nip_b)
+        .unwrap_or_else(|| panic!("pegawai {nip_b} tidak ada di roster: {data}"))
+        .clone();
+    assert_eq!(b["dikeluarkan"], true, "{b}");
+
+    teardown_test_db(&db_name).await;
+}
+
+/// A roster write that queues behind a submit must not land: the stage is read
+/// **under the row lock**, not before it. Without that, the request would wait
+/// for the submit, then put the employee back into a roster that is frozen.
+#[tokio::test]
+async fn masukkan_kembali_yang_menunggu_pengajuan_ikut_ditolak() {
+    let (app, db, db_name) = setup_test_app().await;
+    // `Arc` because the re-add request runs in a task of its own while this
+    // test holds the row lock.
+    let server = std::sync::Arc::new(TestServer::new(app));
+    tambah_pegawai(&db, NIP_D, "api-skr001", "Pegawai Uji D", "P").await;
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+    simpan_ukuran(&server, &pengajuan_id, NIP_A, &pakaian_id, "L").await;
+
+    let res = delete(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai/{NIP_D}"),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+
+    let data = roster(&server, &pengajuan_id).await;
+    let row_id: uuid::Uuid = data["pengajuan_satker_id"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+
+    // Hold the row the submit will touch, so the re-add has to wait for it.
+    let mut kunci = db.pool().get().await.unwrap();
+    let pid_penahan: i32 = kunci
+        .query_one("SELECT pg_backend_pid()", &[])
+        .await
+        .unwrap()
+        .get(0);
+    let tx = kunci.transaction().await.unwrap();
+    tx.query_one(
+        "SELECT 1 FROM perlengkapan.pengajuan_pakaian_dinas_satker WHERE id = $1 FOR UPDATE",
+        &[&row_id],
+    )
+    .await
+    .unwrap();
+
+    let jalur = format!(
+        "/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai/{NIP_D}/keluarkan"
+    );
+    let srv = server.clone();
+    let menunggu =
+        tokio::spawn(
+            async move { delete(&srv, &jalur, "operator_satker", OPERATOR, SATKER_A).await },
+        );
+
+    // Wait until the request is actually queued on the row lock, then submit.
+    // The poll runs on its own connection: `kunci` is busy holding the
+    // transaction.
+    //
+    // A row-lock wait is recorded against the holder's TRANSACTION id, not the
+    // relation, so filtering `pg_locks.relation` never matches and the test
+    // would silently degrade into "run the request after the commit".
+    // `pg_blocking_pids` answers "who is this backend waiting for" directly,
+    // and the loop ASSERTS it was observed.
+    let pemantau = db.pool().get().await.unwrap();
+    let mut teramati = false;
+    for _ in 0..80 {
+        let antre: i64 = pemantau
+            .query_one(
+                "SELECT count(*) FROM pg_stat_activity
+                  WHERE wait_event_type = 'Lock' AND $1 = ANY(pg_blocking_pids(pid))",
+                &[&pid_penahan],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        if antre > 0 {
+            teramati = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    assert!(
+        teramati,
+        "permintaan tidak pernah terlihat mengantre di belakang kunci baris; \
+         tanpa itu tes ini tidak membuktikan apa pun"
+    );
+    tx.execute(
+        "UPDATE perlengkapan.pengajuan_pakaian_dinas_satker
+            SET aktivitas_id = 1001 WHERE id = $1",
+        &[&row_id],
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+
+    let res = menunggu.await.unwrap();
+    assert_eq!(
+        res.status_code(),
+        400,
+        "yang menunggu di belakang pengajuan harus ditolak: {:?}",
+        res.text()
+    );
+
+    let data = roster(&server, &pengajuan_id).await;
+    let d = pegawai_dari_roster(&data, NIP_D);
+    assert_eq!(
+        d["dikeluarkan"], true,
+        "pengecualian tidak boleh hilang setelah pengajuan terkirim: {d}"
     );
 
     teardown_test_db(&db_name).await;

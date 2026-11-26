@@ -186,6 +186,23 @@ pub fn WorkflowTimeline(#[prop(into)] steps: Vec<WorkflowStep>) -> impl IntoView
 // ApprovalDialog
 // ============================================================================
 
+/// Amber advisory box shared by the dialogs. `None` renders nothing.
+fn kotak_peringatan(text: Option<String>) -> AnyView {
+    match text {
+        Some(t) => view! {
+            <div
+                data-testid="dialog-peringatan"
+                class="mb-4 flex items-start gap-2 rounded-lg border border-warning-500/30 bg-warning-500/10 px-3 py-2 text-sm text-warning-200"
+            >
+                <span class="font-semibold">"Perhatian:"</span>
+                <span>{t}</span>
+            </div>
+        }
+        .into_any(),
+        None => ().into_any(),
+    }
+}
+
 /// Modal input catatan/alasan untuk aksi approve/return/reject workflow.
 ///
 /// `on_confirm` menerima teks catatan (sudah di-trim). Bila `require_note`
@@ -195,6 +212,10 @@ pub fn WorkflowTimeline(#[prop(into)] steps: Vec<WorkflowStep>) -> impl IntoView
 pub fn ApprovalDialog(
     #[prop(into)] title: String,
     #[prop(optional, into)] description: Option<String>,
+    /// Advisory warning shown above the note — e.g. "12 satker belum mengajukan".
+    /// `None` = nothing outstanding; the dialog then looks exactly as before.
+    #[prop(optional_no_strip, into)]
+    warning: Option<String>,
     #[prop(optional, into)] note_label: Option<String>,
     #[prop(optional, into)] note_placeholder: Option<String>,
     #[prop(optional)] require_note: bool,
@@ -254,6 +275,8 @@ pub fn ApprovalDialog(
                         view! { <p class="mb-4 text-sm text-slate-400">{d}</p> }
                     })}
 
+                {kotak_peringatan(warning)}
+
                 <div class="mb-4">
                     <label class="mb-1 block text-sm font-medium text-slate-200">{note_label}</label>
                     <textarea
@@ -289,6 +312,80 @@ pub fn ApprovalDialog(
                         )
                         prop:disabled=move || is_busy()
                         on:click=on_submit
+                    >
+                        {move || {
+                            if is_busy() {
+                                "Memproses...".to_string()
+                            } else {
+                                confirm_label.clone()
+                            }
+                        }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+// ============================================================================
+// ConfirmDialog
+// ============================================================================
+
+/// Simple confirmation modal (no note field) for a step whose only question is
+/// "continue or cancel" — e.g. submitting a satker's sizes before every employee
+/// is filled. An advisory `warning` turns it into a "are you sure?" prompt.
+#[component]
+pub fn ConfirmDialog(
+    #[prop(into)] title: String,
+    #[prop(into)] message: String,
+    /// Advisory warning shown above the buttons. `None` = a plain confirmation.
+    #[prop(optional_no_strip, into)]
+    warning: Option<String>,
+    #[prop(optional, into)] confirm_label: Option<String>,
+    #[prop(optional, into)] confirm_tone: Option<ActionTone>,
+    #[prop(into)] on_confirm: Callback<()>,
+    #[prop(into)] on_close: Callback<()>,
+    #[prop(optional, into)] busy: Option<Signal<bool>>,
+) -> impl IntoView {
+    let confirm_label = confirm_label.unwrap_or_else(|| "Ya, lanjutkan".to_string());
+    let confirm_class = confirm_tone.unwrap_or(ActionTone::Primary).btn_class();
+    let is_busy = move || busy.is_some_and(|s| s.get());
+
+    view! {
+        <div
+            data-testid="dialog-konfirmasi"
+            class="fixed inset-0 z-modal flex items-center justify-center bg-black/50 p-4"
+            on:click=move |e| {
+                if e.target() == e.current_target() && !is_busy() {
+                    on_close.run(());
+                }
+            }
+        >
+            <div class="w-full max-w-md rounded-2xl border border-white/[0.06] bg-surface-panel p-6 shadow-xl">
+                <h3 class="mb-2 text-lg font-semibold text-slate-100">{title}</h3>
+                <p class="mb-4 text-sm text-slate-400">{message}</p>
+
+                {kotak_peringatan(warning)}
+
+                <div class="flex justify-end gap-2">
+                    <button
+                        type="button"
+                        data-testid="konfirmasi-batal"
+                        class="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-white/[0.04] disabled:opacity-50"
+                        prop:disabled=move || is_busy()
+                        on:click=move |_| on_close.run(())
+                    >
+                        "Batal"
+                    </button>
+                    <button
+                        type="button"
+                        data-testid="konfirmasi-lanjut"
+                        class=format!(
+                            "rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50 {}",
+                            confirm_class,
+                        )
+                        prop:disabled=move || is_busy()
+                        on:click=move |_| on_confirm.run(())
                     >
                         {move || {
                             if is_busy() {
