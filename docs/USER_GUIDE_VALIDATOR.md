@@ -229,6 +229,11 @@ Menampilkan:
      lengkap/belum mengajukan ke wilayah, dan jumlah satker yang belum
      diteruskan ke pusat. Penyelesaian **tidak diblokir**, tetapi satker yang
      belum masuk tidak ikut tercatat pada kegiatan ini.
+   - Yang diselesaikan adalah **satker yang Anda pilih**, bukan seluruh
+     kegiatan: satker lain masih dapat menyusul (diisi, diajukan, dan
+     diteruskan) selama periode kegiatan masih berjalan, lalu diselesaikan pada
+     aksi berikutnya. Selesaikan hanya setelah satker yang Anda butuhkan pada
+     periode ini sudah masuk.
    - Data akan masuk ke master pegawai_pakaian_dinas
 
 4. **Generate Laporan**

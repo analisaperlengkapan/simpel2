@@ -897,7 +897,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                     &pid,
                                                     tahap,
                                                     None,
-                                                    &[sid.clone()],
+                                                    std::slice::from_ref(&sid),
                                                 )
                                                 .await
                                                 .ok()

@@ -164,6 +164,21 @@ pub async fn api_put<B: Serialize + ?Sized, T: DeserializeOwned>(
     parse_response(resp).await
 }
 
+/// DELETE whose reply carries a body (e.g. the freshly reloaded roster).
+pub async fn api_delete<T: DeserializeOwned>(path: &str) -> AppResult<T> {
+    let token = require_auth_token()?;
+    let url = full_url(path);
+
+    let resp = Request::delete(&url)
+        .header("Authorization", &format!("Bearer {token}"))
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(AppError::from)?;
+
+    parse_response(resp).await
+}
+
 pub async fn api_delete_empty(path: &str) -> AppResult<()> {
     let token = require_auth_token()?;
     let url = full_url(path);

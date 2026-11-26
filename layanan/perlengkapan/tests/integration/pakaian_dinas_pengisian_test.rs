@@ -1321,3 +1321,175 @@ async fn pegawai_yang_dikeluarkan_tetap_terdaftar_dan_bisa_dimasukkan_kembali() 
 
     teardown_test_db(&db_name).await;
 }
+
+/// An account that is both operator and wilayah validator reads its region but
+/// must only WRITE its own satker's roster. `SatkerScope::from_claims` widens to
+/// the wilayah for reads; the write path takes `own_satker_from_claims`.
+#[tokio::test]
+async fn operator_berperan_ganda_tidak_menulis_roster_satker_lain() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let nip_b = "19850505000000002";
+    tambah_pegawai(&db, nip_b, "api-skr002", "Pegawai Uji B", "P").await;
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+
+    // SKR002's own operator excludes them, so there is a real exclusion to undo.
+    let res = delete(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_B}/pegawai/{nip_b}"),
+        "operator_satker",
+        OPERATOR,
+        SATKER_B,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+
+    const DUA_PERAN: &str = "operator_satker,validator_wilayah";
+
+    // Undo it as a dual-role account whose own satker is SKR001.
+    let res = delete(
+        &server,
+        &format!(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_B}/pegawai/{nip_b}/keluarkan"
+        ),
+        DUA_PERAN,
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(
+        res.status_code(),
+        404,
+        "menulis roster satker lain harus 404: {:?}",
+        res.text()
+    );
+
+    // Saving a size is the same write, so it is refused the same way.
+    let res = put(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_B}/pegawai/{nip_b}"),
+        DUA_PERAN,
+        OPERATOR,
+        SATKER_A,
+        json!({"with_hijab": false, "ukuran": [{"pakaian_id": pakaian_id, "ukuran": "L"}]}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 404, "{:?}", res.text());
+
+    // The exclusion is still in force: nothing above changed SKR002's roster.
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_B}/pegawai"),
+        "validator_wilayah",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    let data = res.json::<Value>()["data"].clone();
+    let b = data["pegawai"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["nip"] == nip_b)
+        .unwrap_or_else(|| panic!("pegawai {nip_b} tidak ada di roster: {data}"))
+        .clone();
+    assert_eq!(b["dikeluarkan"], true, "{b}");
+
+    teardown_test_db(&db_name).await;
+}
+
+/// A roster write that queues behind a submit must not land: the stage is read
+/// **under the row lock**, not before it. Without that, the request would wait
+/// for the submit, then put the employee back into a roster that is frozen.
+#[tokio::test]
+async fn masukkan_kembali_yang_menunggu_pengajuan_ikut_ditolak() {
+    let (app, db, db_name) = setup_test_app().await;
+    // `Arc` because the re-add request runs in a task of its own while this
+    // test holds the row lock.
+    let server = std::sync::Arc::new(TestServer::new(app));
+    tambah_pegawai(&db, NIP_D, "api-skr001", "Pegawai Uji D", "P").await;
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+    simpan_ukuran(&server, &pengajuan_id, NIP_A, &pakaian_id, "L").await;
+
+    let res = delete(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai/{NIP_D}"),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+
+    let data = roster(&server, &pengajuan_id).await;
+    let row_id: uuid::Uuid = data["pengajuan_satker_id"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+
+    // Hold the row the submit will touch, so the re-add has to wait for it.
+    let mut kunci = db.pool().get().await.unwrap();
+    let tx = kunci.transaction().await.unwrap();
+    tx.query_one(
+        "SELECT 1 FROM perlengkapan.pengajuan_pakaian_dinas_satker WHERE id = $1 FOR UPDATE",
+        &[&row_id],
+    )
+    .await
+    .unwrap();
+
+    let jalur = format!(
+        "/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{SATKER_A}/pegawai/{NIP_D}/keluarkan"
+    );
+    let srv = server.clone();
+    let menunggu =
+        tokio::spawn(
+            async move { delete(&srv, &jalur, "operator_satker", OPERATOR, SATKER_A).await },
+        );
+
+    // Wait until it is actually queued on a lock, then submit. The poll runs on
+    // its own connection: `kunci` is busy holding the transaction.
+    let pemantau = db.pool().get().await.unwrap();
+    for _ in 0..60 {
+        let antre: i64 = pemantau
+            .query_one(
+                "SELECT count(*) FROM pg_locks
+                  WHERE NOT granted
+                    AND relation = 'perlengkapan.pengajuan_pakaian_dinas_satker'::regclass",
+                &[],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        if antre > 0 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    tx.execute(
+        "UPDATE perlengkapan.pengajuan_pakaian_dinas_satker
+            SET aktivitas_id = 1001 WHERE id = $1",
+        &[&row_id],
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+
+    let res = menunggu.await.unwrap();
+    assert_eq!(
+        res.status_code(),
+        400,
+        "yang menunggu di belakang pengajuan harus ditolak: {:?}",
+        res.text()
+    );
+
+    let data = roster(&server, &pengajuan_id).await;
+    let d = pegawai_dari_roster(&data, NIP_D);
+    assert_eq!(
+        d["dikeluarkan"], true,
+        "pengecualian tidak boleh hilang setelah pengajuan terkirim: {d}"
+    );
+
+    teardown_test_db(&db_name).await;
+}

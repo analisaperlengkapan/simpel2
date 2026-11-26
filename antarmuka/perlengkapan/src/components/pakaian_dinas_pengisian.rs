@@ -29,11 +29,13 @@ use crate::api::pakaian_dinas::{
     PengajuanPakaianItem, PengajuanSatkerAktivitas, RosterPegawai, RosterPengisian,
     SimpanUkuranPegawaiRequest, UkuranPegawaiItem, ValidatorActionRequest, fetch_master_ukuran,
     fetch_pakaian_satker_aktivitas, fetch_roster_pengisian, keluarkan_pegawai_dari_pengajuan,
-    masukkan_kembali_pegawai, process_validator_action, simpan_ukuran_pegawai,
+    process_validator_action, simpan_ukuran_pegawai,
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::components::workflow_ui::{ActionTone, ConfirmDialog};
-use crate::features::pakaian_dinas::api::{fetch_ukuran_grup, kelompokkan_ukuran};
+use crate::features::pakaian_dinas::api::{
+    fetch_ukuran_grup, hitung_pengisian, kelompokkan_ukuran, masukkan_kembali_pegawai,
+};
 use lib_ui::components::icon::AppIcon;
 use lib_ui::utils::formatters::{format_iso_local, format_iso_wib};
 use phosphor_leptos::{
@@ -318,8 +320,11 @@ fn halaman(
     refresh: RwSignal<i32>,
     konfirmasi: RwSignal<Option<AjukanPending>>,
 ) -> AnyView {
-    let total = data.pegawai.len();
-    let terisi = data.pegawai.iter().filter(|p| p.sudah_diisi).count();
+    // Orang yang dikeluarkan tidak berutang ukuran, jadi ia tidak boleh muncul
+    // di penyebut "x dari y sudah diisi" maupun di peringatan "Ajukan" —
+    // server (kesiapan) juga tidak menghitungnya.
+    let hitung = hitung_pengisian(&data.pegawai);
+    let (total, terisi) = (hitung.total, hitung.terisi);
     // Only the satker's own operator edits; a validator or administrator who opens
     // the page is reading it. The server refuses anyone else's write, so the
     // controls would only ever answer an error.
@@ -382,7 +387,7 @@ fn halaman(
                                     .set(
                                         Some(AjukanPending {
                                             pengajuan_satker_id: id.clone(),
-                                            belum: total.saturating_sub(terisi),
+                                            belum: hitung.belum(),
                                             total,
                                         }),
                                     )
@@ -463,16 +468,29 @@ fn halaman(
                     pakaian.clone(),
                     dapat_diubah,
                     sedang_diisi,
-                    id_untuk_tabel.clone(),
-                    satker_kode.clone(),
-                    refresh,
-                    pesan,
-                    sibuk,
+                    AksiRoster {
+                        pengajuan_id: id_untuk_tabel.clone(),
+                        satker_kode: satker_kode.clone(),
+                        refresh,
+                        pesan,
+                        sibuk,
+                    },
                 )
             }}
         </SectionCard>
     }
     .into_any()
+}
+
+/// What every roster row action needs: which campaign and satker it writes to,
+/// plus the three page signals (refresh counter, message, busy flag).
+#[derive(Clone)]
+struct AksiRoster {
+    pengajuan_id: String,
+    satker_kode: String,
+    refresh: RwSignal<i32>,
+    pesan: RwSignal<Option<String>>,
+    sibuk: RwSignal<bool>,
 }
 
 /// The employee list plus the people the operator excluded. Excluded people
@@ -484,11 +502,7 @@ fn daftar_pegawai(
     pakaian: Vec<PengajuanPakaianItem>,
     dapat_diubah: bool,
     sedang_diisi: RwSignal<Option<RosterPegawai>>,
-    pengajuan_id: String,
-    satker_kode: String,
-    refresh: RwSignal<i32>,
-    pesan: RwSignal<Option<String>>,
-    sibuk: RwSignal<bool>,
+    aksi: AksiRoster,
 ) -> AnyView {
     let (aktif, dikeluarkan): (Vec<_>, Vec<_>) = pegawai.into_iter().partition(|p| !p.dikeluarkan);
     let jumlah_dikeluarkan = dikeluarkan.len();
@@ -497,8 +511,8 @@ fn daftar_pegawai(
         pakaian,
         dapat_diubah,
         sedang_diisi,
-        satker_kode.clone(),
-        refresh,
+        aksi.satker_kode.clone(),
+        aksi.refresh,
     );
     view! {
         <div class="space-y-4">
@@ -519,16 +533,7 @@ fn daftar_pegawai(
                             <ul class="mt-3 divide-y divide-white/[0.04]">
                                 {dikeluarkan
                                     .into_iter()
-                                    .map(|p| {
-                                        baris_dikeluarkan(
-                                            p,
-                                            pengajuan_id.clone(),
-                                            satker_kode.clone(),
-                                            refresh,
-                                            pesan,
-                                            sibuk,
-                                        )
-                                    })
+                                    .map(|p| baris_dikeluarkan(p, aksi.clone()))
                                     .collect_view()}
                             </ul>
                         </div>
@@ -539,28 +544,26 @@ fn daftar_pegawai(
     .into_any()
 }
 
-fn baris_dikeluarkan(
-    p: RosterPegawai,
-    pengajuan_id: String,
-    satker_kode: String,
-    refresh: RwSignal<i32>,
-    pesan: RwSignal<Option<String>>,
-    sibuk: RwSignal<bool>,
-) -> AnyView {
+fn baris_dikeluarkan(p: RosterPegawai, aksi: AksiRoster) -> AnyView {
     let nip = p.nip.clone();
+    let sibuk = aksi.sibuk;
     let on_click = move |_| {
-        if sibuk.get() {
+        if aksi.sibuk.get() {
             return;
         }
-        sibuk.set(true);
-        pesan.set(None);
-        let (pid, kode, nip) = (pengajuan_id.clone(), satker_kode.clone(), nip.clone());
+        aksi.sibuk.set(true);
+        aksi.pesan.set(None);
+        let (pid, kode, nip) = (
+            aksi.pengajuan_id.clone(),
+            aksi.satker_kode.clone(),
+            nip.clone(),
+        );
         spawn_local(async move {
-            match masukkan_kembali_pegawai(pid, kode, nip).await {
-                Ok(_) => refresh.update(|v| *v += 1),
-                Err(e) => pesan.set(Some(e.user_message())),
+            match masukkan_kembali_pegawai(&pid, &kode, &nip).await {
+                Ok(_) => aksi.refresh.update(|v| *v += 1),
+                Err(e) => aksi.pesan.set(Some(e.user_message())),
             }
-            sibuk.set(false);
+            aksi.sibuk.set(false);
         });
     };
     view! {

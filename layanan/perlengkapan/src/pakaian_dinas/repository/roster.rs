@@ -363,12 +363,6 @@ impl PakaianDinasRepository {
             .pengajuan_satker_row(pengajuan_id, satker_code, scope)
             .await?;
         let pengajuan_satker_id = satker.id;
-        let aktivitas_id = satker.aktivitas_id;
-        if !STATUS_DAPAT_DIUBAH.contains(&aktivitas_id) {
-            return Err(bad_request(
-                "Pengajuan satker ini sudah diajukan, ukurannya tidak dapat diubah lagi",
-            ));
-        }
         self.pastikan_periode(pengajuan_id, true).await?;
 
         let mut client = self
@@ -438,7 +432,10 @@ impl PakaianDinasRepository {
             .transaction()
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
-        kunci_baris_satker(&tx, pengajuan_satker_id).await?;
+        pastikan_dapat_diubah(
+            kunci_baris_satker(&tx, pengajuan_satker_id).await?,
+            "Pengajuan satker ini sudah diajukan, ukurannya tidak dapat diubah lagi",
+        )?;
 
         let pegawai_row = tx
             .query_opt(
@@ -597,12 +594,6 @@ impl PakaianDinasRepository {
             .pengajuan_satker_row(pengajuan_id, satker_code, scope)
             .await?;
         let pengajuan_satker_id = satker.id;
-        let aktivitas_id = satker.aktivitas_id;
-        if !STATUS_DAPAT_DIUBAH.contains(&aktivitas_id) {
-            return Err(bad_request(
-                "Pengajuan satker ini sudah diajukan, isinya tidak dapat diubah lagi",
-            ));
-        }
         self.pastikan_periode(pengajuan_id, true).await?;
         let mut client = self
             .pool
@@ -613,7 +604,10 @@ impl PakaianDinasRepository {
             .transaction()
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
-        kunci_baris_satker(&tx, pengajuan_satker_id).await?;
+        pastikan_dapat_diubah(
+            kunci_baris_satker(&tx, pengajuan_satker_id).await?,
+            "Pengajuan satker ini sudah diajukan, isinya tidak dapat diubah lagi",
+        )?;
         tx.execute(
             r#"
             DELETE FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran
@@ -664,11 +658,6 @@ impl PakaianDinasRepository {
             .pengajuan_satker_row(pengajuan_id, satker_code, scope)
             .await?;
         let pengajuan_satker_id = satker.id;
-        if !STATUS_DAPAT_DIUBAH.contains(&satker.aktivitas_id) {
-            return Err(bad_request(
-                "Pengajuan satker ini sudah diajukan, isinya tidak dapat diubah lagi",
-            ));
-        }
         self.pastikan_periode(pengajuan_id, true).await?;
         let mut client = self
             .pool
@@ -679,7 +668,10 @@ impl PakaianDinasRepository {
             .transaction()
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
-        kunci_baris_satker(&tx, pengajuan_satker_id).await?;
+        pastikan_dapat_diubah(
+            kunci_baris_satker(&tx, pengajuan_satker_id).await?,
+            "Pengajuan satker ini sudah diajukan, isinya tidak dapat diubah lagi",
+        )?;
         let kembali = tx
             .execute(
                 "DELETE FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_dikeluarkan
@@ -699,27 +691,39 @@ impl PakaianDinasRepository {
 }
 
 /// Serialise everything that writes one satker's roster (saving a size,
-/// excluding an employee, putting them back). Without it a save and an
-/// exclusion for the same NIP can both commit — leaving a size row AND an
-/// exclusion, so the person is hidden from the roster yet still counted in the
-/// procurement recap.
+/// excluding an employee, putting them back) and return the stage read **under
+/// that lock**. Without it a save and an exclusion for the same NIP can both
+/// commit — leaving a size row AND an exclusion, so the person is hidden from
+/// the roster yet still counted in the procurement recap.
+///
+/// The stage comes from the locked row, not from the caller's earlier read:
+/// a submit that commits while this request waits for the lock would otherwise
+/// let the write land on a roster that is already frozen.
 async fn kunci_baris_satker(
     tx: &tokio_postgres::Transaction<'_>,
     pengajuan_satker_id: Uuid,
-) -> AppResult<()> {
-    let locked = tx
-        .query_opt(
-            "SELECT 1 FROM perlengkapan.pengajuan_pakaian_dinas_satker WHERE id = $1 FOR UPDATE",
-            &[&pengajuan_satker_id],
-        )
-        .await
-        .map_err(|e| bad_request(&e.to_string()))?;
-    if locked.is_none() {
-        return Err(AppError::NotFound(
-            "Pengajuan satker tidak ditemukan".to_string(),
-        ));
+) -> AppResult<i32> {
+    tx.query_opt(
+        "SELECT aktivitas_id FROM perlengkapan.pengajuan_pakaian_dinas_satker
+         WHERE id = $1 FOR UPDATE",
+        &[&pengajuan_satker_id],
+    )
+    .await
+    .map_err(|e| bad_request(&e.to_string()))?
+    .map(|row| row.get("aktivitas_id"))
+    .ok_or_else(|| AppError::NotFound("Pengajuan satker tidak ditemukan".to_string()))
+}
+
+/// Refuse a roster write once the satker's stage has moved past editing.
+///
+/// Called with the stage [`kunci_baris_satker`] just read, inside the same
+/// transaction as the write it guards.
+fn pastikan_dapat_diubah(aktivitas_id: i32, pesan: &str) -> AppResult<()> {
+    if STATUS_DAPAT_DIUBAH.contains(&aktivitas_id) {
+        Ok(())
+    } else {
+        Err(bad_request(pesan))
     }
-    Ok(())
 }
 
 /// Baris satker satu pengajuan, apa yang dibutuhkan pemanggilnya.

@@ -1411,7 +1411,9 @@ pub async fn simpan_ukuran_pegawai(
     // WHICH satker; with no role gate a validator_pusat (scope `All`) could
     // rewrite any employee's record in the country.
     claims.require_role("operator_satker")?;
-    let scope = SatkerScope::from_claims(&claims);
+    // Write scope, not read scope: an account that is also a wilayah validator
+    // reads its region but may only write its own satker's roster.
+    let scope = SatkerScope::own_satker_from_claims(&claims);
     service
         .repository
         .simpan_ukuran_pegawai(pengajuan_id, &satker_code, &nip, &request, &scope)
@@ -1438,7 +1440,7 @@ pub async fn hapus_pegawai_dari_pengajuan(
     // WHICH satker; with no role gate a validator_pusat (scope `All`) could
     // rewrite any employee's record in the country.
     claims.require_role("operator_satker")?;
-    let scope = SatkerScope::from_claims(&claims);
+    let scope = SatkerScope::own_satker_from_claims(&claims);
     service
         .repository
         .hapus_pegawai_dari_pengajuan(pengajuan_id, &satker_code, &nip, &scope)
@@ -1462,7 +1464,7 @@ pub async fn masukkan_kembali_pegawai(
     // Same gate as excluding them: the satker's own operator, on a row that is
     // still editable.
     claims.require_role("operator_satker")?;
-    let scope = SatkerScope::from_claims(&claims);
+    let scope = SatkerScope::own_satker_from_claims(&claims);
     service
         .repository
         .masukkan_kembali_pegawai(pengajuan_id, &satker_code, &nip, &scope)

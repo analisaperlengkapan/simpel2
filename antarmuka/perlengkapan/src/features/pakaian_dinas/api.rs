@@ -11,9 +11,9 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::api::client::{api_delete_empty, api_get, api_post, api_put};
+use crate::api::client::{api_delete, api_delete_empty, api_get, api_post, api_put};
 use crate::api::error::AppResult;
-use crate::api::pakaian_dinas::Ukuran;
+use crate::api::pakaian_dinas::{RosterPegawai, RosterPengisian, Ukuran};
 
 #[derive(Debug, Clone, Deserialize)]
 struct Bungkus<T> {
@@ -218,6 +218,21 @@ pub struct KesiapanPakaianDinas {
     pub selesai: i64,
 }
 
+/// `DELETE /pakaian-dinas/pengajuan/{id}/satker/{kode}/pegawai/{nip}/keluarkan`
+/// — undo "Keluarkan dari Pengajuan". The person goes back to "belum mengisi":
+/// their sizes are not restored, because they never had any when excluded.
+pub async fn masukkan_kembali_pegawai(
+    pengajuan_id: &str,
+    satker_code: &str,
+    nip: &str,
+) -> AppResult<RosterPengisian> {
+    let r: Bungkus<RosterPengisian> = api_delete(&format!(
+        "/pakaian-dinas/pengajuan/{pengajuan_id}/satker/{satker_code}/pegawai/{nip}/keluarkan"
+    ))
+    .await?;
+    Ok(r.data)
+}
+
 /// `GET /pakaian-dinas/pengajuan/{id}/kesiapan` — counts for the confirmation
 /// dialog. `kecuali` lists the participation rows about to be moved (one for a
 /// single action, many for a bulk move), so they are not counted against the
@@ -243,6 +258,32 @@ pub async fn fetch_kesiapan_pakaian_dinas(
     }
     let r: Bungkus<KesiapanPakaianDinas> = api_get(&jalan).await?;
     Ok(r.data)
+}
+
+/// How many people owe a size and how many have given one.
+///
+/// People the operator excluded ("Keluarkan dari Pengajuan") are out of BOTH
+/// numbers: they owe nothing, so counting them would raise a shortfall warning
+/// that does not exist — the server's `kesiapan` does not count them either.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HitungPengisian {
+    pub total: usize,
+    pub terisi: usize,
+}
+
+impl HitungPengisian {
+    /// People who still owe a size.
+    pub fn belum(&self) -> usize {
+        self.total.saturating_sub(self.terisi)
+    }
+}
+
+pub fn hitung_pengisian(pegawai: &[RosterPegawai]) -> HitungPengisian {
+    let aktif = || pegawai.iter().filter(|p| !p.dikeluarkan);
+    HitungPengisian {
+        total: aktif().count(),
+        terisi: aktif().filter(|p| p.sudah_diisi).count(),
+    }
 }
 
 /// One-sentence warning for the confirmation dialog, or `None` when there is
@@ -351,5 +392,60 @@ mod kesiapan_ringkasan_tests {
         // Satker already at pusat waiting for its own approval is not a
         // subordinate failure and is deliberately not warned about.
         assert!(!teks.contains("menunggu persetujuan"), "{teks}");
+    }
+}
+
+#[cfg(test)]
+mod hitung_pengisian_tests {
+    use super::{HitungPengisian, hitung_pengisian};
+    use crate::api::pakaian_dinas::RosterPegawai;
+
+    fn orang(nip: &str, sudah_diisi: bool, dikeluarkan: bool) -> RosterPegawai {
+        RosterPegawai {
+            nip: nip.to_string(),
+            nama: nip.to_string(),
+            jabatan: None,
+            pangkat: None,
+            gol_kd: None,
+            eselon: None,
+            jenis_kelamin: "L".to_string(),
+            jenis: None,
+            foto: None,
+            with_hijab: false,
+            sudah_diisi,
+            dikeluarkan,
+            ukuran: Vec::new(),
+            saran: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn excluded_people_are_out_of_both_numbers() {
+        let roster = vec![orang("1", true, false), orang("2", false, true)];
+        assert_eq!(
+            hitung_pengisian(&roster),
+            HitungPengisian {
+                total: 1,
+                terisi: 1
+            },
+            "satu-satunya yang wajib mengisi sudah mengisi: tidak ada peringatan"
+        );
+        assert_eq!(hitung_pengisian(&roster).belum(), 0);
+    }
+
+    #[test]
+    fn an_active_person_who_has_not_filled_is_still_counted() {
+        let roster = vec![
+            orang("1", true, false),
+            orang("2", false, false),
+            orang("3", false, true),
+        ];
+        let h = hitung_pengisian(&roster);
+        assert_eq!((h.total, h.terisi, h.belum()), (2, 1, 1));
+    }
+
+    #[test]
+    fn an_empty_roster_owes_nothing() {
+        assert_eq!(hitung_pengisian(&[]).belum(), 0);
     }
 }

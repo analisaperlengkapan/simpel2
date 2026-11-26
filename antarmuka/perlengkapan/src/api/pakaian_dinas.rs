@@ -1735,47 +1735,6 @@ pub async fn keluarkan_pegawai_dari_pengajuan(
     ))
 }
 
-/// Undo "Keluarkan dari Pengajuan": the employee goes back to "belum mengisi".
-#[cfg(target_arch = "wasm32")]
-pub async fn masukkan_kembali_pegawai(
-    pengajuan_id: String,
-    satker_code: String,
-    nip: String,
-) -> Result<RosterPengisian, crate::api::AppError> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token().ok_or_else(|| {
-        crate::api::AppError::network("No authentication token found".to_string())
-    })?;
-    let resp = Request::delete(&format!(
-        "{}/{}/keluarkan",
-        roster_url(&pengajuan_id, &satker_code),
-        nip
-    ))
-    .header("Authorization", &format!("Bearer {}", token))
-    .send()
-    .await?;
-    if !resp.ok() {
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        return Err(crate::api::AppError::from_status(status, &body));
-    }
-    let result: ApiResponse<RosterPengisian> = resp.json().await?;
-    Ok(result.data)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn masukkan_kembali_pegawai(
-    _pengajuan_id: String,
-    _satker_code: String,
-    _nip: String,
-) -> Result<RosterPengisian, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown(
-        "Server-side stub".to_string(),
-    ))
-}
-
 #[cfg(test)]
 mod satker_list_query_tests {
     use super::satker_list_query;
