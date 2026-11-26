@@ -16,8 +16,8 @@ use leptos_router::hooks::use_params_map;
 use crate::api::{
     AppError, BulkActionResult, BulkValidatorActionRequest, PaginatedResponse, PengajuanSatker,
     PengajuanSatkerAktivitas, ValidatorActionRequest, aktivitas_is_revisi, aktivitas_label,
-    fetch_pakaian_satker_aktivitas, fetch_pengajuan_satker_terfilter, process_validator_action,
-    process_validator_action_bulk,
+    fetch_kesiapan_pakaian_dinas, fetch_pakaian_satker_aktivitas, fetch_pengajuan_satker_terfilter,
+    process_validator_action, process_validator_action_bulk, ringkasan_kesiapan,
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::components::pagination_controls::PaginationControls;
@@ -216,6 +216,9 @@ struct PendingAction {
     title: String,
     tone: ActionTone,
     require_note: bool,
+    /// Advisory "others still behind" warning fetched before the dialog opened.
+    /// `None` = nothing outstanding (or the readiness call failed).
+    warning: Option<String>,
 }
 
 #[component]
@@ -762,23 +765,51 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                             Some((approve_label, reject_label)) => {
                                 let sid_a = s.id.clone();
                                 let sid_r = s.id.clone();
+                                let pid_a = s.pengajuan_id.clone();
                                 let approve_title = approve_label.to_string();
                                 let reject_title = reject_label.to_string();
+                                // Forwarding (wilayah) and final approval (pusat)
+                                // both warn about the OTHERS still behind. The
+                                // row being moved is excluded, so the warning
+                                // disappears when it is the last one.
+                                let tahap = if matches!(code, 1001 | 1007 | 1012) {
+                                    "wilayah"
+                                } else {
+                                    "pusat"
+                                };
                                 vec![
                                     WorkflowAction::new(
                                         approve_label,
                                         ActionTone::Success,
                                         Callback::new(move |_: ()| {
-                                            pending
-                                                .set(
-                                                    Some(PendingAction {
-                                                        satker_id: sid_a.clone(),
-                                                        aksi: "approve".to_string(),
-                                                        title: approve_title.clone(),
-                                                        tone: ActionTone::Success,
-                                                        require_note: false,
-                                                    }),
-                                                );
+                                            let sid = sid_a.clone();
+                                            let pid = pid_a.clone();
+                                            let title = approve_title.clone();
+                                            busy.set(true);
+                                            spawn_local(async move {
+                                                let warning = fetch_kesiapan_pakaian_dinas(
+                                                    pid,
+                                                    tahap,
+                                                    None,
+                                                    Some(sid.clone()),
+                                                )
+                                                .await
+                                                .ok()
+                                                .filter(|k| !k.lengkap)
+                                                .and_then(|k| ringkasan_kesiapan(&k));
+                                                pending
+                                                    .set(
+                                                        Some(PendingAction {
+                                                            satker_id: sid,
+                                                            aksi: "approve".to_string(),
+                                                            title,
+                                                            tone: ActionTone::Success,
+                                                            require_note: false,
+                                                            warning,
+                                                        }),
+                                                    );
+                                                busy.set(false);
+                                            });
                                         }),
                                     ),
                                     WorkflowAction::new(
@@ -793,6 +824,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                         title: reject_title.clone(),
                                                         tone: ActionTone::Danger,
                                                         require_note: true,
+                                                        warning: None,
                                                     }),
                                                 );
                                         }),
@@ -863,6 +895,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                         view! {
                             <ApprovalDialog
                                 title=act.title.clone()
+                                warning=act.warning.clone()
                                 note_label=if act.require_note {
                                     "Alasan / Catatan (wajib)".to_string()
                                 } else {

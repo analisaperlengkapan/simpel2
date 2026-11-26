@@ -1013,6 +1013,70 @@ pub struct BulkActionResult {
     pub gagal: Vec<BulkActionGagal>,
 }
 
+/// Pre-flight readiness for one workflow gate. Mirrors backend
+/// `pakaian_dinas::models::KesiapanPakaianDinas`; every count is advisory and
+/// the person may still proceed.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
+pub struct KesiapanPakaianDinas {
+    /// `satker` | `wilayah` | `pusat`.
+    #[serde(default)]
+    pub tahap: String,
+    #[serde(default)]
+    pub lengkap: bool,
+    #[serde(default)]
+    pub total: i64,
+    #[serde(default)]
+    pub pegawai_belum_diisi: i64,
+    #[serde(default)]
+    pub belum_mengajukan: i64,
+    #[serde(default)]
+    pub belum_lengkap: i64,
+    #[serde(default)]
+    pub belum_diteruskan: i64,
+    #[serde(default)]
+    pub belum_selesai: i64,
+    #[serde(default)]
+    pub selesai: i64,
+}
+
+/// One-sentence warning for the confirmation dialog, or `None` when there is
+/// nothing outstanding to mention. Pure, so the wording is testable.
+pub fn ringkasan_kesiapan(k: &KesiapanPakaianDinas) -> Option<String> {
+    let mut bagian = Vec::new();
+    if k.tahap == "satker" {
+        if k.pegawai_belum_diisi > 0 {
+            bagian.push(format!(
+                "{} dari {} pegawai belum mengisi ukuran",
+                k.pegawai_belum_diisi, k.total
+            ));
+        }
+    } else {
+        if k.belum_mengajukan > 0 {
+            bagian.push(format!(
+                "{} satker belum mengajukan ke validator wilayah",
+                k.belum_mengajukan
+            ));
+        }
+        if k.belum_lengkap > 0 {
+            bagian.push(format!(
+                "{} satker sudah diajukan tetapi ukurannya belum lengkap",
+                k.belum_lengkap
+            ));
+        }
+        if k.tahap == "pusat" && k.belum_diteruskan > 0 {
+            bagian.push(format!(
+                "{} satker belum diteruskan ke validator pusat",
+                k.belum_diteruskan
+            ));
+        }
+    }
+    if bagian.is_empty() {
+        None
+    } else {
+        Some(format!("{}.", bagian.join("; ")))
+    }
+}
+
 #[cfg(target_arch = "wasm32")]
 pub async fn process_validator_action_bulk(
     request: BulkValidatorActionRequest,
@@ -1045,6 +1109,56 @@ pub async fn process_validator_action_bulk(
 pub async fn process_validator_action_bulk(
     _request: BulkValidatorActionRequest,
 ) -> Result<ApiResponse<BulkActionResult>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+/// `GET /pakaian-dinas/pengajuan/{id}/kesiapan` — pre-flight counts for the
+/// confirmation dialog. `kecuali` is the participation row about to be moved.
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_kesiapan_pakaian_dinas(
+    pengajuan_id: String,
+    tahap: &str,
+    satker_code: Option<String>,
+    kecuali: Option<String>,
+) -> Result<KesiapanPakaianDinas, crate::api::AppError> {
+    use crate::api::client::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
+    let mut url = format!(
+        "/api/v1/perlengkapan/pakaian-dinas/pengajuan/{}/kesiapan?tahap={}",
+        pengajuan_id, tahap
+    );
+    if let Some(kode) = satker_code.filter(|k| !k.trim().is_empty()) {
+        url.push_str(&format!("&satker_code={}", kode));
+    }
+    if let Some(id) = kecuali.filter(|k| !k.trim().is_empty()) {
+        url.push_str(&format!("&kecuali={}", id));
+    }
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+    if !resp.ok() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::from_status(status, &body));
+    }
+    let result: ApiResponse<KesiapanPakaianDinas> = resp.json().await?;
+    Ok(result.data)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_kesiapan_pakaian_dinas(
+    _pengajuan_id: String,
+    _tahap: &str,
+    _satker_code: Option<String>,
+    _kecuali: Option<String>,
+) -> Result<KesiapanPakaianDinas, crate::api::AppError> {
     Err(crate::api::AppError::Unknown(
         "Server-side stub".to_string(),
     ))
@@ -1739,5 +1853,76 @@ mod satker_list_query_tests {
             satker_list_query(1, 30, "Jakarta Pusat&status=1008", "1001,1007"),
             "page=1&per_page=30&q=Jakarta%20Pusat%26status%3D1008&status=1001%2C1007"
         );
+    }
+}
+
+#[cfg(test)]
+mod kesiapan_ringkasan_tests {
+    use super::{KesiapanPakaianDinas, ringkasan_kesiapan};
+
+    fn satker(belum: i64, total: i64) -> KesiapanPakaianDinas {
+        KesiapanPakaianDinas {
+            tahap: "satker".to_string(),
+            lengkap: belum == 0,
+            total,
+            pegawai_belum_diisi: belum,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_complete_gate_has_nothing_to_warn_about() {
+        assert_eq!(ringkasan_kesiapan(&satker(0, 40)), None);
+        let wilayah = KesiapanPakaianDinas {
+            tahap: "wilayah".to_string(),
+            lengkap: true,
+            total: 10,
+            ..Default::default()
+        };
+        assert_eq!(ringkasan_kesiapan(&wilayah), None);
+    }
+
+    #[test]
+    fn the_satker_warning_names_the_unfilled_employees() {
+        let teks = ringkasan_kesiapan(&satker(3, 40)).unwrap();
+        assert!(teks.contains("3 dari 40 pegawai"), "{teks}");
+    }
+
+    #[test]
+    fn the_wilayah_warning_names_unsubmitted_and_half_filled_satker() {
+        let k = KesiapanPakaianDinas {
+            tahap: "wilayah".to_string(),
+            lengkap: false,
+            total: 10,
+            belum_mengajukan: 2,
+            belum_lengkap: 1,
+            // Not forwarded yet is the wilayah's own queue, not a warning here.
+            belum_diteruskan: 4,
+            ..Default::default()
+        };
+        let teks = ringkasan_kesiapan(&k).unwrap();
+        assert!(teks.contains("2 satker belum mengajukan"), "{teks}");
+        assert!(teks.contains("1 satker sudah diajukan"), "{teks}");
+        assert!(!teks.contains("diteruskan"), "{teks}");
+    }
+
+    #[test]
+    fn the_pusat_warning_also_names_satker_wilayah_has_not_forwarded() {
+        let k = KesiapanPakaianDinas {
+            tahap: "pusat".to_string(),
+            lengkap: false,
+            total: 100,
+            belum_mengajukan: 3,
+            belum_lengkap: 0,
+            belum_diteruskan: 7,
+            belum_selesai: 5,
+            ..Default::default()
+        };
+        let teks = ringkasan_kesiapan(&k).unwrap();
+        assert!(teks.contains("3 satker belum mengajukan"), "{teks}");
+        assert!(teks.contains("7 satker belum diteruskan"), "{teks}");
+        // Satker already at pusat waiting for its own approval is not a
+        // subordinate failure and is deliberately not warned about.
+        assert!(!teks.contains("menunggu persetujuan"), "{teks}");
     }
 }

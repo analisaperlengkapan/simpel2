@@ -39,6 +39,60 @@ pub struct MenungguPakaianDinas {
     pub peran: String,
 }
 
+// ============ Workflow readiness ============
+
+/// Pre-flight "kesiapan" for one workflow gate (satker / wilayah / pusat).
+///
+/// Advisory, never a hard block: the UI shows these numbers in a confirmation
+/// dialog and the person may still proceed. The counts are computed server-side
+/// so the dialog cannot disagree with the data — the client only ever holds one
+/// page of the satker list, not the whole campaign.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct KesiapanPakaianDinas {
+    /// `satker` | `wilayah` | `pusat` — which gate this answers.
+    pub tahap: String,
+    /// Nothing outstanding at this gate.
+    pub lengkap: bool,
+    /// Units the gate covers: pegawai for `satker`, satker for the others.
+    pub total: i64,
+    /// Pegawai without a saved size (`satker` only).
+    pub pegawai_belum_diisi: i64,
+    /// Satker that have not submitted to the wilayah validator (1000/1003).
+    pub belum_mengajukan: i64,
+    /// Submitted satker whose roster is not fully filled (not 1000/1003/1008).
+    pub belum_lengkap: i64,
+    /// Satker already at the wilayah step but not forwarded to pusat
+    /// (1001/1007/1012).
+    pub belum_diteruskan: i64,
+    /// Satker already at the pusat step but not finalised (1004/1010).
+    pub belum_selesai: i64,
+    /// Satker finalised (1008).
+    pub selesai: i64,
+}
+
+/// Is a gate complete? Pure so the rule is testable without a database.
+///
+/// `wilayah` waits on the satker it is about to forward: nobody may still be at
+/// Input/Revisi and no already-submitted satker may be half-filled. `pusat`
+/// additionally waits on the satker wilayah has not forwarded yet — that is the
+/// "wilayah belum mengajukan ke pusat" the confirmation names. Satker at pusat
+/// awaiting their own final approval (`belum_selesai`) are pusat's own queue,
+/// not a subordinate that failed to submit, so they do not make the gate
+/// "incomplete".
+pub fn kesiapan_lengkap(
+    tahap: &str,
+    belum_mengajukan: i64,
+    belum_lengkap: i64,
+    belum_diteruskan: i64,
+) -> bool {
+    match tahap {
+        "satker" => belum_lengkap == 0,
+        "wilayah" => belum_mengajukan == 0 && belum_lengkap == 0,
+        "pusat" => belum_mengajukan == 0 && belum_lengkap == 0 && belum_diteruskan == 0,
+        _ => false,
+    }
+}
+
 // ============ Report Models ============
 
 /// Summary report by size
@@ -125,4 +179,30 @@ pub struct PegawaiRosterWithSync {
     pub total: i64,
     /// `None` bila integrasi tidak tersedia / probe gagal (tidak diketahui).
     pub sync: Option<PegawaiSyncInfo>,
+}
+
+#[cfg(test)]
+mod kesiapan_tests {
+    use super::kesiapan_lengkap;
+
+    #[test]
+    fn each_gate_only_waits_on_its_own_outstanding_work() {
+        // satker: only unfilled employees matter.
+        assert!(kesiapan_lengkap("satker", 9, 0, 9));
+        assert!(!kesiapan_lengkap("satker", 0, 1, 0));
+
+        // wilayah: nobody may still be at Input/Revisi and no already-submitted
+        // satker may be half-filled. Satker not yet forwarded are the wilayah's
+        // own queue, so they do not make the gate incomplete.
+        assert!(!kesiapan_lengkap("wilayah", 1, 0, 5));
+        assert!(!kesiapan_lengkap("wilayah", 0, 1, 0));
+        assert!(kesiapan_lengkap("wilayah", 0, 0, 5));
+
+        // pusat: also waits on what wilayah has not forwarded yet.
+        assert!(!kesiapan_lengkap("pusat", 0, 0, 1));
+        assert!(kesiapan_lengkap("pusat", 0, 0, 0));
+
+        // An unknown gate is never silently "complete".
+        assert!(!kesiapan_lengkap("lainnya", 0, 0, 0));
+    }
 }

@@ -648,6 +648,42 @@ impl PakaianDinasService {
         })
     }
 
+    /// Pre-flight readiness for one workflow gate, for the confirmation dialog
+    /// the UI shows before advancing. Advisory: it never blocks a transition.
+    ///
+    /// `tahap` is `satker` (one operator's roster), `wilayah` (the satker a
+    /// wilayah validator still waits on) or `pusat` (the satker/wilayah pusat
+    /// still waits on). `kecuali` is the participation row about to be moved and
+    /// is excluded so the dialog counts only the OTHERS still behind.
+    pub async fn kesiapan(
+        &self,
+        pengajuan_id: Uuid,
+        tahap: &str,
+        satker_code: Option<&str>,
+        kecuali: Option<Uuid>,
+        scope: &SatkerScope,
+    ) -> AppResult<KesiapanPakaianDinas> {
+        match tahap {
+            "satker" => {
+                let kode = satker_code
+                    .map(str::trim)
+                    .filter(|k| !k.is_empty())
+                    .ok_or_else(|| bad_request("satker_code wajib diisi untuk tahap satker"))?;
+                self.repository
+                    .hitung_kesiapan_satker(pengajuan_id, kode, scope)
+                    .await
+            }
+            "wilayah" | "pusat" => {
+                self.repository
+                    .hitung_kesiapan_level(pengajuan_id, kecuali, tahap, scope)
+                    .await
+            }
+            _ => Err(bad_request(
+                "Tahap kesiapan harus 'satker', 'wilayah', atau 'pusat'",
+            )),
+        }
+    }
+
     /// Remember the caller as somebody who can be told things (see
     /// `migrations/V017__pengguna_dikenal.sql`). Best-effort: it never fails the
     /// request it rides on.

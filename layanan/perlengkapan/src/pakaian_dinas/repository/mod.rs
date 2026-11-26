@@ -20,6 +20,7 @@ impl PakaianDinasRepository {
 }
 
 mod impor;
+mod kesiapan;
 pub(crate) mod laporan;
 mod master;
 mod pegawai;

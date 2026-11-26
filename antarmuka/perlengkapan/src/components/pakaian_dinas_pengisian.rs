@@ -32,6 +32,7 @@ use crate::api::pakaian_dinas::{
     process_validator_action, simpan_ukuran_pegawai,
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
+use crate::components::workflow_ui::{ActionTone, ConfirmDialog};
 use crate::features::pakaian_dinas::api::{fetch_ukuran_grup, kelompokkan_ukuran};
 use lib_ui::components::icon::AppIcon;
 use lib_ui::utils::formatters::{format_iso_local, format_iso_wib};
@@ -93,6 +94,16 @@ async fn query_ukuran(_key: ()) -> Result<DaftarUkuran, crate::api::AppError> {
     })
 }
 
+/// What the "Ajukan" button waits for the person to confirm: which satker row,
+/// and how many of its employees still have no size. The counts are read from
+/// the roster already on screen, which is the same server data the submit uses.
+#[derive(Clone)]
+struct AjukanPending {
+    pengajuan_satker_id: String,
+    belum: usize,
+    total: usize,
+}
+
 #[component]
 pub fn PakaianDinasPengisian() -> impl IntoView {
     let params = use_params_map();
@@ -111,6 +122,9 @@ pub fn PakaianDinasPengisian() -> impl IntoView {
     let sedang_diisi = RwSignal::new(Option::<RosterPegawai>::None);
     let pesan = RwSignal::new(Option::<String>::None);
     let sibuk = RwSignal::new(false);
+    // Pengajuan yang menunggu konfirmasi "Ajukan" — kalau ada pegawai yang
+    // belum mengisi, modal-nya memberi peringatan sebelum tetap mengajukan.
+    let konfirmasi = RwSignal::new(Option::<AjukanPending>::None);
 
     let ajukan = Callback::new(move |pengajuan_satker_id: String| {
         sibuk.set(true);
@@ -149,7 +163,15 @@ pub fn PakaianDinasPengisian() -> impl IntoView {
                     if let Err(e) = daftar_ukuran {
                         return view! { <ErrorState error=e /> }.into_any();
                     }
-                    halaman(data, pengajuan_id(), sedang_diisi, pesan, sibuk, refresh, ajukan)
+                    halaman(
+                        data,
+                        pengajuan_id(),
+                        sedang_diisi,
+                        pesan,
+                        sibuk,
+                        refresh,
+                        konfirmasi,
+                    )
                 }}
             </Suspense>
 
@@ -179,6 +201,48 @@ pub fn PakaianDinasPengisian() -> impl IntoView {
                                 />
                             }
                         })
+                    })
+            }}
+
+            // Confirmation before submitting to the wilayah validator. The
+            // roster is already on screen, so the counts come from it: no extra
+            // round-trip, and the number shown is the number the server has.
+            {move || {
+                konfirmasi
+                    .get()
+                    .map(|p| {
+                        let pesan = format!(
+                            "Ukuran {} pegawai satker ini akan diajukan ke Validator Wilayah. Setelah diajukan, ukurannya tidak dapat diubah sampai dikembalikan.",
+                            p.total,
+                        );
+                        let warning = (p.belum > 0)
+                            .then(|| {
+                                format!(
+                                    "{} dari {} pegawai belum mengisi ukuran. Anda tetap dapat mengajukan sekarang, tetapi mereka baru bisa dilengkapi bila Validator Wilayah mengembalikan pengajuan ini.",
+                                    p.belum, p.total,
+                                )
+                            });
+                        let id_lanjut = p.pengajuan_satker_id.clone();
+                        let label = if warning.is_some() {
+                            "Tetap Ajukan"
+                        } else {
+                            "Ajukan"
+                        };
+                        view! {
+                            <ConfirmDialog
+                                title="Ajukan ke Validator Wilayah?"
+                                message=pesan
+                                warning=warning
+                                confirm_label=label.to_string()
+                                confirm_tone=ActionTone::Success
+                                busy=Signal::derive(move || sibuk.get())
+                                on_confirm=Callback::new(move |_: ()| {
+                                    konfirmasi.set(None);
+                                    ajukan.run(id_lanjut.clone());
+                                })
+                                on_close=Callback::new(move |_: ()| konfirmasi.set(None))
+                            />
+                        }
                     })
             }}
         </PageLayout>
@@ -251,7 +315,7 @@ fn halaman(
     pesan: RwSignal<Option<String>>,
     sibuk: RwSignal<bool>,
     refresh: RwSignal<i32>,
-    ajukan: Callback<String>,
+    konfirmasi: RwSignal<Option<AjukanPending>>,
 ) -> AnyView {
     let total = data.pegawai.len();
     let terisi = data.pegawai.iter().filter(|p| p.sudah_diisi).count();
@@ -310,7 +374,16 @@ fn halaman(
                         }
                         on:click={
                             let id = pengajuan_satker_id.clone();
-                            move |_| ajukan.run(id.clone())
+                            move |_| {
+                                konfirmasi
+                                    .set(
+                                        Some(AjukanPending {
+                                            pengajuan_satker_id: id.clone(),
+                                            belum: total.saturating_sub(terisi),
+                                            total,
+                                        }),
+                                    )
+                            }
                         }
                     >
                         <AppIcon icon=PAPER_PLANE_TILT />

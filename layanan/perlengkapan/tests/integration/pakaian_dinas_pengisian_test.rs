@@ -726,3 +726,113 @@ async fn aksi_validator_pakaian_dinas_tercatat_di_jejak_audit_beserta_pelakunya(
 
     teardown_test_db(&db_name).await;
 }
+
+/// The confirmation dialogs need counts the client cannot compute — it only
+/// holds one page of the satker list. This pins the two questions they ask:
+/// "how many employees of mine are still unfilled?" and "which satker are still
+/// behind me?".
+#[tokio::test]
+async fn kesiapan_menghitung_yang_belum_mengisi_dan_yang_belum_mengajukan() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let (pengajuan_id, _) = buat_kampanye(&server).await;
+
+    // Pusat: both satker are still at Input, so neither has asked the wilayah
+    // validator for anything yet.
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=pusat"),
+        "validator_pusat",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "kesiapan pusat: {:?}", res.text());
+    let k = res.json::<Value>()["data"].clone();
+    assert_eq!(k["tahap"].as_str(), Some("pusat"));
+    assert_eq!(k["total"].as_i64(), Some(2), "{k:?}");
+    assert_eq!(k["belum_mengajukan"].as_i64(), Some(2), "{k:?}");
+    assert_eq!(k["belum_lengkap"].as_i64(), Some(0), "{k:?}");
+    assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
+
+    // The operator's own gate counts employees, not satker.
+    let res = get(
+        &server,
+        &format!(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=satker&satker_code={SATKER_A}"
+        ),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "kesiapan satker: {:?}", res.text());
+    let k = res.json::<Value>()["data"].clone();
+    assert_eq!(k["total"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["pegawai_belum_diisi"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
+
+    // Submit SKR001 without filling anybody: allowed (the dialog only warns),
+    // and from here the row counts as "submitted but incomplete".
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker"),
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    let row_id = res.json::<Value>()["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["satker_id"].as_str() == Some(SATKER_A))
+        .and_then(|r| r["id"].as_str())
+        .expect("baris SKR001")
+        .to_string();
+    let res = post(
+        &server,
+        "/pakaian-dinas/validator-action",
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+        json!({"pengajuan_satker_id": row_id, "aksi": "submit"}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "ajukan: {:?}", res.text());
+
+    // Pusat excludes the row it is about to act on: the remaining satker is
+    // still at Input.
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=pusat&kecuali={row_id}"),
+        "validator_pusat",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "kesiapan pusat: {:?}", res.text());
+    let k = res.json::<Value>()["data"].clone();
+    assert_eq!(k["total"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["belum_mengajukan"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
+
+    // Wilayah: SKR001 was submitted but has no sizes, SKR002 has not submitted
+    // at all. The two failures are reported separately.
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=wilayah"),
+        "validator_wilayah",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "kesiapan wilayah: {:?}", res.text());
+    let k = res.json::<Value>()["data"].clone();
+    assert_eq!(k["total"].as_i64(), Some(2), "{k:?}");
+    assert_eq!(k["belum_mengajukan"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["belum_lengkap"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
+
+    teardown_test_db(&db_name).await;
+}

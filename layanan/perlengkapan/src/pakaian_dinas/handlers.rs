@@ -69,6 +69,16 @@ pub struct PengajuanFilterQuery {
     pub tahun: Option<i32>,
 }
 
+/// `?tahap=&satker_code=&kecuali=` of the readiness pre-flight.
+/// `tahap` is `satker` | `wilayah` | `pusat`; `kecuali` is the participation
+/// row about to be moved and is left out of the count.
+#[derive(Debug, Deserialize)]
+pub struct KesiapanQuery {
+    pub tahap: String,
+    pub satker_code: Option<String>,
+    pub kecuali: Option<Uuid>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct LaporanRekapQuery {
     pub pengajuan_id: Uuid,
@@ -661,6 +671,33 @@ pub async fn get_menunggu_pakaian_dinas(
     Ok(Json(ApiResponse::success(
         item,
         "Pekerjaan pakaian dinas yang menunggu".to_string(),
+    )))
+}
+
+/// GET /pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan
+///
+/// Pre-flight counts for the confirmation dialog shown before a level advances
+/// (operator submit, wilayah forward, pusat finalise). Advisory — it never
+/// blocks; the client shows the warning and the person decides.
+pub async fn get_kesiapan_pakaian_dinas(
+    State(service): State<PakaianDinasService>,
+    Path(pengajuan_id): Path<Uuid>,
+    Query(query): Query<KesiapanQuery>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<KesiapanPakaianDinas>>, AppError> {
+    let item = service
+        .kesiapan(
+            pengajuan_id,
+            &query.tahap,
+            query.satker_code.as_deref(),
+            query.kecuali,
+            &SatkerScope::from_claims(&claims),
+        )
+        .await?;
+
+    Ok(Json(ApiResponse::success(
+        item,
+        "Kesiapan pengajuan pakaian dinas berhasil diambil".to_string(),
     )))
 }
 

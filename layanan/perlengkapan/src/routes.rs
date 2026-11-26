@@ -269,6 +269,12 @@ pub fn create_routes(state: AppState) -> Router {
             "/pakaian-dinas/menunggu",
             get(pakaian_dinas::get_menunggu_pakaian_dinas),
         )
+        // Pre-flight readiness for the confirmation dialogs before a level
+        // advances (operator submit / wilayah forward / pusat finalise).
+        .route(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan",
+            get(pakaian_dinas::get_kesiapan_pakaian_dinas),
+        )
         // Personal Uniform Sizes
         .route(
             "/pakaian-dinas/ukuran-pakaian-pegawai",
