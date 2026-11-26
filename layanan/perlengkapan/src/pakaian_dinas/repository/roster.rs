@@ -118,16 +118,28 @@ impl PakaianDinasRepository {
         satker_code: &str,
         snapshot_at: Option<DateTime<Utc>>,
     ) -> AppResult<Vec<tokio_postgres::Row>> {
+        // "Keluarkan dari Pengajuan" deletes the participation row but not the
+        // roster member; the exclusion table (V020) is what keeps the person off
+        // this list and out of every readiness denominator.
         let rows = if snapshot_at.is_some() {
             // Snapshot beku: orangnya persis seperti saat kampanye dibuat.
             client
                 .query(
                     r#"
-                    SELECT nip, nama_pegawai AS nama, jabatan, pangkat AS golpang, gol_kd, eselon,
-                           jenis_kelamin AS jk, jenis AS jenis_jabatan_terakhir, foto
-                    FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_snapshot
-                    WHERE pengajuan_id = $1 AND satker_id = $2
-                    ORDER BY nama_pegawai ASC
+                    SELECT snap.nip, snap.nama_pegawai AS nama, snap.jabatan,
+                           snap.pangkat AS golpang, snap.gol_kd, snap.eselon,
+                           snap.jenis_kelamin AS jk, snap.jenis AS jenis_jabatan_terakhir,
+                           snap.foto
+                    FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_snapshot snap
+                    WHERE snap.pengajuan_id = $1 AND snap.satker_id = $2
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_dikeluarkan d
+                          WHERE d.pengajuan_id = snap.pengajuan_id
+                            AND d.satker_id = snap.satker_id
+                            AND d.nip = snap.nip
+                      )
+                    ORDER BY snap.nama_pegawai ASC
                     "#,
                     &[&pengajuan_id, &satker_code],
                 )
@@ -142,13 +154,20 @@ impl PakaianDinasRepository {
                                p.jk, p.jenis_jabatan_terakhir, p.foto
                         FROM integrasi.mysimkari_pegawai p
                         {join}
-                        WHERE {kode_satker} = $1
+                        WHERE {kode_satker} = $2
+                          AND NOT EXISTS (
+                              SELECT 1
+                              FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_dikeluarkan d
+                              WHERE d.pengajuan_id = $1
+                                AND d.satker_id = $2
+                                AND d.nip = p.nip
+                          )
                         ORDER BY p.nama ASC
                         "#,
                         join = PEGAWAI_SATKER_JOIN_SQL,
                         kode_satker = PEGAWAI_KODE_SATKER_SQL,
                     ),
-                    &[&satker_code],
+                    &[&pengajuan_id, &satker_code],
                 )
                 .await
                 .map_err(|e| bad_request(&e.to_string()))?
@@ -267,9 +286,12 @@ impl PakaianDinasRepository {
             .iter()
             .map(|row| {
                 let nip: String = row.get("nip");
-                let sudah_diisi = tersimpan.contains_key(&nip);
-                let (with_hijab, ukuran) =
-                    tersimpan.get(&nip).cloned().unwrap_or((false, Vec::new()));
+                let simpanan = tersimpan.get(&nip);
+                // A saved EMPTY form creates the participation row but no sizes.
+                // Counting the row as filled hid those people from the operator
+                // dialog and from both readiness counts.
+                let sudah_diisi = simpanan.is_some_and(|(_, ukuran)| !ukuran.is_empty());
+                let (with_hijab, ukuran) = simpanan.cloned().unwrap_or((false, Vec::new()));
                 // Saran hanya untuk yang belum diisi: yang sudah diisi memakai
                 // isinya sendiri.
                 let profil_pegawai = profil.get(&nip).filter(|_| !sudah_diisi);
@@ -477,6 +499,16 @@ impl PakaianDinasRepository {
         .await
         .map_err(|e| bad_request(&e.to_string()))?;
 
+        // Saving a size is the operator saying "this person IS in the
+        // submission", so a previous "Keluarkan" no longer applies.
+        tx.execute(
+            "DELETE FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_dikeluarkan
+             WHERE pengajuan_id = $1 AND satker_id = $2 AND nip = $3",
+            &[&pengajuan_id, &satker_code, &nip],
+        )
+        .await
+        .map_err(|e| bad_request(&e.to_string()))?;
+
         // Aturan grup, dimuat sekali per grup yang muncul di permintaan ini.
         let mut aturan: HashMap<String, (UkuranGrup, Vec<String>)> = HashMap::new();
 
@@ -584,6 +616,18 @@ impl PakaianDinasRepository {
             "DELETE FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai
              WHERE pengajuan_satker_id = $1 AND nip = $2",
             &[&pengajuan_satker_id, &nip],
+        )
+        .await
+        .map_err(|e| bad_request(&e.to_string()))?;
+        // The roster (frozen or live) still names this person. Record the
+        // exclusion so readiness stops counting them as "belum mengisi" and the
+        // roster list stops offering them.
+        tx.execute(
+            "INSERT INTO perlengkapan.pengajuan_pakaian_dinas_pegawai_dikeluarkan
+                 (pengajuan_id, satker_id, nip)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (pengajuan_id, satker_id, nip) DO NOTHING",
+            &[&pengajuan_id, &satker_code, &nip],
         )
         .await
         .map_err(|e| bad_request(&e.to_string()))?;

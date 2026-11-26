@@ -66,12 +66,18 @@ impl PakaianDinasRepository {
     /// `aktivitas_id` lands on `perlengkapan.pengajuan_pakaian_dinas_satker` and an audit-
     /// friendly row is appended to `perlengkapan.pengajuan_pakaian_dinas_satker_aktivitas`
     /// so the per-satker timeline has real history.
+    ///
+    /// `dari_status` is the status the caller read before deciding. The UPDATE
+    /// is conditional on it, so two people acting on the same row cannot both
+    /// win: the second one matches no row and gets a conflict instead of
+    /// silently overwriting the first (and appending a second activity row).
     // Each arg is a distinct transition/activity column; a param struct would
     // only add indirection.
     #[allow(clippy::too_many_arguments)]
     pub async fn transition_satker_with_activity(
         &self,
         satker_id: Uuid,
+        dari_status: i32,
         new_aktivitas_id: i32,
         komentar: Option<String>,
         nip: Option<&str>,
@@ -90,13 +96,21 @@ impl PakaianDinasRepository {
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
-        tx.execute(
-            "UPDATE perlengkapan.pengajuan_pakaian_dinas_satker \
-             SET aktivitas_id = $1, updated_at = NOW() WHERE id = $2",
-            &[&new_aktivitas_id, &satker_id],
-        )
-        .await
-        .map_err(|e| bad_request(&e.to_string()))?;
+        let changed = tx
+            .execute(
+                "UPDATE perlengkapan.pengajuan_pakaian_dinas_satker \
+                 SET aktivitas_id = $1, updated_at = NOW() \
+                 WHERE id = $2 AND aktivitas_id = $3",
+                &[&new_aktivitas_id, &satker_id, &dari_status],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        if changed == 0 {
+            // Dropping `tx` rolls back; nothing was written.
+            return Err(crate::shared::error::conflict(
+                "Satker ini sudah dipindahkan pengguna lain. Muat ulang daftar lalu ulangi aksinya.",
+            ));
+        }
 
         let activity_id = Uuid::new_v4();
         tx.execute(

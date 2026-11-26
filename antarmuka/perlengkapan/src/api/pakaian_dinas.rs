@@ -237,6 +237,11 @@ pub struct ValidatorActionRequest {
     pub pengajuan_satker_id: String,
     pub aksi: String,
     pub komentar: Option<String>,
+    /// Gate the dialog was opened for (`satker` | `wilayah` | `pusat`). The
+    /// server refuses the move if the row has since left that gate, so a
+    /// "Teruskan" confirmation can never become a final approval.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tahap: Option<String>,
 }
 
 /// Pegawai Pakaian Dinas (Employee uniform sizes).
@@ -990,6 +995,11 @@ pub struct BulkValidatorActionRequest {
     pub aksi: String,
     #[serde(default)]
     pub komentar: Option<String>,
+    /// Required by the server: the gate every selected row must still be at.
+    /// Rows that moved on come back as failures instead of being re-read as
+    /// the next role's move.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tahap: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

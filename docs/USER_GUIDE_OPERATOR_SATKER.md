@@ -142,10 +142,35 @@ Jika pengajuan dikembalikan untuk revisi:
 
 4. **Submit Pengajuan**
    - Setelah semua pegawai diinput, klik **"Submit"**
+   - Sebelum terkirim, sistem menghitung pegawai yang **belum mengisi ukuran**.
+     Bila masih ada, muncul konfirmasi: *"Masih ada N pegawai yang belum
+     mengisi ukuran. Tetap ajukan?"* — pengajuan **tidak diblokir**, tetapi
+     satker Anda akan tercatat "diajukan, belum lengkap" di Validator Wilayah
+     sampai ukurannya dilengkapi (ukuran masih bisa diubah selama statusnya
+     belum diteruskan).
    - Pengajuan akan masuk ke alur persetujuan 3 tingkat:
      1. Kejari (Pimpinan Satker)
      2. Kejati (Validator Wilayah)
      3. Kejagung (Validator Pusat)
+
+### Pegawai yang Tidak Memerlukan Pakaian Dinas
+
+Beberapa pegawai kadang tidak memerlukan pakaian dinas pada periode berjalan
+(mis. tugas belajar, akan pensiun, atau bukan penerima). Untuk mereka:
+
+1. Buka daftar pegawai satker pada periode tersebut.
+2. Klik **"Isi Ukuran"** pada baris pegawai, lalu **"Keluarkan dari
+   Pengajuan"**.
+
+Pegawai tersebut hilang dari daftar dan **tidak lagi dihitung** sebagai "belum
+mengisi" — baik pada konfirmasi Submit di atas maupun pada hitungan kesiapan
+Validator Wilayah/Pusat. Data historisnya tidak dihapus: bila ia ternyata tetap
+memerlukan pakaian dinas, cukup isi ukurannya lagi dan ia kembali masuk
+pengajuan.
+
+> Catatan: menyimpan formulir ukuran **tanpa memilih ukuran apa pun** tidak
+> dihitung sebagai "sudah mengisi". Pilih minimal satu ukuran, atau gunakan
+> "Keluarkan dari Pengajuan" bila pegawai memang tidak memerlukan.
 
 **Tips:**
 

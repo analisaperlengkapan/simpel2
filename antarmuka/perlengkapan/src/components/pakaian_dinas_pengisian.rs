@@ -134,6 +134,7 @@ pub fn PakaianDinasPengisian() -> impl IntoView {
                 pengajuan_satker_id,
                 aksi: "submit".to_string(),
                 komentar: None,
+                tahap: Some("satker".to_string()),
             };
             match process_validator_action(req).await {
                 Ok(_) => refresh.update(|v| *v += 1),
@@ -732,8 +733,6 @@ fn DialogUkuran(
     let jabatan = pegawai.jabatan.clone().unwrap_or_else(|| "-".to_string());
     let pangkat = pegawai.pangkat.clone().unwrap_or_else(|| "-".to_string());
     let perempuan = pegawai.jenis_kelamin.eq_ignore_ascii_case("P");
-    let sudah_diisi = pegawai.sudah_diisi;
-
     view! {
         <div
             data-testid="dialog-ukuran"
@@ -873,17 +872,16 @@ fn DialogUkuran(
                 </Show>
 
                 <div class="mt-6 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
-                    <Show when=move || sudah_diisi>
-                        <button
-                            type="button"
-                            class="rounded-lg border border-danger-500/30 px-4 py-2 text-sm text-danger-300 transition hover:bg-danger-500/10 disabled:opacity-50"
-                            prop:disabled=move || sibuk.get()
-                            on:click=keluarkan
-                            title="Untuk pegawai yang tidak memerlukan pakaian dinas"
-                        >
-                            "Keluarkan dari Pengajuan"
-                        </button>
-                    </Show>
+                    <button
+                        type="button"
+                        data-testid="keluarkan-pegawai"
+                        class="rounded-lg border border-danger-500/30 px-4 py-2 text-sm text-danger-300 transition hover:bg-danger-500/10 disabled:opacity-50"
+                        prop:disabled=move || sibuk.get()
+                        on:click=keluarkan
+                        title="Untuk pegawai yang tidak memerlukan pakaian dinas"
+                    >
+                        "Keluarkan dari Pengajuan"
+                    </button>
                     <div class="ml-auto flex gap-3">
                         <button
                             type="button"

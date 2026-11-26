@@ -108,6 +108,13 @@ pub struct ValidatorActionRequest {
     pub pengajuan_satker_id: Uuid,
     pub aksi: String, // "approve" or "reject"
     pub komentar: Option<String>,
+    /// The stage the caller believes this row is at (`satker` | `wilayah` |
+    /// `pusat`). When set, the move is refused if the row has since moved on,
+    /// so a dialog opened for "Teruskan" can never become a final approval
+    /// just because the caller also holds the pusat role. Optional for older
+    /// callers; the UI always sends it.
+    #[serde(default)]
+    pub tahap: Option<String>,
 }
 /// Request DTO for approving several satker at once.
 ///
@@ -118,6 +125,11 @@ pub struct BulkValidatorActionRequest {
     pub pengajuan_satker_ids: Vec<Uuid>,
     pub aksi: String,
     pub komentar: Option<String>,
+    /// Required: the stage every selected row must still be at. Rows that moved
+    /// on are reported as failed instead of being re-interpreted as the next
+    /// role's move.
+    #[serde(default)]
+    pub tahap: Option<String>,
 }
 /// Request DTO for personal uniform sizes (self-service)
 #[derive(Debug, Deserialize, Validate)]
