@@ -308,6 +308,24 @@ fn CatatanRevisi(pengajuan_satker_id: String) -> impl IntoView {
     }
 }
 
+/// Only the satker's OWN operator edits this roster.
+///
+/// A validator who also holds `operator_satker` may READ any satker in their
+/// region (the roster endpoint allows it), but the server confines writes to
+/// their own satker (404 otherwise). Enabling the form for someone else's
+/// satker would collect sizes that can never be saved.
+fn boleh_mengisi(sesi: Option<&crate::features::auth::UserSession>, satker_kode: &str) -> bool {
+    let Some(sesi) = sesi else {
+        return false;
+    };
+    sesi.has_role("operator_satker")
+        && sesi
+            .satker_code
+            .as_deref()
+            .map(str::trim)
+            .is_some_and(|kode| !kode.is_empty() && kode == satker_kode.trim())
+}
+
 #[allow(clippy::too_many_arguments)]
 fn halaman(
     data: RosterPengisian,
@@ -328,9 +346,10 @@ fn halaman(
     // Only the satker's own operator edits; a validator or administrator who opens
     // the page is reading it. The server refuses anyone else's write, so the
     // controls would only ever answer an error.
-    let boleh_isi = crate::features::auth::AuthService::load_session()
-        .map(|s| s.has_role("operator_satker"))
-        .unwrap_or(false);
+    let boleh_isi = boleh_mengisi(
+        crate::features::auth::AuthService::load_session().as_ref(),
+        &data.satker_kode,
+    );
     let terkunci = !data.dapat_diubah;
     let dapat_diubah = data.dapat_diubah && boleh_isi;
     let pengajuan_satker_id = data.pengajuan_satker_id.clone();
@@ -1020,5 +1039,67 @@ fn DialogUkuran(
                 </div>
             </div>
         </div>
+    }
+}
+
+#[cfg(test)]
+mod boleh_mengisi_tests {
+    use super::boleh_mengisi;
+    use crate::features::auth::UserSession;
+
+    fn sesi(roles: &[&str], satker: Option<&str>) -> UserSession {
+        UserSession {
+            user_id: "u".to_string(),
+            username: "u".to_string(),
+            name: "U".to_string(),
+            email: None,
+            nip: None,
+            jabatan: None,
+            satker_code: satker.map(str::to_string),
+            satker_id: None,
+            satker_nama: None,
+            roles: roles.iter().map(|r| r.to_string()).collect(),
+            role: roles.first().copied().unwrap_or("").to_string(),
+            expires_at: None,
+        }
+    }
+
+    #[test]
+    fn the_own_satker_operator_may_fill() {
+        assert!(boleh_mengisi(
+            Some(&sesi(&["operator_satker"], Some("SKR001"))),
+            "SKR001"
+        ));
+        assert!(boleh_mengisi(
+            Some(&sesi(&["operator_satker"], Some(" SKR001 "))),
+            "SKR001"
+        ));
+    }
+
+    #[test]
+    fn a_dual_role_account_may_read_but_not_fill_another_satker() {
+        let s = sesi(&["operator_satker", "validator_wilayah"], Some("SKR001"));
+        assert!(boleh_mengisi(Some(&s), "SKR001"));
+        assert!(
+            !boleh_mengisi(Some(&s), "SKR002"),
+            "server menolak simpanan ke satker lain; formulirnya jangan diaktifkan"
+        );
+    }
+
+    #[test]
+    fn readers_and_sessions_without_a_satker_may_not_fill() {
+        assert!(!boleh_mengisi(
+            Some(&sesi(&["validator_wilayah"], Some("SKR001"))),
+            "SKR001"
+        ));
+        assert!(!boleh_mengisi(
+            Some(&sesi(&["operator_satker"], None)),
+            "SKR001"
+        ));
+        assert!(!boleh_mengisi(
+            Some(&sesi(&["operator_satker"], Some("  "))),
+            "SKR001"
+        ));
+        assert!(!boleh_mengisi(None, "SKR001"));
     }
 }

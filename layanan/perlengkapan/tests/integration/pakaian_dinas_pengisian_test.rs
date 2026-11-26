@@ -1431,6 +1431,11 @@ async fn masukkan_kembali_yang_menunggu_pengajuan_ikut_ditolak() {
 
     // Hold the row the submit will touch, so the re-add has to wait for it.
     let mut kunci = db.pool().get().await.unwrap();
+    let pid_penahan: i32 = kunci
+        .query_one("SELECT pg_backend_pid()", &[])
+        .await
+        .unwrap()
+        .get(0);
     let tx = kunci.transaction().await.unwrap();
     tx.query_one(
         "SELECT 1 FROM perlengkapan.pengajuan_pakaian_dinas_satker WHERE id = $1 FOR UPDATE",
@@ -1448,25 +1453,38 @@ async fn masukkan_kembali_yang_menunggu_pengajuan_ikut_ditolak() {
             async move { delete(&srv, &jalur, "operator_satker", OPERATOR, SATKER_A).await },
         );
 
-    // Wait until it is actually queued on a lock, then submit. The poll runs on
-    // its own connection: `kunci` is busy holding the transaction.
+    // Wait until the request is actually queued on the row lock, then submit.
+    // The poll runs on its own connection: `kunci` is busy holding the
+    // transaction.
+    //
+    // A row-lock wait is recorded against the holder's TRANSACTION id, not the
+    // relation, so filtering `pg_locks.relation` never matches and the test
+    // would silently degrade into "run the request after the commit".
+    // `pg_blocking_pids` answers "who is this backend waiting for" directly,
+    // and the loop ASSERTS it was observed.
     let pemantau = db.pool().get().await.unwrap();
-    for _ in 0..60 {
+    let mut teramati = false;
+    for _ in 0..80 {
         let antre: i64 = pemantau
             .query_one(
-                "SELECT count(*) FROM pg_locks
-                  WHERE NOT granted
-                    AND relation = 'perlengkapan.pengajuan_pakaian_dinas_satker'::regclass",
-                &[],
+                "SELECT count(*) FROM pg_stat_activity
+                  WHERE wait_event_type = 'Lock' AND $1 = ANY(pg_blocking_pids(pid))",
+                &[&pid_penahan],
             )
             .await
             .unwrap()
             .get(0);
         if antre > 0 {
+            teramati = true;
             break;
         }
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
+    assert!(
+        teramati,
+        "permintaan tidak pernah terlihat mengantre di belakang kunci baris; \
+         tanpa itu tes ini tidak membuktikan apa pun"
+    );
     tx.execute(
         "UPDATE perlengkapan.pengajuan_pakaian_dinas_satker
             SET aktivitas_id = 1001 WHERE id = $1",
