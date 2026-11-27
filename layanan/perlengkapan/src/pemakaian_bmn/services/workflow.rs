@@ -21,16 +21,16 @@ impl PemakaianBmnService {
         let satker: Vec<String> = permit.satker_code.iter().cloned().collect();
         if let Err(e) = self
             .workflow_engine
-            .beri_tahu_giliran(
-                "pemakaian_bmn",
-                permit.id,
-                &permit.status,
-                &satker,
-                None,
+            .beri_tahu_giliran(crate::workflow::engine::Giliran {
+                entity_type: "pemakaian_bmn",
+                entity_id: permit.id,
+                to_state: &permit.status,
+                satker_codes: &satker,
+                satker_nama: None,
                 catatan,
-                permit.created_by,
+                pemohon: permit.created_by,
                 aktor,
-            )
+            })
             .await
         {
             warn!(error = %e, permit_id = %permit.id, "could not tell the next role about a pemakaian move");

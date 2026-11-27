@@ -226,23 +226,23 @@ impl KebutuhanBmnService {
         // bad day never undoes a decision.
         if let Err(e) = self
             .workflow_engine
-            .beri_tahu_giliran(
-                "kebutuhan_bmn",
-                updated.pengajuan_id,
+            .beri_tahu_giliran(crate::workflow::engine::Giliran {
+                entity_type: "kebutuhan_bmn",
+                entity_id: updated.pengajuan_id,
                 to_state,
-                std::slice::from_ref(&updated.satker_id),
+                satker_codes: std::slice::from_ref(&updated.satker_id),
                 // A satker added without a name is still named by its code.
-                Some(
+                satker_nama: Some(
                     updated
                         .satker_nama
                         .as_deref()
                         .filter(|nama| !nama.trim().is_empty())
                         .unwrap_or(updated.satker_id.as_str()),
                 ),
-                request.komentar.as_deref(),
-                None,
-                user_id.unwrap_or_else(Uuid::nil),
-            )
+                catatan: request.komentar.as_deref(),
+                pemohon: None,
+                aktor: user_id.unwrap_or_else(Uuid::nil),
+            })
             .await
         {
             warn!(error = %e, satker_id = %satker_id, "could not tell the next role about a kebutuhan satker move");

@@ -3,6 +3,24 @@ use crate::workflow::giliran::{peran_giliran, peran_terikat_satker};
 use std::collections::HashSet;
 use uuid::Uuid;
 
+/// What [`WorkflowEngine::beri_tahu_giliran`] needs to know about a move.
+pub(crate) struct Giliran<'a> {
+    pub entity_type: &'a str,
+    /// The id the notification links to (for Kebutuhan BMN, the campaign's).
+    pub entity_id: Uuid,
+    pub to_state: &'a str,
+    /// The satker(s) the entity belongs to: who a satker-bound role is resolved through.
+    pub satker_codes: &'a [String],
+    /// Names the satker when one record spans several.
+    pub satker_nama: Option<&'a str>,
+    /// The mover's note, quoted in the message.
+    pub catatan: Option<&'a str>,
+    /// Whoever asked for the entity: never asked to validate or approve it (maker-checker).
+    pub pemohon: Option<Uuid>,
+    /// Whoever just moved it: never told about their own move.
+    pub aktor: Uuid,
+}
+
 /// Who asked for an entity, and which satker(s) it belongs to.
 struct Identitas {
     /// `created_by`; nullable in the schema.
@@ -66,16 +84,16 @@ impl WorkflowEngine {
 
         // 2. The role whose turn it is.
         sent += self
-            .beri_tahu_giliran(
+            .beri_tahu_giliran(Giliran {
                 entity_type,
-                request.entity_id,
-                &request.to_state,
-                &identitas.satker_codes,
-                None,
-                request.catatan.as_deref(),
-                identitas.pemohon,
-                request.user_id,
-            )
+                entity_id: request.entity_id,
+                to_state: &request.to_state,
+                satker_codes: &identitas.satker_codes,
+                satker_nama: None,
+                catatan: request.catatan.as_deref(),
+                pemohon: identitas.pemohon,
+                aktor: request.user_id,
+            })
             .await?;
         Ok(sent)
     }
@@ -91,17 +109,17 @@ impl WorkflowEngine {
     ///
     /// Public to the crate because a module that moves a part of an entity itself (Kebutuhan BMN's
     /// per-satker rows do not go through [`Self::transition`]) must tell the next role the same way.
-    pub(crate) async fn beri_tahu_giliran(
-        &self,
-        entity_type: &str,
-        entity_id: Uuid,
-        to_state: &str,
-        satker_codes: &[String],
-        satker_nama: Option<&str>,
-        catatan: Option<&str>,
-        pemohon: Option<Uuid>,
-        aktor: Uuid,
-    ) -> Result<usize> {
+    pub(crate) async fn beri_tahu_giliran(&self, giliran: Giliran<'_>) -> Result<usize> {
+        let Giliran {
+            entity_type,
+            entity_id,
+            to_state,
+            satker_codes,
+            satker_nama,
+            catatan,
+            pemohon,
+            aktor,
+        } = giliran;
         let Some(notifier) = self.notifier.as_ref() else {
             return Ok(0);
         };
