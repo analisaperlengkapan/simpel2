@@ -12,10 +12,14 @@
 //!
 //! The uncertainty of each is the spread of that method's own one-step-ahead errors on the
 //! history, never the spread of the raw series: a series that trends has a large raw spread
-//! that says nothing about how well the trend is followed. For Holt the interval widens with
-//! the horizon by the exact variance of the method; the moving averages assume the series
-//! stays where it is, so theirs does not widen (and say so, in the notes, when there are too
-//! few years for any interval to mean much).
+//! that says nothing about how well the trend is followed. A one-step error of a moving average
+//! already contains the uncertainty of the window mean, so it is used as it is; only when there
+//! is no such error yet (too few years) is the spread of the series used, and THEN the window
+//! mean's own uncertainty is added. Holt's first prediction is fitted to the data that starts
+//! it (the initial trend is `y1 - y0`), so that error is zero by construction and is left out.
+//! For Holt the interval widens with the horizon by the exact variance of the method; the
+//! moving averages assume the series stays where it is, so theirs does not widen. Where no
+//! error can be measured at all, the notes say so ([`jumlah_galat`]).
 
 use lib_perlengkapan::models::{ForecastMethod, PredictedYear, YearlyData};
 
@@ -152,9 +156,9 @@ fn simpangan_baku(v: &[f64]) -> f64 {
 }
 
 /// Root mean square of the one-step errors of a moving average over `y`: each year predicted by
-/// the average of the `k` years before it. With no year that has `k` before it, the spread of the
-/// series itself is the only scale there is.
-fn galat_rata_bergerak(y: &[f64], k: usize, bobot: bool) -> f64 {
+/// the average of the `k` years before it, and whether that was measurable. With no year that has
+/// `k` before it, the spread of the series itself is the only scale there is (`false`).
+fn galat_rata_bergerak(y: &[f64], k: usize, bobot: bool) -> (f64, bool) {
     let mut kuadrat = 0.0;
     let mut m = 0usize;
     for t in k..y.len() {
@@ -168,19 +172,46 @@ fn galat_rata_bergerak(y: &[f64], k: usize, bobot: bool) -> f64 {
         m += 1;
     }
     if m == 0 {
-        simpangan_baku(y)
+        (simpangan_baku(y), false)
     } else {
-        (kuadrat / m as f64).sqrt()
+        ((kuadrat / m as f64).sqrt(), true)
     }
 }
 
-/// One Holt pass: the final level and trend, and the sum of squared one-step errors.
+/// How many one-step errors `metode` can measure on `n` years: the moving averages need `k`
+/// years before the first prediction, and Holt leaves out its first prediction (fitted to the
+/// data that starts it) and so needs three years.
+pub fn jumlah_galat(metode: &ForecastMethod, n: usize) -> usize {
+    match metode {
+        ForecastMethod::ExponentialSmoothing if n >= 2 => n - 2,
+        _ => n.saturating_sub(n.clamp(1, JENDELA)),
+    }
+}
+
+/// Sum of squared weights of a `k`-year window: the variance a window mean adds to one new
+/// observation is `sigma^2 * (1 + this)`.
+fn jumlah_bobot_kuadrat(k: usize, bobot: bool) -> f64 {
+    if bobot {
+        let atas: f64 = (1..=k).map(|i| (i * i) as f64).sum();
+        let bawah: f64 = (1..=k).map(|i| i as f64).sum();
+        atas / (bawah * bawah)
+    } else {
+        1.0 / k as f64
+    }
+}
+
+/// One Holt pass: the final level and trend, and the sum of squared one-step errors (the first
+/// prediction left out, see below).
 fn holt(y: &[f64], alpha: f64, beta: f64) -> (f64, f64, f64) {
     let mut level = y[0];
     let mut trend = y[1] - y[0];
     let mut sse = 0.0;
     for v in &y[1..] {
         let pred = level + trend;
+        // The prediction of the second year uses an initial trend taken FROM the second year, so
+        // its error is exactly zero: it adds nothing to the sum, but it is not a measurement
+        // either, and `jumlah_galat` does not count it (without that, two years looked like one
+        // measured error of zero and the band collapsed to a point).
         sse += (v - pred).powi(2);
         let new_level = alpha * v + (1.0 - alpha) * pred;
         trend = beta * (new_level - level) + (1.0 - beta) * trend;
@@ -210,9 +241,15 @@ pub fn proyeksi(metode: &ForecastMethod, y: &[f64], horizon: usize) -> Proyeksi 
             } else {
                 rata(window)
             };
-            let sigma = galat_rata_bergerak(y, k, bobot);
-            // One new observation around a mean estimated from `k` of them.
-            let se = sigma * (1.0 + 1.0 / k as f64).sqrt();
+            let (sigma, terukur) = galat_rata_bergerak(y, k, bobot);
+            // A measured one-step error already contains the uncertainty of the window mean; the
+            // spread of the series is only the spread of observations around THEIR mean, so one new
+            // observation around a mean estimated from `k` of them adds the mean's own variance.
+            let se = if terukur {
+                sigma
+            } else {
+                sigma * (1.0 + jumlah_bobot_kuadrat(k, bobot)).sqrt()
+            };
             Proyeksi {
                 titik: vec![level; horizon],
                 se: vec![se; horizon],
@@ -230,9 +267,15 @@ pub fn proyeksi(metode: &ForecastMethod, y: &[f64], horizon: usize) -> Proyeksi 
                 }
             }
             let (sse, level, trend, alpha, beta) = terbaik;
-            let galat = n - 1;
-            // Two parameters were fitted: take them off the degrees of freedom, as long as any remain.
-            let sigma = (sse / galat.saturating_sub(2).max(1) as f64).sqrt();
+            let galat = jumlah_galat(metode, n);
+            // Two parameters were fitted: take them off the degrees of freedom, as long as any
+            // remain. With no measurable error (two years) the spread of the series is the only
+            // scale there is.
+            let sigma = if galat == 0 {
+                simpangan_baku(y)
+            } else {
+                (sse / galat.saturating_sub(2).max(1) as f64).sqrt()
+            };
             let mut titik = Vec::with_capacity(horizon);
             let mut se = Vec::with_capacity(horizon);
             for h in 1..=horizon {
@@ -276,7 +319,9 @@ pub fn prediksi(
             PredictedYear {
                 tahun: tahun_akhir + i as i32 + 1,
                 predicted_kebutuhan: tengah,
-                predicted_gap: pg.titik[i].max(0.0),
+                // The gap is the part of the need that is not met: never negative, never above the need
+                // (two trends fitted separately can cross).
+                predicted_gap: pg.titik[i].max(0.0).min(tengah),
                 predicted_biaya: pb.titik[i].max(0.0),
                 confidence_lower: (pk.titik[i] - margin).max(0.0),
                 confidence_upper: (pk.titik[i] + margin).max(tengah),
@@ -302,6 +347,11 @@ pub fn pertumbuhan_majemuk_persen(deret: &[YearlyData]) -> Option<f64> {
 /// What to tell the reader about how far to trust the result.
 pub fn catatan(n_tahun: usize, metode: &ForecastMethod, gap: Option<String>) -> Vec<String> {
     let mut out: Vec<String> = gap.into_iter().collect();
+    if jumlah_galat(metode, n_tahun) == 0 {
+        out.push(format!(
+            "Dengan {n_tahun} tahun data galat prediksi belum bisa diukur: rentang memakai simpangan baku deret dan hanya perkiraan kasar."
+        ));
+    }
     if n_tahun < MIN_TAHUN_YAKIN {
         out.push(format!(
             "Hanya {n_tahun} tahun data: rentang kepercayaan hanya perkiraan kasar (disarankan sedikitnya {MIN_TAHUN_YAKIN} tahun)."
@@ -499,6 +549,96 @@ mod tests {
         assert!(pertumbuhan_majemuk_persen(&tahunan(2020, &[5])).is_none());
         assert!(pertumbuhan_majemuk_persen(&tahunan(2020, &[0, 5, 9])).is_none());
         assert!(pertumbuhan_majemuk_persen(&[]).is_none());
+    }
+
+    fn dengan_gap(kebutuhan: &[i64], gap: &[i64]) -> Vec<YearlyData> {
+        kebutuhan
+            .iter()
+            .zip(gap)
+            .enumerate()
+            .map(|(i, (k, g))| YearlyData {
+                tahun: 2020 + i as i32,
+                total_kebutuhan: *k,
+                total_existing: 0,
+                total_gap: *g,
+                jumlah_satker: 1,
+                estimasi_total_biaya: *k as f64,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_projected_gap_never_exceeds_the_projected_need() {
+        // Flat need, rising gap: Holt follows the gap's trend to 125 against a need of 100.
+        let h = dengan_gap(&[100; 5], &[0, 25, 50, 75, 100]);
+        for m in [
+            ForecastMethod::Sma,
+            ForecastMethod::Wma,
+            ForecastMethod::ExponentialSmoothing,
+        ] {
+            for p in prediksi(&m, &h, 4, 0.95) {
+                assert!(
+                    p.predicted_gap <= p.predicted_kebutuhan + 1e-9,
+                    "{m:?}: gap {} above need {}",
+                    p.predicted_gap,
+                    p.predicted_kebutuhan
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn holt_on_two_years_does_not_report_a_zero_width_band() {
+        // The second year is predicted with a trend taken FROM the second year: no error to measure.
+        let p = proyeksi(&ForecastMethod::ExponentialSmoothing, &[100.0, 120.0], 1);
+        assert!((p.titik[0] - 140.0).abs() < 1e-9);
+        assert!(
+            p.se[0] > 1.0,
+            "a band that says 140 to 140 is a lie: {:?}",
+            p.se
+        );
+        assert_eq!(jumlah_galat(&ForecastMethod::ExponentialSmoothing, 2), 0);
+        assert!(
+            catatan(2, &ForecastMethod::ExponentialSmoothing, None)
+                .iter()
+                .any(|n| n.contains("belum bisa diukur"))
+        );
+    }
+
+    #[test]
+    fn holt_leaves_its_first_prediction_out_of_the_error() {
+        // Three years: one measurable error (the third year against the trend of the first two).
+        assert_eq!(jumlah_galat(&ForecastMethod::ExponentialSmoothing, 3), 1);
+        let p = proyeksi(
+            &ForecastMethod::ExponentialSmoothing,
+            &[10.0, 20.0, 35.0],
+            1,
+        );
+        assert!(p.se[0] > 1.0, "{:?}", p.se);
+    }
+
+    #[test]
+    fn a_measured_moving_average_error_is_not_inflated_a_second_time() {
+        // 10, 20, 10, 20, 10, 20 predicted by the mean of the 3 before: errors +6.67, -6.67, +6.67,
+        // so the one-step RMSE is 20/3, and that IS the scale of a new observation. (Multiplying it by
+        // sqrt(1 + 1/3) counted the window mean's uncertainty twice.)
+        let y = [10.0, 20.0, 10.0, 20.0, 10.0, 20.0];
+        let p = proyeksi(&ForecastMethod::Sma, &y, 2);
+        assert!((p.se[0] - 20.0 / 3.0).abs() < 1e-9, "{:?}", p.se);
+        assert_eq!(jumlah_galat(&ForecastMethod::Sma, 6), 3);
+    }
+
+    #[test]
+    fn without_a_measured_error_the_window_mean_uncertainty_is_added() {
+        // Three years: no year has three before it. The spread of the series (10) stands for the
+        // spread of observations; a new one around a mean of 3 adds 1/3 of a variance.
+        let y = [10.0, 20.0, 30.0];
+        let sma = proyeksi(&ForecastMethod::Sma, &y, 1);
+        assert!((sma.se[0] - 10.0 * (1.0_f64 + 1.0 / 3.0).sqrt()).abs() < 1e-9);
+        // WMA's weights are 1/6, 2/6, 3/6: the sum of their squares is 14/36.
+        let wma = proyeksi(&ForecastMethod::Wma, &y, 1);
+        assert!((wma.se[0] - 10.0 * (1.0_f64 + 14.0 / 36.0).sqrt()).abs() < 1e-9);
+        assert_eq!(jumlah_galat(&ForecastMethod::Sma, 3), 0);
     }
 
     #[test]

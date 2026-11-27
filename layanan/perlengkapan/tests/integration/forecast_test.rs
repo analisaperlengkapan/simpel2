@@ -178,3 +178,31 @@ async fn compare_lists_the_previous_forecasts_not_the_one_it_just_made_and_does_
 
     teardown_test_db(&db_name).await;
 }
+
+/// The same forecast asked with different horizons (3, 5, 3, 5 ...) is two forecasts, each kept once:
+/// the snapshot of a different horizon is a different question, not a change in the data.
+#[tokio::test]
+async fn alternating_horizons_keep_one_snapshot_each_not_a_copy_per_request() {
+    let (app, db, db_name) = setup_test_app().await;
+    seed(&db).await;
+    let server = TestServer::new(app);
+
+    for _ in 0..3 {
+        for horizon in [3, 5] {
+            let r = get(&server, &format!("/forecast?method=sma&horizon={horizon}")).await;
+            assert_eq!(r.status_code(), 200, "{}", r.text());
+        }
+    }
+    let r = get(&server, "/forecast/compare?limit=20").await;
+    assert_eq!(r.status_code(), 200, "{}", r.text());
+    let anterior = r.json::<Value>()["previous_snapshots"]
+        .as_array()
+        .unwrap()
+        .len();
+    assert_eq!(
+        anterior, 2,
+        "one snapshot for horizon 3 and one for horizon 5, however often they alternate"
+    );
+
+    teardown_test_db(&db_name).await;
+}

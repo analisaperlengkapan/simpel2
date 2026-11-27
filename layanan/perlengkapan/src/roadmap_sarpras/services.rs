@@ -92,16 +92,20 @@ impl RoadmapService {
                 return;
             }
         };
-        // Against the latest of the SAME method: two methods asked in turn would otherwise each
-        // differ from "the latest" and pile up copies of one another.
+        // Against the latest snapshot of the SAME question: method, confidence AND horizon. Two
+        // horizons asked in turn (3, then 5, then 3 ...) would otherwise each differ from "the latest"
+        // and pile up copies of one another, and push the older versions out of the comparison list.
+        let horizon = result.predictions.len();
         match self
             .repository
-            .get_previous_snapshots(satker_id, kode_barang, 50)
+            .get_previous_snapshots(satker_id, kode_barang, 200)
             .await
         {
             Ok(recent) => {
                 let sama = recent.iter().find(|s| {
-                    s.method == method && (s.confidence_level - confidence).abs() < f64::EPSILON
+                    s.method == method
+                        && (s.confidence_level - confidence).abs() < f64::EPSILON
+                        && horizon_snapshot(&s.predictions_json) == Some(horizon)
                 });
                 if sama.is_some_and(|s| s.predictions_json == json) {
                     return;
@@ -230,4 +234,11 @@ fn nama_metode(method: &ForecastMethod) -> &'static str {
         ForecastMethod::Wma => "WMA",
         ForecastMethod::ExponentialSmoothing => "ExponentialSmoothing",
     }
+}
+
+/// How many years a stored snapshot predicts (its predictions are a JSON array, one per year).
+fn horizon_snapshot(predictions_json: &str) -> Option<usize> {
+    serde_json::from_str::<Vec<serde_json::Value>>(predictions_json)
+        .ok()
+        .map(|v| v.len())
 }
