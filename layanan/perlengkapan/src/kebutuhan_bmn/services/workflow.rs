@@ -231,8 +231,16 @@ impl KebutuhanBmnService {
                 updated.pengajuan_id,
                 to_state,
                 std::slice::from_ref(&updated.satker_id),
-                updated.satker_nama.as_deref(),
+                // A satker added without a name is still named by its code.
+                Some(
+                    updated
+                        .satker_nama
+                        .as_deref()
+                        .filter(|nama| !nama.trim().is_empty())
+                        .unwrap_or(updated.satker_id.as_str()),
+                ),
                 request.komentar.as_deref(),
+                None,
                 user_id.unwrap_or_else(Uuid::nil),
             )
             .await

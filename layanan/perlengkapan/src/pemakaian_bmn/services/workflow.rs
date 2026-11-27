@@ -28,6 +28,7 @@ impl PemakaianBmnService {
                 &satker,
                 None,
                 catatan,
+                permit.created_by,
                 aktor,
             )
             .await

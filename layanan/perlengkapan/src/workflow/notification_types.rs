@@ -270,7 +270,14 @@ impl WorkflowNotificationType {
                 ..
             } => (entity_type.as_str(), entity_id.as_str()),
         };
+        // The SLA monitor of Kebutuhan BMN watches the per-satker rows, so its `entity_id` is the
+        // satker row's, and the detail page loads the campaign: linking would open "not found".
+        let sla = matches!(
+            self,
+            Self::SlaBreachEscalation { .. } | Self::SlaBreachInfo { .. }
+        );
         match entity_type {
+            "kebutuhan_bmn" if sla => None,
             "kebutuhan_bmn" => Some(format!("/kebutuhan-bmn/detail/{entity_id}")),
             "pemakaian_bmn" => Some(format!("/pengelolaan/pemakaian/detail/{entity_id}")),
             "penghapusan_bmn" => Some(format!("/pengelolaan/penghapusan/detail/{entity_id}")),
@@ -587,5 +594,14 @@ mod tests {
             None,
             "no guessing a route that may not exist"
         );
+        // An SLA notice about a kebutuhan carries a satker row's id: no link rather than a wrong one.
+        let sla_kebutuhan = WorkflowNotificationType::SlaBreachInfo {
+            entity_type: "kebutuhan_bmn".into(),
+            entity_id: id.to_string(),
+            current_state: "SUBMIT_WILAYAH".into(),
+            sla_deadline: "x".into(),
+            breach_duration_minutes: 1,
+        };
+        assert_eq!(sla_kebutuhan.deeplink(), None);
     }
 }

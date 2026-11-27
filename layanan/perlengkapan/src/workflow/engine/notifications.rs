@@ -73,6 +73,7 @@ impl WorkflowEngine {
                 &identitas.satker_codes,
                 None,
                 request.catatan.as_deref(),
+                identitas.pemohon,
                 request.user_id,
             )
             .await?;
@@ -98,6 +99,7 @@ impl WorkflowEngine {
         satker_codes: &[String],
         satker_nama: Option<&str>,
         catatan: Option<&str>,
+        pemohon: Option<Uuid>,
         aktor: Uuid,
     ) -> Result<usize> {
         let Some(notifier) = self.notifier.as_ref() else {
@@ -126,7 +128,14 @@ impl WorkflowEngine {
                 crate::shared::pengguna::penerima_peran_untuk(&self.db_pool, peran, satker_codes)
                     .await
                     .map_err(|e| WorkflowError::NotificationError(e.to_string()))?;
-            let penerima: Vec<Uuid> = penerima.into_iter().filter(|u| sudah.insert(*u)).collect();
+            // Maker-checker: whoever asked for it may not validate or approve it, so being asked to
+            // would be a task the API then refuses. (The operator role, which fixes a return, is
+            // exactly who the requester is.)
+            let penerima: Vec<Uuid> = penerima
+                .into_iter()
+                .filter(|u| *peran == "operator_satker" || Some(*u) != pemohon)
+                .filter(|u| sudah.insert(*u))
+                .collect();
             if penerima.is_empty() {
                 tracing::warn!(
                     entity_type,

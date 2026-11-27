@@ -33,9 +33,7 @@ pub fn peran_giliran(entity_type: &str, state: &str) -> &'static [&'static str] 
         ("penghapusan_bmn", "SUBMIT_PUSAT") => &["validator_pusat"],
         ("penghapusan_bmn", "VERIFIKASI_PUSAT") => &["validator_pusat"],
         ("penghapusan_bmn", "KONSEP_SK_GENERATED") => &["validator_pusat"],
-        ("penghapusan_bmn", "SK_SIGNED") => &["validator_pusat"],
         ("penghapusan_bmn", "KONSEP_SK_WILAYAH_GENERATED") => &["validator_wilayah"],
-        ("penghapusan_bmn", "SK_SIGNED_WILAYAH") => &["validator_pusat"],
 
         _ => &[],
     }
@@ -82,6 +80,16 @@ pub(crate) const TANPA_GILIRAN: &[(&str, &str, &str)] = &[
         "penghapusan_bmn",
         "DRAFT",
         "the operator is still composing it",
+    ),
+    (
+        "penghapusan_bmn",
+        "SK_SIGNED",
+        "uploading the signed SK completes the usulan in the same request, as the system",
+    ),
+    (
+        "penghapusan_bmn",
+        "SK_SIGNED_WILAYAH",
+        "uploading the signed SK completes the usulan in the same request, as the system",
     ),
 ];
 
@@ -159,9 +167,7 @@ mod tests {
             ("penghapusan_bmn", "SUBMIT_PUSAT"),
             ("penghapusan_bmn", "VERIFIKASI_PUSAT"),
             ("penghapusan_bmn", "KONSEP_SK_GENERATED"),
-            ("penghapusan_bmn", "SK_SIGNED"),
             ("penghapusan_bmn", "KONSEP_SK_WILAYAH_GENERATED"),
-            ("penghapusan_bmn", "SK_SIGNED_WILAYAH"),
         ] {
             let (_, config) = configs().into_iter().find(|(n, _)| *n == name).unwrap();
             assert!(

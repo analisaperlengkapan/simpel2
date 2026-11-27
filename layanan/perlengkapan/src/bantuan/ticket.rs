@@ -283,6 +283,9 @@ impl TicketService {
             )
             .await?;
         let ticket = SupportTicket::from(&row);
+        // Give the connection back BEFORE the staff lookup, which borrows another from the same
+        // pool: handlers that each hold a slot while waiting for a second can exhaust the pool.
+        drop(client);
 
         self.notify(
             "tiket.dibuat",
@@ -297,7 +300,9 @@ impl TicketService {
             &ticket,
             actor.user_id,
             "Tiket bantuan baru menunggu penanganan".to_string(),
-            format!("Tiket \"{}\" menunggu penanganan Helpdesk.", ticket.subject),
+            // No subject: the directory cannot tell that somebody has since lost the staff role,
+            // and what a former staff member can still read must not be the ticket's content.
+            "Ada tiket bantuan baru yang menunggu penanganan Helpdesk.".to_string(),
             NotificationPriority::Medium,
         )
         .await;
@@ -479,6 +484,7 @@ impl TicketService {
             )
             .await?;
         let comment = TicketComment::from(&row);
+        drop(client); // see `create_ticket`
 
         // Tell the reporter when someone *else* (i.e. helpdesk) replies.
         if ticket.user_id != actor.user_id {
@@ -497,7 +503,7 @@ impl TicketService {
                 &ticket,
                 actor.user_id,
                 "Pelapor membalas tiket bantuan".to_string(),
-                format!("Tiket \"{}\" dibalas oleh pelapor.", ticket.subject),
+                "Pelapor membalas sebuah tiket bantuan.".to_string(),
                 NotificationPriority::Medium,
             )
             .await;

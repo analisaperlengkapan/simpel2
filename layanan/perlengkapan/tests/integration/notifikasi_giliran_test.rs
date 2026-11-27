@@ -554,3 +554,73 @@ async fn tiket_bantuan_baru_dan_balasan_pelapor_memberi_tahu_petugas_helpdesk() 
 
     teardown_test_db(&db_name).await;
 }
+
+/// Maker-checker: the person who asked for a permit is never asked to validate or approve it, even
+/// when they also hold that role; the API refuses both, so the notice would be a task they cannot do.
+#[tokio::test]
+async fn pengusul_yang_juga_approver_tidak_diminta_menyetujui_izinnya_sendiri() {
+    const VALIDATOR: &str = "00000000-0000-0000-0000-0000000000d1";
+    const APPROVER_LAIN: &str = "00000000-0000-0000-0000-0000000000d2";
+
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    // The operator who files the permit also holds the approver role (as a second role).
+    dikenal(&db, OPERATOR, "operator_satker", SATKER).await;
+    dikenal(&db, OPERATOR, "approver_satker", SATKER).await;
+    dikenal(&db, VALIDATOR, "validator_satker", SATKER).await;
+    dikenal(&db, APPROVER_LAIN, "approver_satker", SATKER).await;
+
+    let mut req = server.post("/pemakaian-bmn").json(&json!({
+        "pegawai_nip": "19800101000000001",
+        "tanggal_mulai": "2026-01-01",
+        "tanggal_selesai": "2026-12-31",
+        "keperluan": "Digunakan untuk pelaksanaan tugas kedinasan sehari-hari",
+        "items": [{
+            "jenis_bmn": "LAPTOP", "bmn_nup": "9002",
+            "bmn_kode_barang": "3060201003", "bmn_nama_barang": "Laptop Dell Latitude 5520",
+            "bmn_merk": "Dell", "serial_number": "SN-12345678"
+        }]
+    }));
+    for (k, v) in auth_headers("operator_satker", OPERATOR, SATKER) {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    assert_eq!(res.status_code(), 201, "{:?}", res.text());
+    let id = res.json::<serde_json::Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    for (jalur, korpus, role, user) in [
+        (
+            format!("/pemakaian-bmn/{id}/transition"),
+            json!({"target_status": "SUBMITTED", "catatan": "Mohon validasi"}),
+            "operator_satker",
+            OPERATOR,
+        ),
+        (
+            format!("/pemakaian-bmn/{id}/validator-satker-action"),
+            json!({"action": "forward", "expected_version": 1, "catatan": "Diteruskan"}),
+            "validator_satker",
+            VALIDATOR,
+        ),
+    ] {
+        let mut req = server.post(&jalur).json(&korpus);
+        for (k, v) in auth_headers(role, user, SATKER) {
+            req = req.add_header(k, v);
+        }
+        let res = req.await;
+        assert_eq!(res.status_code(), 200, "{jalur}: {:?}", res.text());
+    }
+
+    assert_eq!(
+        menunggu(&kotak_masuk(&db, APPROVER_LAIN).await).len(),
+        1,
+        "the other approver of the satker is asked"
+    );
+    assert!(
+        menunggu(&kotak_masuk(&db, OPERATOR).await).is_empty(),
+        "the requester is not asked to approve their own permit"
+    );
+
+    teardown_test_db(&db_name).await;
+}

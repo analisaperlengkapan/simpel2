@@ -76,6 +76,10 @@ pub async fn catat(
 /// - `validator_wilayah`: wilayah validators whose own satker shares the Kejati above
 ///   `satker_code` (the same definition every scope reads, `integrasi.v_satker_wilayah`).
 /// - anything else (`validator_pusat`, `admin`): every holder of the role.
+///
+/// Only users seen in the last 90 days: the directory merges roles and never learns that one was
+/// revoked, so recency is what bounds how long somebody who has since lost a role can still be
+/// told things. (Revocation itself lives in authenc; the directory does not hear of it.)
 pub async fn penerima_peran(pool: &Pool, peran: &str, satker_code: &str) -> AppResult<Vec<Uuid>> {
     penerima_peran_untuk(pool, peran, &[satker_code.to_string()]).await
 }
@@ -94,7 +98,8 @@ pub async fn penerima_peran_untuk(
             client
                 .query(
                     "SELECT DISTINCT user_id FROM perlengkapan.pengguna_dikenal \
-                     WHERE $1 = ANY(roles) AND satker_code = ANY($2::text[])",
+                     WHERE $1 = ANY(roles) AND satker_code = ANY($2::text[]) \
+                     AND last_seen > now() - interval '90 days'",
                     &[&peran, &satker_codes],
                 )
                 .await
@@ -108,7 +113,8 @@ pub async fn penerima_peran_untuk(
                          JOIN integrasi.v_satker_wilayah theirs \
                            ON theirs.wilayah_code = mine.wilayah_code \
                          WHERE mine.kode_satker = p.satker_code \
-                           AND theirs.kode_satker = ANY($2::text[]))",
+                           AND theirs.kode_satker = ANY($2::text[])) \
+                     AND p.last_seen > now() - interval '90 days'",
                     &[&peran, &satker_codes],
                 )
                 .await
@@ -116,7 +122,8 @@ pub async fn penerima_peran_untuk(
         _ => {
             client
                 .query(
-                    "SELECT user_id FROM perlengkapan.pengguna_dikenal WHERE $1 = ANY(roles)",
+                    "SELECT user_id FROM perlengkapan.pengguna_dikenal \
+                     WHERE $1 = ANY(roles) AND last_seen > now() - interval '90 days'",
                     &[&peran],
                 )
                 .await
