@@ -618,6 +618,102 @@ async fn a_drill_down_cannot_reach_outside_the_callers_scope() {
     teardown_test_db(&db_name).await;
 }
 
+/// The bottleneck card and the processing-time card measure WAITING, not the age of events.
+///
+/// The old bottleneck query averaged `NOW() - created_at` over every activity of the last 30 days:
+/// a stage entered 20 days ago and left two hours later counted as 480 hours of queue, a finished
+/// stage was listed as a bottleneck, and the count was activities, not responses. The old
+/// processing time was `updated_at - created_at` (the age of the row), under a caption that says
+/// "from submitted to done".
+///
+///   SKR001: now in SubmitWilayah (2002), entered 100 h ago (it was in Input 200 h ago, long gone)
+///   SKR002: completed (2008): submitted 50 h ago, completed 10 h ago, so 40 h of processing
+///   SKR003: now in Input (2001) since 5 h: under the 24 h threshold, not a bottleneck
+#[tokio::test]
+async fn the_bottleneck_and_processing_time_cards_measure_waiting_not_the_age_of_events() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    seed_kebutuhan_campaign(&server).await;
+
+    let client = db.pool().get().await.unwrap();
+    client
+        .execute(
+            "DELETE FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas",
+            &[],
+        )
+        .await
+        .unwrap();
+    for (satker, status, moves) in [
+        ("SKR001", 2002, vec![(2001, 200), (2002, 100)]),
+        (
+            "SKR002",
+            2008,
+            vec![(2001, 300), (2002, 50), (2004, 40), (2008, 10)],
+        ),
+        ("SKR003", 2001, vec![(2001, 5)]),
+    ] {
+        let id: uuid::Uuid = client
+            .query_one(
+                "UPDATE perlengkapan.pengajuan_kebutuhan_bmn_satker SET status_kode = $2
+                  WHERE satker_id = $1 RETURNING id",
+                &[&satker, &status],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        for (to, hours_ago) in moves {
+            client
+                .execute(
+                    "INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
+                         (pengajuan_satker_id, to_status_kode, aksi, created_at)
+                     VALUES ($1, $2, 'uji', NOW() - make_interval(hours => $3))",
+                    &[&id, &to, &hours_ago],
+                )
+                .await
+                .unwrap();
+        }
+    }
+    let nama_2002: String = client
+        .query_opt(
+            "SELECT nama FROM perlengkapan.ms_workflow_status WHERE modul = 'kebutuhan_bmn' AND kode = 2002",
+            &[],
+        )
+        .await
+        .unwrap()
+        .map(|r| r.get(0))
+        .unwrap_or_else(|| "Kode 2002".to_string());
+
+    let r = get(
+        &server,
+        "/dashboard/perlengkapan?tahun_anggaran=2026",
+        "validator_pusat",
+        PUSAT,
+        "SKR001",
+    )
+    .await;
+    assert_eq!(r.status_code(), 200, "{}", r.text());
+    let w = r.json::<serde_json::Value>()["workflow_metrics"].clone();
+
+    // Exactly one bottleneck: the one stage that is holding a response now, for about 100 h.
+    let b = w["bottlenecks"].as_array().expect("bottlenecks");
+    assert_eq!(b.len(), 1, "only SKR001's current stage is a queue: {w}");
+    assert_eq!(b[0]["state"].as_str(), Some(nama_2002.as_str()), "{w}");
+    assert_eq!(b[0]["count"].as_i64(), Some(1), "{w}");
+    let hours = b[0]["average_time_hours"].as_f64().unwrap();
+    assert!(
+        (99.5..101.0).contains(&hours),
+        "waiting since 100 h ago: {hours}"
+    );
+
+    // Submitted to completed for the one finished response: 50 h ago to 10 h ago.
+    let avg = w["average_processing_time_hours"]
+        .as_f64()
+        .unwrap_or_else(|| panic!("a completed response exists: {w}"));
+    assert!((39.5..40.5).contains(&avg), "40 h of processing, got {avg}");
+
+    teardown_test_db(&db_name).await;
+}
+
 /// A satker AND a region together are an intersection: the region is not dropped because a satker
 /// was named. A satker can hold assets under several SIMAN codes in different regions; counting all
 /// of them under the region the reader picked is the wrong population. (The fixture cannot build a

@@ -316,14 +316,24 @@ pub async fn fetch_pakaian_dinas_metrics(
     // a nationwide campaign still must not read another satker's body sizes.
     let mut up: Vec<BoxedParam> = vec![Box::new(params.tahun_anggaran)];
     let up_scope = scope_and(scope, "ps.satker_id", &mut up);
+    // One bar per (kind of garment, size), counting PEOPLE. The old query grouped on the size
+    // text alone, so a shirt "M", trousers "32" and shoes "40" shared one chart, an employee with
+    // three garments was counted three times under a caption that said "pegawai", and the free
+    // text of a name-tag column (the person's NAME) was listed as if it were a size. Only the
+    // pick-from-a-list groups (`tipe = 'PILIHAN'`) are sizes; a text column has no distribution.
+    // The label drops the unit in brackets ("Topi (lingkar kepala, cm)" -> "Topi").
     let ukuran_query = format!(
         r#"
-        SELECT u.ukuran, COUNT(*) AS count
+        SELECT split_part(g.nama, ' (', 1) || ' ' || u.ukuran AS ukuran,
+               COUNT(DISTINCT u.pegawai_id) AS count
         FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran u
+        JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pp.id = u.pakaian_id
+        JOIN perlengkapan.ms_ukuran_group g
+          ON g.kode = pp.spesifikasi_ukuran_group AND g.tipe = 'PILIHAN'
         JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps ON ps.id = u.pengajuan_satker_id
         JOIN perlengkapan.pengajuan_pakaian_dinas p ON p.id = ps.pengajuan_id
-        WHERE p.tahun = $1 AND u.ukuran IS NOT NULL{up_scope}
-        GROUP BY u.ukuran
+        WHERE p.tahun = $1 AND u.ukuran IS NOT NULL AND btrim(u.ukuran) <> ''{up_scope}
+        GROUP BY g.urutan, g.nama, u.ukuran
     "#
     );
 
@@ -347,9 +357,16 @@ pub async fn fetch_workflow_metrics(
 ) -> Result<WorkflowMetrics, AppError> {
     let client = db_pool.get().await?;
 
-    // Average processing time for completed per-satker responses. "Completed" is
-    // status_kode 2008 (models/status.rs). The old query filtered a TEXT
-    // `status = 'COMPLETED'` that exists nowhere in this schema.
+    // Average processing time of the per-satker responses that were COMPLETED (status_kode 2008,
+    // models/status.rs): from the moment the satker first SENT it in (2002) to the moment it
+    // reached completed (2008), both read from the activity log. The card says "from submitted to
+    // done", but the old query took `updated_at - created_at`: `created_at` is when the campaign
+    // opened the response, long before anyone submitted anything, and `updated_at` moves on any
+    // later touch, so it measured how old the row was, not how long the processing took.
+    //
+    // No `COALESCE(.., 0)`: with nothing completed there is nothing to average, and 0 hours
+    // reads as "instant". NULL goes out as `None` and the card shows a dash.
+    //
     // The `::FLOAT8` is load-bearing, not defensive noise. `EXTRACT(EPOCH ...)`
     // returns NUMERIC on PostgreSQL 14+ (it was float8 before), and AVG() over
     // numeric stays numeric. tokio_postgres has no `FromSql<f64>` for NUMERIC, so
@@ -362,45 +379,60 @@ pub async fn fetch_workflow_metrics(
     let ap_scope = scope_and(scope, "ps.satker_id", &mut ap);
     let avg_time_query = format!(
         r#"
-        SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (ps.updated_at - ps.created_at)) / 3600), 0)::FLOAT8 AS avg_hours
+        SELECT AVG(EXTRACT(EPOCH FROM (done.at - sent.at)) / 3600)::FLOAT8 AS avg_hours
         FROM perlengkapan.pengajuan_kebutuhan_bmn_satker ps
-        WHERE ps.status_kode = 2008{ap_scope}
+        CROSS JOIN LATERAL (
+            SELECT MIN(ka.created_at) AS at
+            FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas ka
+            WHERE ka.pengajuan_satker_id = ps.id AND ka.to_status_kode = 2002
+        ) sent
+        CROSS JOIN LATERAL (
+            SELECT MAX(ka.created_at) AS at
+            FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas ka
+            WHERE ka.pengajuan_satker_id = ps.id AND ka.to_status_kode = 2008
+        ) done
+        WHERE ps.status_kode = 2008 AND sent.at IS NOT NULL AND done.at >= sent.at{ap_scope}
     "#
     );
 
     let row = client
         .query_one(avg_time_query.as_str(), &as_refs(&ap))
         .await?;
-    let average_processing_time_hours: f64 = row.get("avg_hours");
+    let average_processing_time_hours: Option<f64> = row.get("avg_hours");
 
-    // Bottlenecks (states with longest average time)
-    // This is a simplified version - in production, you'd use window functions
-    // The activity table carries no satker of its own, so the scope reaches it
-    // through the per-satker response it belongs to. Without that join the
-    // bottleneck card kept reporting the whole country's queue depth to a
-    // single satker's operator.
+    // Bottlenecks: the stages that are holding responses RIGHT NOW, longest first. For every
+    // response still in a non-terminal stage, how long it has been in THAT stage (since the
+    // latest activity that moved it there; the response's own creation when it never moved), and
+    // per stage the average of those and how many are waiting.
+    //
+    // The old query averaged `NOW() - created_at` over every activity of the last 30 days. That is
+    // the age of the event, not the time spent waiting: a stage entered 20 days ago and left two
+    // hours later counted as 480 hours of queue, a finished stage ("Disetujui") listed as a
+    // bottleneck, and the count was activities rather than responses.
+    //
+    // The scope reaches the log through the response itself (`ps.satker_id`): the activity table
+    // carries no satker of its own. Labels come from ms_workflow_status; the code is cast to text
+    // because BottleneckInfo.state is a String and the kode column is INTEGER. ::FLOAT8 for the
+    // same NUMERIC-vs-f64 reason as above.
     let mut bp: Vec<BoxedParam> = Vec::new();
     let bp_scope = scope_and(scope, "ps.satker_id", &mut bp);
     let bottleneck_query = format!(
         r#"
-        SELECT
-            -- The activity row records the workflow STATE it moved into
-            -- (`to_status_kode`); it has no `aktivitas_id`, and this table has no
-            -- relation to `ms_aktivitas_bmn` at all — the old query joined both,
-            -- so it errored before it could return anything. Labels come from
-            -- ms_workflow_status; the code is cast to text because
-            -- BottleneckInfo.state is a String and the kode column is INTEGER.
-            COALESCE(w.nama, 'Kode ' || ka.to_status_kode::text) AS state,
-            -- ::FLOAT8 for the same NUMERIC-vs-f64 reason as avg_time_query above.
-            COALESCE(AVG(EXTRACT(EPOCH FROM (NOW() - ka.created_at)) / 3600), 0)::FLOAT8 as avg_hours,
-            COUNT(*) as count
-        FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas ka
-        JOIN perlengkapan.pengajuan_kebutuhan_bmn_satker ps ON ps.id = ka.pengajuan_satker_id
+        SELECT COALESCE(w.nama, 'Kode ' || ps.status_kode::text) AS state,
+               AVG(EXTRACT(EPOCH FROM (NOW() - COALESCE(entered.at, ps.created_at))) / 3600)::FLOAT8
+                   AS avg_hours,
+               COUNT(*) AS count
+        FROM perlengkapan.pengajuan_kebutuhan_bmn_satker ps
         LEFT JOIN perlengkapan.ms_workflow_status w
-               ON w.modul = 'kebutuhan_bmn' AND w.kode = ka.to_status_kode
-        WHERE ka.created_at > NOW() - INTERVAL '30 days'{bp_scope}
-        GROUP BY w.nama, ka.to_status_kode
-        HAVING AVG(EXTRACT(EPOCH FROM (NOW() - ka.created_at)) / 3600) > 24
+               ON w.modul = 'kebutuhan_bmn' AND w.kode = ps.status_kode
+        CROSS JOIN LATERAL (
+            SELECT MAX(ka.created_at) AS at
+            FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas ka
+            WHERE ka.pengajuan_satker_id = ps.id AND ka.to_status_kode = ps.status_kode
+        ) entered
+        WHERE COALESCE(w.is_terminal, FALSE) = FALSE{bp_scope}
+        GROUP BY w.nama, ps.status_kode
+        HAVING AVG(EXTRACT(EPOCH FROM (NOW() - COALESCE(entered.at, ps.created_at))) / 3600) > 24
         ORDER BY avg_hours DESC
         LIMIT 5
     "#

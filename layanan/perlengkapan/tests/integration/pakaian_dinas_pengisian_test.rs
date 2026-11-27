@@ -1880,3 +1880,76 @@ async fn masukkan_kembali_yang_menunggu_pengajuan_ikut_ditolak() {
 
     teardown_test_db(&db_name).await;
 }
+
+/// The dashboard's size chart counts PEOPLE per kind of garment and size, and never lists free
+/// text. It used to group on the size text alone: a shirt "M", trousers "32" and shoes "40" shared
+/// one chart, a person with two shirt columns was counted twice under a caption that said
+/// "pegawai", and the free text of a name-tag column (a person's NAME) was listed as if it were a
+/// size.
+#[tokio::test]
+async fn distribusi_ukuran_di_dasbor_menghitung_orang_per_jenis_dan_tak_menampilkan_teks_bebas() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    tambah_pegawai(&db, NIP_D, "api-skr001", "Pegawai Uji D", "P").await;
+    let (pengajuan_id, baju_id) = buat_kampanye(&server).await;
+    simpan_ukuran(&server, &pengajuan_id, NIP_A, &baju_id, "L").await;
+    simpan_ukuran(&server, &pengajuan_id, NIP_D, &baju_id, "L").await;
+
+    let baju: uuid::Uuid = baju_id.parse().unwrap();
+    let kaos = uuid::Uuid::new_v4();
+    let nama_dada = uuid::Uuid::new_v4();
+    let client = db.pool().get().await.unwrap();
+    client
+        .execute(
+            "INSERT INTO perlengkapan.ms_ukuran_group (kode, nama, tipe, urutan)
+             VALUES ('TEKS_UJI', 'Nama dada', 'TEKS', 9) ON CONFLICT (kode) DO NOTHING",
+            &[],
+        )
+        .await
+        .unwrap();
+    // Two more columns of the same campaign: a second shirt column (BAJU, like the first) and a
+    // free-text one. Both are filled for everybody who filled the first.
+    for (id, nama, group, ukuran) in [
+        (kaos, "Kaos", "BAJU", "L"),
+        (nama_dada, "Nama dada", "TEKS_UJI", "BUDI SANTOSO"),
+    ] {
+        client
+            .execute(
+                "INSERT INTO perlengkapan.pengajuan_pakaian_dinas_pakaian
+                     (id, pengajuan_id, jenis_pakaian_id, jenis_pakaian_nama,
+                      spesifikasi_id, spesifikasi_nama, spesifikasi_ukuran_group)
+                 SELECT $1, pengajuan_id, jenis_pakaian_id, jenis_pakaian_nama,
+                        spesifikasi_id, $3, $4
+                   FROM perlengkapan.pengajuan_pakaian_dinas_pakaian WHERE id = $2",
+                &[&id, &baju, &nama, &group],
+            )
+            .await
+            .unwrap();
+        client
+            .execute(
+                "INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran
+                     (pengajuan_satker_id, pegawai_id, pakaian_id, ukuran)
+                 SELECT pu.pengajuan_satker_id, pu.pegawai_id, $1, $3
+                   FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran pu
+                  WHERE pu.pakaian_id = $2",
+                &[&id, &baju, &ukuran],
+            )
+            .await
+            .unwrap();
+    }
+
+    let res = get(
+        &server,
+        "/dashboard/perlengkapan?tahun_anggaran=2026",
+        "validator_pusat",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    let ukuran = res.json::<Value>()["pakaian_dinas_metrics"]["total_by_ukuran"].clone();
+    // Two PEOPLE wear a shirt of size L (A and D, each with two shirt columns); the name is not a size.
+    assert_eq!(ukuran, json!({"Baju L": 2}), "{ukuran}");
+
+    teardown_test_db(&db_name).await;
+}

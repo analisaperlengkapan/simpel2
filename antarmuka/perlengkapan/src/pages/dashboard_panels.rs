@@ -270,7 +270,7 @@ pub fn Hambatan(m: PerlengkapanDashboardMetrics) -> impl IntoView {
     let b = m.workflow_metrics.bottlenecks.clone();
     if b.is_empty() {
         return view! {
-            <Panel title="Hambatan Alur" subtitle="Tahap dengan antrean terlama (30 hari terakhir)">
+            <Panel title="Hambatan Alur" subtitle="Tahap yang sedang menahan berkas paling lama (rata-rata lama berada di tahap itu)">
                 <p class="py-6 text-center text-sm text-slate-500">
                     "Tidak ada tahap yang tertahan lebih dari 24 jam"
                 </p>
@@ -279,7 +279,7 @@ pub fn Hambatan(m: PerlengkapanDashboardMetrics) -> impl IntoView {
         .into_any();
     }
     view! {
-        <Panel title="Hambatan Alur" subtitle="Tahap dengan antrean terlama (30 hari terakhir)">
+        <Panel title="Hambatan Alur" subtitle="Tahap yang sedang menahan berkas paling lama (rata-rata lama berada di tahap itu)">
             <ul class="space-y-3">
                 {b
                     .into_iter()
@@ -375,7 +375,9 @@ pub fn DistribusiUkuran(m: PerlengkapanDashboardMetrics) -> impl IntoView {
         .clone()
         .into_iter()
         .collect();
-    items.sort_by_key(|i| std::cmp::Reverse(i.1));
+    // Equal counts fall back to the label: a HashMap iterates in a different order on every
+    // request, so without it two sizes with the same count swapped places on each refresh.
+    items.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
     let slices: Vec<Slice> = items
         .iter()
         .take(10)

@@ -103,7 +103,9 @@ pub struct BottleneckInfo {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct WorkflowMetrics {
-    pub average_processing_time_hours: f64,
+    /// `None` when nothing has completed yet: a 0 would read as "instant".
+    #[serde(default)]
+    pub average_processing_time_hours: Option<f64>,
     #[serde(default)]
     pub bottlenecks: Vec<BottleneckInfo>,
     pub sla_breaches_today: i64,

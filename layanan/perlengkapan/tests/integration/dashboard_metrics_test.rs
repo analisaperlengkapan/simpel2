@@ -92,10 +92,12 @@ async fn dashboard_metrics_survive_an_empty_database() {
     assert_eq!(data["asset_utilization"]["total_assets"], 0);
     assert_eq!(data["asset_utilization"]["assets_in_good_condition"], 0);
     assert_eq!(data["asset_utilization"]["utilization_percentage"], 0.0);
-    // avg_hours: the NUMERIC-vs-f64 abort site. COALESCE(...,0) makes it 0.0.
-    assert_eq!(
-        data["workflow_metrics"]["average_processing_time_hours"],
-        0.0
+    // avg_hours: the NUMERIC-vs-f64 abort site. With nothing completed there is nothing to
+    // average: null (a card shows a dash), not a 0 that reads as "instant".
+    assert!(
+        data["workflow_metrics"]["average_processing_time_hours"].is_null(),
+        "{}",
+        data["workflow_metrics"]
     );
 
     teardown_test_db(&db_name).await;
