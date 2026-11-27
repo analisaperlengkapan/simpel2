@@ -67,6 +67,13 @@ pub enum WorkflowNotificationType {
         current_state: String,
         required_role: String,
         deadline: Option<String>,
+        /// The satker the work concerns, when one record spans several (Kebutuhan BMN keeps one row
+        /// per satker): the person told needs to know WHICH one is waiting.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        satker_nama: Option<String>,
+        /// The mover's note, when they left one (a return says why).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        catatan: Option<String>,
     },
     /// Approval completed notification.
     ApprovalCompleted {
@@ -222,6 +229,62 @@ impl WorkflowNotificationType {
         }
     }
 
+    /// Where the person should go to act on this: the entity's detail page, as a path inside the
+    /// app (the front end puts the app's base in front). A notification that says work is waiting
+    /// and cannot take you to it is half a notification: these used to carry no link at all.
+    pub fn deeplink(&self) -> Option<String> {
+        let (entity_type, entity_id) = match self {
+            Self::WorkflowTransition {
+                entity_type,
+                entity_id,
+                ..
+            }
+            | Self::ApprovalRequired {
+                entity_type,
+                entity_id,
+                ..
+            }
+            | Self::ApprovalCompleted {
+                entity_type,
+                entity_id,
+                ..
+            }
+            | Self::Rejected {
+                entity_type,
+                entity_id,
+                ..
+            }
+            | Self::RevisionRequired {
+                entity_type,
+                entity_id,
+                ..
+            }
+            | Self::SlaBreachEscalation {
+                entity_type,
+                entity_id,
+                ..
+            }
+            | Self::SlaBreachInfo {
+                entity_type,
+                entity_id,
+                ..
+            } => (entity_type.as_str(), entity_id.as_str()),
+        };
+        // The SLA monitor of Kebutuhan BMN watches the per-satker rows, so its `entity_id` is the
+        // satker row's, and the detail page loads the campaign: linking would open "not found".
+        let sla = matches!(
+            self,
+            Self::SlaBreachEscalation { .. } | Self::SlaBreachInfo { .. }
+        );
+        match entity_type {
+            "kebutuhan_bmn" if sla => None,
+            "kebutuhan_bmn" => Some(format!("/kebutuhan-bmn/detail/{entity_id}")),
+            "pemakaian_bmn" => Some(format!("/pengelolaan/pemakaian/detail/{entity_id}")),
+            "penghapusan_bmn" => Some(format!("/pengelolaan/penghapusan/detail/{entity_id}")),
+            _ => None,
+        }
+    }
+
     /// Short human-readable title.
     pub fn title(&self) -> String {
         match self {
@@ -235,7 +298,7 @@ impl WorkflowNotificationType {
                 state_label(entity_type, to_state)
             ),
             Self::ApprovalRequired { entity_type, .. } => {
-                format!("Persetujuan diperlukan: {}", module_label(entity_type))
+                format!("Perlu tindakan Anda: {}", module_label(entity_type))
             }
             Self::ApprovalCompleted { entity_type, .. } => {
                 format!("Disetujui: {}", module_label(entity_type))
@@ -276,8 +339,31 @@ impl WorkflowNotificationType {
                     None => format!("{}.", movement),
                 }
             }
-            Self::ApprovalRequired { required_role, .. } => {
-                format!("Menunggu tindakan dari {}.", role_label(required_role))
+            Self::ApprovalRequired {
+                entity_type,
+                current_state,
+                required_role,
+                satker_nama,
+                catatan,
+                ..
+            } => {
+                let keadaan = state_label(entity_type, current_state);
+                let awal = match satker_nama
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|n| !n.is_empty())
+                {
+                    Some(satker) => format!("{satker}: {keadaan}"),
+                    None => keadaan,
+                };
+                let dasar = format!(
+                    "{awal}. Menunggu tindakan dari {}.",
+                    role_label(required_role)
+                );
+                match catatan.as_deref().map(str::trim).filter(|c| !c.is_empty()) {
+                    Some(c) => format!("{dasar} Catatan: {c}"),
+                    None => dasar,
+                }
             }
             Self::ApprovalCompleted { approved_by, .. } => match actor_label(approved_by) {
                 Some(who) => format!("Disetujui oleh {}.", who),
@@ -344,7 +430,7 @@ pub fn to_notification_message(
         title: notification.title(),
         body: notification.body(),
         variables: serde_json::to_value(notification).ok(),
-        deeplink: None,
+        deeplink: notification.deeplink(),
         recipient_email: None,
     }
 }
@@ -441,8 +527,81 @@ mod tests {
             current_state: "SUBMIT_WILAYAH".into(),
             required_role: "validator_wilayah".into(),
             deadline: None,
+            satker_nama: None,
+            catatan: None,
         };
-        assert_eq!(n.title(), "Persetujuan diperlukan: Penghapusan BMN");
-        assert_eq!(n.body(), "Menunggu tindakan dari Validator Wilayah.");
+        assert_eq!(n.title(), "Perlu tindakan Anda: Penghapusan BMN");
+        assert_eq!(
+            n.body(),
+            "Diajukan ke Validator Wilayah. Menunggu tindakan dari Validator Wilayah."
+        );
+        // One record spanning several satkers must say which one is waiting.
+        let n = WorkflowNotificationType::ApprovalRequired {
+            entity_type: "kebutuhan_bmn".into(),
+            entity_id: Uuid::new_v4().to_string(),
+            current_state: "SUBMIT_WILAYAH".into(),
+            required_role: "validator_wilayah".into(),
+            deadline: None,
+            satker_nama: Some("KEJAKSAAN NEGERI UJI A".into()),
+            catatan: Some("  Lampiran kurang  ".into()),
+        };
+        assert_eq!(
+            n.body(),
+            "KEJAKSAAN NEGERI UJI A: Diajukan ke Validator Wilayah. Menunggu tindakan dari Validator Wilayah. Catatan: Lampiran kurang"
+        );
+    }
+
+    /// Every notification about an entity says where to find it.
+    #[test]
+    fn a_notification_links_to_the_entity_it_is_about() {
+        let id = Uuid::from_u128(7);
+        let n = WorkflowNotificationType::ApprovalRequired {
+            entity_type: "penghapusan_bmn".into(),
+            entity_id: id.to_string(),
+            current_state: "SUBMIT_WILAYAH".into(),
+            required_role: "validator_wilayah".into(),
+            deadline: None,
+            satker_nama: None,
+            catatan: None,
+        };
+        assert_eq!(
+            n.deeplink(),
+            Some(format!("/pengelolaan/penghapusan/detail/{id}"))
+        );
+        let msg = to_notification_message(Uuid::nil(), &n, NotificationPriority::High);
+        assert_eq!(msg.deeplink, n.deeplink());
+        for (tipe, jalur) in [
+            ("kebutuhan_bmn", "/kebutuhan-bmn/detail/"),
+            ("pemakaian_bmn", "/pengelolaan/pemakaian/detail/"),
+        ] {
+            let n = WorkflowNotificationType::Rejected {
+                entity_type: tipe.into(),
+                entity_id: id.to_string(),
+                rejected_by: "x".into(),
+                reason: None,
+            };
+            assert_eq!(n.deeplink(), Some(format!("{jalur}{id}")));
+        }
+        let tak_dikenal = WorkflowNotificationType::SlaBreachInfo {
+            entity_type: "modul_baru".into(),
+            entity_id: id.to_string(),
+            current_state: "X".into(),
+            sla_deadline: "x".into(),
+            breach_duration_minutes: 1,
+        };
+        assert_eq!(
+            tak_dikenal.deeplink(),
+            None,
+            "no guessing a route that may not exist"
+        );
+        // An SLA notice about a kebutuhan carries a satker row's id: no link rather than a wrong one.
+        let sla_kebutuhan = WorkflowNotificationType::SlaBreachInfo {
+            entity_type: "kebutuhan_bmn".into(),
+            entity_id: id.to_string(),
+            current_state: "SUBMIT_WILAYAH".into(),
+            sla_deadline: "x".into(),
+            breach_duration_minutes: 1,
+        };
+        assert_eq!(sla_kebutuhan.deeplink(), None);
     }
 }

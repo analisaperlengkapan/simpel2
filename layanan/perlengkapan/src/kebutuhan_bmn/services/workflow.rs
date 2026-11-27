@@ -219,6 +219,35 @@ impl KebutuhanBmnService {
         )
         .await;
 
+        // Tell the role whose move comes next. This path does not go through the engine's
+        // `transition` (see above), so the engine's notifications never ran for it: the satker's
+        // submission, the wilayah's forward and every return were announced to nobody, in the
+        // busiest workflow in the system. Best-effort and after the commit: a notifier having a
+        // bad day never undoes a decision.
+        if let Err(e) = self
+            .workflow_engine
+            .beri_tahu_giliran(crate::workflow::engine::Giliran {
+                entity_type: "kebutuhan_bmn",
+                entity_id: updated.pengajuan_id,
+                to_state,
+                satker_codes: std::slice::from_ref(&updated.satker_id),
+                // A satker added without a name is still named by its code.
+                satker_nama: Some(
+                    updated
+                        .satker_nama
+                        .as_deref()
+                        .filter(|nama| !nama.trim().is_empty())
+                        .unwrap_or(updated.satker_id.as_str()),
+                ),
+                catatan: request.komentar.as_deref(),
+                pemohon: None,
+                aktor: user_id.unwrap_or_else(Uuid::nil),
+            })
+            .await
+        {
+            warn!(error = %e, satker_id = %satker_id, "could not tell the next role about a kebutuhan satker move");
+        }
+
         Ok(updated)
     }
 

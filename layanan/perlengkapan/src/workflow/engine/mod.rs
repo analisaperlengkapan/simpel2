@@ -150,6 +150,7 @@ pub struct WorkflowEngine {
 
 pub mod documents;
 pub mod notifications;
+pub(crate) use notifications::Giliran;
 pub mod transition;
 
 impl WorkflowEngine {
