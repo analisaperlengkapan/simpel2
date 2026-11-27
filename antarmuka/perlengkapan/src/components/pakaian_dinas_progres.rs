@@ -162,7 +162,23 @@ fn baris_wilayah(w: ProgresWilayah) -> impl IntoView {
     let pegawai = teks_terisi(r.pegawai_terisi, r.pegawai_total);
     view! {
         <tr class="border-t border-white/[0.04] align-top">
-            <td class="py-2 pr-3 text-sm text-slate-200">{nama}</td>
+            <td class="py-2 pr-3 text-sm text-slate-200">
+                {nama}
+                // The stage column is hidden below `sm`; the breakdown must not disappear with it,
+                // so a phone gets it as a line under the name.
+                <span
+                    data-testid="progres-wilayah-tahap-ringkas"
+                    class="mt-0.5 block text-xs text-slate-500 sm:hidden"
+                >
+                    {format!(
+                        "Belum {} · Wilayah {} · Pusat {} · Selesai {}",
+                        r.belum_mengajukan,
+                        r.di_wilayah,
+                        r.di_pusat,
+                        r.selesai,
+                    )}
+                </span>
+            </td>
             <td class="py-2 pr-3 text-sm text-slate-300">{r.satker_total}</td>
             <td class="hidden py-2 pr-3 sm:table-cell">
                 <div class="w-40 space-y-1">

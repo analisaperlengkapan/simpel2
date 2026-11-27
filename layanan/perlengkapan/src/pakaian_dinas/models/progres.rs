@@ -161,13 +161,15 @@ pub fn susun_progres(baris: Vec<BarisProgres>) -> ProgresPakaianDinas {
         })
         .collect();
     per_wilayah.sort_by(|a, b| {
-        // Least filled first; no rate (nobody to fill in) last; then by name.
-        let rate = |w: &ProgresWilayah| w.ringkasan.persen_terisi();
+        // Least filled first, by the EXACT proportion (not the rounded percentage the screen
+        // shows: two different proportions that round alike would otherwise be ordered by name);
+        // no rate (nobody to fill in) last; then by name.
+        let rate = |w: &ProgresWilayah| (w.ringkasan.pegawai_terisi, w.ringkasan.pegawai_total);
         match (rate(a), rate(b)) {
-            (Some(x), Some(y)) => x.cmp(&y),
-            (Some(_), None) => std::cmp::Ordering::Less,
-            (None, Some(_)) => std::cmp::Ordering::Greater,
-            (None, None) => std::cmp::Ordering::Equal,
+            ((ta, na), (tb, nb)) if na > 0 && nb > 0 => bandingkan_proporsi(ta, na, tb, nb),
+            ((_, na), _) if na > 0 => std::cmp::Ordering::Less,
+            (_, (_, nb)) if nb > 0 => std::cmp::Ordering::Greater,
+            _ => std::cmp::Ordering::Equal,
         }
         .then_with(|| a.wilayah_nama.cmp(&b.wilayah_nama))
     });
@@ -177,20 +179,24 @@ pub fn susun_progres(baris: Vec<BarisProgres>) -> ProgresPakaianDinas {
         .filter(|b| tahap_progres(b.aktivitas_id) != TahapProgres::Selesai && b.pegawai_total > 0)
         .collect();
     tertinggal.sort_by(|a, b| {
-        let (ra, rb) = (
-            a.pegawai_terisi * 1000 / a.pegawai_total,
-            b.pegawai_terisi * 1000 / b.pegawai_total,
-        );
-        ra.cmp(&rb)
-            .then_with(|| {
-                let (ka, kb) = (
-                    a.pegawai_total - a.pegawai_terisi,
-                    b.pegawai_total - b.pegawai_terisi,
-                );
-                kb.cmp(&ka)
-            })
-            .then_with(|| a.satker_nama.cmp(&b.satker_nama))
-            .then_with(|| a.satker_id.cmp(&b.satker_id))
+        // The exact proportion: a rounded one (to a tenth of a percent) put a satker that is
+        // further behind after one that is less so, and with only ten places that decides who
+        // is shown.
+        bandingkan_proporsi(
+            a.pegawai_terisi,
+            a.pegawai_total,
+            b.pegawai_terisi,
+            b.pegawai_total,
+        )
+        .then_with(|| {
+            let (ka, kb) = (
+                a.pegawai_total - a.pegawai_terisi,
+                b.pegawai_total - b.pegawai_terisi,
+            );
+            kb.cmp(&ka)
+        })
+        .then_with(|| a.satker_nama.cmp(&b.satker_nama))
+        .then_with(|| a.satker_id.cmp(&b.satker_id))
     });
     let tertinggal = tertinggal
         .into_iter()
@@ -246,6 +252,18 @@ pub fn susun_ringkasan_kegiatan(
         r.pegawai_terisi += k.pegawai_terisi;
     }
     hasil
+}
+
+/// Compare `terisi_a / total_a` with `terisi_b / total_b` exactly, by cross-multiplication
+/// (both totals must be positive). Rounding first made 10 of 49 (20.41 %) and 19 of 93 (20.43 %)
+/// equal.
+fn bandingkan_proporsi(
+    terisi_a: i64,
+    total_a: i64,
+    terisi_b: i64,
+    total_b: i64,
+) -> std::cmp::Ordering {
+    (i128::from(terisi_a) * i128::from(total_b)).cmp(&(i128::from(terisi_b) * i128::from(total_a)))
 }
 
 #[cfg(test)]
@@ -361,6 +379,47 @@ mod tests {
         let ids: Vec<_> = p.tertinggal.iter().map(|s| s.id.as_str()).collect();
         // 0 %: the one missing most people first; then 50 %; then 90 %.
         assert_eq!(ids, ["nol-besar", "nol-kecil", "separuh", "hampir"]);
+    }
+
+    /// 10 of 49 is 20.41 % and 19 of 93 is 20.43 %: they round alike, but the first is further
+    /// behind and must come first whatever the tie-breakers say (the second misses MORE people and
+    /// has the earlier name). The same holds for two wilayah, which are ordered by name only when
+    /// the proportions are exactly equal.
+    #[test]
+    fn two_proportions_that_round_alike_are_still_ordered_by_the_real_one() {
+        let p = susun_progres(vec![
+            baris("b-besar", Some("B"), 1000, 93, 19),
+            baris("a-kecil", Some("A"), 1000, 49, 10),
+        ]);
+        let ids: Vec<_> = p.tertinggal.iter().map(|s| s.id.as_str()).collect();
+        assert_eq!(ids, ["a-kecil", "b-besar"]);
+        let w: Vec<_> = p
+            .per_wilayah
+            .iter()
+            .map(|w| w.wilayah_code.as_deref())
+            .collect();
+        // A (10/49 = 20.41 %) is behind B (19/93 = 20.43 %); by name A is first anyway, so flip
+        // the names to prove it is the proportion deciding.
+        assert_eq!(w, [Some("A"), Some("B")]);
+        let p = susun_progres(vec![
+            baris("x", Some("A"), 1000, 93, 19),
+            baris("y", Some("B"), 1000, 49, 10),
+        ]);
+        let w: Vec<_> = p
+            .per_wilayah
+            .iter()
+            .map(|w| w.wilayah_code.as_deref())
+            .collect();
+        assert_eq!(
+            w,
+            [Some("B"), Some("A")],
+            "B is further behind, though A sorts first by name"
+        );
+        assert_eq!(
+            bandingkan_proporsi(10, 49, 19, 93),
+            std::cmp::Ordering::Less
+        );
+        assert_eq!(bandingkan_proporsi(1, 2, 2, 4), std::cmp::Ordering::Equal);
     }
 
     #[test]
