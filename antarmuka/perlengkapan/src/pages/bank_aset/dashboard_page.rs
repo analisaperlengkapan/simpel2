@@ -211,20 +211,18 @@ fn render_kondisi(data: &BankAsetDashboard) -> impl IntoView + use<> {
         .into_any();
     }
     let total: i64 = data.kondisi_breakdown.iter().map(|k| k.count).sum();
-    let rows: Vec<_> = data
-        .kondisi_breakdown
-        .iter()
+    let rows: Vec<_> = kondisi_digabung(&data.kondisi_breakdown)
+        .into_iter()
         .take(8)
-        .map(|k| {
+        .map(|(kondisi, count)| {
             let pct = if total > 0 {
-                (k.count as f64) / (total as f64) * 100.0
+                (count as f64) / (total as f64) * 100.0
             } else {
                 0.0
             };
             let pct_label = format!("{:.1}%", pct);
             let width = format!("width: {:.1}%;", pct.clamp(2.0, 100.0));
-            let kondisi = k.kondisi.clone();
-            let count_label = format_thousands(k.count);
+            let count_label = format_thousands(count);
             view! {
                 <div>
                     <div class="flex items-center justify-between text-xs">
@@ -239,6 +237,27 @@ fn render_kondisi(data: &BankAsetDashboard) -> impl IntoView + use<> {
         })
         .collect();
     view! { <div class="flex flex-col gap-3">{rows}</div> }.into_any()
+}
+
+/// SIMAN spells "we do not know the condition" several ways ("TIDAK DIKETAHUI", "Tdk Ada Kondisi",
+/// an empty value), and each used to be its own row. They are one row, "Tidak diketahui", counted
+/// together; the rest keep their own label. Largest first, the unknown row where its count puts it.
+fn kondisi_digabung(rows: &[crate::api::bank_aset::KondisiStat]) -> Vec<(String, i64)> {
+    let mut out: Vec<(String, i64)> = Vec::new();
+    for r in rows {
+        let norm = r.kondisi.trim().to_uppercase();
+        let label = if matches!(norm.as_str(), "" | "-" | "TIDAK DIKETAHUI" | "TDK ADA KONDISI" | "TIDAK ADA KONDISI") {
+            "Tidak diketahui".to_string()
+        } else {
+            r.kondisi.clone()
+        };
+        match out.iter_mut().find(|(l, _)| *l == label) {
+            Some((_, c)) => *c += r.count,
+            None => out.push((label, r.count)),
+        }
+    }
+    out.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    out
 }
 
 fn render_kategori(data: &BankAsetDashboard) -> impl IntoView + use<> {
@@ -312,26 +331,40 @@ fn render_per_tahun(data: &BankAsetDashboard) -> impl IntoView + use<> {
         return view! { <p class="py-6 text-center text-sm text-slate-500">"Belum ada data tahun perolehan."</p> }
         .into_any();
     }
-    let max = data
-        .per_tahun
+    // The server answers newest first. A time axis reads oldest to newest, left to right, and the
+    // fifteen years shown are the most recent fifteen, in ONE row (it used to wrap into ten plus
+    // five, with 2026 at the far left).
+    let mut years: Vec<_> = data.per_tahun.iter().collect();
+    years.sort_by_key(|t| t.tahun);
+    let years: Vec<_> = years.into_iter().rev().take(15).rev().collect();
+    let max = years.iter().map(|t| t.count).max().unwrap_or(1).max(1);
+    let berjalan = crate::tahun::tahun_berjalan();
+    let bars: Vec<_> = years
         .iter()
-        .map(|t| t.count)
-        .max()
-        .unwrap_or(1)
-        .max(1);
-    let bars: Vec<_> = data
-        .per_tahun
-        .iter()
-        .take(15)
         .map(|t| {
             let pct = (t.count as f64) / (max as f64) * 100.0;
             let height = format!("height: {:.1}%;", pct.max(4.0));
-            let year = t.tahun.to_string();
+            // The current year is not over: a muted bar and a star, so its short bar is not read as
+            // a collapse.
+            let sedang_berjalan = t.tahun == berjalan;
+            let bar = if sedang_berjalan {
+                "w-full rounded-t bg-gold-gradient opacity-50"
+            } else {
+                "w-full rounded-t bg-gold-gradient"
+            };
+            let year = if sedang_berjalan {
+                format!("{}*", t.tahun)
+            } else {
+                t.tahun.to_string()
+            };
             let count = format_thousands(t.count);
             view! {
-                <div class="flex flex-col items-center gap-2">
+                <div
+                    class="flex min-w-[2.75rem] flex-1 flex-col items-center gap-2"
+                    data-tahun=t.tahun.to_string()
+                >
                     <div class="flex h-28 w-full items-end">
-                        <div class="w-full rounded-t bg-gold-gradient" style=height></div>
+                        <div class=bar style=height></div>
                     </div>
                     <span class="text-[0.65rem] font-semibold text-slate-200">{year}</span>
                     <span class="text-[0.6rem] text-slate-500">{count}</span>
@@ -339,10 +372,19 @@ fn render_per_tahun(data: &BankAsetDashboard) -> impl IntoView + use<> {
             }
         })
         .collect();
+    let ada_berjalan = years.iter().any(|t| t.tahun == berjalan);
     view! {
-        <div class="grid grid-cols-5 gap-3 sm:grid-cols-8 lg:grid-cols-10 xl:grid-cols-15">
-            {bars}
+        <div class="overflow-x-auto">
+            <div class="flex min-w-[640px] gap-2" data-testid="perolehan-per-tahun">{bars}</div>
         </div>
+        {ada_berjalan
+            .then(|| {
+                view! {
+                    <p class="mt-2 text-[0.7rem] text-slate-500">
+                        "* tahun berjalan, belum setahun penuh"
+                    </p>
+                }
+            })}
     }
     .into_any()
 }
@@ -364,4 +406,50 @@ pub(super) fn format_thousands<N: Into<i128>>(n: N) -> String {
 pub(super) fn format_rupiah(n: f64) -> String {
     let truncated = n.round() as i128;
     format!("Rp {}", format_thousands(truncated))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::kondisi_digabung;
+    use crate::api::bank_aset::KondisiStat;
+
+    fn k(kondisi: &str, count: i64) -> KondisiStat {
+        KondisiStat {
+            kondisi: kondisi.to_string(),
+            count,
+        }
+    }
+
+    #[test]
+    fn every_spelling_of_an_unknown_condition_is_one_row() {
+        let rows = vec![
+            k("Baik", 548_042),
+            k("Rusak Berat", 64_522),
+            k("Rusak Ringan", 11_937),
+            k("TIDAK DIKETAHUI", 29),
+            k("Tdk Ada Kondisi", 3),
+            k("  ", 2),
+        ];
+        let out = kondisi_digabung(&rows);
+        assert_eq!(
+            out,
+            vec![
+                ("Baik".to_string(), 548_042),
+                ("Rusak Berat".to_string(), 64_522),
+                ("Rusak Ringan".to_string(), 11_937),
+                ("Tidak diketahui".to_string(), 34),
+            ]
+        );
+        // Nothing is lost by merging.
+        assert_eq!(
+            out.iter().map(|r| r.1).sum::<i64>(),
+            rows.iter().map(|r| r.count).sum::<i64>()
+        );
+    }
+
+    #[test]
+    fn rows_with_equal_counts_keep_a_stable_order() {
+        let out = kondisi_digabung(&[k("B", 5), k("A", 5)]);
+        assert_eq!(out[0].0, "A");
+    }
 }

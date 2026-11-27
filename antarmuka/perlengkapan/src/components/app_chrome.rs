@@ -199,7 +199,9 @@ pub fn AppFooter() -> impl IntoView {
                 <span class="text-[0.7rem] text-slate-500">
                     "SIMPEL v" {APP_VERSION} " · Kejaksaan Agung RI"
                 </span>
-                <span class="text-[0.65rem] text-slate-600">"© 2026 Biro Perlengkapan"</span>
+                <span class="text-[0.65rem] text-slate-600">
+                    {format!("© {} Biro Perlengkapan", crate::tahun::tahun_berjalan())}
+                </span>
             </div>
         </footer>
     }

@@ -314,6 +314,11 @@ pub fn TrendLine(
     #[prop(into, default = "#60a5fa".to_string())] color: String,
     #[prop(default = 64)] height: u32,
     #[prop(optional, into)] class: Option<String>,
+    /// The LAST point is a period that has not finished (the current year): its segment is drawn
+    /// dashed and the caption says so. A partial year drawn like a complete one reads as a
+    /// collapse, because it is compared against years that are whole.
+    #[prop(optional)]
+    partial_last: bool,
 ) -> impl IntoView {
     let class = class.unwrap_or_default();
     if points.len() < 2 {
@@ -335,12 +340,24 @@ pub fn TrendLine(
         .map(|(i, (_, v))| (i as f64 * step, h - (v / max) * h))
         .collect();
 
-    let line: String = xy
+    let fmt = |pts: &[(f64, f64)]| -> String {
+        pts.iter()
+            .map(|(x, y)| format!("{x:.2},{y:.2}"))
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    let area = format!("{} {w:.2},{h:.2} 0,{h:.2}", fmt(&xy));
+    // With three points or more the last one can be set apart; with two there is no solid line left.
+    let apart = partial_last && xy.len() >= 3;
+    let solid_n = if apart { xy.len() - 1 } else { xy.len() };
+    let line = fmt(&xy[..solid_n]);
+    let dashed = apart.then(|| fmt(&xy[solid_n - 1..]));
+    let peak = points
         .iter()
-        .map(|(x, y)| format!("{x:.2},{y:.2}"))
-        .collect::<Vec<_>>()
-        .join(" ");
-    let area = format!("{line} {w:.2},{h:.2} 0,{h:.2}");
+        .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+        .map(|(l, v)| (l.clone(), *v))
+        .unwrap_or_default();
+    let last_label = points.last().map(|(l, _)| l.clone()).unwrap_or_default();
 
     let aria = points
         .iter()
@@ -388,15 +405,50 @@ pub fn TrendLine(
                     vector-effect="non-scaling-stroke"
                     stroke-linejoin="round"
                 />
+                {dashed
+                    .map(|d| {
+                        view! {
+                            <polyline
+                                points=d
+                                fill="none"
+                                stroke=color.clone()
+                                stroke-width="1.2"
+                                stroke-dasharray="2 2"
+                                opacity="0.7"
+                                vector-effect="non-scaling-stroke"
+                                stroke-linejoin="round"
+                            />
+                        }
+                    })}
                 {xy
                     .last()
                     .map(|(x, y)| {
-                        view! { <circle cx=*x cy=*y r="1.6" fill=color.clone() /> }
+                        // Hollow for an unfinished period, filled for a finished one.
+                        let fill = if apart { "none".to_string() } else { color.clone() };
+                        view! {
+                            <circle
+                                cx=*x
+                                cy=*y
+                                r="1.6"
+                                fill=fill
+                                stroke=color.clone()
+                                stroke-width="0.6"
+                                vector-effect="non-scaling-stroke"
+                            />
+                        }
                     })}
             </svg>
             <div class="mt-1 flex justify-between text-[11px] text-slate-500">
                 {labels.into_iter().map(|l| view! { <span class="tabular-nums">{l}</span> }).collect_view()}
             </div>
+            // The chart has no value axis, so say the two numbers that give it a scale.
+            <p class="mt-1 text-[11px] text-slate-500 tabular-nums">
+                {format!("Tertinggi {} ({})", format_id(peak.1), peak.0)}
+                {apart
+                    .then(|| {
+                        format!(" · {last_label} masih berjalan ({last}), belum setahun penuh")
+                    })}
+            </p>
             <p class="sr-only">{format!("Nilai terakhir: {last}")}</p>
         </div>
     }

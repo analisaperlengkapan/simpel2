@@ -116,7 +116,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
         set_selected_ids.set(items);
     };
 
-    let current_year = 2026;
+    let current_year = crate::tahun::tahun_berjalan();
     let years: Vec<i32> = (2020..=current_year + 1).rev().collect();
 
     view! {

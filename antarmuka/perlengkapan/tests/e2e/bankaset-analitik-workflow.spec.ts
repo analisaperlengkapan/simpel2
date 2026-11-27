@@ -461,6 +461,39 @@ test.describe("Dashboard", () => {
     await expect(page.getByText("Kondisi Baik").first()).toBeVisible();
   });
 
+  // The trend card has no value axis, so it says the two numbers that give it a scale; and a year
+  // that is not over is set apart instead of being drawn as a collapse at the right edge.
+  test("the trend card names its peak and marks the unfinished current year", async ({ page, request }) => {
+    const token = await tokenFor(request, "validator_pusat");
+    const res = await request.get(`${API}/bank-aset/dashboard`, { headers: { Authorization: `Bearer ${token}` } });
+    expect(res.ok(), `GET /bank-aset/dashboard -> ${res.status()}`).toBeTruthy();
+    const years: Array<{ tahun: number }> = (await res.json()).data.per_tahun ?? [];
+    test.skip(years.length < 2, "the seeded SIMAN rows carry fewer than two acquisition years: no trend to draw");
+
+    await page.goto(`${BASE}/dashboard`);
+    await expect(page.getByText(/Tertinggi [\d.]+ \(\d{4}\)/).first()).toBeVisible({ timeout: 20000 });
+    const sekarang = new Date().getFullYear();
+    if (years.length >= 3 && years.some((y) => y.tahun === sekarang)) {
+      await expect(page.getByText(`${sekarang} masih berjalan`, { exact: false }).first()).toBeVisible();
+    }
+  });
+
+  // The yearly bars read like a time axis: oldest on the left, the most recent fifteen years, one
+  // row (they used to run newest first and wrap, with the current year at the far left).
+  test("bank aset yearly bars run oldest to newest, the most recent fifteen", async ({ page, request }) => {
+    const token = await tokenFor(request, "validator_pusat");
+    const res = await request.get(`${API}/bank-aset/dashboard`, { headers: { Authorization: `Bearer ${token}` } });
+    const api: number[] = ((await res.json()).data.per_tahun ?? []).map((y: { tahun: number }) => y.tahun);
+    test.skip(api.length === 0, "no acquisition years in the seeded SIMAN rows");
+
+    await page.goto(`${BASE}/bank-aset/dashboard`);
+    const bars = page.getByTestId("perolehan-per-tahun").locator("[data-tahun]");
+    await expect(bars.first()).toBeVisible({ timeout: 20000 });
+    const shown = (await bars.evaluateAll((els) => els.map((e) => Number(e.getAttribute("data-tahun")))));
+    const expected = [...api].sort((a, b) => a - b).slice(-15);
+    expect(shown, "oldest to newest, the most recent fifteen").toEqual(expected);
+  });
+
   // Split per-format (was one test looping both): the loop threw on `excel` and
   // so never reached `pdf`, leaving pdf's real status unknown for the whole life
   // of the test. Separate tests report both.
@@ -598,6 +631,8 @@ test.describe("Analitik — roadmap", () => {
     // The form navigates to the roadmap list after a successful create.
     await expect(page).toHaveURL(/\/analitik\/roadmap$/, { timeout: 20000 });
     await expect(page.getByText(judul).first()).toBeVisible({ timeout: 20000 });
+    // The cost is money, read as money: thousands grouped, not the raw "125000000.00".
+    await expect(page.locator("tr", { hasText: judul }).first()).toContainText("Rp 125.000.000");
 
     // Backend truth: the row really persisted with the values we typed.
     const token = await tokenFor(request, "operator_a");

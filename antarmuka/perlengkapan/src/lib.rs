@@ -17,6 +17,7 @@ mod features;
 mod navigation;
 mod pages;
 mod routes;
+mod tahun;
 
 use leptos::prelude::*;
 use leptos_meta::*;

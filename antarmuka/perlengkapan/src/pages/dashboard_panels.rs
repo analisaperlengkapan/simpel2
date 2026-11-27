@@ -129,10 +129,17 @@ pub fn TrenPerolehan(data: BankAsetDashboard) -> impl IntoView {
         .iter()
         .map(|t| (t.tahun.to_string(), t.count as f64))
         .collect();
+    // The current year is not over: drawn like a finished one it falls off a cliff at the right edge.
+    let berjalan = years.last().map(|t| t.tahun) == Some(crate::tahun::tahun_berjalan());
 
     view! {
         <Panel title="Tren Perolehan Aset" subtitle="Jumlah unit menurut tahun perolehan">
-            <TrendLine points=points color="#34d399".to_string() height=110 />
+            <TrendLine
+                points=points
+                color="#34d399".to_string()
+                height=110
+                partial_last=berjalan
+            />
         </Panel>
     }
 }
@@ -351,6 +358,8 @@ pub fn TrenKebutuhan(m: PerlengkapanDashboardMetrics) -> impl IntoView {
         .filter_map(|(k, v)| k.parse::<i32>().ok().map(|y| (y, *v)))
         .collect();
     years.sort_by_key(|(y, _)| *y);
+    // The current budget year is still collecting responses: set its point apart.
+    let berjalan = years.last().map(|(y, _)| *y) == Some(crate::tahun::tahun_berjalan());
     let points: Vec<(String, f64)> = years
         .into_iter()
         .map(|(y, c)| (y.to_string(), c as f64))
@@ -358,7 +367,12 @@ pub fn TrenKebutuhan(m: PerlengkapanDashboardMetrics) -> impl IntoView {
 
     view! {
         <Panel title="Tren Pengajuan Kebutuhan" subtitle="Tanggapan satuan kerja per tahun">
-            <TrendLine points=points color="#fbbf24".to_string() height=110 />
+            <TrendLine
+                points=points
+                color="#fbbf24".to_string()
+                height=110
+                partial_last=berjalan
+            />
         </Panel>
     }
 }
