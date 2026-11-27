@@ -673,6 +673,19 @@ async fn the_bottleneck_and_processing_time_cards_measure_waiting_not_the_age_of
                 .unwrap();
         }
     }
+    // The SLA scheduler logs an escalation as an activity whose from and to status are the same: it
+    // notifies, it does not move the response. It must not restart the clock of a response that is
+    // still stuck (the stage was entered 100 h ago; the escalation is 1 h old).
+    client
+        .execute(
+            "INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
+                 (pengajuan_satker_id, from_status_kode, to_status_kode, aksi, created_at)
+             SELECT id, 2002, 2002, 'eskalasi_sla', NOW() - make_interval(hours => 1)
+               FROM perlengkapan.pengajuan_kebutuhan_bmn_satker WHERE satker_id = 'SKR001'",
+            &[],
+        )
+        .await
+        .unwrap();
     let nama_2002: String = client
         .query_opt(
             "SELECT nama FROM perlengkapan.ms_workflow_status WHERE modul = 'kebutuhan_bmn' AND kode = 2002",

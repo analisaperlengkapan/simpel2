@@ -1898,11 +1898,16 @@ async fn distribusi_ukuran_di_dasbor_menghitung_orang_per_jenis_dan_tak_menampil
     let baju: uuid::Uuid = baju_id.parse().unwrap();
     let kaos = uuid::Uuid::new_v4();
     let nama_dada = uuid::Uuid::new_v4();
+    let khusus = uuid::Uuid::new_v4();
     let client = db.pool().get().await.unwrap();
+    // A free-text group, and a second PICK-FROM-A-LIST group whose name differs from "Baju" only in
+    // its brackets: both shorten to "Baju", and keyed on the short label one count overwrote the other.
     client
         .execute(
             "INSERT INTO perlengkapan.ms_ukuran_group (kode, nama, tipe, urutan)
-             VALUES ('TEKS_UJI', 'Nama dada', 'TEKS', 9) ON CONFLICT (kode) DO NOTHING",
+             VALUES ('TEKS_UJI', 'Nama dada', 'TEKS', 9),
+                    ('BAJU_KHUSUS', 'Baju (khusus)', 'PILIHAN', 8)
+             ON CONFLICT (kode) DO NOTHING",
             &[],
         )
         .await
@@ -1911,6 +1916,7 @@ async fn distribusi_ukuran_di_dasbor_menghitung_orang_per_jenis_dan_tak_menampil
     // free-text one. Both are filled for everybody who filled the first.
     for (id, nama, group, ukuran) in [
         (kaos, "Kaos", "BAJU", "L"),
+        (khusus, "Baju khusus", "BAJU_KHUSUS", "L"),
         (nama_dada, "Nama dada", "TEKS_UJI", "BUDI SANTOSO"),
     ] {
         client
@@ -1948,8 +1954,13 @@ async fn distribusi_ukuran_di_dasbor_menghitung_orang_per_jenis_dan_tak_menampil
     .await;
     assert_eq!(res.status_code(), 200, "{:?}", res.text());
     let ukuran = res.json::<Value>()["pakaian_dinas_metrics"]["total_by_ukuran"].clone();
-    // Two PEOPLE wear a shirt of size L (A and D, each with two shirt columns); the name is not a size.
-    assert_eq!(ukuran, json!({"Baju L": 2}), "{ukuran}");
+    // Two PEOPLE wear a shirt of size L (A and D, each with two shirt columns), and two a "khusus"
+    // one: separate bars, neither overwriting the other. The name is not a size.
+    assert_eq!(
+        ukuran,
+        json!({"Baju L": 2, "Baju (khusus) L": 2}),
+        "{ukuran}"
+    );
 
     teardown_test_db(&db_name).await;
 }
