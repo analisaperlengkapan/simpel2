@@ -66,7 +66,6 @@ mod workflow_tests {
         // Test that all auth methods can be instantiated
         let auth_methods = vec![
             "approle",
-            "aws",
             "azure",
             "certificate",
             "cloudfoundry",

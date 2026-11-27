@@ -1,5 +1,7 @@
 # Secreton Terraform Provider Integration
 
+> **Catatan (2026-11):** penyedia dan layanan AWS (KMS, S3, IAM/STS, CloudHSM) sudah **dihapus dari kode** — deployment ini berjalan di server sendiri / pusat data nasional, tanpa cloud publik. Bagian di dokumen ini yang masih menyebut AWS tidak berlaku dan hanya tersisa sebagai riwayat.
+
 This document describes how to integrate Secreton with Terraform for infrastructure-as-code secret management.
 
 ## Overview

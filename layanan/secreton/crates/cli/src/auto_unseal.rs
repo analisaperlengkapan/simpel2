@@ -1,7 +1,7 @@
 //! Auto-unseal configuration and management commands
 //!
 //! This module provides CLI commands for configuring and managing auto-unseal providers.
-//! Operators can configure auto-unseal with AWS KMS, GCP KMS, Azure Key Vault, or Transit,
+//! Operators can configure auto-unseal with GCP KMS, Azure Key Vault, or Transit,
 //! check the current status, and test the configuration.
 
 use anyhow::Result;
@@ -17,7 +17,7 @@ use crate::http_client::AuthenticatedClient;
 pub enum AutoUnsealCommand {
     /// Configure auto-unseal provider
     Configure {
-        /// Provider type (transit, aws-kms, gcp-kms, azure-kv)
+        /// Provider type (transit, gcp-kms, azure-kv)
         #[arg(short, long)]
         provider: Option<String>,
 
@@ -37,23 +37,6 @@ pub enum AutoUnsealCommand {
         /// Transit token
         #[arg(long)]
         transit_token: Option<String>,
-
-        // AWS KMS options
-        /// AWS KMS key ID or ARN
-        #[arg(long)]
-        aws_key_id: Option<String>,
-
-        /// AWS region
-        #[arg(long)]
-        aws_region: Option<String>,
-
-        /// AWS access key ID
-        #[arg(long)]
-        aws_access_key_id: Option<String>,
-
-        /// AWS secret access key
-        #[arg(long)]
-        aws_secret_access_key: Option<String>,
 
         // GCP KMS options
         /// GCP project ID
@@ -116,10 +99,6 @@ pub async fn execute_auto_unseal_command(cmd: AutoUnsealCommand, config: &CliCon
             transit_endpoint,
             transit_key_name,
             transit_token,
-            aws_key_id,
-            aws_region,
-            aws_access_key_id,
-            aws_secret_access_key,
             gcp_project_id,
             gcp_location,
             gcp_key_ring,
@@ -138,10 +117,6 @@ pub async fn execute_auto_unseal_command(cmd: AutoUnsealCommand, config: &CliCon
                 transit_endpoint,
                 transit_key_name,
                 transit_token,
-                aws_key_id,
-                aws_region,
-                aws_access_key_id,
-                aws_secret_access_key,
                 gcp_project_id,
                 gcp_location,
                 gcp_key_ring,
@@ -169,10 +144,6 @@ async fn configure_auto_unseal(
     transit_endpoint: Option<String>,
     transit_key_name: Option<String>,
     transit_token: Option<String>,
-    aws_key_id: Option<String>,
-    aws_region: Option<String>,
-    aws_access_key_id: Option<String>,
-    aws_secret_access_key: Option<String>,
     gcp_project_id: Option<String>,
     gcp_location: Option<String>,
     gcp_key_ring: Option<String>,
@@ -193,7 +164,7 @@ async fn configure_auto_unseal(
     } else if non_interactive {
         anyhow::bail!("Provider must be specified in non-interactive mode (--provider)");
     } else {
-        let providers = vec!["transit", "aws-kms", "gcp-kms", "azure-kv"];
+        let providers = vec!["transit", "gcp-kms", "azure-kv"];
         let selection = Select::new()
             .with_prompt("Select auto-unseal provider")
             .items(&providers)
@@ -209,13 +180,6 @@ async fn configure_auto_unseal(
             transit_endpoint,
             transit_key_name,
             transit_token,
-        )?,
-        "aws-kms" => configure_aws_kms_provider(
-            non_interactive,
-            aws_key_id,
-            aws_region,
-            aws_access_key_id,
-            aws_secret_access_key,
         )?,
         "gcp-kms" => configure_gcp_kms_provider(
             non_interactive,
@@ -235,7 +199,7 @@ async fn configure_auto_unseal(
         )?,
         _ => {
             anyhow::bail!(
-                "Unknown provider: {}. Valid providers: transit, aws-kms, gcp-kms, azure-kv",
+                "Unknown provider: {}. Valid providers: transit, gcp-kms, azure-kv",
                 provider_type
             );
         }
@@ -341,68 +305,6 @@ fn configure_transit_provider(
         "token": token,
         "timeout_secs": 30
     }))
-}
-
-fn configure_aws_kms_provider(
-    non_interactive: bool,
-    key_id: Option<String>,
-    region: Option<String>,
-    access_key_id: Option<String>,
-    secret_access_key: Option<String>,
-) -> Result<serde_json::Value> {
-    let key_id = if let Some(k) = key_id {
-        k
-    } else if non_interactive {
-        anyhow::bail!("AWS KMS key ID required (--aws-key-id)");
-    } else {
-        Input::<String>::new()
-            .with_prompt("AWS KMS key ID or ARN")
-            .with_initial_text("alias/")
-            .interact_text()?
-    };
-
-    let region = if let Some(r) = region {
-        r
-    } else if non_interactive {
-        anyhow::bail!("AWS region required (--aws-region)");
-    } else {
-        Input::<String>::new()
-            .with_prompt("AWS region")
-            .default("us-east-1".to_string())
-            .interact_text()?
-    };
-
-    let mut config = json!({
-        "provider": "aws-kms",
-        "key_id": key_id,
-        "region": region
-    });
-
-    // Optional: AWS credentials (uses IAM role if not provided)
-    if !non_interactive {
-        let use_credentials = Confirm::new()
-            .with_prompt("Provide AWS credentials? (uses IAM role if not)")
-            .default(false)
-            .interact()?;
-
-        if use_credentials {
-            let access_key: String = Input::new()
-                .with_prompt("AWS access key ID")
-                .interact_text()?;
-
-            let secret_key = Password::new()
-                .with_prompt("AWS secret access key")
-                .interact()?;
-
-            config["access_key_id"] = json!(access_key);
-            config["secret_access_key"] = json!(secret_key);
-        }
-    } else if let (Some(access_key), Some(secret_key)) = (access_key_id, secret_access_key) {
-        config["access_key_id"] = json!(access_key);
-        config["secret_access_key"] = json!(secret_key);
-    }
-
-    Ok(config)
 }
 
 fn configure_gcp_kms_provider(

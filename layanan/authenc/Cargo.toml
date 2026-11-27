@@ -209,9 +209,6 @@ urlencoding = "2.1"
 rdkafka = { workspace = true, features = ["ssl-vendored"], optional = true }
 
 # Object Storage (S3/MinIO)
-aws-sdk-s3 = "1.90.0"
-aws-config = "1.5.15"
-aws-credential-types = "1.2.1"
 
 # TOTP (Time-based One-Time Password)
 totp-rs = { version = "5.7", default-features = false, optional = true }

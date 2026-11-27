@@ -44,9 +44,9 @@ crates/
 ├── grpc/               # secreton-grpc     — Tonic gRPC server (secreton.v1 package, 36 RPCs)
 ├── cli/                # secreton-cli      — CLI binary (clap): seal, secret, transit, policy, audit, backup, replication
 ├── agent/              # secreton-agent    — Sidecar: auto-auth, token renewal, template rendering
-├── hsm/                # secreton-hsm      — HSM via PKCS#11: Thales Luna, AWS CloudHSM, SoftHSM2, YubiHSM2
+├── hsm/                # secreton-hsm      — HSM via PKCS#11: Thales Luna, SoftHSM2, YubiHSM2
 ├── k8s-operator/       # secreton-k8s-operator — K8s CRD controller for SecretSync
-├── auto-unseal/        # secreton-auto-unseal  — Transit, AWS KMS, GCP KMS, Azure Key Vault unseal providers
+├── auto-unseal/        # secreton-auto-unseal  — Transit, GCP KMS, Azure Key Vault unseal providers
 ├── backup/             # secreton-backup   — Backup/restore scheduler, S3/local storage
 ├── health/             # secreton-health   — Health check registry (Healthy/Degraded/Unhealthy)
 └── replication/        # secreton-replication — DR replication, failover, conflict resolution
@@ -193,7 +193,6 @@ All handlers in `crates/api/src/handlers/`:
 | `transform` | `/v1/sys/transform` | FPE roles, encode/decode, tokenize/detokenize |
 | `pki` | `/v1/sys/pki` | Extended PKI: intermediate CA, OCSP, templates, renewal |
 | `ssh` | `/v1/sys/ssh` | SSH CA, roles, creds, sign user/host, OTP |
-| `aws` | `/v1/sys/aws` | Dynamic AWS IAM/STS credentials |
 | `key_hierarchy` | `/v1/sys/key-hierarchy` | Key hierarchy management |
 | `inject` | `/v1/sys/inject` | Environment variable injection |
 | `webhook` | `/v1/sys/webhooks` | Webhook subscriptions and delivery |

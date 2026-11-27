@@ -1,7 +1,7 @@
 //! lib-backend: Backend infrastructure utilities for SIMPEL services
 //!
 //! This crate provides backend-only infrastructure including database pools,
-//! caching, middleware, telemetry, JWT decoding, gRPC utils, and storage.
+//! caching, middleware, telemetry, JWT decoding and gRPC utils.
 
 // Re-export lib-core for convenience
 pub use lib_core;
@@ -35,9 +35,6 @@ pub mod validation;
 // Audit logger with database persistence
 #[cfg(feature = "db")]
 pub mod audit;
-
-#[cfg(feature = "storage")]
-pub mod storage;
 
 #[cfg(feature = "jwt")]
 pub mod jwt;

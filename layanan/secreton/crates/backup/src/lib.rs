@@ -5,7 +5,7 @@
 //! - Scheduled backups with cron expressions
 //! - Backup of Raft state and PostgreSQL data
 //! - Encrypted backup storage
-//! - Pluggable storage backends (S3, local filesystem, etc.)
+//! - Pluggable storage backends (local filesystem, etc.)
 //! - Backup verification and integrity checks
 //! - Point-in-time recovery
 //! - Automatic retention policy enforcement
@@ -23,8 +23,8 @@ pub use alerting::{Alert, AlertHandler, AlertManager, AlertSeverity, AlertType};
 pub use error::{BackupError, Result};
 pub use manager::BackupManager;
 pub use metadata::{Backup, BackupMetadata};
-pub use storage::{BackupStorage, LocalStorage, S3Storage};
-pub use types::{BackupConfig, BackupStatus, RestoreOptions, S3StorageConfig};
+pub use storage::{BackupStorage, LocalStorage};
+pub use types::{BackupConfig, BackupStatus, RestoreOptions};
 
 /// Re-export commonly used types
 pub mod prelude {

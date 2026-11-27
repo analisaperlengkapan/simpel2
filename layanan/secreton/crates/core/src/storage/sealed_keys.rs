@@ -1,7 +1,7 @@
 //! Sealed Master Key Storage Operations
 //!
 //! This module provides storage operations for sealed master keys used in auto-unseal.
-//! Sealed master keys are encrypted by external KMS providers (AWS KMS, GCP KMS, Azure Key Vault, Transit)
+//! Sealed master keys are encrypted by external KMS providers (GCP KMS, Azure Key Vault, Transit)
 //! and stored in PostgreSQL for retrieval during auto-unseal operations.
 
 use async_trait::async_trait;
@@ -15,8 +15,6 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum ProviderType {
-    /// AWS KMS
-    AwsKms,
     /// GCP KMS
     GcpKms,
     /// Azure Key Vault
@@ -28,7 +26,6 @@ pub enum ProviderType {
 impl ProviderType {
     pub fn as_str(&self) -> &str {
         match self {
-            ProviderType::AwsKms => "aws-kms",
             ProviderType::GcpKms => "gcp-kms",
             ProviderType::AzureKv => "azure-kv",
             ProviderType::Transit => "transit",
@@ -38,7 +35,6 @@ impl ProviderType {
     #[allow(clippy::should_implement_trait)] // String error, not FromStr
     pub fn from_str(s: &str) -> Result<Self, String> {
         match s {
-            "aws-kms" => Ok(ProviderType::AwsKms),
             "gcp-kms" => Ok(ProviderType::GcpKms),
             "azure-kv" => Ok(ProviderType::AzureKv),
             "transit" => Ok(ProviderType::Transit),
@@ -59,7 +55,7 @@ pub struct SealedMasterKey {
     /// Provider-specific key identifier (KMS key ARN, key name, etc.)
     pub provider_key_id: String,
 
-    /// Provider region (for AWS/GCP/Azure)
+    /// Provider region (for GCP/Azure)
     pub provider_region: Option<String>,
 
     /// Provider endpoint (for custom endpoints or Transit)
@@ -438,15 +434,10 @@ mod tests {
 
     #[test]
     fn test_provider_type_conversion() {
-        assert_eq!(ProviderType::AwsKms.as_str(), "aws-kms");
         assert_eq!(ProviderType::GcpKms.as_str(), "gcp-kms");
         assert_eq!(ProviderType::AzureKv.as_str(), "azure-kv");
         assert_eq!(ProviderType::Transit.as_str(), "transit");
 
-        assert_eq!(
-            ProviderType::from_str("aws-kms").unwrap(),
-            ProviderType::AwsKms
-        );
         assert_eq!(
             ProviderType::from_str("gcp-kms").unwrap(),
             ProviderType::GcpKms
@@ -467,10 +458,9 @@ mod tests {
     fn test_sealed_master_key_checksum() {
         let encrypted_data = vec![1, 2, 3, 4, 5];
         let key = SealedMasterKey::new(
-            ProviderType::AwsKms,
-            "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
-                .to_string(),
-            Some("us-east-1".to_string()),
+            ProviderType::GcpKms,
+            "projects/test-project/locations/us-central1/keyRings/test/cryptoKeys/test".to_string(),
+            Some("us-central1".to_string()),
             None,
             encrypted_data.clone(),
         );

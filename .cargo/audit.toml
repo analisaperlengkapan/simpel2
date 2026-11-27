@@ -28,7 +28,7 @@ ignore = [
   # Tak ada jalur upgrade: rust_decimal 1.42.1 (terbaru) masih `rkyv ^0.7.46`.
   "RUSTSEC-2026-0235", # rkyv 0.7 OOB read - optional dep yang tak pernah diaktifkan (lockfile-only)
   # crypto-bigint 0.5 (timing): tak ada versi 0.5 yang ditambal; ditarik
-  # elliptic-curve 0.13 dan aws-sigv4 1.6.3 (terbaru, masih ^0.5). Penilaian
+  # elliptic-curve 0.13 (aws-sigv4 sudah hilang bersama AWS SDK). Penilaian
   # paparan + syarat pencabutan ada di deny.toml.
   "RUSTSEC-2026-0387",
 ]

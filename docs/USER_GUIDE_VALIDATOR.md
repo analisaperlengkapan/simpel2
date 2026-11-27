@@ -215,14 +215,17 @@ Anggaran, dan periode perolehan berlaku pada tingkat mana pun.
 3. **Ambil Keputusan**
    - **Approve**: Forward ke Kejagung
    - **Revisi**: Return ke Kejari dengan catatan
-   - Sebelum diteruskan, muncul konfirmasi **"Teruskan ke Validator Pusat?"**
-     yang menyebut jumlah satker di wilayah Anda yang **belum mengisi lengkap**
-     atau **belum mengajukan** ke wilayah. Penerusan **tidak diblokir**: Anda
-     tetap boleh meneruskan, dan satker itu masih bisa dilengkapi bila
-     pengajuannya dikembalikan. Bila semua sudah lengkap, konfirmasi tampil
-     tanpa peringatan.
-   - Untuk beberapa satker sekaligus, konfirmasi yang sama muncul sekali.
-     Baris yang tahapnya sudah berpindah di antara Anda membuka dialog dan
+   - Sebelum diteruskan, muncul konfirmasi. **Peringatannya mengikuti cakupan
+     aksi Anda.** Meneruskan **satu satker** hanya mengingatkan soal satker itu:
+     berapa pegawainya yang belum mengisi ukuran ("3 dari 10 pegawai satker ini
+     belum mengisi ukuran"), atau bahwa belum ada satu pun yang mengisi. Keadaan
+     satker lain tidak disebut, karena tidak berpengaruh pada satker ini.
+   - Meneruskan **beberapa satker sekaligus** menyebut dua hal secara terpisah:
+     seberapa lengkap satker yang Anda pilih, lalu satker lain di wilayah Anda
+     yang **belum mengajukan**. Penerusan **tidak diblokir**: Anda tetap boleh
+     meneruskan, dan satker itu masih bisa dilengkapi bila pengajuannya
+     dikembalikan. Bila semuanya lengkap, konfirmasi tampil tanpa peringatan.
+   - Baris yang tahapnya sudah berpindah di antara Anda membuka dialog dan
      menekan konfirmasi **ditolak sendiri** dengan alasannya; sisanya tetap
      diproses.
 
@@ -240,11 +243,13 @@ Anggaran, dan periode perolehan berlaku pada tingkat mana pun.
 
 3. **Approve Final**
    - Klik **"Approve"**
-   - Sebelum kegiatan diselesaikan, muncul konfirmasi **"Selesaikan Kegiatan
-     Pakaian Dinas?"** yang menyebut jumlah satker yang belum mengisi
-     lengkap/belum mengajukan ke wilayah, dan jumlah satker yang belum
-     diteruskan ke pusat. Penyelesaian **tidak diblokir**, tetapi satker yang
-     belum masuk tidak ikut tercatat pada kegiatan ini.
+   - Sebelum satker diselesaikan, muncul konfirmasi. Menyelesaikan **satu
+     satker** hanya mengingatkan soal satker itu (berapa pegawainya yang belum
+     mengisi ukuran). Menyelesaikan **beberapa satker sekaligus** menyebut
+     seberapa lengkap satker yang Anda pilih, lalu satker lain yang **belum
+     mengajukan** ke wilayah dan yang **belum diteruskan** wilayah ke pusat.
+     Penyelesaian **tidak diblokir**, tetapi satker yang belum masuk tidak
+     ikut tercatat pada kegiatan ini.
    - Yang diselesaikan adalah **satker yang Anda pilih**, bukan seluruh
      kegiatan: satker lain masih dapat menyusul (diisi, diajukan, dan
      diteruskan) selama periode kegiatan masih berjalan, lalu diselesaikan pada

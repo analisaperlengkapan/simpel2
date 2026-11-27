@@ -17,6 +17,7 @@ mod integration {
     mod kebutuhan_search_test;
     mod kodefikasi_barang_test;
     mod migration_runner_test;
+    mod notifikasi_giliran_test;
     mod pakaian_dinas_campaign_scope_test;
     mod pakaian_dinas_hapus_jenis_test;
     mod pakaian_dinas_hapus_kampanye_test;

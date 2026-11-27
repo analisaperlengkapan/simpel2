@@ -38,6 +38,7 @@ pub mod middleware;
 pub mod pagination;
 pub mod pdf;
 pub mod pegawai_ref;
+pub mod pengguna;
 pub mod policy;
 pub mod rate_limit;
 pub mod repo;

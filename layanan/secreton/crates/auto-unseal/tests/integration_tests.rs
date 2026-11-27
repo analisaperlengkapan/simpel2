@@ -335,13 +335,6 @@ async fn test_configuration_persistence() {
     // Store multiple sealed keys with different providers
     let keys = vec![
         SealedMasterKey::new(
-            ProviderType::AwsKms,
-            "arn:aws:kms:us-east-1:123456789012:key/test".to_string(),
-            Some("us-east-1".to_string()),
-            None,
-            vec![1, 2, 3, 4, 5],
-        ),
-        SealedMasterKey::new(
             ProviderType::GcpKms,
             "projects/test/locations/us/keyRings/test/cryptoKeys/test".to_string(),
             Some("us-central1".to_string()),
@@ -367,7 +360,7 @@ async fn test_configuration_persistence() {
 
     // Set the Transit key as active
     storage
-        .set_active_sealed_key(keys[2].id)
+        .set_active_sealed_key(keys[1].id)
         .await
         .expect("Setting active key should succeed");
 
@@ -391,15 +384,15 @@ async fn test_configuration_persistence() {
         .list_sealed_keys()
         .await
         .expect("List should succeed");
-    assert_eq!(all_keys.len(), 3);
+    assert_eq!(all_keys.len(), 2);
 
     // Get keys by provider
-    let aws_keys = storage
-        .get_sealed_keys_by_provider(ProviderType::AwsKms)
+    let gcp_keys = storage
+        .get_sealed_keys_by_provider(ProviderType::GcpKms)
         .await
         .expect("Query should succeed");
-    assert_eq!(aws_keys.len(), 1);
-    assert_eq!(aws_keys[0].provider_type, ProviderType::AwsKms);
+    assert_eq!(gcp_keys.len(), 1);
+    assert_eq!(gcp_keys[0].provider_type, ProviderType::GcpKms);
 }
 
 /// Test 5: Retry mechanism with exponential backoff
@@ -527,16 +520,11 @@ async fn test_multiple_providers_same_master_key() {
 
     // Create multiple providers
     let providers = [
-        MockKmsProvider::new("aws-kms".to_string(), "aws-key-id".to_string()),
         MockKmsProvider::new("gcp-kms".to_string(), "gcp-key-id".to_string()),
         MockKmsProvider::new("transit".to_string(), "transit-key-id".to_string()),
     ];
 
-    let provider_types = [
-        ProviderType::AwsKms,
-        ProviderType::GcpKms,
-        ProviderType::Transit,
-    ];
+    let provider_types = [ProviderType::GcpKms, ProviderType::Transit];
 
     // Encrypt master key with each provider and store
     for (provider, provider_type) in providers.iter().zip(provider_types.iter()) {
@@ -555,7 +543,7 @@ async fn test_multiple_providers_same_master_key() {
 
     // Verify all keys are stored
     let all_keys = storage.list_sealed_keys().await.unwrap();
-    assert_eq!(all_keys.len(), 3);
+    assert_eq!(all_keys.len(), 2);
 
     // Verify each provider can decrypt its own encrypted key
     for (provider, provider_type) in providers.iter().zip(provider_types.iter()) {
@@ -604,51 +592,6 @@ async fn test_transit_provider_integration() {
     let provider = TransitProvider::new(config)
         .await
         .expect("Transit provider creation should succeed");
-
-    // Test health check
-    provider
-        .health_check()
-        .await
-        .expect("Health check should succeed");
-
-    // Test encryption/decryption
-    let master_key = b"test-master-key-32-bytes-long!!!";
-    let encrypted = provider
-        .encrypt(master_key)
-        .await
-        .expect("Encryption should succeed");
-
-    let decrypted = provider
-        .decrypt(&encrypted)
-        .await
-        .expect("Decryption should succeed");
-
-    assert_eq!(decrypted, master_key);
-}
-
-#[cfg(feature = "aws-kms")]
-#[tokio::test]
-#[ignore = "Requires AWS credentials"]
-async fn test_aws_kms_provider_integration() {
-    use secreton_auto_unseal::aws_kms::AwsKmsProvider;
-    use secreton_auto_unseal::config::AwsKmsConfig;
-
-    let key_id =
-        std::env::var("AWS_KMS_KEY_ID").unwrap_or_else(|_| "alias/secreton-test".to_string());
-    let region = std::env::var("AWS_REGION").unwrap_or_else(|_| "us-east-1".to_string());
-
-    let config = AwsKmsConfig {
-        key_id,
-        region,
-        endpoint: std::env::var("AWS_KMS_ENDPOINT").ok(),
-        access_key_id: std::env::var("AWS_ACCESS_KEY_ID").ok(),
-        secret_access_key: std::env::var("AWS_SECRET_ACCESS_KEY").ok(),
-        session_token: std::env::var("AWS_SESSION_TOKEN").ok(),
-    };
-
-    let provider = AwsKmsProvider::new(config)
-        .await
-        .expect("AWS KMS provider creation should succeed");
 
     // Test health check
     provider

@@ -16,7 +16,7 @@ pub struct BackupConfig {
     /// Retention period in days
     pub retention_days: u32,
 
-    /// Storage backend type (local, s3, etc.)
+    /// Storage backend type (local, etc.)
     pub storage_type: StorageType,
 
     /// Storage backend configuration
@@ -79,8 +79,6 @@ fn default_pg_dump_timeout() -> u64 {
 pub enum StorageType {
     /// Local filesystem storage
     Local,
-    /// S3-compatible storage
-    S3,
     /// Azure Blob Storage
     Azure,
     /// Google Cloud Storage
@@ -93,8 +91,6 @@ pub enum StorageType {
 pub enum StorageConfig {
     /// Local filesystem configuration
     Local(LocalStorageConfig),
-    /// S3-compatible storage configuration
-    S3(S3StorageConfig),
     /// Azure Blob Storage configuration
     Azure(AzureStorageConfig),
     /// Google Cloud Storage configuration
@@ -106,26 +102,6 @@ pub enum StorageConfig {
 pub struct LocalStorageConfig {
     /// Base directory for backups
     pub path: String,
-}
-
-/// S3-compatible storage configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct S3StorageConfig {
-    /// S3 bucket name
-    pub bucket: String,
-    /// S3 region
-    pub region: String,
-    /// S3 endpoint (for S3-compatible services)
-    pub endpoint: Option<String>,
-    /// Access key ID
-    pub access_key_id: Option<String>,
-    /// Secret access key
-    pub secret_access_key: Option<String>,
-    /// Prefix for backup objects
-    pub prefix: Option<String>,
-    /// Force path-style addressing (required for MinIO)
-    #[serde(default)]
-    pub force_path_style: bool,
 }
 
 /// Azure Blob Storage configuration

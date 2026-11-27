@@ -31,8 +31,6 @@ secreton-core = { path = "../core" }
 secreton-grpc = { path = "../grpc", optional = true }
 
 # Optional cloud provider dependencies
-aws-config = { workspace = true, optional = true }
-aws-sdk-kms = { workspace = true, optional = true }
 google-cloudkms1 = { workspace = true, optional = true }
 
 # gRPC for Transit provider
@@ -44,7 +42,6 @@ base64 = { workspace = true, optional = true }
 
 [features]
 default = ["transit"]
-aws-kms = ["dep:aws-config", "dep:aws-sdk-kms"]
 gcp-kms = ["dep:google-cloudkms1"]
 # `azure_kv.rs` is an explicit stub that imports NO azure crate — every method
 # returns ProviderError pending an SDK port. The three azure deps this feature
@@ -54,7 +51,7 @@ gcp-kms = ["dep:google-cloudkms1"]
 # the successor crates anyway; re-add deps then, at the versions it needs.
 azure-kv = []
 transit = ["dep:tonic", "dep:prost", "dep:base64", "dep:secreton-grpc"]
-all-providers = ["aws-kms", "gcp-kms", "azure-kv", "transit"]
+all-providers = ["gcp-kms", "azure-kv", "transit"]
 
 [dev-dependencies]
 tokio-test = { workspace = true }
