@@ -102,9 +102,10 @@ pub fn icon_from_fa_class(class: &str) -> IconData {
         "fa-file-arrow-up" | "fa-file-import" => FILE_ARROW_UP,
         "fa-file-circle-check" => FILE_TEXT,
         "fa-file-excel" => FILE_XLS,
-        "fa-file-lines" => FILE_TEXT,
+        "fa-file-circle-minus" => FILE_MINUS,
+        "fa-file-lines" | "fa-file-alt" => FILE_TEXT,
         "fa-file-pdf" => FILE_PDF,
-        "fa-file-signature" => SIGNATURE,
+        "fa-file-signature" | "fa-signature" => SIGNATURE,
         "fa-file-word" => FILE_DOC,
         "fa-filter" => FUNNEL,
         "fa-flag-checkered" => FLAG_CHECKERED,
@@ -117,6 +118,7 @@ pub fn icon_from_fa_class(class: &str) -> IconData {
         "fa-heart-pulse" => HEARTBEAT,
         "fa-home" => HOUSE,
         "fa-hourglass-half" => HOURGLASS,
+        "fa-id-badge" => IDENTIFICATION_BADGE,
         "fa-inbox" => TRAY,
         "fa-keyboard" => KEYBOARD,
         "fa-layer-group" => STACK,
@@ -126,6 +128,7 @@ pub fn icon_from_fa_class(class: &str) -> IconData {
         "fa-lock" => LOCK,
         "fa-magnifying-glass" | "fa-search" => MAGNIFYING_GLASS,
         "fa-male" => PERSON,
+        "fa-map" => MAP_TRIFOLD,
         "fa-map-location-dot" => MAP_PIN_AREA,
         "fa-minus" => MINUS,
         "fa-paperclip" => PAPERCLIP,
@@ -134,7 +137,7 @@ pub fn icon_from_fa_class(class: &str) -> IconData {
         "fa-plus" => PLUS,
         "fa-plus-circle" => PLUS_CIRCLE,
         "fa-print" => PRINTER,
-        "fa-project-diagram" => TREE_STRUCTURE,
+        "fa-project-diagram" | "fa-diagram-project" => TREE_STRUCTURE,
         "fa-qrcode" => QR_CODE,
         "fa-random" => SHUFFLE,
         "fa-redo" | "fa-rotate-right" | "fa-sync-alt" => ARROW_CLOCKWISE,
@@ -145,8 +148,10 @@ pub fn icon_from_fa_class(class: &str) -> IconData {
         "fa-ruler" => RULER,
         "fa-sack-dollar" => MONEY_WAVY,
         "fa-save" => FLOPPY_DISK,
+        "fa-screwdriver-wrench" => WRENCH,
         "fa-scroll" => SCROLL,
         "fa-shield-alt" => SHIELD,
+        "fa-shirt" => T_SHIRT,
         "fa-shoe-prints" => FOOTPRINTS,
         "fa-sign-out-alt" => SIGN_OUT,
         "fa-sliders" => SLIDERS,
@@ -162,12 +167,105 @@ pub fn icon_from_fa_class(class: &str) -> IconData {
         "fa-tshirt" => T_SHIRT,
         "fa-upload" => UPLOAD_SIMPLE,
         "fa-user" | "fa-user-tie" => USER,
+        "fa-user-check" => USER_CHECK,
         "fa-user-plus" => USER_PLUS,
         "fa-user-shield" => USER_CHECK,
         "fa-user-tag" => USER_LIST,
         "fa-users" | "fa-users-cog" => USERS,
         "fa-wand-magic-sparkles" => MAGIC_WAND,
         "fa-warehouse" => WAREHOUSE,
+        "fa-wave-square" => WAVE_SQUARE,
         _ => QUESTION,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::{Path, PathBuf};
+
+    /// Every `fa-…` name the apps and libraries hand over in a class string (`"fas fa-x"`,
+    /// `"far fa-x"`, `"fab fa-x"` or a bare `"fa-x"`), with the file using it. Only the first
+    /// name of the string counts, as in [`icon_from_fa_class`].
+    fn nama_fa_di(dir: &Path, hasil: &mut Vec<(String, PathBuf)>) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let nama = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                if nama != "target" && nama != "node_modules" && !nama.starts_with('.') {
+                    nama_fa_di(&path, hasil);
+                }
+            } else if path.extension().is_some_and(|e| e == "rs")
+                && !path.ends_with("lib/ui/src/components/icon.rs")
+            {
+                let Ok(sumber) = std::fs::read_to_string(&path) else {
+                    continue;
+                };
+                for awalan in ["\"fas fa-", "\"far fa-", "\"fab fa-", "\"fa-"] {
+                    for (i, _) in sumber.match_indices(awalan) {
+                        let dari = i + awalan.len() - "fa-".len();
+                        let nama: String = sumber[dari..]
+                            .chars()
+                            .take_while(|c| c.is_ascii_alphanumeric() || *c == '-')
+                            .collect();
+                        // `fa-spin` and its kin are CSS modifiers, not icons, and a bare `"fa-"`
+                        // is a prefix being tested for, not a name.
+                        let modifier = matches!(
+                            nama.as_str(),
+                            "fa-spin"
+                                | "fa-pulse"
+                                | "fa-fw"
+                                | "fa-xs"
+                                | "fa-sm"
+                                | "fa-lg"
+                                | "fa-2x"
+                                | "fa-3x"
+                        );
+                        if nama.len() > "fa-".len() && !modifier {
+                            hasil.push((nama, path.clone()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// An unknown name silently becomes a question mark. That is how the dashboard tiles
+    /// "Izin Pemakaian" and "Pakaian Dinas Menunggu" and the admin menu entries
+    /// "Template Dokumen" and "Monitoring Workflow" went out showing "?": the name was written
+    /// at the call site and nothing checked it against this table. The list of names is read
+    /// from the sources, so a new icon name cannot be forgotten.
+    #[test]
+    fn every_icon_name_the_apps_use_resolves_to_an_icon() {
+        let akar = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let mut dipakai = Vec::new();
+        for sub in ["antarmuka", "lib"] {
+            nama_fa_di(&akar.join(sub), &mut dipakai);
+        }
+        // The scan itself must work: a moved directory would otherwise pass this vacuously.
+        assert!(
+            dipakai.len() > 50,
+            "the scan found only {} icon names; did the source layout move?",
+            dipakai.len()
+        );
+        let tanda_tanya = icon_from_fa_class("fa-circle-question");
+        let mut tak_dikenal: Vec<String> = dipakai
+            .iter()
+            .filter(|(n, _)| {
+                *icon_from_fa_class(n) == *tanda_tanya
+                    && n != "fa-circle-question"
+                    && n != "fa-question-circle"
+            })
+            .map(|(n, p)| format!("{n} ({})", p.display()))
+            .collect();
+        tak_dikenal.sort();
+        tak_dikenal.dedup();
+        assert!(
+            tak_dikenal.is_empty(),
+            "icon names with no mapping in icon_from_fa_class (they render as '?'): {tak_dikenal:?}"
+        );
     }
 }
