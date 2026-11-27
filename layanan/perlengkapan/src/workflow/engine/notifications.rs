@@ -1,5 +1,5 @@
 use super::*;
-use crate::workflow::giliran::{peran_giliran, peran_terikat_satker};
+use crate::workflow::giliran::{pengusul_dikecualikan, peran_giliran, peran_terikat_satker};
 use std::collections::HashSet;
 use uuid::Uuid;
 
@@ -146,12 +146,13 @@ impl WorkflowEngine {
                 crate::shared::pengguna::penerima_peran_untuk(&self.db_pool, peran, satker_codes)
                     .await
                     .map_err(|e| WorkflowError::NotificationError(e.to_string()))?;
-            // Maker-checker: whoever asked for it may not validate or approve it, so being asked to
-            // would be a task the API then refuses. (The operator role, which fixes a return, is
-            // exactly who the requester is.)
+            // Maker-checker, where the API enforces it (see `pengusul_dikecualikan`): being asked
+            // to do what the next click refuses would be a task nobody can take. Elsewhere the
+            // requester may hold the role and act, so they are told like anyone else.
+            let tanpa_pengusul = pengusul_dikecualikan(entity_type, peran);
             let penerima: Vec<Uuid> = penerima
                 .into_iter()
-                .filter(|u| *peran == "operator_satker" || Some(*u) != pemohon)
+                .filter(|u| !(tanpa_pengusul && Some(*u) == pemohon))
                 .filter(|u| sudah.insert(*u))
                 .collect();
             if penerima.is_empty() {

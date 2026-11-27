@@ -47,6 +47,18 @@ pub fn peran_terikat_satker(peran: &str) -> bool {
     )
 }
 
+/// Whether whoever filed `entity_type` is left out of the people asked to act as `peran`.
+///
+/// Only where the API itself refuses them: a Pemakaian BMN permit may not be validated or approved
+/// by the person who filed it (`shared::policy::enforce_maker_checker`), so asking them to would be
+/// a task the next click turns down. Penghapusan and Kebutuhan BMN have no such rule: a requester
+/// who also holds the verifying role (a pusat validator who filed an usulan as an operator) can act
+/// and must be told it is their turn. The operator role is never left out: a return is fixed by
+/// exactly the person who filed.
+pub fn pengusul_dikecualikan(entity_type: &str, peran: &str) -> bool {
+    entity_type == "pemakaian_bmn" && matches!(peran, "validator_satker" | "approver_satker")
+}
+
 /// Non-terminal states where nobody's move is pending, and why. Anything else a workflow can sit
 /// in must have an entry in [`peran_giliran`].
 #[cfg(test)]
@@ -194,6 +206,27 @@ mod tests {
         );
         assert!(peran_giliran("penghapusan_bmn", "COMPLETED").is_empty());
         assert!(peran_giliran("modul_yang_belum_ada", "APA_SAJA").is_empty());
+    }
+
+    /// Pinned to where the API enforces it: only Pemakaian BMN's two checking roles. Widening the
+    /// exclusion to the other modules is what hid "your verification is awaited" from a requester
+    /// who may in fact verify.
+    #[test]
+    fn the_requester_is_left_out_only_where_the_api_refuses_them() {
+        assert!(pengusul_dikecualikan("pemakaian_bmn", "validator_satker"));
+        assert!(pengusul_dikecualikan("pemakaian_bmn", "approver_satker"));
+        assert!(!pengusul_dikecualikan("pemakaian_bmn", "operator_satker"));
+        for (modul, peran) in [
+            ("penghapusan_bmn", "validator_pusat"),
+            ("penghapusan_bmn", "validator_wilayah"),
+            ("kebutuhan_bmn", "validator_wilayah"),
+            ("kebutuhan_bmn", "validator_pusat"),
+        ] {
+            assert!(
+                !pengusul_dikecualikan(modul, peran),
+                "{modul}/{peran}: the API lets the requester act, so they must be told"
+            );
+        }
     }
 
     #[test]

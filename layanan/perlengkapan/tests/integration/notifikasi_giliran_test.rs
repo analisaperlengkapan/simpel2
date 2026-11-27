@@ -557,6 +557,57 @@ async fn tiket_bantuan_baru_dan_balasan_pelapor_memberi_tahu_petugas_helpdesk() 
 
 /// Maker-checker: the person who asked for a permit is never asked to validate or approve it, even
 /// when they also hold that role; the API refuses both, so the notice would be a task they cannot do.
+/// A penghapusan has no maker-checker rule: a pusat validator who filed the usulan as an operator
+/// may verify it, so when wilayah forwards it they are told it is their turn like any other pusat
+/// validator. (Pemakaian BMN does refuse, and keeps the requester out; see the test below.)
+#[tokio::test]
+async fn pengusul_penghapusan_yang_juga_validator_pusat_diberi_tahu_giliran_verifikasinya() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    dikenal(&db, OPERATOR, "operator_satker", SATKER).await;
+    // The same account, a second role: it files as an operator and verifies as pusat.
+    dikenal(&db, OPERATOR, "validator_pusat", SATKER).await;
+    dikenal(&db, WILAYAH, "validator_wilayah", KEJATI).await;
+    dikenal(&db, PUSAT, "validator_pusat", "PUSAT001").await;
+
+    let id = buat_usulan(&server).await;
+    aksi(
+        &server,
+        "operator_satker",
+        OPERATOR,
+        SATKER,
+        &format!("/penghapusan-bmn/{id}/submit-wilayah"),
+    )
+    .await;
+    assert!(
+        menunggu(&kotak_masuk(&db, OPERATOR).await).is_empty(),
+        "the wilayah's turn is not the requester's, even holding another role"
+    );
+
+    aksi(
+        &server,
+        "validator_wilayah",
+        WILAYAH,
+        KEJATI,
+        &format!("/penghapusan-bmn/{id}/forward-pusat"),
+    )
+    .await;
+
+    let o = kotak_masuk(&db, OPERATOR).await;
+    assert_eq!(
+        menunggu(&o).len(),
+        1,
+        "the requester may verify as pusat, so their verification is awaited: {o:?}"
+    );
+    assert_eq!(
+        menunggu(&kotak_masuk(&db, PUSAT).await).len(),
+        1,
+        "and the other pusat validator is told as before"
+    );
+
+    teardown_test_db(&db_name).await;
+}
+
 #[tokio::test]
 async fn pengusul_yang_juga_approver_tidak_diminta_menyetujui_izinnya_sendiri() {
     const VALIDATOR: &str = "00000000-0000-0000-0000-0000000000d1";
