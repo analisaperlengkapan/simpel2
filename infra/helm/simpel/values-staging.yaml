@@ -549,7 +549,18 @@ global:
   #
   # Setelah rc58 menetap di staging: periksa dasbor, analitik, kalkulasi dan peramalan (roadmap_sarpras)
   # dengan data staging, lalu perbaiki yang kurang.
-  imageTag: v0.1.0-rc58
+  #
+  # rc58 TIDAK PERNAH menetap di staging: pipeline men-deploy-nya, 2 dari 242 tes e2e gagal (240 lulus) dan
+  # staging di-rollback otomatis ke rc57 (revisi Helm 56). (1) Daftar satker untuk operator memuat dua
+  # entri: satker 0200010 berbagi kode SIMAN dengan satker MySIMKARI kedua bernama sama (`09.01`), dan
+  # daftar menggabungkan peta kode ke aset, jadi keduanya muncul. Cacat nyata yang tak terlihat di database
+  # CI yang kosong; kini pembaca tingkat satker hanya ditawari satkernya sendiri. (2) Satu tes pakaian
+  # mencocokkan judul dialog konfirmasi sebagai kartu (substring), sudah flaky di CI; kini cocok persis.
+  # rc58 jangan dipromosikan.
+  #
+  # rc59 = rc58 + perbaikan itu (#1161). Tanpa migrasi baru dan tanpa perubahan chart relatif rc58:
+  # `helm rollback` ke rc57 aman tanpa restore database (V020 aditif, runner perlengkapan abort_missing=false).
+  imageTag: v0.1.0-rc59
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
