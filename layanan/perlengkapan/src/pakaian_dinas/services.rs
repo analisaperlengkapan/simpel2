@@ -658,20 +658,21 @@ impl PakaianDinasService {
         })
     }
 
-    /// Pre-flight readiness for one workflow gate, for the confirmation dialog
-    /// the UI shows before advancing. Advisory: it never blocks a transition.
+    /// Pre-flight readiness for the confirmation dialog the UI shows before a
+    /// move. Advisory: it never blocks a transition. What it answers follows the
+    /// scope of the action:
     ///
-    /// `tahap` is `satker` (one operator's roster), `wilayah` (the satker a
-    /// wilayah validator still waits on) or `pusat` (the satker/wilayah pusat
-    /// still waits on). `kecuali` lists the participation rows about to be
-    /// moved — one for a single action, many for a bulk move — and is excluded
-    /// so the dialog counts only the OTHERS still behind.
+    /// * `satker`: ONE satker (the operator submitting, or a validator moving a
+    ///   single row on): how many of its employees still have no size.
+    /// * `wilayah` / `pusat`: a BULK move of the rows in `terpilih`: how complete
+    ///   those rows are, and, apart from that, which satker in scope are left
+    ///   behind (never submitted; for `pusat` also not yet forwarded).
     pub async fn kesiapan(
         &self,
         pengajuan_id: Uuid,
         tahap: &str,
         satker_code: Option<&str>,
-        kecuali: &[Uuid],
+        terpilih: &[Uuid],
         scope: &SatkerScope,
     ) -> AppResult<KesiapanPakaianDinas> {
         match tahap {
@@ -686,7 +687,7 @@ impl PakaianDinasService {
             }
             "wilayah" | "pusat" => {
                 self.repository
-                    .hitung_kesiapan_level(pengajuan_id, kecuali, tahap, scope)
+                    .hitung_kesiapan_level(pengajuan_id, terpilih, tahap, scope)
                     .await
             }
             _ => Err(bad_request(
