@@ -19,13 +19,9 @@ use std::sync::Arc;
 #[cfg(feature = "consul")]
 use crate::backends::{ConsulBackend, ConsulConfig};
 
-#[cfg(feature = "s3")]
-use crate::backends::{S3Backend, S3Config};
-
 /// Storage backend type enumeration
 /// # Recommendations (HashiCorp Engine-style)
 /// - **Production HA**: `Consul` or `Raft` (no database required!)
-/// - **Cloud**: `S3` for AWS, Azure Blob, or GCS
 /// - **Development**: `File` or `Memory`
 /// - **Legacy**: `Postgres` (optional, not recommended)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -45,10 +41,6 @@ pub enum StorageBackendType {
     #[cfg(feature = "raft-consensus")]
     Raft,
 
-    /// AWS S3 and S3-compatible storage (cloud-native)
-    #[cfg(feature = "s3")]
-    S3,
-
     /// PostgreSQL relational database (optional, not for HA)
     #[cfg(feature = "postgres")]
     Postgres,
@@ -64,10 +56,6 @@ pub struct StorageFactoryConfig {
     #[cfg(feature = "consul")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub consul_config: Option<ConsulConfig>,
-
-    #[cfg(feature = "s3")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub s3_config: Option<S3Config>,
 
     #[cfg(feature = "postgres")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -90,9 +78,6 @@ impl Default for StorageFactoryConfig {
 
             #[cfg(feature = "consul")]
             consul_config: None,
-
-            #[cfg(feature = "s3")]
-            s3_config: None,
 
             #[cfg(feature = "postgres")]
             postgres_config: None,
@@ -139,19 +124,6 @@ impl StorageFactory {
                     }
                 })?;
                 let backend = ConsulBackend::new(consul_config).await?;
-                let adapter = crate::KvBackendAdapter::new(backend);
-                Ok(Arc::new(adapter))
-            }
-
-            #[cfg(feature = "s3")]
-            StorageBackendType::S3 => {
-                let s3_config =
-                    config
-                        .s3_config
-                        .ok_or_else(|| crate::StorageError::ConfigurationError {
-                            message: "S3 backend configuration required".to_string(),
-                        })?;
-                let backend = S3Backend::new(s3_config).await?;
                 let adapter = crate::KvBackendAdapter::new(backend);
                 Ok(Arc::new(adapter))
             }
@@ -204,25 +176,6 @@ impl StorageFactory {
             ..Default::default()
         };
         let backend = ConsulBackend::new(config).await?;
-        let adapter = crate::KvBackendAdapter::new(backend);
-        Ok(Arc::new(adapter))
-    }
-
-    #[cfg(feature = "s3")]
-    pub async fn create_s3(
-        bucket: &str,
-        region: &str,
-        access_key: &str,
-        secret_key: &str,
-    ) -> StorageResult<Arc<dyn StorageBackend>> {
-        let config = S3Config {
-            bucket: bucket.to_string(),
-            region: region.to_string(),
-            access_key: access_key.to_string(),
-            secret_key: secret_key.to_string(),
-            ..Default::default()
-        };
-        let backend = S3Backend::new(config).await?;
         let adapter = crate::KvBackendAdapter::new(backend);
         Ok(Arc::new(adapter))
     }

@@ -751,11 +751,6 @@ async fn check_auto_unseal_status(_state: &AppState) -> Option<crate::response::
 
     // Get provider-specific configuration
     let (key_id, region, endpoint) = match provider_type.as_str() {
-        "aws-kms" => {
-            let key_id = std::env::var("SECRETON_AUTO_UNSEAL_AWS_KEY_ID").ok();
-            let region = std::env::var("SECRETON_AUTO_UNSEAL_AWS_REGION").ok();
-            (key_id, region, None)
-        }
         "gcp-kms" => {
             let key_id = std::env::var("SECRETON_AUTO_UNSEAL_GCP_KEY_NAME").ok();
             let region = std::env::var("SECRETON_AUTO_UNSEAL_GCP_LOCATION").ok();

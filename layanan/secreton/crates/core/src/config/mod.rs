@@ -85,11 +85,10 @@ pub use application::*;
 /// Alias for bootstrap StorageConfig to avoid naming conflict with dynamic::StorageConfig
 pub use bootstrap::StorageConfig as BootstrapStorageConfig;
 pub use bootstrap::{
-    AwsKmsSealConfig, AzureKvSealConfig, BootstrapConfig, FileStorageConfig, GcpKmsSealConfig,
-    GrpcListenerConfig, HttpListenerConfig, ListenerConfig, PostgresStorageConfig,
-    RaftPerformanceConfig, RaftRetryJoin, RaftStorageConfig, SealConfigBootstrap, SealType,
-    SealTypeConfig, ShamirSealConfig, StorageBackend, StorageBackendConfig, TelemetryConfig,
-    TlsConfig,
+    AzureKvSealConfig, BootstrapConfig, FileStorageConfig, GcpKmsSealConfig, GrpcListenerConfig,
+    HttpListenerConfig, ListenerConfig, PostgresStorageConfig, RaftPerformanceConfig,
+    RaftRetryJoin, RaftStorageConfig, SealConfigBootstrap, SealType, SealTypeConfig,
+    ShamirSealConfig, StorageBackend, StorageBackendConfig, TelemetryConfig, TlsConfig,
 };
 
 // Re-export dynamic config (explicit to avoid ambiguity)

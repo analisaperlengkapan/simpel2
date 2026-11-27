@@ -756,25 +756,11 @@ run_test "Verify SSH OTP" "POST" "$BASE_URL/v1/sys/ssh/otp/verify" \
 run_test "SSH certificate audit" "GET" "$BASE_URL/v1/sys/ssh/audit" "" "200"
 
 # ==============================================================================
-# SECTION 20: Cloud Secrets (AWS/GCP/Azure)
-# Correct: AWS needs access_key, secret_key, region, max_ttl, default_ttl
+# SECTION 20: Cloud Secrets (GCP/Azure)
 # Correct: GCP needs project_id, credentials (base64), max_ttl, default_ttl
 # Correct: Azure needs subscription_id, tenant_id, client_id, client_secret, environment, max_ttl, default_ttl
 # ==============================================================================
 section "SECTION 20: Cloud Secrets"
-
-# AWS config may fail with fake creds (expected)
-run_test "Configure AWS" "POST" "$BASE_URL/v1/sys/aws/config/root" \
-    '{"access_key":"AKIAIOSFODNN7EXAMPLE","secret_key":"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY","region":"ap-southeast-1","sts_endpoint":null,"iam_endpoint":null,"max_ttl":43200,"default_ttl":3600}' "200|400"
-
-run_test "Get AWS config" "GET" "$BASE_URL/v1/sys/aws/config/root" "" "200|404"
-
-run_test "Create AWS role" "POST" "$BASE_URL/v1/sys/aws/roles" \
-    '{"name":"s3-role","credential_type":"iam_user","policy_arns":["arn:aws:iam::policy/AmazonS3ReadOnlyAccess"]}' "200|201"
-
-run_test "List AWS roles" "GET" "$BASE_URL/v1/sys/aws/roles" "" "200"
-
-run_test "Get AWS role" "GET" "$BASE_URL/v1/sys/aws/roles/s3-role" "" "200|404"
 
 # GCP - correct full format
 run_test "Configure GCP" "POST" "$BASE_URL/v1/sys/gcp/config/root" \

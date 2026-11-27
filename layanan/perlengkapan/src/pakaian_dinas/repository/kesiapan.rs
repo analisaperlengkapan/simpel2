@@ -1,8 +1,18 @@
 //! Pre-flight readiness for the pakaian dinas workflow gates.
 //!
-//! Every level that advances a campaign (operator → wilayah → pusat) can move
-//! while a lower level is still incomplete. The UI asks this module first and
-//! shows a confirmation dialog; nothing here blocks — the person may proceed.
+//! A confirmation dialog asks this module before a move, and nothing here
+//! blocks: the person may always proceed. What it reports follows the scope of
+//! the action, and only that:
+//!
+//! * ONE satker (the operator submitting, or a validator moving a single row):
+//!   [`PakaianDinasRepository::hitung_kesiapan_satker`], the employees of THAT
+//!   satker who still owe a size. Nothing about other satker: moving this one
+//!   does not depend on them.
+//! * SEVERAL rows at once (the bulk bar of the wilayah or pusat validator):
+//!   [`PakaianDinasRepository::hitung_kesiapan_level`], in two separate groups:
+//!   how complete the rows being moved are (`fokus_*`), and which satker in scope
+//!   are left behind (never submitted, or not yet forwarded by the wilayah).
+//!
 //! The counts live server-side because the client only ever holds one page of
 //! the satker list, not the whole campaign.
 //!
@@ -140,21 +150,25 @@ impl PakaianDinasRepository {
         let belum: i64 = row.get("belum");
         Ok(KesiapanPakaianDinas {
             tahap: "satker".to_string(),
-            lengkap: belum == 0,
+            lengkap: kesiapan_lengkap("satker", belum, 0, 0, 0),
             total,
             pegawai_belum_diisi: belum,
             ..Default::default()
         })
     }
 
-    /// Readiness of one campaign gate (`wilayah` / `pusat`), inside the caller's
-    /// scope. `kecuali` excludes the rows the caller is about to act on (one for
-    /// a single action, many for a bulk move), so the dialog answers "are there
-    /// OTHERS still behind?" and stays silent when the moved rows are the last.
+    /// Readiness of a BULK move at one campaign gate (`wilayah` / `pusat`), inside
+    /// the caller's scope.
+    ///
+    /// `terpilih` are the rows about to be moved (the ticked rows of the bulk
+    /// bar). They are reported separately (`fokus_*`: how complete they are) and
+    /// left OUT of the "behind" counts, so the dialog answers two different
+    /// questions: "is what I am moving complete?" and "who is still behind?",
+    /// and never calls a row it is about to move "behind".
     pub async fn hitung_kesiapan_level(
         &self,
         pengajuan_id: Uuid,
-        kecuali: &[Uuid],
+        terpilih: &[Uuid],
         tahap: &str,
         scope: &SatkerScope,
     ) -> AppResult<KesiapanPakaianDinas> {
@@ -164,13 +178,13 @@ impl PakaianDinasRepository {
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
-        // Empty list = exclude nothing; `<> ALL('{}')` is true for every row.
-        let mut params: Vec<BoxedParam> = vec![Box::new(pengajuan_id), Box::new(kecuali.to_vec())];
+        // Empty list = nothing is being moved: every satker counts as "behind" and
+        // the focus group is empty.
+        let mut params: Vec<BoxedParam> = vec![Box::new(pengajuan_id), Box::new(terpilih.to_vec())];
         let scope_sql = scope_and(scope, "ps.satker_id", &mut params);
-        // One pass: roster members and saved sizes are joined once and "belum"
-        // is counted per satker row. The previous shape ran two correlated
-        // subqueries per satker row, which is what a national campaign pays for
-        // before every dialog.
+        // One pass: roster members and saved sizes are joined once and "belum" is
+        // counted per satker row; the rows are then split into the ones being
+        // moved and the rest.
         let sql = format!(
             r#"
             WITH {cte},
@@ -178,28 +192,31 @@ impl PakaianDinasRepository {
                 SELECT
                     ps.id,
                     ps.aktivitas_id,
+                    (ps.id = ANY($2::uuid[])) AS fokus,
                     COUNT(a.nip) AS total_pegawai,
                     COUNT(a.nip) FILTER (WHERE t.satker_row_id IS NULL) AS belum
                 FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
                 LEFT JOIN anggota a ON a.satker_row_id = ps.id
                 LEFT JOIN terisi t
                        ON t.satker_row_id = a.satker_row_id AND t.nip = a.nip
-                WHERE ps.pengajuan_id = $1
-                  AND ps.id <> ALL($2::uuid[]){scope_sql}
+                WHERE ps.pengajuan_id = $1{scope_sql}
                 GROUP BY ps.id, ps.aktivitas_id
             )
             SELECT
-                COUNT(*) AS total,
+                COUNT(*) FILTER (WHERE NOT fokus) AS total,
                 COUNT(*) FILTER (
-                    WHERE aktivitas_id IN (1000, 1003) AND total_pegawai > 0
+                    WHERE NOT fokus
+                      AND aktivitas_id IN (1000, 1003)
+                      AND total_pegawai > 0
                 ) AS belum_mengajukan,
-                COUNT(*) FILTER (WHERE aktivitas_id IN (1001, 1007, 1012)) AS belum_diteruskan,
-                COUNT(*) FILTER (WHERE aktivitas_id IN (1004, 1010)) AS belum_selesai,
-                COUNT(*) FILTER (WHERE aktivitas_id = 1008) AS selesai,
                 COUNT(*) FILTER (
-                    WHERE aktivitas_id NOT IN (1000, 1003, 1008)
-                      AND belum > 0
-                ) AS belum_lengkap
+                    WHERE NOT fokus AND aktivitas_id IN (1001, 1007, 1012)
+                ) AS belum_diteruskan,
+                COUNT(*) FILTER (WHERE fokus) AS fokus_satker,
+                COUNT(*) FILTER (WHERE fokus AND belum > 0) AS fokus_belum_lengkap,
+                COALESCE(SUM(belum) FILTER (WHERE fokus), 0)::bigint AS fokus_pegawai_belum,
+                COALESCE(SUM(total_pegawai) FILTER (WHERE fokus), 0)::bigint
+                    AS fokus_pegawai_total
             FROM per_satker
             "#,
             cte = anggota_roster_cte(&scope_sql),
@@ -211,21 +228,29 @@ impl PakaianDinasRepository {
 
         let total: i64 = row.get("total");
         let belum_mengajukan: i64 = row.get("belum_mengajukan");
-        let belum_lengkap: i64 = row.get("belum_lengkap");
         let belum_diteruskan: i64 = row.get("belum_diteruskan");
-        let belum_selesai: i64 = row.get("belum_selesai");
-        let selesai: i64 = row.get("selesai");
+        let fokus_satker: i64 = row.get("fokus_satker");
+        let fokus_belum_lengkap: i64 = row.get("fokus_belum_lengkap");
+        let fokus_pegawai_belum: i64 = row.get("fokus_pegawai_belum");
+        let fokus_pegawai_total: i64 = row.get("fokus_pegawai_total");
 
         Ok(KesiapanPakaianDinas {
             tahap: tahap.to_string(),
-            lengkap: kesiapan_lengkap(tahap, belum_mengajukan, belum_lengkap, belum_diteruskan),
+            lengkap: kesiapan_lengkap(
+                tahap,
+                0,
+                fokus_belum_lengkap,
+                belum_mengajukan,
+                belum_diteruskan,
+            ),
             total,
             pegawai_belum_diisi: 0,
+            fokus_satker,
+            fokus_belum_lengkap,
+            fokus_pegawai_belum,
+            fokus_pegawai_total,
             belum_mengajukan,
-            belum_lengkap,
             belum_diteruskan,
-            belum_selesai,
-            selesai,
         })
     }
 }

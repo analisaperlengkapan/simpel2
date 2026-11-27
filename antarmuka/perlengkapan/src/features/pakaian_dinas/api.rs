@@ -192,9 +192,14 @@ pub fn ikon_grup(kode: &str) -> &'static str {
     }
 }
 
-/// Pre-flight readiness for one workflow gate. Mirrors backend
-/// `pakaian_dinas::models::KesiapanPakaianDinas`; every count is advisory and
-/// the person may still proceed.
+/// Pre-flight readiness for a workflow move. Mirrors backend
+/// `pakaian_dinas::models::KesiapanPakaianDinas`; every count is advisory and the
+/// person may still proceed.
+///
+/// What is filled depends on the scope of the action: `satker` (one satker)
+/// fills `total` + `pegawai_belum_diisi`; `wilayah` / `pusat` (a bulk move)
+/// fill the `fokus_*` group (the rows being moved) and, apart from it, the
+/// satker left behind.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct KesiapanPakaianDinas {
     /// `satker` | `wilayah` | `pusat`.
@@ -202,20 +207,30 @@ pub struct KesiapanPakaianDinas {
     pub tahap: String,
     #[serde(default)]
     pub lengkap: bool,
+    /// `satker`: employees in the roster. Bulk: the other satker in scope.
     #[serde(default)]
     pub total: i64,
+    /// `satker` only: employees without a saved size.
     #[serde(default)]
     pub pegawai_belum_diisi: i64,
+    /// Bulk: rows being moved.
+    #[serde(default)]
+    pub fokus_satker: i64,
+    /// Bulk: of those, rows with at least one employee still without a size.
+    #[serde(default)]
+    pub fokus_belum_lengkap: i64,
+    /// Bulk: employees without a size in the rows being moved.
+    #[serde(default)]
+    pub fokus_pegawai_belum: i64,
+    /// Bulk: employees in the rows being moved.
+    #[serde(default)]
+    pub fokus_pegawai_total: i64,
+    /// Bulk, outside the moved rows: satker that have not submitted.
     #[serde(default)]
     pub belum_mengajukan: i64,
-    #[serde(default)]
-    pub belum_lengkap: i64,
+    /// Bulk, outside the moved rows: satker waiting at the wilayah, not forwarded.
     #[serde(default)]
     pub belum_diteruskan: i64,
-    #[serde(default)]
-    pub belum_selesai: i64,
-    #[serde(default)]
-    pub selesai: i64,
 }
 
 /// Figures shared by the campaign and by each wilayah. Mirrors backend
@@ -373,27 +388,30 @@ pub async fn masukkan_kembali_pegawai(
 }
 
 /// `GET /pakaian-dinas/pengajuan/{id}/kesiapan` — counts for the confirmation
-/// dialog. `kecuali` lists the participation rows about to be moved (one for a
-/// single action, many for a bulk move), so they are not counted against the
-/// person moving them.
+/// dialog, scoped to the action:
+///
+/// * `tahap = "satker"` with `satker_code`: ONE satker (the operator submitting,
+///   or a validator moving a single row on);
+/// * `tahap = "wilayah" | "pusat"` with `terpilih`: a BULK move of those rows,
+///   reported apart from the satker left behind.
 pub async fn fetch_kesiapan_pakaian_dinas(
     pengajuan_id: &str,
     tahap: &str,
     satker_code: Option<&str>,
-    kecuali: &[String],
+    terpilih: &[String],
 ) -> AppResult<KesiapanPakaianDinas> {
     let mut jalan = format!("/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap={tahap}");
     if let Some(kode) = satker_code.filter(|k| !k.trim().is_empty()) {
         jalan.push_str(&format!("&satker_code={kode}"));
     }
-    let kecuali = kecuali
+    let terpilih = terpilih
         .iter()
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
         .join(",");
-    if !kecuali.is_empty() {
-        jalan.push_str(&format!("&kecuali={kecuali}"));
+    if !terpilih.is_empty() {
+        jalan.push_str(&format!("&terpilih={terpilih}"));
     }
     let r: Bungkus<KesiapanPakaianDinas> = api_get(&jalan).await?;
     Ok(r.data)
@@ -425,36 +443,55 @@ pub fn hitung_pengisian(pegawai: &[RosterPegawai]) -> HitungPengisian {
     }
 }
 
-/// One-sentence warning for the confirmation dialog, or `None` when there is
-/// nothing outstanding to mention. Pure, so the wording is testable.
+/// Warning for the confirmation dialog, or `None` when there is nothing outstanding
+/// to mention. Pure, so the wording is testable.
+///
+/// The wording follows the scope of the action: ONE satker says only what is
+/// missing in that satker; a bulk move says how complete the rows being moved
+/// are, then who is left behind.
 pub fn ringkasan_kesiapan(k: &KesiapanPakaianDinas) -> Option<String> {
-    let mut bagian = Vec::new();
     if k.tahap == "satker" {
-        if k.pegawai_belum_diisi > 0 {
-            bagian.push(format!(
-                "{} dari {} pegawai belum mengisi ukuran",
-                k.pegawai_belum_diisi, k.total
-            ));
-        }
+        ringkasan_satker(k)
     } else {
-        if k.belum_mengajukan > 0 {
-            bagian.push(format!(
-                "{} satker belum mengajukan ke validator wilayah",
-                k.belum_mengajukan
-            ));
-        }
-        if k.belum_lengkap > 0 {
-            bagian.push(format!(
-                "{} satker sudah diajukan tetapi ukurannya belum lengkap",
-                k.belum_lengkap
-            ));
-        }
-        if k.tahap == "pusat" && k.belum_diteruskan > 0 {
-            bagian.push(format!(
-                "{} satker belum diteruskan ke validator pusat",
-                k.belum_diteruskan
-            ));
-        }
+        ringkasan_massal(k)
+    }
+}
+
+/// One satker: employees of THAT satker who still owe a size.
+fn ringkasan_satker(k: &KesiapanPakaianDinas) -> Option<String> {
+    if k.pegawai_belum_diisi <= 0 {
+        return None;
+    }
+    Some(if k.pegawai_belum_diisi >= k.total {
+        "Belum ada pegawai satker ini yang mengisi ukuran.".to_string()
+    } else {
+        format!(
+            "{} dari {} pegawai satker ini belum mengisi ukuran.",
+            k.pegawai_belum_diisi, k.total
+        )
+    })
+}
+
+/// A bulk move: first the rows being moved, then the satker left behind.
+fn ringkasan_massal(k: &KesiapanPakaianDinas) -> Option<String> {
+    let mut bagian = Vec::new();
+    if k.fokus_belum_lengkap > 0 {
+        bagian.push(format!(
+            "{} dari {} satker yang dipilih belum lengkap ({} dari {} pegawainya belum mengisi ukuran)",
+            k.fokus_belum_lengkap, k.fokus_satker, k.fokus_pegawai_belum, k.fokus_pegawai_total
+        ));
+    }
+    if k.belum_mengajukan > 0 {
+        bagian.push(format!(
+            "{} satker lain belum mengajukan ke validator wilayah",
+            k.belum_mengajukan
+        ));
+    }
+    if k.tahap == "pusat" && k.belum_diteruskan > 0 {
+        bagian.push(format!(
+            "{} satker lain belum diteruskan ke validator pusat",
+            k.belum_diteruskan
+        ));
     }
     if bagian.is_empty() {
         None
@@ -473,64 +510,86 @@ mod kesiapan_ringkasan_tests {
             lengkap: belum == 0,
             total,
             pegawai_belum_diisi: belum,
+            // Whatever the other satker are doing is none of this action's business.
+            belum_mengajukan: 9,
+            belum_diteruskan: 9,
+            ..Default::default()
+        }
+    }
+
+    fn massal(tahap: &str) -> KesiapanPakaianDinas {
+        KesiapanPakaianDinas {
+            tahap: tahap.to_string(),
+            lengkap: false,
             ..Default::default()
         }
     }
 
     #[test]
-    fn a_complete_gate_has_nothing_to_warn_about() {
+    fn a_complete_move_has_nothing_to_warn_about() {
         assert_eq!(ringkasan_kesiapan(&satker(0, 40)), None);
-        let wilayah = KesiapanPakaianDinas {
-            tahap: "wilayah".to_string(),
-            lengkap: true,
-            total: 10,
-            ..Default::default()
-        };
-        assert_eq!(ringkasan_kesiapan(&wilayah), None);
+        assert_eq!(ringkasan_kesiapan(&massal("wilayah")), None);
+        assert_eq!(ringkasan_kesiapan(&massal("pusat")), None);
     }
 
     #[test]
-    fn the_satker_warning_names_the_unfilled_employees() {
+    fn one_satker_names_only_its_own_unfilled_employees() {
         let teks = ringkasan_kesiapan(&satker(3, 40)).unwrap();
-        assert!(teks.contains("3 dari 40 pegawai"), "{teks}");
-    }
-
-    #[test]
-    fn the_wilayah_warning_names_unsubmitted_and_half_filled_satker() {
-        let k = KesiapanPakaianDinas {
-            tahap: "wilayah".to_string(),
-            lengkap: false,
-            total: 10,
-            belum_mengajukan: 2,
-            belum_lengkap: 1,
-            // Not forwarded yet is the wilayah's own queue, not a warning here.
-            belum_diteruskan: 4,
-            ..Default::default()
-        };
-        let teks = ringkasan_kesiapan(&k).unwrap();
-        assert!(teks.contains("2 satker belum mengajukan"), "{teks}");
-        assert!(teks.contains("1 satker sudah diajukan"), "{teks}");
+        assert_eq!(teks, "3 dari 40 pegawai satker ini belum mengisi ukuran.");
+        // The counts about OTHER satker are present in the data and must not leak in.
+        assert!(!teks.contains("belum mengajukan"), "{teks}");
         assert!(!teks.contains("diteruskan"), "{teks}");
     }
 
     #[test]
-    fn the_pusat_warning_also_names_satker_wilayah_has_not_forwarded() {
+    fn one_satker_where_nobody_has_filled_says_so() {
+        let teks = ringkasan_kesiapan(&satker(12, 12)).unwrap();
+        assert_eq!(teks, "Belum ada pegawai satker ini yang mengisi ukuran.");
+    }
+
+    #[test]
+    fn a_bulk_move_reports_the_moved_rows_first_and_then_who_is_left_behind() {
         let k = KesiapanPakaianDinas {
-            tahap: "pusat".to_string(),
-            lengkap: false,
-            total: 100,
+            fokus_satker: 5,
+            fokus_belum_lengkap: 2,
+            fokus_pegawai_belum: 9,
+            fokus_pegawai_total: 60,
             belum_mengajukan: 3,
-            belum_lengkap: 0,
-            belum_diteruskan: 7,
-            belum_selesai: 5,
-            ..Default::default()
+            // At the wilayah step "not yet forwarded" is the validator's own queue.
+            belum_diteruskan: 4,
+            ..massal("wilayah")
         };
         let teks = ringkasan_kesiapan(&k).unwrap();
-        assert!(teks.contains("3 satker belum mengajukan"), "{teks}");
-        assert!(teks.contains("7 satker belum diteruskan"), "{teks}");
-        // Satker already at pusat waiting for its own approval is not a
-        // subordinate failure and is deliberately not warned about.
-        assert!(!teks.contains("menunggu persetujuan"), "{teks}");
+        assert!(
+            teks.starts_with("2 dari 5 satker yang dipilih belum lengkap (9 dari 60 pegawainya"),
+            "{teks}"
+        );
+        assert!(teks.contains("3 satker lain belum mengajukan"), "{teks}");
+        assert!(!teks.contains("diteruskan"), "{teks}");
+    }
+
+    #[test]
+    fn a_bulk_move_of_complete_rows_still_names_who_is_left_behind() {
+        let k = KesiapanPakaianDinas {
+            fokus_satker: 4,
+            belum_mengajukan: 2,
+            ..massal("wilayah")
+        };
+        let teks = ringkasan_kesiapan(&k).unwrap();
+        assert_eq!(teks, "2 satker lain belum mengajukan ke validator wilayah.");
+    }
+
+    #[test]
+    fn the_pusat_bulk_move_also_names_satker_the_wilayah_has_not_forwarded() {
+        let k = KesiapanPakaianDinas {
+            fokus_satker: 1,
+            belum_mengajukan: 3,
+            belum_diteruskan: 7,
+            ..massal("pusat")
+        };
+        let teks = ringkasan_kesiapan(&k).unwrap();
+        assert!(teks.contains("3 satker lain belum mengajukan"), "{teks}");
+        assert!(teks.contains("7 satker lain belum diteruskan"), "{teks}");
     }
 }
 

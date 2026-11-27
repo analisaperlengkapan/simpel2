@@ -766,7 +766,8 @@ async fn kesiapan_menghitung_yang_belum_mengisi_dan_yang_belum_mengajukan() {
     assert_eq!(k["tahap"].as_str(), Some("pusat"));
     assert_eq!(k["total"].as_i64(), Some(2), "{k:?}");
     assert_eq!(k["belum_mengajukan"].as_i64(), Some(2), "{k:?}");
-    assert_eq!(k["belum_lengkap"].as_i64(), Some(0), "{k:?}");
+    // Nothing is being moved, so the "rows being moved" group is empty.
+    assert_eq!(k["fokus_satker"].as_i64(), Some(0), "{k:?}");
     assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
 
     // The operator's own gate counts employees, not satker.
@@ -815,11 +816,12 @@ async fn kesiapan_menghitung_yang_belum_mengisi_dan_yang_belum_mengajukan() {
     .await;
     assert_eq!(res.status_code(), 200, "ajukan: {:?}", res.text());
 
-    // Pusat excludes the row it is about to act on: the remaining satker is
-    // still at Input.
+    // A bulk move at pusat names the row it is moving (`terpilih`). That row is
+    // reported on its own (it was submitted with nothing filled in), and left out
+    // of "who is behind": the remaining satker is still at Input.
     let res = get(
         &server,
-        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=pusat&kecuali={row_id}"),
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=pusat&terpilih={row_id}"),
         "validator_pusat",
         PUSAT,
         SATKER_A,
@@ -829,10 +831,31 @@ async fn kesiapan_menghitung_yang_belum_mengisi_dan_yang_belum_mengajukan() {
     let k = res.json::<Value>()["data"].clone();
     assert_eq!(k["total"].as_i64(), Some(1), "{k:?}");
     assert_eq!(k["belum_mengajukan"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["fokus_satker"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["fokus_belum_lengkap"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["fokus_pegawai_belum"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["fokus_pegawai_total"].as_i64(), Some(1), "{k:?}");
     assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
 
-    // Wilayah: SKR001 was submitted but has no sizes, SKR002 has not submitted
-    // at all. The two failures are reported separately.
+    // `kecuali` is the old name of `terpilih`: a front end cached from before the
+    // rename must get the same answer.
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=pusat&kecuali={row_id}"),
+        "validator_pusat",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "alias kecuali: {:?}", res.text());
+    assert_eq!(
+        res.json::<Value>()["data"]["fokus_satker"].as_i64(),
+        Some(1),
+        "alias kecuali"
+    );
+
+    // Wilayah, nothing being moved: SKR001 was submitted (so it is no longer
+    // "behind"), SKR002 has not submitted at all.
     let res = get(
         &server,
         &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=wilayah"),
@@ -845,12 +868,13 @@ async fn kesiapan_menghitung_yang_belum_mengisi_dan_yang_belum_mengajukan() {
     let k = res.json::<Value>()["data"].clone();
     assert_eq!(k["total"].as_i64(), Some(2), "{k:?}");
     assert_eq!(k["belum_mengajukan"].as_i64(), Some(1), "{k:?}");
-    assert_eq!(k["belum_lengkap"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["fokus_satker"].as_i64(), Some(0), "{k:?}");
     assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
 
-    // A bulk move excludes EVERY selected row: with both participation rows
-    // named, nothing is left behind, so the bulk dialog stays quiet. This is
-    // the comma list the mass-action bar sends.
+    // A bulk move names EVERY selected row: with both participation rows named,
+    // nobody is left behind (`total` 0), but the two rows being moved are both
+    // still empty and the answer says so. This is the comma list the
+    // mass-action bar sends.
     let res = get(
         &server,
         &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker"),
@@ -872,7 +896,7 @@ async fn kesiapan_menghitung_yang_belum_mengisi_dan_yang_belum_mengajukan() {
     let res = get(
         &server,
         &format!(
-            "/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=wilayah&kecuali={row_id},{other_id}"
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=wilayah&terpilih={row_id},{other_id}"
         ),
         "validator_wilayah",
         PUSAT,
@@ -882,13 +906,17 @@ async fn kesiapan_menghitung_yang_belum_mengisi_dan_yang_belum_mengajukan() {
     assert_eq!(res.status_code(), 200, "kesiapan massal: {:?}", res.text());
     let k = res.json::<Value>()["data"].clone();
     assert_eq!(k["total"].as_i64(), Some(0), "{k:?}");
-    assert_eq!(k["lengkap"].as_bool(), Some(true), "{k:?}");
+    assert_eq!(k["belum_mengajukan"].as_i64(), Some(0), "{k:?}");
+    assert_eq!(k["fokus_satker"].as_i64(), Some(2), "{k:?}");
+    assert_eq!(k["fokus_belum_lengkap"].as_i64(), Some(2), "{k:?}");
+    assert_eq!(k["fokus_pegawai_belum"].as_i64(), Some(2), "{k:?}");
+    assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
 
     // A malformed entry is a 400, not a silently dropped row.
     let res = get(
         &server,
         &format!(
-            "/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=wilayah&kecuali=bukan-uuid"
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=wilayah&terpilih=bukan-uuid"
         ),
         "validator_wilayah",
         PUSAT,
@@ -898,7 +926,7 @@ async fn kesiapan_menghitung_yang_belum_mengisi_dan_yang_belum_mengajukan() {
     assert_eq!(
         res.status_code(),
         400,
-        "kecuali tidak valid: {:?}",
+        "terpilih tidak valid: {:?}",
         res.text()
     );
 
@@ -1236,8 +1264,126 @@ async fn satker_tanpa_pegawai_tidak_menahan_peringatan() {
     .await;
     let k = res.json::<Value>()["data"].clone();
     assert_eq!(k["belum_mengajukan"].as_i64(), Some(0), "{k:?}");
-    assert_eq!(k["belum_lengkap"].as_i64(), Some(0), "{k:?}");
     assert_eq!(k["lengkap"].as_bool(), Some(true), "{k:?}");
+
+    teardown_test_db(&db_name).await;
+}
+
+/// The id of the participation row of `satker` in the campaign.
+async fn baris_satker(server: &TestServer, pengajuan_id: &str, satker: &str) -> String {
+    let res = get(
+        server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker"),
+        "validator_pusat",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    res.json::<Value>()["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["satker_id"].as_str() == Some(satker))
+        .and_then(|r| r["id"].as_str())
+        .unwrap_or_else(|| panic!("baris {satker}"))
+        .to_string()
+}
+
+/// Moving ONE satker on (the single-satker action of a wilayah or pusat
+/// validator) is only about THAT satker. Whether some other satker has
+/// submitted, or has not, must not appear in what it is warned about.
+#[tokio::test]
+async fn kesiapan_satker_tunggal_hanya_menyangkut_satker_itu() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+    let satker_a = format!(
+        "/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=satker&satker_code={SATKER_A}"
+    );
+
+    // SKR001's one employee has no size; SKR002 has not submitted either. The
+    // validator moving SKR001 is told about SKR001 and nothing else.
+    for (rol, user) in [("validator_wilayah", PUSAT), ("validator_pusat", PUSAT)] {
+        let res = get(&server, &satker_a, rol, user, SATKER_A).await;
+        assert_eq!(res.status_code(), 200, "{rol}: {:?}", res.text());
+        let k = res.json::<Value>()["data"].clone();
+        assert_eq!(k["tahap"].as_str(), Some("satker"), "{k:?}");
+        assert_eq!(k["total"].as_i64(), Some(1), "{rol}: {k:?}");
+        assert_eq!(k["pegawai_belum_diisi"].as_i64(), Some(1), "{rol}: {k:?}");
+        assert_eq!(k["lengkap"].as_bool(), Some(false), "{rol}: {k:?}");
+        assert_eq!(k["belum_mengajukan"].as_i64(), Some(0), "{rol}: {k:?}");
+        assert_eq!(k["belum_diteruskan"].as_i64(), Some(0), "{rol}: {k:?}");
+    }
+
+    // Once SKR001 is filled it is complete, although SKR002 is still untouched:
+    // that is not SKR001's concern.
+    simpan_ukuran(&server, &pengajuan_id, NIP_A, &pakaian_id, "L").await;
+    let res = get(&server, &satker_a, "validator_wilayah", PUSAT, SATKER_A).await;
+    let k = res.json::<Value>()["data"].clone();
+    assert_eq!(k["pegawai_belum_diisi"].as_i64(), Some(0), "{k:?}");
+    assert_eq!(k["lengkap"].as_bool(), Some(true), "{k:?}");
+
+    teardown_test_db(&db_name).await;
+}
+
+/// A bulk move answers two separate questions: how complete the rows being
+/// moved are, and who is left behind. Moving a complete row while another satker
+/// has not submitted reports the second, not the first.
+#[tokio::test]
+async fn kesiapan_massal_memisahkan_yang_dipindah_dari_yang_tertinggal() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+
+    // SKR001 is filled in and submitted; SKR002 is untouched.
+    simpan_ukuran(&server, &pengajuan_id, NIP_A, &pakaian_id, "L").await;
+    let row_a = baris_satker(&server, &pengajuan_id, SATKER_A).await;
+    let res = post(
+        &server,
+        "/pakaian-dinas/validator-action",
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+        json!({"pengajuan_satker_id": row_a, "aksi": "submit", "tahap": "satker"}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "ajukan: {:?}", res.text());
+
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=wilayah&terpilih={row_a}"),
+        "validator_wilayah",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    let k = res.json::<Value>()["data"].clone();
+    // What is being moved is complete...
+    assert_eq!(k["fokus_satker"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["fokus_belum_lengkap"].as_i64(), Some(0), "{k:?}");
+    assert_eq!(k["fokus_pegawai_belum"].as_i64(), Some(0), "{k:?}");
+    assert_eq!(k["fokus_pegawai_total"].as_i64(), Some(1), "{k:?}");
+    // ...but SKR002 has not submitted, and that alone makes the move "not complete".
+    assert_eq!(k["total"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["belum_mengajukan"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
+
+    // Moving SKR002 (never submitted, nothing filled) instead: the focus group
+    // is the incomplete one, and nobody is left behind below.
+    let row_b = baris_satker(&server, &pengajuan_id, SATKER_B).await;
+    let res = get(
+        &server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan?tahap=wilayah&terpilih={row_b}"),
+        "validator_wilayah",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    let k = res.json::<Value>()["data"].clone();
+    assert_eq!(k["fokus_belum_lengkap"].as_i64(), Some(1), "{k:?}");
+    assert_eq!(k["belum_mengajukan"].as_i64(), Some(0), "{k:?}");
+    assert_eq!(k["lengkap"].as_bool(), Some(false), "{k:?}");
 
     teardown_test_db(&db_name).await;
 }

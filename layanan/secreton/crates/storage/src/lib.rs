@@ -223,9 +223,6 @@ pub use memory::MemoryBackend;
 #[cfg(feature = "consul")]
 pub use backends::{ConsulBackend, ConsulConfig};
 
-#[cfg(feature = "s3")]
-pub use backends::{S3Backend, S3Config};
-
 #[cfg(feature = "postgres")]
 pub use backends::PostgresBackend;
 

@@ -1071,6 +1071,41 @@ test.describe("Pakaian Dinas — bulk actions for an account holding both valida
     await ctx.close();
   });
 
+  // The warning follows the scope of the action. Moving ONE satker on is only about THAT satker:
+  // another satker that has not been forwarded, or has not submitted, must not show up in it.
+  test("a single satker's confirmation does not warn about other satker", async ({ browser, request }) => {
+    const { pengajuanId, rows } = await kampanyeDuaSatker(request);
+    // rows[0] waits at wilayah (1001), rows[1] has been sent on and waits at pusat (1004).
+    expect((await aksiPakaian(request, "operator_a", rows[0], "submit")).aktivitas).toBe(1001);
+    expect((await aksiPakaian(request, "operator_b", rows[1], "submit")).aktivitas).toBe(1001);
+    expect((await aksiPakaian(request, "validator_wilayah", rows[1], "approve")).aktivitas).toBe(1004);
+
+    const ctx = await browser.newContext({ storageState: storageStatePath("validator_pusat") });
+    const page = await ctx.newPage();
+    const kesiapan: string[] = [];
+    page.on("request", (r) => { if (r.url().includes("/kesiapan")) kesiapan.push(r.url()); });
+    await page.goto(`${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker`, { waitUntil: "domcontentloaded" });
+
+    // Open the pusat-stage row and press its OWN approve button (not the bulk bar's).
+    await page.getByRole("button", { name: "Lihat Riwayat & Aksi" }).nth(1).click();
+    await page.locator("button:not([disabled])", { hasText: "Setujui (Selesai)" }).last().click();
+    await expect(page.getByTestId("dialog-konfirmasi").or(page.getByRole("dialog")).or(page.locator("textarea")).first())
+      .toBeVisible({ timeout: 15000 });
+
+    // The question went out for THIS satker only, never as a campaign-wide count.
+    await expect.poll(() => kesiapan.length, { timeout: 15000 }).toBeGreaterThan(0);
+    expect(kesiapan.every((u) => u.includes("tahap=satker") && u.includes("satker_code=")), kesiapan.join(" | ")).toBe(true);
+
+    // And whatever it says is about that satker: the other row (still at wilayah) is not named.
+    const peringatan = page.getByTestId("dialog-peringatan");
+    if (await peringatan.count()) {
+      await expect(peringatan).not.toContainText("belum diteruskan");
+      await expect(peringatan).not.toContainText("belum mengajukan");
+      await expect(peringatan).toContainText("satker ini");
+    }
+    await ctx.close();
+  });
+
   // A tick is the satker AND the move it was ticked for. Ticked as a bare id, a satker forwarded
   // from its own panel kept its tick and turned up selected on the final-approval bar, whose button
   // then finished it too.

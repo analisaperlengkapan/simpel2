@@ -9,7 +9,7 @@ pub struct HsmConfig {
     /// Enable HSM integration
     pub enabled: bool,
 
-    /// HSM provider type (pkcs11, aws-kms, azure-keyengine, gcp-kms)
+    /// HSM provider type (pkcs11, azure-keyengine, gcp-kms)
     pub provider: HsmProvider,
 
     /// PKCS#11 library path (for PKCS#11 provider)
@@ -52,8 +52,6 @@ pub struct HsmConfig {
 pub enum HsmProvider {
     /// PKCS#11 compatible HSM
     Pkcs11,
-    /// AWS KMS
-    AwsKms,
     /// Azure Key Engine
     AzureKeyEngine,
     /// Google Cloud KMS
@@ -95,9 +93,6 @@ impl HsmConfig {
                 if self.slot_id.is_none() {
                     return Err("HSM slot ID is required".to_string());
                 }
-            }
-            HsmProvider::AwsKms => {
-                // AWS KMS validation would go here
             }
             HsmProvider::AzureKeyEngine => {
                 // Azure Key Engine validation would go here

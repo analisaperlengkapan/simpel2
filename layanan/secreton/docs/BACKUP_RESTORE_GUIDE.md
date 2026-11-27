@@ -1,5 +1,7 @@
 # Secreton Backup & Restore Guide
 
+> **Catatan (2026-11):** penyedia dan layanan AWS (KMS, S3, IAM/STS, CloudHSM) sudah **dihapus dari kode** — deployment ini berjalan di server sendiri / pusat data nasional, tanpa cloud publik. Bagian di dokumen ini yang masih menyebut AWS tidak berlaku dan hanya tersisa sebagai riwayat.
+
 **Version:** 2.0
 **Last Updated:** February 18, 2026
 **Status:** Production Ready
@@ -24,7 +26,7 @@
 Secreton provides comprehensive automated backup and restore capabilities to protect your secrets, configuration, and audit logs from data loss. The backup system supports:
 
 - **Automated Scheduled Backups**: Cron-based scheduling for hands-free operation
-- **Multiple Storage Backends**: Local filesystem, S3-compatible storage (AWS S3, MinIO, Wasabi, etc.)
+- **Multiple Storage Backends**: Local filesystem (the S3-compatible backend was removed with the AWS SDK)
 - **Encryption at Rest**: ChaCha20-Poly1305 encryption with separate backup keys
 - **Compression**: Gzip compression to reduce storage costs (50-70% reduction)
 - **Point-in-Time Recovery**: Restore to any previous backup
@@ -100,150 +102,9 @@ verify_after_backup = true
 type = "local"
 path = "/var/backups/secreton"
 
-# Or use S3
-# type = "s3"
-# bucket = "secreton-backups"
-# region = "us-east-1"
-# prefix = "production/"
 ```
 
 Restart Secreton to apply changes.
-
----
-
-## S3-Compatible Storage Setup
-
-### AWS S3
-
-#### 1. Create S3 Bucket
-
-```bash
-aws s3 mb s3://secreton-backups --region us-east-1
-```
-
-#### 2. Create IAM Policy
-
-Create `secreton-backup-policy.json`:
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:PutObject",
-        "s3:GetObject",
-        "s3:DeleteObject",
-        "s3:ListBucket"
-      ],
-      "Resource": [
-        "arn:aws:s3:::secreton-backups",
-        "arn:aws:s3:::secreton-backups/*"
-      ]
-    }
-  ]
-}
-```
-
-Apply the policy:
-
-```bash
-aws iam create-policy \
-  --policy-name SecretonBackupPolicy \
-  --policy-document file://secreton-backup-policy.json
-```
-
-#### 3. Attach Policy to IAM Role/User
-
-```bash
-# For EC2 instance role
-aws iam attach-role-policy \
-  --role-name secreton-instance-role \
-  --policy-arn arn:aws:iam::ACCOUNT_ID:policy/SecretonBackupPolicy
-
-# Or for IAM user
-aws iam attach-user-policy \
-  --user-name secreton-backup-user \
-  --policy-arn arn:aws:iam::ACCOUNT_ID:policy/SecretonBackupPolicy
-```
-
-#### 4. Configure Secreton
-
-```toml
-[backup.storage]
-type = "s3"
-bucket = "secreton-backups"
-region = "us-east-1"
-prefix = "production/"
-# Use IAM role (recommended) or access keys
-# access_key_id = "AKIAIOSFODNN7EXAMPLE"
-# secret_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-```
-
-### MinIO (Self-Hosted S3-Compatible)
-
-#### 1. Install MinIO
-
-```bash
-# Docker
-docker run -d \
-  -p 9000:9000 \
-  -p 9001:9001 \
-  --name minio \
-  -v /data/minio:/data \
-  -e "MINIO_ROOT_USER=minioadmin" \
-  -e "MINIO_ROOT_PASSWORD=minioadmin" \
-  quay.io/minio/minio server /data --console-address ":9001"
-```
-
-#### 2. Create Bucket
-
-```bash
-# Using mc (MinIO Client)
-mc alias set myminio http://localhost:9000 minioadmin minioadmin
-mc mb myminio/secreton-backups
-```
-
-#### 3. Configure Secreton
-
-```toml
-[backup.storage]
-type = "s3"
-bucket = "secreton-backups"
-region = "us-east-1"  # Required but not used by MinIO
-endpoint = "http://localhost:9000"
-access_key_id = "minioadmin"
-secret_access_key = "minioadmin"
-force_path_style = true  # Required for MinIO
-prefix = "backups/"
-```
-
-### Wasabi Cloud Storage
-
-```toml
-[backup.storage]
-type = "s3"
-bucket = "secreton-backups"
-region = "us-east-1"
-endpoint = "https://s3.us-east-1.wasabisys.com"
-access_key_id = "YOUR_WASABI_ACCESS_KEY"
-secret_access_key = "YOUR_WASABI_SECRET_KEY"
-prefix = "production/"
-```
-
-### DigitalOcean Spaces
-
-```toml
-[backup.storage]
-type = "s3"
-bucket = "secreton-backups"
-region = "nyc3"
-endpoint = "https://nyc3.digitaloceanspaces.com"
-access_key_id = "YOUR_SPACES_ACCESS_KEY"
-secret_access_key = "YOUR_SPACES_SECRET_KEY"
-prefix = "production/"
-```
 
 ---
 

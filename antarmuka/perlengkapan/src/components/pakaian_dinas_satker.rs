@@ -889,6 +889,8 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                 let sid_a = s.id.clone();
                                 let sid_r = s.id.clone();
                                 let pid_a = s.pengajuan_id.clone();
+                                // The single-satker warning is about THIS satker only.
+                                let kode_a = s.satker_id.clone();
                                 let approve_title = approve_label.to_string();
                                 let reject_title = reject_label.to_string();
                                 let satker_nama = s.satker_nama.clone();
@@ -901,15 +903,18 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                         Callback::new(move |_: ()| {
                                             let sid = sid_a.clone();
                                             let pid = pid_a.clone();
+                                            let kode = kode_a.clone();
                                             let title = approve_title.clone();
                                             let nama = satker_nama.clone();
                                             busy.set(true);
                                             spawn_local(async move {
+                                                // One satker moves on: warn about that satker's own
+                                                // employees, not about the rest of the campaign.
                                                 let warning = fetch_kesiapan_pakaian_dinas(
                                                     &pid,
-                                                    tahap,
-                                                    None,
-                                                    std::slice::from_ref(&sid),
+                                                    "satker",
+                                                    Some(kode.as_str()),
+                                                    &[],
                                                 )
                                                 .await
                                                 .ok()

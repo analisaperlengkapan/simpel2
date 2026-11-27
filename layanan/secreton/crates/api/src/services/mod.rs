@@ -20,7 +20,6 @@ use secreton_core::namespace::NamespaceService;
 use secreton_core::services::lease::LeaseManager;
 use secreton_core::services::rotation::AutoRotationEngine;
 use secreton_core::services::seal::{SealConfig, SealService};
-use secreton_core::services::secrets::aws::AwsEngine;
 use secreton_core::services::secrets::database::DatabaseSecretsEngine;
 use secreton_core::services::secrets::pki::PkiEngine;
 use secreton_core::services::secrets::ssh::SshEngine;
@@ -91,9 +90,6 @@ pub struct ServiceContainer {
 
     /// PKI secrets engine
     pub pki_engine: Arc<PkiEngine>,
-
-    /// AWS secrets engine
-    pub aws_engine: Arc<AwsEngine>,
 
     /// Auto-rotation engine
     pub rotation_engine: Arc<AutoRotationEngine>,
@@ -235,7 +231,6 @@ impl ServiceContainer {
             transit_engine,
             ssh_engine,
             pki_engine,
-            aws_engine,
             rotation_engine,
             policy_service,
             wrapping_service,
@@ -269,7 +264,6 @@ impl ServiceContainer {
             transit_engine,
             ssh_engine,
             pki_engine,
-            aws_engine,
             rotation_engine,
             lease_manager,
             policy_service,
@@ -443,7 +437,6 @@ impl ServiceContainer {
         Arc<TransitEngine>,
         Arc<SshEngine>,
         Arc<PkiEngine>,
-        Arc<AwsEngine>,
         Arc<AutoRotationEngine>,
         Arc<policy::PolicyService>,
         Arc<WrappingService>,
@@ -466,9 +459,6 @@ impl ServiceContainer {
         let pki_engine = Arc::new(PkiEngine::new());
         tracing::info!("✅ PKI secrets engine initialized");
 
-        let aws_engine = Arc::new(AwsEngine::new());
-        tracing::info!("✅ AWS secrets engine initialized");
-
         let rotation_engine = Arc::new(AutoRotationEngine::new());
         tracing::info!("✅ Auto-rotation engine initialized");
 
@@ -485,7 +475,6 @@ impl ServiceContainer {
             transit_engine,
             ssh_engine,
             pki_engine,
-            aws_engine,
             rotation_engine,
             policy_service,
             wrapping_service,
@@ -841,8 +830,6 @@ impl ServiceContainer {
         let transit_engine = Arc::new(TransitEngine::new());
         let ssh_engine = Arc::new(SshEngine::with_storage(pool.clone()));
         let pki_engine = Arc::new(PkiEngine::new());
-        let aws_engine = Arc::new(AwsEngine::new());
-
         let rotation_engine = Arc::new(AutoRotationEngine::new());
 
         let lease_manager = Arc::new(LeaseManager::new(pool.clone()));
@@ -886,7 +873,6 @@ impl ServiceContainer {
             transit_engine,
             ssh_engine,
             pki_engine,
-            aws_engine,
             rotation_engine,
             lease_manager,
             policy_service,

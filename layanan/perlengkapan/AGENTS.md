@@ -560,10 +560,15 @@ The campaign workflow has three gates — `satker` (operator → wilayah),
 `wilayah` (wilayah → pusat), `pusat` (pusat finishes the activity). Three
 contracts hold it together; changing one means changing all three:
 
-- **Readiness counts PEOPLE, not participation rows.** `GET
-  /pakaian-dinas/pengajuan/{id}/kesiapan?tahap=&satker_code=&kecuali=` returns
-  `KesiapanPakaianDinas`. `kecuali` lists the rows the caller is about to move
-  so they do not count against them. It is advisory: the person may proceed.
+- **Readiness counts PEOPLE, not participation rows, and follows the SCOPE of
+  the action.** `GET /pakaian-dinas/pengajuan/{id}/kesiapan` returns
+  `KesiapanPakaianDinas`. `?tahap=satker&satker_code=` answers for ONE satker
+  (the operator submitting, or a validator moving a single row on): only that
+  satker's employees without a size, nothing about any other satker. `?tahap=
+  wilayah|pusat&terpilih=<row ids>` answers for a BULK move in two separate
+  groups: `fokus_*` (how complete the rows being moved are) and the satker left
+  behind (`belum_mengajukan`, and for pusat `belum_diteruskan`). `kecuali` is the
+  old name of `terpilih`. It is advisory: the person may proceed.
 - **Monitoring reads the same roster as readiness.** `GET
   /pakaian-dinas/pengajuan/{id}/progres` returns `ProgresPakaianDinas`: the campaign
   summary by workflow stage, a table per wilayah (least filled first, through
