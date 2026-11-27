@@ -9,6 +9,7 @@ mod integration {
     mod bank_aset_sebaran_test;
     mod dashboard_metrics_test;
     mod dashboard_scope_test;
+    mod forecast_test;
     mod kebutuhan_analisis_siman_test;
     mod kebutuhan_bmn_scope_test;
     mod kebutuhan_bmn_workflow_test;

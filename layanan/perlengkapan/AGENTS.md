@@ -84,7 +84,7 @@ layanan/perlengkapan/
     ├── pakaian_dinas/      # uniform allocation
     ├── pemakaian_bmn/      # usage permits + scheduler
     ├── penghapusan_bmn/    # asset disposal
-    ├── roadmap_sarpras/    # facilities roadmap
+    ├── roadmap_sarpras/    # forecast API (no UI yet); forecast.rs = pure, tested math
     ├── mapping_kodefikasi/ # asset coding
     ├── dashboard/          # KPI dashboard + WebSocket
     ├── admin/              # user/role admin (local to perlengkapan)
@@ -245,6 +245,16 @@ flowchart TB
   (bukan dropdown kosong yang terbaca "tak ada data"). Hitungan wilayah menghitung aset SEBELUM
   mencari nama (join peta kode menggandakan baris bila satu kode SIMAN dipakai dua satker). Enrichment read internal (pemakaian/penghapusan auto-fill)
   sengaja pakai `AsetScope::All` — kepemilikan satker BMN dijaga oleh workflow, bukan lookup ini.
+- **Peramalan (`roadmap_sarpras/forecast.rs`) = fungsi murni, diuji dengan jawaban yang diketahui.**
+  SMA/WMA = rata-rata `JENDELA`=3 tahun terakhir, proyeksi DATAR; Holt = level+tren dgn parameter
+  ALPHA/BETA di-FIT (grid, galat satu-langkah terkecil), bukan konstanta. Rentang = galat satu-langkah
+  metode itu sendiri (bukan simpangan baku deret mentah), z dari invers normal sebenarnya (tabel
+  bertingkat lama memberi 1,96 untuk 0,97 dan 1,0 untuk <0,8). Deret = rentetan tahun BERURUTAN
+  terakhir (tahun tanpa baris bukan nol; yang lebih lama dibuang DAN disebut di `catatan`). Snapshot
+  disimpan hanya bila beda dari yang terakhir utk metode+keyakinan yg sama; `/forecast/compare` membaca
+  snapshot SEBELUM membuat yang sekarang. Sumber = `roadmap_sarpras` (RENCANA lima tahunan yg diisi
+  manual, bukan realisasi) dan KOSONG di staging: endpoint menjawab 400 "minimal 2 tahun" sampai ada
+  data; tak ada layar yang memanggilnya.
 - Migrasi `refinery embed_migrations!` (self-migrate saat boot, `main.rs`); baseline
   `V001__baseline.sql` + `V002__seed.sql`. Boot perlengkapan **setelah** integrasi &
   authenc migrate selesai (urutan bring-up). Penamaan: `satker_id`/`satker_nama`/

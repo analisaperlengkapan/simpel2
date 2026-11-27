@@ -66,6 +66,10 @@ pub struct ForecastResult {
     pub historical: Vec<YearlyData>,
     pub predictions: Vec<PredictedYear>,
     pub generated_at: DateTime<Utc>,
+    /// What the reader should know about how far to trust it: years set aside because of a gap,
+    /// too few years for the interval to mean much, a method that projects flat.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub catatan: Vec<String>,
 }
 
 /// Summary statistics for the forecast dashboard

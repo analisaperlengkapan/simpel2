@@ -70,7 +70,8 @@ pub async fn get_forecast_compare(
         confidence_level: None,
     };
 
-    let current = service.generate_forecast(current_request).await?;
+    // The previous snapshots are read BEFORE the current forecast is generated: generating it can
+    // save a snapshot of its own, and the first "previous" forecast was then the one just made.
     let previous_snapshots = service
         .compare_forecasts(
             query.satker_id,
@@ -78,6 +79,7 @@ pub async fn get_forecast_compare(
             query.limit.unwrap_or(2),
         )
         .await?;
+    let current = service.generate_forecast(current_request).await?;
 
     Ok(Json(ForecastCompareResponse {
         current,

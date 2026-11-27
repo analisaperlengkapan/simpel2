@@ -3,8 +3,9 @@
 //! Forecasting engine for BMN needs based on historical kebutuhan_bmn data.
 //!
 //! ## Features
-//! - Forecast future BMN needs using SMA, WMA, or Exponential Smoothing
-//! - Confidence interval calculation
+//! - Forecast future BMN needs using SMA, WMA, or Holt exponential smoothing (the math is the
+//!   pure, tested `forecast` module)
+//! - Prediction intervals from each method's own one-step errors
 //! - Historical data aggregation from kebutuhan_bmn table
 //! - Forecast snapshots for comparison over time
 //! - CSV export of historical + predicted data
@@ -18,6 +19,7 @@
 //! ## Requirements
 //! - REQ-K008: Predictive analytics dashboard for sarpras planning
 
+pub mod forecast;
 pub mod handlers;
 pub mod models;
 pub mod repository;

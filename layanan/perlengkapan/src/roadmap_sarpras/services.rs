@@ -1,16 +1,19 @@
-//! Predictive Analytics forecasting engine
-//!
-//! Implements Simple Moving Average (SMA), Weighted Moving Average (WMA),
-//! and Exponential Smoothing with confidence intervals.
+//! Predictive Analytics service: fetches the yearly series and hands it to the pure math in
+//! [`super::forecast`].
 
 use crate::shared::error::AppError;
 use chrono::Utc;
 use lib_perlengkapan::models::{
     ForecastMethod, ForecastRequest, ForecastResult, ForecastSnapshot, ForecastSummary,
-    PredictedYear, YearlyData,
 };
 
+use super::forecast::{
+    catatan as susun_catatan, deret_berurutan, pertumbuhan_majemuk_persen, prediksi,
+};
 use super::repository::RoadmapRepository;
+
+/// Years the summary projects.
+const HORIZON_RINGKASAN: usize = 5;
 
 #[derive(Clone)]
 pub struct RoadmapService {
@@ -22,7 +25,7 @@ impl RoadmapService {
         Self { repository }
     }
 
-    /// Generate a forecast based on historical kebutuhan_bmn data.
+    /// Generate a forecast based on historical roadmap data.
     pub async fn generate_forecast(
         &self,
         request: ForecastRequest,
@@ -32,52 +35,93 @@ impl RoadmapService {
             .get_historical_data(request.satker_id, request.kode_barang.as_deref())
             .await?;
 
-        if historical.len() < 2 {
+        // The series the math runs on is the latest run of consecutive years: a year with no rows
+        // is not a zero, and reading "2019, 2021" as neighbours tilts every trend.
+        let (deret, catatan_bolong) = deret_berurutan(&historical);
+        if deret.len() < 2 {
             return Err(AppError::BadRequest(
-                "Minimal 2 tahun data historis diperlukan untuk prediksi".into(),
+                "Minimal 2 tahun berurutan data historis diperlukan untuk prediksi".into(),
             ));
         }
 
         let method = request.method.unwrap_or_default();
-        let horizon = request.horizon_years.unwrap_or(5).clamp(1, 10);
+        let horizon = request.horizon_years.unwrap_or(5).clamp(1, 10) as usize;
         let confidence = request.confidence_level.unwrap_or(0.95).clamp(0.5, 0.99);
 
-        let predictions = match method {
-            ForecastMethod::Sma => Self::forecast_sma(&historical, horizon, confidence),
-            ForecastMethod::Wma => Self::forecast_wma(&historical, horizon, confidence),
-            ForecastMethod::ExponentialSmoothing => {
-                Self::forecast_exponential(&historical, horizon, confidence)
-            }
-        };
-
-        let method_name = match method {
-            ForecastMethod::Sma => "SMA",
-            ForecastMethod::Wma => "WMA",
-            ForecastMethod::ExponentialSmoothing => "ExponentialSmoothing",
-        };
+        let predictions = prediksi(&method, deret, horizon, confidence);
+        let method_name = nama_metode(&method);
+        let catatan = susun_catatan(deret.len(), &method, catatan_bolong);
 
         let result = ForecastResult {
             method: method_name.to_string(),
             confidence_level: confidence,
-            historical,
+            historical: deret.to_vec(),
             predictions,
             generated_at: Utc::now(),
+            catatan,
         };
 
-        // Store snapshot for future comparison
-        let predictions_json = serde_json::to_string(&result.predictions).unwrap_or_default();
-        let _ = self
-            .repository
-            .save_forecast_snapshot(
-                method_name,
-                confidence,
-                request.satker_id,
-                request.kode_barang.as_deref(),
-                &predictions_json,
-            )
-            .await;
+        self.simpan_bila_berubah(
+            method_name,
+            confidence,
+            request.satker_id,
+            request.kode_barang.as_deref(),
+            &result,
+        )
+        .await;
 
         Ok(result)
+    }
+
+    /// Keep a snapshot for later comparison, but only when it differs from the latest one for the
+    /// same question (same method and confidence). Every GET used to write a row, so a dashboard
+    /// refreshed ten times left ten identical "previous forecasts", and the failure to write was
+    /// swallowed without a trace.
+    async fn simpan_bila_berubah(
+        &self,
+        method: &str,
+        confidence: f64,
+        satker_id: Option<uuid::Uuid>,
+        kode_barang: Option<&str>,
+        result: &ForecastResult,
+    ) {
+        let json = match serde_json::to_string(&result.predictions) {
+            Ok(j) => j,
+            Err(e) => {
+                tracing::warn!(error = %e, "forecast snapshot not saved: predictions did not serialize");
+                return;
+            }
+        };
+        // Against the latest snapshot of the SAME question: method, confidence AND horizon. Two
+        // horizons asked in turn (3, then 5, then 3 ...) would otherwise each differ from "the latest"
+        // and pile up copies of one another, and push the older versions out of the comparison list.
+        let horizon = result.predictions.len();
+        match self
+            .repository
+            .get_previous_snapshots(satker_id, kode_barang, 200)
+            .await
+        {
+            Ok(recent) => {
+                let sama = recent.iter().find(|s| {
+                    s.method == method
+                        && (s.confidence_level - confidence).abs() < f64::EPSILON
+                        && horizon_snapshot(&s.predictions_json) == Some(horizon)
+                });
+                if sama.is_some_and(|s| s.predictions_json == json) {
+                    return;
+                }
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "forecast snapshot: could not read the latest ones")
+            }
+        }
+        if let Err(e) = self
+            .repository
+            .save_forecast_snapshot(method, confidence, satker_id, kode_barang, &json)
+            .await
+        {
+            tracing::warn!(error = %e, "forecast snapshot not saved");
+        }
     }
 
     /// Get summary statistics (no prediction run, just overview).
@@ -90,8 +134,9 @@ impl RoadmapService {
             .repository
             .get_historical_data(satker_id, kode_barang)
             .await?;
+        let (deret, _) = deret_berurutan(&historical);
 
-        if historical.is_empty() {
+        if deret.is_empty() {
             return Ok(ForecastSummary {
                 total_historical_years: 0,
                 total_predicted_years: 0,
@@ -102,29 +147,31 @@ impl RoadmapService {
             });
         }
 
-        // Quick 5-year SMA forecast for summary numbers
-        let predictions = Self::forecast_sma(&historical, 5, 0.95);
-        let growth = Self::compute_avg_growth(&historical);
-
-        let trend = if growth > 1.0 {
-            "increasing"
-        } else if growth < -1.0 {
-            "decreasing"
-        } else {
-            "stable"
+        // The projection the summary totals is the default one (SMA), over the same series as the
+        // forecast endpoint.
+        let predictions = prediksi(&ForecastMethod::default(), deret, HORIZON_RINGKASAN, 0.95);
+        // Compound growth, or "stable" when it is not defined (one year, or a first year of zero):
+        // an unknown rate is not a rate of zero, but it is not a direction either.
+        let growth = pertumbuhan_majemuk_persen(deret);
+        let trend = match growth {
+            Some(g) if g > 1.0 => "increasing",
+            Some(g) if g < -1.0 => "decreasing",
+            _ => "stable",
         };
 
         Ok(ForecastSummary {
-            total_historical_years: historical.len() as i32,
+            total_historical_years: deret.len() as i32,
             total_predicted_years: predictions.len() as i32,
-            avg_yearly_growth_pct: growth,
+            avg_yearly_growth_pct: growth.unwrap_or(0.0),
             total_predicted_kebutuhan: predictions.iter().map(|p| p.predicted_kebutuhan).sum(),
             total_predicted_biaya: predictions.iter().map(|p| p.predicted_biaya).sum(),
             trend_direction: trend.into(),
         })
     }
 
-    /// Compare current forecast with previous snapshots.
+    /// The snapshots saved BEFORE now. Read before the current forecast is generated: the comparison
+    /// used to generate (and save) the current one first and then list the latest snapshots, so the
+    /// first "previous" forecast was the one just made.
     pub async fn compare_forecasts(
         &self,
         satker_id: Option<uuid::Uuid>,
@@ -132,7 +179,7 @@ impl RoadmapService {
         limit: i64,
     ) -> Result<Vec<ForecastSnapshot>, AppError> {
         self.repository
-            .get_previous_snapshots(satker_id, kode_barang, limit)
+            .get_previous_snapshots(satker_id, kode_barang, limit.clamp(1, 20))
             .await
     }
 
@@ -146,7 +193,8 @@ impl RoadmapService {
             .repository
             .get_historical_data(satker_id, kode_barang)
             .await?;
-        let predictions = Self::forecast_sma(&historical, 5, 0.95);
+        let (deret, _) = deret_berurutan(&historical);
+        let predictions = prediksi(&ForecastMethod::default(), deret, HORIZON_RINGKASAN, 0.95);
 
         let mut csv = String::from(
             "Tipe,Tahun,Kebutuhan,Existing,Gap,Jumlah Satker,Estimasi Biaya,CI Lower,CI Upper\n",
@@ -178,262 +226,19 @@ impl RoadmapService {
 
         Ok(csv.into_bytes())
     }
+}
 
-    // ── Forecasting algorithms ───────────────────────────────────
-
-    /// Simple Moving Average over all available years.
-    fn forecast_sma(
-        historical: &[YearlyData],
-        horizon: i32,
-        confidence: f64,
-    ) -> Vec<PredictedYear> {
-        let n = historical.len() as f64;
-        if n < 1.0 {
-            return vec![];
-        }
-
-        let avg_kebutuhan = historical
-            .iter()
-            .map(|h| h.total_kebutuhan as f64)
-            .sum::<f64>()
-            / n;
-        let avg_gap = historical.iter().map(|h| h.total_gap as f64).sum::<f64>() / n;
-        let avg_biaya = historical
-            .iter()
-            .map(|h| h.estimasi_total_biaya)
-            .sum::<f64>()
-            / n;
-
-        // Standard deviation for CI
-        let std_kebutuhan = Self::std_dev(
-            &historical
-                .iter()
-                .map(|h| h.total_kebutuhan as f64)
-                .collect::<Vec<_>>(),
-        );
-
-        let z = Self::z_score(confidence);
-        let last_year = historical.last().map(|h| h.tahun).unwrap_or(2024);
-
-        (1..=horizon)
-            .map(|i| {
-                let margin = z * std_kebutuhan * (1.0 + i as f64 * 0.1).sqrt();
-                PredictedYear {
-                    tahun: last_year + i,
-                    predicted_kebutuhan: avg_kebutuhan,
-                    predicted_gap: avg_gap,
-                    predicted_biaya: avg_biaya,
-                    confidence_lower: (avg_kebutuhan - margin).max(0.0),
-                    confidence_upper: avg_kebutuhan + margin,
-                }
-            })
-            .collect()
+fn nama_metode(method: &ForecastMethod) -> &'static str {
+    match method {
+        ForecastMethod::Sma => "SMA",
+        ForecastMethod::Wma => "WMA",
+        ForecastMethod::ExponentialSmoothing => "ExponentialSmoothing",
     }
+}
 
-    /// Weighted Moving Average – recent years get linearly increasing weight.
-    fn forecast_wma(
-        historical: &[YearlyData],
-        horizon: i32,
-        confidence: f64,
-    ) -> Vec<PredictedYear> {
-        let n = historical.len();
-        if n < 1 {
-            return vec![];
-        }
-
-        let weight_sum: f64 = (1..=n).map(|w| w as f64).sum();
-
-        let wma_kebutuhan: f64 = historical
-            .iter()
-            .enumerate()
-            .map(|(i, h)| (i + 1) as f64 * h.total_kebutuhan as f64)
-            .sum::<f64>()
-            / weight_sum;
-
-        let wma_gap: f64 = historical
-            .iter()
-            .enumerate()
-            .map(|(i, h)| (i + 1) as f64 * h.total_gap as f64)
-            .sum::<f64>()
-            / weight_sum;
-
-        let wma_biaya: f64 = historical
-            .iter()
-            .enumerate()
-            .map(|(i, h)| (i + 1) as f64 * h.estimasi_total_biaya)
-            .sum::<f64>()
-            / weight_sum;
-
-        let std_kebutuhan = Self::std_dev(
-            &historical
-                .iter()
-                .map(|h| h.total_kebutuhan as f64)
-                .collect::<Vec<_>>(),
-        );
-
-        let z = Self::z_score(confidence);
-        let last_year = historical.last().map(|h| h.tahun).unwrap_or(2024);
-
-        // Apply trend from last 3 years
-        let trend = Self::compute_trend(
-            &historical
-                .iter()
-                .map(|h| h.total_kebutuhan as f64)
-                .collect::<Vec<_>>(),
-        );
-
-        (1..=horizon)
-            .map(|i| {
-                let predicted = wma_kebutuhan + trend * i as f64;
-                let margin = z * std_kebutuhan * (1.0 + i as f64 * 0.15).sqrt();
-                PredictedYear {
-                    tahun: last_year + i,
-                    predicted_kebutuhan: predicted.max(0.0),
-                    predicted_gap: (wma_gap + trend * 0.7 * i as f64).max(0.0),
-                    predicted_biaya: (wma_biaya
-                        + wma_biaya * trend / wma_kebutuhan.max(1.0) * i as f64)
-                        .max(0.0),
-                    confidence_lower: (predicted - margin).max(0.0),
-                    confidence_upper: predicted + margin,
-                }
-            })
-            .collect()
-    }
-
-    /// Exponential Smoothing (single-parameter Holt model with trend).
-    fn forecast_exponential(
-        historical: &[YearlyData],
-        horizon: i32,
-        confidence: f64,
-    ) -> Vec<PredictedYear> {
-        let n = historical.len();
-        if n < 2 {
-            return Self::forecast_sma(historical, horizon, confidence);
-        }
-
-        let alpha = 0.3; // level smoothing
-        let beta = 0.1; // trend smoothing
-
-        let values: Vec<f64> = historical
-            .iter()
-            .map(|h| h.total_kebutuhan as f64)
-            .collect();
-        let biaya: Vec<f64> = historical.iter().map(|h| h.estimasi_total_biaya).collect();
-        let gaps: Vec<f64> = historical.iter().map(|h| h.total_gap as f64).collect();
-
-        // Initialise
-        let mut level = values[0];
-        let mut trend = values[1] - values[0];
-
-        for v in values.iter().skip(1) {
-            let new_level = alpha * v + (1.0 - alpha) * (level + trend);
-            let new_trend = beta * (new_level - level) + (1.0 - beta) * trend;
-            level = new_level;
-            trend = new_trend;
-        }
-
-        // Biaya ratio
-        let biaya_per_kebutuhan = if values.last().copied().unwrap_or(1.0) > 0.0 {
-            biaya.last().copied().unwrap_or(0.0) / values.last().copied().unwrap_or(1.0)
-        } else {
-            0.0
-        };
-        let gap_ratio = if values.last().copied().unwrap_or(1.0) > 0.0 {
-            gaps.last().copied().unwrap_or(0.0) / values.last().copied().unwrap_or(1.0)
-        } else {
-            0.0
-        };
-
-        let std_kebutuhan = Self::std_dev(&values);
-        let z = Self::z_score(confidence);
-        let last_year = historical.last().map(|h| h.tahun).unwrap_or(2024);
-
-        (1..=horizon)
-            .map(|i| {
-                let predicted = level + trend * i as f64;
-                let margin = z * std_kebutuhan * (1.0 + i as f64 * 0.2).sqrt();
-                PredictedYear {
-                    tahun: last_year + i,
-                    predicted_kebutuhan: predicted.max(0.0),
-                    predicted_gap: (predicted * gap_ratio).max(0.0),
-                    predicted_biaya: (predicted * biaya_per_kebutuhan).max(0.0),
-                    confidence_lower: (predicted - margin).max(0.0),
-                    confidence_upper: predicted + margin,
-                }
-            })
-            .collect()
-    }
-
-    // ── Helper math ──────────────────────────────────────────────
-
-    fn std_dev(values: &[f64]) -> f64 {
-        let n = values.len() as f64;
-        if n < 2.0 {
-            return 0.0;
-        }
-        let mean = values.iter().sum::<f64>() / n;
-        let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (n - 1.0);
-        variance.sqrt()
-    }
-
-    fn compute_trend(values: &[f64]) -> f64 {
-        let n = values.len();
-        if n < 2 {
-            return 0.0;
-        }
-        // Simple linear regression slope
-        let n_f = n as f64;
-        let x_mean = (n_f - 1.0) / 2.0;
-        let y_mean = values.iter().sum::<f64>() / n_f;
-
-        let numerator: f64 = values
-            .iter()
-            .enumerate()
-            .map(|(i, y)| (i as f64 - x_mean) * (y - y_mean))
-            .sum();
-        let denominator: f64 = (0..n).map(|i| (i as f64 - x_mean).powi(2)).sum();
-
-        if denominator.abs() < f64::EPSILON {
-            0.0
-        } else {
-            numerator / denominator
-        }
-    }
-
-    fn compute_avg_growth(historical: &[YearlyData]) -> f64 {
-        if historical.len() < 2 {
-            return 0.0;
-        }
-        let growths: Vec<f64> = historical
-            .windows(2)
-            .filter_map(|w| {
-                if w[0].total_kebutuhan > 0 {
-                    Some(
-                        ((w[1].total_kebutuhan - w[0].total_kebutuhan) as f64
-                            / w[0].total_kebutuhan as f64)
-                            * 100.0,
-                    )
-                } else {
-                    None
-                }
-            })
-            .collect();
-        if growths.is_empty() {
-            0.0
-        } else {
-            growths.iter().sum::<f64>() / growths.len() as f64
-        }
-    }
-
-    /// Approximate z-score for common confidence levels.
-    fn z_score(confidence: f64) -> f64 {
-        match () {
-            _ if confidence >= 0.99 => 2.576,
-            _ if confidence >= 0.98 => 2.326,
-            _ if confidence >= 0.95 => 1.96,
-            _ if confidence >= 0.90 => 1.645,
-            _ if confidence >= 0.80 => 1.282,
-            _ => 1.0,
-        }
-    }
+/// How many years a stored snapshot predicts (its predictions are a JSON array, one per year).
+fn horizon_snapshot(predictions_json: &str) -> Option<usize> {
+    serde_json::from_str::<Vec<serde_json::Value>>(predictions_json)
+        .ok()
+        .map(|v| v.len())
 }
