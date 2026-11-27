@@ -62,6 +62,12 @@ pub enum AsetScope {
     WilayahKode(String),
     /// Restrict to the caller's own satker. Holds the caller MySIMKARI `kode_satker`.
     Satker(String),
+    /// Restrict to ONE satker's assets inside ONE region: its MySIMKARI `kode_satker` and a SIMAN
+    /// `wilayah_kode`. A satker can hold assets under several SIMAN codes in different regions
+    /// (staging has one spanning 0100 and 9999), so "this satker, in this region" is not "this
+    /// satker". Produced only by [`AsetScope::narrowed_to_satker_in_wilayah`]; never derived from
+    /// claims.
+    SatkerDiWilayah(String, String),
     /// Fail closed — no satker identity. Yields zero rows.
     Denied,
 }
@@ -105,6 +111,14 @@ impl AsetScope {
             Self::All => true,
             Self::Denied => false,
             Self::Satker(own) => own == code,
+            // Already one satker in one region: the same satker keeps its region, any other is out.
+            Self::SatkerDiWilayah(own, _) => {
+                return if own == code {
+                    self.clone()
+                } else {
+                    Self::Denied
+                };
+            }
             Self::Wilayah(_) | Self::WilayahKode(_) => in_scope,
         };
         if allowed {
@@ -127,6 +141,36 @@ impl AsetScope {
         }
     }
 
+    /// Narrow to ONE satker AND ONE region at once, the intersection: the satker's assets that sit
+    /// in `wilayah_kode`.
+    ///
+    /// The satker is checked exactly as [`Self::narrowed_to`] does. The region is a second gate,
+    /// and it may only narrow: a reader who sees everything may name any region; a regional
+    /// validator only their own (`caller_wilayah`, the SIMAN code of it), because the satker's
+    /// assets in another region are not theirs; a satker-tier reader may name any region, since
+    /// it cuts their own satker down. Anything else is [`AsetScope::Denied`].
+    pub fn narrowed_to_satker_in_wilayah(
+        &self,
+        code: &str,
+        in_scope: bool,
+        wilayah_kode: &str,
+        caller_wilayah: Option<&str>,
+    ) -> Self {
+        let region_allowed = match self {
+            Self::All | Self::Satker(_) => true,
+            Self::Wilayah(_) => caller_wilayah == Some(wilayah_kode),
+            Self::WilayahKode(own) | Self::SatkerDiWilayah(_, own) => own == wilayah_kode,
+            Self::Denied => false,
+        };
+        if !region_allowed {
+            return Self::Denied;
+        }
+        match self.narrowed_to(code, in_scope) {
+            Self::Satker(satker) => Self::SatkerDiWilayah(satker, wilayah_kode.to_string()),
+            other => other,
+        }
+    }
+
     /// Append this scope as a SQL condition over `integrasi.siman_aset` (bare
     /// `kdsatker_keu` column). Pushes the bind parameter (when any) onto
     /// `params` and returns the condition string, or `None` when no restriction
@@ -145,6 +189,17 @@ impl AsetScope {
                 Some(format!(
                     "kdsatker_keu IN (SELECT kdsatker_keu FROM integrasi.v_satker_code_map \
                      WHERE kode_satker = ${i} AND kdsatker_keu IS NOT NULL)"
+                ))
+            }
+            Self::SatkerDiWilayah(code, wilayah) => {
+                params.push(Box::new(code.clone()));
+                let i = params.len();
+                params.push(Box::new(wilayah.clone()));
+                let j = params.len();
+                Some(format!(
+                    "(kdsatker_keu IN (SELECT kdsatker_keu FROM integrasi.v_satker_code_map \
+                      WHERE kode_satker = ${i} AND kdsatker_keu IS NOT NULL) \
+                     AND substring(kdsatker_keu FROM 6 FOR 4) = ${j})"
                 ))
             }
             Self::Wilayah(code) => {
@@ -273,5 +328,73 @@ mod tests {
         assert!(cond.contains("wilayah_kode"));
         assert!(cond.contains("$1"));
         assert_eq!(params.len(), 1);
+    }
+    #[test]
+    fn push_condition_satker_in_wilayah_binds_both_values_after_existing_params() {
+        let mut params: Vec<BoxedParam> = vec![Box::new(1i64)];
+        let cond = AsetScope::SatkerDiWilayah("02.28".to_string(), "0100".to_string())
+            .push_condition(&mut params)
+            .unwrap();
+        assert!(cond.contains("kode_satker = $2"), "{cond}");
+        assert!(
+            cond.contains("substring(kdsatker_keu FROM 6 FOR 4) = $3"),
+            "{cond}"
+        );
+        assert!(
+            cond.contains(" AND "),
+            "an intersection, not a union: {cond}"
+        );
+        assert_eq!(params.len(), 3);
+    }
+
+    /// A satker and a region together are an intersection, and the region may only narrow.
+    #[test]
+    fn a_satker_and_a_region_intersect_and_the_region_never_widens() {
+        let satker_in_region = AsetScope::SatkerDiWilayah("S".into(), "0100".into());
+
+        // Reads everything: any region.
+        assert_eq!(
+            AsetScope::All.narrowed_to_satker_in_wilayah("S", true, "0100", None),
+            satker_in_region
+        );
+        // A satker-tier reader may cut their own satker by region, never another satker.
+        let own = AsetScope::Satker("S".into());
+        assert_eq!(
+            own.narrowed_to_satker_in_wilayah("S", true, "0100", None),
+            satker_in_region
+        );
+        assert_eq!(
+            own.narrowed_to_satker_in_wilayah("T", true, "0100", None),
+            AsetScope::Denied
+        );
+        // A regional validator: their own region only. The satker's assets in another region are
+        // not theirs even when the satker is.
+        let wilayah = AsetScope::Wilayah("W".into());
+        assert_eq!(
+            wilayah.narrowed_to_satker_in_wilayah("S", true, "0100", Some("0100")),
+            satker_in_region
+        );
+        assert_eq!(
+            wilayah.narrowed_to_satker_in_wilayah("S", true, "9999", Some("0100")),
+            AsetScope::Denied,
+            "a region that is not theirs"
+        );
+        assert_eq!(
+            wilayah.narrowed_to_satker_in_wilayah("S", true, "0100", None),
+            AsetScope::Denied,
+            "a caller whose own region is unknown fails closed"
+        );
+        // A satker outside the caller's scope stays out whatever the region.
+        assert_eq!(
+            wilayah.narrowed_to_satker_in_wilayah("S", false, "0100", Some("0100")),
+            AsetScope::Denied
+        );
+        assert_eq!(
+            AsetScope::Denied.narrowed_to_satker_in_wilayah("S", true, "0100", None),
+            AsetScope::Denied
+        );
+        // Narrowing what is already narrowed keeps the region and never swaps the satker.
+        assert_eq!(satker_in_region.narrowed_to("S", true), satker_in_region);
+        assert_eq!(satker_in_region.narrowed_to("T", true), AsetScope::Denied);
     }
 }

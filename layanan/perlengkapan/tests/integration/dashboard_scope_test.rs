@@ -618,6 +618,105 @@ async fn a_drill_down_cannot_reach_outside_the_callers_scope() {
     teardown_test_db(&db_name).await;
 }
 
+/// A satker AND a region together are an intersection: the region is not dropped because a satker
+/// was named. A satker can hold assets under several SIMAN codes in different regions; counting all
+/// of them under the region the reader picked is the wrong population. (The fixture cannot build a
+/// satker spanning two regions, so this pins the observable half: naming a region the satker has no
+/// assets in must not return the satker's assets anyway. The set arithmetic itself is covered by
+/// the unit tests on `AsetScope`.)
+#[tokio::test]
+async fn a_satker_and_a_region_together_are_an_intersection() {
+    let (app, db, db_name) = setup_test_app().await;
+    seed_siman(&db).await;
+    let server = TestServer::new(app);
+
+    let assets = |v: &serde_json::Value| v["asset_utilization"]["total_assets"].as_i64();
+    let ask =
+        |role: &'static str, user: &'static str, satker: &'static str, query: &'static str| {
+            let server = &server;
+            async move {
+                let r = get(
+                    server,
+                    &format!("/dashboard/perlengkapan?tahun_anggaran=2026&{query}"),
+                    role,
+                    user,
+                    satker,
+                )
+                .await;
+                assert_eq!(r.status_code(), 200, "{query}: {}", r.text());
+                r.json::<serde_json::Value>()
+            }
+        };
+
+    // Pusat: SKR001's assets sit in region 0199, so that region keeps all 3 and another keeps none.
+    let in_region = ask(
+        "validator_pusat",
+        PUSAT,
+        "SKR001",
+        "satker=SKR001&wilayah=0199",
+    )
+    .await;
+    assert_eq!(assets(&in_region), Some(3), "SKR001 in its own region");
+    let elsewhere = ask(
+        "validator_pusat",
+        PUSAT,
+        "SKR001",
+        "satker=SKR001&wilayah=1100",
+    )
+    .await;
+    assert_eq!(
+        assets(&elsewhere),
+        Some(0),
+        "SKR001 holds nothing in 1100: the region must not be dropped because a satker was named"
+    );
+
+    // The operator may cut their own satker by region, never reach another one through it.
+    let own = ask(
+        "operator_satker",
+        OPERATOR,
+        "SKR001",
+        "satker=SKR001&wilayah=0199",
+    )
+    .await;
+    assert_eq!(assets(&own), Some(3));
+    let other = ask(
+        "operator_satker",
+        OPERATOR,
+        "SKR001",
+        "satker=SKR002&wilayah=0199",
+    )
+    .await;
+    assert_eq!(assets(&other), Some(0), "another satker stays out");
+
+    // A regional validator: a satker of their region, in their region, is theirs ...
+    let mine = ask(
+        "validator_wilayah",
+        WILAYAH,
+        "SKR001",
+        "satker=SKR002&wilayah=0199",
+    )
+    .await;
+    assert_eq!(assets(&mine), Some(2));
+    // ... but naming a region that is not theirs empties BOTH halves rather than leaving a
+    // half-filtered dashboard.
+    let not_mine = ask(
+        "validator_wilayah",
+        WILAYAH,
+        "SKR001",
+        "satker=SKR002&wilayah=1100",
+    )
+    .await;
+    assert_eq!(assets(&not_mine), Some(0));
+    assert!(
+        not_mine["kebutuhan_metrics"]["total_by_satker"]
+            .as_array()
+            .is_none_or(|a| a.is_empty()),
+        "no perlengkapan rows either: {not_mine}"
+    );
+
+    teardown_test_db(&db_name).await;
+}
+
 /// The exports resolve the drill-down the same way the screen does. An export
 /// that ignored `?satker=` would hand back the whole region as a file.
 #[tokio::test]
