@@ -973,11 +973,22 @@ impl BankAsetRepository {
         // takes 2-3 s for pusat, and for those seconds the old list still offered every satker
         // in the country.
         if facets.satker_kode {
-            let (and_clause, params) = clause(&tanpa(|f| {
+            let (and_clause, mut params) = clause(&tanpa(|f| {
                 f.satker = None;
                 f.satker_kode = None;
                 f.kode_siman = None;
             }));
+            // The scope limits the ASSETS, not the satker names the map attaches to them. A SIMAN
+            // code that two MySIMKARI satkers share (0200010 and a second Jakarta Pusat code on
+            // staging) shows up under both, so a satker-tier reader was offered a satker that is
+            // not theirs, carrying their own assets. Their list is their own satker.
+            let hanya_satker = match scope.satker_terikat() {
+                Some(code) => {
+                    params.push(Box::new(code.to_string()));
+                    format!(" AND m.kode_satker = ${}", params.len())
+                }
+                None => String::new(),
+            };
             let satker_kode_sql = format!(
                 "SELECT m.kode_satker AS value,
                         MIN(COALESCE(m.nama_satker, a.nama_satker)) AS label,
@@ -989,7 +1000,7 @@ impl BankAsetRepository {
                            FROM integrasi.siman_aset
                           WHERE kdsatker_keu IS NOT NULL AND kdsatker_keu <> ''{and_clause}) a
                    JOIN integrasi.v_satker_code_map m ON m.kdsatker_keu = a.kdsatker_keu
-                  WHERE m.kode_satker IS NOT NULL AND m.kode_satker <> ''
+                  WHERE m.kode_satker IS NOT NULL AND m.kode_satker <> ''{hanya_satker}
                   GROUP BY m.kode_satker
                   ORDER BY count DESC, value ASC
                   LIMIT {FILTER_OPTION_LIMIT}"

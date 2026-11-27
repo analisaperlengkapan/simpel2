@@ -159,6 +159,69 @@ async fn opsi(server: &TestServer, query: &str) -> serde_json::Value {
     res.json::<serde_json::Value>()["data"].clone()
 }
 
+/// Staging shape: satker 0200010 shares a SIMAN code with a second MySIMKARI satker of the same
+/// name (`09.01`). The list joins the code map to the assets, so BOTH appeared in an operator's own
+/// satker list, the second one carrying the operator's assets. An operator's list is their own
+/// satker; pusat, who spans satkers, still sees both.
+#[tokio::test]
+async fn a_satker_bound_reader_is_offered_only_their_own_satker_when_a_siman_code_is_shared() {
+    const OPERATOR: &str = "00000000-0000-0000-0000-000000000001";
+    let (app, db, db_name) = setup_test_app().await;
+    seed(&db).await;
+    {
+        let client = db.pool().get().await.unwrap();
+        client
+            .execute(
+                &format!(
+                    "INSERT INTO integrasi.satker_code_map (kode_satker, kdsatker_keu, nama_satker, verified)
+                     VALUES ('SKR001B', '{KD_SKR001}', 'KEJAKSAAN NEGERI UJI A', TRUE)"
+                ),
+                &[],
+            )
+            .await
+            .unwrap();
+    }
+    let server = TestServer::new(app);
+
+    // Pusat spans satkers and sees the shared code under both.
+    let semua = opsi(&server, "?facet=satker_kode").await;
+    let values: Vec<String> = counts(&semua["satker_kode"])
+        .into_iter()
+        .map(|(v, _)| v)
+        .collect();
+    assert!(
+        values.contains(&"SKR001".to_string()) && values.contains(&"SKR001B".to_string()),
+        "pusat sees both satkers that share the code: {values:?}"
+    );
+
+    // The operator at SKR001 is offered SKR001 and nothing else.
+    let mut req = server.get("/bank-aset/filter-options?facet=satker_kode");
+    for (k, v) in [
+        ("x-user-id", OPERATOR.to_string()),
+        ("x-user-role", "operator_satker".to_string()),
+        ("x-satker-id", "SKR001".to_string()),
+        (
+            "authorization",
+            format!("Bearer mock::operator_satker::{OPERATOR}::SKR001"),
+        ),
+    ] {
+        req = req.add_header(
+            reqwest::header::HeaderName::from_static(k),
+            reqwest::header::HeaderValue::from_str(&v).unwrap(),
+        );
+    }
+    let res = req.await;
+    assert_eq!(res.status_code(), 200, "{}", res.text());
+    let o = res.json::<serde_json::Value>()["data"].clone();
+    assert_eq!(
+        counts(&o["satker_kode"]),
+        vec![("SKR001".to_string(), 2)],
+        "an operator's satker list is their own satker, not the other satker that shares the code"
+    );
+
+    teardown_test_db(&db_name).await;
+}
+
 /// The cascade the dashboard drills through: a region narrows the satker list, but a choice must
 /// never collapse the list it was made from.
 #[tokio::test]
