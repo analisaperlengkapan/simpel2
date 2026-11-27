@@ -19,6 +19,7 @@
 
 use crate::common::{setup_test_app, teardown_test_db};
 use axum_test::TestServer;
+use serde_json::json;
 
 const PUSAT: &str = "00000000-0000-0000-0000-000000000003";
 
@@ -143,6 +144,116 @@ async fn a_satker_with_no_mysimkari_identity_is_left_out_of_the_code_dropdown_in
         vec![("0199".to_string(), 3), ("1100".to_string(), 2)],
         "the SIMAN-only satker's wilayah stays selectable"
     );
+
+    teardown_test_db(&db_name).await;
+}
+
+/// GET `/bank-aset/filter-options{query}` as pusat and return `data`.
+async fn opsi(server: &TestServer, query: &str) -> serde_json::Value {
+    let mut req = server.get(&format!("/bank-aset/filter-options{query}"));
+    for (k, v) in headers() {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    assert_eq!(res.status_code(), 200, "{query}: {}", res.text());
+    res.json::<serde_json::Value>()["data"].clone()
+}
+
+/// The cascade the dashboard drills through: a region narrows the satker list, but a choice must
+/// never collapse the list it was made from.
+#[tokio::test]
+async fn a_chosen_wilayah_narrows_satker_but_not_the_wilayah_list_and_satker_carry_their_wilayah() {
+    let (app, db, db_name) = setup_test_app().await;
+    seed(&db).await;
+    let server = TestServer::new(app);
+
+    // Every satker option says which wilayah it is in, so the client can narrow without asking.
+    let semua = opsi(&server, "").await;
+    for o in semua["satker_kode"].as_array().unwrap() {
+        assert_eq!(
+            o["induk"].as_str(),
+            Some("0199"),
+            "SKR001 and SKR002 both sit in wilayah 0199: {o}"
+        );
+    }
+    // ... and every region it holds assets in (one satker can hold several SIMAN codes spread over
+    // regions, and the region filter selects by asset). The stub's map gives each satker a single
+    // SIMAN code, so here the list is that one region; a satker with assets in two regions cannot
+    // be built from this fixture, which omits the name-matched half of the real view.
+    for o in semua["satker_kode"].as_array().unwrap() {
+        assert_eq!(o["induk_semua"], json!(["0199"]), "{o}");
+    }
+    // Only satker options carry it.
+    assert!(
+        semua["wilayah"][0].get("induk").is_none(),
+        "{}",
+        semua["wilayah"]
+    );
+
+    // Choosing the region leaves the region list whole (so another region can be chosen straight
+    // away) and narrows the satker list to it.
+    let w1100 = opsi(&server, "?wilayah=1100").await;
+    assert_eq!(
+        counts(&w1100["wilayah"]),
+        vec![("0199".to_string(), 3), ("1100".to_string(), 2)],
+        "a chosen wilayah must not collapse the wilayah list"
+    );
+    assert!(
+        w1100["satker_kode"].as_array().unwrap().is_empty(),
+        "no MySIMKARI-known satker sits in 1100: {}",
+        w1100["satker_kode"]
+    );
+    let w0199 = opsi(&server, "?wilayah=0199").await;
+    assert_eq!(
+        counts(&w0199["satker_kode"]),
+        vec![("SKR001".to_string(), 2), ("SKR002".to_string(), 1)]
+    );
+
+    // Choosing a satker leaves the satker list and the wilayah list whole.
+    let s1 = opsi(&server, "?satker_kode=SKR001").await;
+    assert_eq!(
+        counts(&s1["satker_kode"]),
+        vec![("SKR001".to_string(), 2), ("SKR002".to_string(), 1)],
+        "a chosen satker must not collapse the satker list"
+    );
+    assert_eq!(
+        counts(&s1["wilayah"]),
+        vec![("0199".to_string(), 3), ("1100".to_string(), 2)],
+        "a chosen satker must not narrow the wilayah list"
+    );
+
+    teardown_test_db(&db_name).await;
+}
+
+/// `facet` computes only the lists asked for; the rest are empty, and a name that is not a list
+/// is refused instead of producing an empty dropdown that reads as "no data".
+#[tokio::test]
+async fn facet_limits_the_lists_and_an_unknown_name_is_refused() {
+    let (app, db, db_name) = setup_test_app().await;
+    seed(&db).await;
+    let server = TestServer::new(app);
+
+    let d = opsi(&server, "?facet=wilayah,satker_kode").await;
+    assert_eq!(d["wilayah"].as_array().unwrap().len(), 2, "{d}");
+    assert_eq!(d["satker_kode"].as_array().unwrap().len(), 2, "{d}");
+    for lain in ["jenis", "kategori", "kondisi", "satker"] {
+        assert!(
+            d[lain].as_array().unwrap().is_empty(),
+            "{lain} was not asked for: {}",
+            d[lain]
+        );
+    }
+    // Asking for nothing in particular still means everything.
+    let semua = opsi(&server, "?facet=").await;
+    assert!(!semua["jenis"].as_array().unwrap().is_empty());
+
+    let mut req = server.get("/bank-aset/filter-options?facet=wilayah,bogus");
+    for (k, v) in headers() {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    assert_eq!(res.status_code(), 400, "{}", res.text());
+    assert!(res.text().contains("bogus"), "{}", res.text());
 
     teardown_test_db(&db_name).await;
 }

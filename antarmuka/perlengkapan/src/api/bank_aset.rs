@@ -334,9 +334,22 @@ pub struct FilterOption {
     /// `skip_serializing_if`.
     #[serde(default)]
     pub label: Option<String>,
+    /// For a satker option: the region it sits in (a `wilayah` option's `value`). Lets the
+    /// satker list be narrowed to a chosen region on the client, without another request.
+    #[serde(default)]
+    pub induk: Option<String>,
+    /// Every region the satker holds assets in (`induk` is the smallest). One MySIMKARI satker can
+    /// hold several SIMAN codes spread over regions, and the region filter selects by asset.
+    #[serde(default)]
+    pub induk_semua: Vec<String>,
 }
 
 impl FilterOption {
+    /// Does this satker hold assets in `wilayah`?
+    pub fn di_wilayah(&self, wilayah: &str) -> bool {
+        self.induk.as_deref() == Some(wilayah) || self.induk_semua.iter().any(|w| w == wilayah)
+    }
+
     /// What to put in the dropdown: the label when there is one, else the value.
     pub fn display(&self) -> &str {
         self.label.as_deref().unwrap_or(&self.value)
@@ -357,6 +370,19 @@ pub struct BankAsetFilterOptions {
     /// Region by SIMAN `wilayah_kode`, with the Kejati name as label.
     #[serde(default)]
     pub wilayah: Vec<FilterOption>,
+}
+
+/// The three lists the dashboard's drill-down needs (jenis, satker by code with its region, and
+/// wilayah), asked for ONCE and unfiltered: the satker list is narrowed to a chosen region on the
+/// client through `induk`. The server computes each requested list with a scan of the asset table
+/// (2-3 s for pusat), so asking only for these and asking once is what keeps a drill-down instant.
+pub async fn fetch_filter_options_dasbor() -> AppResult<BankAsetFilterOptions> {
+    let url = format!("{API_BASE}/bank-aset/filter-options?facet=jenis,satker_kode,wilayah");
+    let resp: ApiResponseWrap<BankAsetFilterOptions> = api_get(&url).await?;
+    if !resp.success {
+        return Err(AppError::server(resp.message));
+    }
+    Ok(resp.data)
 }
 
 /// Distinct filter values (jenis BMN, kategori, kondisi, satker) for populating

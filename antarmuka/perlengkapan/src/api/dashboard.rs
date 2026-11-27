@@ -24,12 +24,22 @@ use std::collections::HashMap;
 pub async fn export_dashboard(
     format: &str,
     tahun_anggaran: i32,
+    satker: Option<&str>,
+    wilayah: Option<&str>,
 ) -> Result<Vec<u8>, crate::api::AppError> {
-    super::client::auth_get_binary(&format!(
+    let mut url = format!(
         "{}/dashboard/perlengkapan/export/{format}?tahun_anggaran={tahun_anggaran}",
         super::client::API_BASE
-    ))
-    .await
+    );
+    // The same drill-down the page is showing: the server resolves it against the caller's scope
+    // (it can only narrow), so an export of one satker is that satker's, not the whole region's.
+    if let Some(s) = satker.map(str::trim).filter(|s| !s.is_empty()) {
+        url.push_str(&format!("&satker={}", urlencoding::encode(s)));
+    }
+    if let Some(w) = wilayah.map(str::trim).filter(|w| !w.is_empty()) {
+        url.push_str(&format!("&wilayah={}", urlencoding::encode(w)));
+    }
+    super::client::auth_get_binary(&url).await
 }
 
 // ============================================================================

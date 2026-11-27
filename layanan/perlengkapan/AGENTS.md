@@ -229,7 +229,21 @@ flowchart TB
   `kode_satker IS NOT NULL` (atau membaca `Option`): di bawah `panic = "abort"` satu NULL
   mematikan PROSES, bukan hanya request — itu rc31 (`bank-aset/filter-options`, 503 untuk
   pusat/wilayah/admin). Stub `v_satker_code_map` di `tests/common.rs` meniru arm ini; jangan
-  dikosongkan lagi, karena justru bentuk itulah yang tak pernah terlihat CI. Enrichment read internal (pemakaian/penghapusan auto-fill)
+  dikosongkan lagi, karena justru bentuk itulah yang tak pernah terlihat CI.
+- **`/bank-aset/filter-options` melayani dropdown berjenjang dasbor.** Tiap daftar dihitung
+  dengan SEMUA filter KECUALI pilihan daftar itu sendiri (daftar wilayah tak menyempit oleh
+  wilayah/satker yang dipilih; daftar satker menyempit oleh wilayah, tak oleh satker): daftar
+  yang menciut ke pilihannya membuat pindah langsung ke wilayah lain mustahil. Opsi satker
+  membawa `induk` (kode wilayah, digit 6-9 `kdsatker_keu`) sehingga klien menyempitkan daftar
+  satker sendiri tanpa putaran server (2-3 s untuk pusat). Satu satker bisa punya beberapa kode
+  SIMAN di wilayah berbeda (0200010 di staging: 0100 dan 9999): `induk` = yang terkecil,
+  `induk_semua` = semuanya, dan klien menawarkan satker di SETIAP wilayahnya. Karena itu
+  `?satker=&wilayah=` pada dasbor/ekspor adalah IRISAN (`AsetScope::SatkerDiWilayah`, lihat
+  `shared::satker_scope::narrow_for_request`): hanya aset satker DI wilayah itu; wilayah yang
+  bukan hak pemanggil mengosongkan KEDUA sisi dasbor, bukan satu. `?facet=a,b` (jenis, kategori, kondisi,
+  satker, satker_kode, wilayah) hanya menghitung daftar yang diminta; nama tak dikenal ⇒ 400
+  (bukan dropdown kosong yang terbaca "tak ada data"). Hitungan wilayah menghitung aset SEBELUM
+  mencari nama (join peta kode menggandakan baris bila satu kode SIMAN dipakai dua satker). Enrichment read internal (pemakaian/penghapusan auto-fill)
   sengaja pakai `AsetScope::All` — kepemilikan satker BMN dijaga oleh workflow, bukan lookup ini.
 - Migrasi `refinery embed_migrations!` (self-migrate saat boot, `main.rs`); baseline
   `V001__baseline.sql` + `V002__seed.sql`. Boot perlengkapan **setelah** integrasi &

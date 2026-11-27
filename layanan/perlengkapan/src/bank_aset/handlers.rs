@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 use super::{
     models::*,
-    repository::{AsetFilter, BankAsetRepository, ListFilter},
+    repository::{AsetFilter, BankAsetRepository, FilterFacets, ListFilter},
     scope::AsetScope,
 };
 use crate::shared::error::{AppError, AppResult, bad_request};
@@ -55,6 +55,8 @@ pub struct AsetFilterQuery {
     pub tgl_from: Option<String>,
     pub tgl_to: Option<String>,
     pub search: Option<String>,
+    /// `filter-options` only: which lists to compute (comma-separated; see `FilterFacets`).
+    pub facet: Option<String>,
 }
 
 impl AsetFilterQuery {
@@ -280,8 +282,11 @@ pub async fn get_bank_aset_filter_options(
     claims: Claims,
 ) -> Result<Json<ApiResponse<BankAsetFilterOptions>>, AppError> {
     let scope = AsetScope::from_claims(&claims);
+    let facets = FilterFacets::parse(query.facet.as_deref()).map_err(|e| bad_request(&e))?;
     let repo = BankAsetRepository::new(state.db_pool.clone());
-    let data = repo.filter_options(&query.into_filter(), &scope).await?;
+    let data = repo
+        .filter_options(&query.into_filter(), &scope, &facets)
+        .await?;
     Ok(Json(ApiResponse::success(
         data,
         "Filter options retrieved successfully".to_string(),

@@ -27,7 +27,7 @@
 
 use crate::api::bank_aset::{
     AsetFilterQuery, BankAsetDashboard, BankAsetFilterOptions, fetch_dashboard,
-    fetch_filter_options,
+    fetch_filter_options_dasbor,
 };
 use crate::api::dashboard::{PerlengkapanDashboardMetrics, fetch_perlengkapan_metrics};
 use crate::components::pakaian_dinas_progres::progres_ringkas;
@@ -280,19 +280,17 @@ async fn query_dashboard_stats(
     fetch_dashboard(&key.0).await
 }
 
-/// Dropdown contents, narrowed by the selected region.
+/// Dropdown contents, asked for once.
 ///
-/// A separate query from the data so changing a region does not re-fetch the
-/// aggregates twice, and so an options failure leaves the dashboard readable
-/// with the filters unavailable rather than blanking the page.
-async fn query_filter_options(
-    wilayah: Option<String>,
-) -> Result<BankAsetFilterOptions, crate::api::AppError> {
-    fetch_filter_options(&AsetFilterQuery {
-        wilayah,
-        ..Default::default()
-    })
-    .await
+/// Not keyed by the chosen region: each satker carries the region it sits in, and the filter bar
+/// narrows the satker list itself. Keyed by the region (as it was), choosing one cost a 2-3 s
+/// round trip for pusat, and for those seconds the satker list still offered the whole country.
+///
+/// A separate query from the data so changing a filter does not re-fetch the lists, and so an
+/// options failure leaves the dashboard readable with the filters unavailable rather than
+/// blanking the page.
+async fn query_filter_options(_: ()) -> Result<BankAsetFilterOptions, crate::api::AppError> {
+    fetch_filter_options_dasbor().await
 }
 
 /// The workflow / kebutuhan / module figures, for the running budget year.
@@ -357,16 +355,28 @@ fn count_kondisi(d: &BankAsetDashboard, pred: impl Fn(&str) -> bool) -> i64 {
 /// Mirrors `components::laporan_kebutuhan_bmn::download_export` — same blob +
 /// synthetic-anchor pattern, kept identical so there is one way to do this.
 #[cfg(target_arch = "wasm32")]
-fn download_dashboard_export(format: &'static str) {
+fn download_dashboard_export(
+    format: &'static str,
+    tahun: i32,
+    satker: Option<String>,
+    wilayah: Option<String>,
+) {
     use leptos::task::spawn_local;
     use wasm_bindgen::JsCast;
     use web_sys::{Blob, BlobPropertyBag, Url};
 
     spawn_local(async move {
-        // The endpoint requires `tahun_anggaran`; the recap is for the running
-        // budget year, which is what the dashboard cards above already show.
-        let tahun = js_sys::Date::new_0().get_full_year() as i32;
-        let bytes = match crate::api::dashboard::export_dashboard(format, tahun).await {
+        // The recap is for what the dashboard is showing: the budget year the reader chose (it
+        // used to be the clock's, so choosing 2025 and pressing PDF handed back 2026) and the
+        // same drill-down. The year in the file name is the year that was requested.
+        let bytes = match crate::api::dashboard::export_dashboard(
+            format,
+            tahun,
+            satker.as_deref(),
+            wilayah.as_deref(),
+        )
+        .await
+        {
             Ok(b) => b,
             Err(e) => {
                 leptos::logging::error!("export dashboard {format} gagal: {e}");
@@ -403,7 +413,13 @@ fn download_dashboard_export(format: &'static str) {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn download_dashboard_export(_format: &'static str) {}
+fn download_dashboard_export(
+    _format: &'static str,
+    _tahun: i32,
+    _satker: Option<String>,
+    _wilayah: Option<String>,
+) {
+}
 
 fn format_number(n: i64) -> String {
     let s = n.to_string();
@@ -518,7 +534,7 @@ pub fn DashboardHome() -> impl IntoView {
             tick.get(),
         )
     });
-    let options_resource = client.local_resource(query_filter_options, move || f_wilayah.get());
+    let options_resource = client.local_resource(query_filter_options, || ());
     // Pakaian dinas work waiting on THIS user's role; the server scopes it.
     let menunggu_resource = client.local_resource(query_pakaian_menunggu, move || tick.get());
     // How far the latest pakaian dinas campaigns have got.
@@ -632,6 +648,12 @@ pub fn DashboardHome() -> impl IntoView {
                             "Cakupan: "
                             <strong class="text-white">
                                 {move || {
+                                    // A satker-tier reader's coverage is their one satker. The
+                                    // figure below counts SIMAN finance CODES, and one satker can
+                                    // hold two (an operator on staging was told "2").
+                                    if !is_multi_satker() {
+                                        return "1".to_string();
+                                    }
                                     stats_resource
                                         .get()
                                         .and_then(|r| r.ok())
@@ -668,35 +690,33 @@ pub fn DashboardHome() -> impl IntoView {
                 </div>
             </section>
 
-            // Drill-down. Rendered only where it can do something: a satker
-            // operator's scope IS one satker, so a satker selector would offer
-            // a single option that changes nothing, and a region selector would
-            // offer a region they cannot widen to. The options themselves are
-            // scoped server-side — measured on staging, `/filter-options`
-            // returns 1 satker to an operator, 7 to a wilayah validator and 554
-            // to pusat — so the list cannot offer what its reader may not see.
-            <Show when=move || is_multi_satker()>
-                {move || {
-                    options_resource
-                        .get()
-                        .and_then(|r| r.ok())
-                        .map(|opts| {
-                            view! {
-                                <FilterBar
-                                    options=opts
-                                    show_wilayah=is_pusat()
-                                    show_satker=true
-                                    wilayah=f_wilayah
-                                    satker=f_satker
-                                    jenis=f_jenis
-                                    tahun=f_tahun
-                                    tgl_from=f_from
-                                    tgl_to=f_to
-                                />
-                            }
-                        })
-                }}
-            </Show>
+            // Drill-down, for every role, showing only the selectors its scope can use: a satker
+            // operator's scope IS one satker, so they get no satker or region selector, but they
+            // keep jenis, tahun and periode and a line saying whose figures these are; a wilayah
+            // validator gets the satker selector; pusat gets both, cascading (a region narrows the
+            // satker list). The lists are scoped server-side, so they cannot offer what their
+            // reader may not see: measured on staging, 1 satker to an operator, 8 to a wilayah
+            // validator, 493 to pusat.
+            {move || {
+                options_resource
+                    .get()
+                    .and_then(|r| r.ok())
+                    .map(|opts| {
+                        view! {
+                            <FilterBar
+                                options=opts
+                                show_wilayah=is_pusat()
+                                show_satker=is_multi_satker()
+                                wilayah=f_wilayah
+                                satker=f_satker
+                                jenis=f_jenis
+                                tahun=f_tahun
+                                tgl_from=f_from
+                                tgl_to=f_to
+                            />
+                        }
+                    })
+            }}
 
             <Suspense fallback=move || {
                 view! {
@@ -1047,14 +1067,28 @@ pub fn DashboardHome() -> impl IntoView {
                 <button
                     type="button"
                     class="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-100 transition-colors hover:border-white/20 hover:bg-slate-900/80"
-                    on:click=move |_| download_dashboard_export("excel")
+                    on:click=move |_| {
+                        download_dashboard_export(
+                            "excel",
+                            f_tahun.get_untracked(),
+                            f_satker.get_untracked(),
+                            f_wilayah.get_untracked(),
+                        )
+                    }
                 >
                     "Excel"
                 </button>
                 <button
                     type="button"
                     class="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-100 transition-colors hover:border-white/20 hover:bg-slate-900/80"
-                    on:click=move |_| download_dashboard_export("pdf")
+                    on:click=move |_| {
+                        download_dashboard_export(
+                            "pdf",
+                            f_tahun.get_untracked(),
+                            f_satker.get_untracked(),
+                            f_wilayah.get_untracked(),
+                        )
+                    }
                 >
                     "PDF"
                 </button>

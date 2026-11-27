@@ -422,14 +422,25 @@ pub fn StatusModul(
 
 /// The drill-down controls, showing only what the caller's tier can act on.
 ///
-/// A satker operator gets no satker selector: their scope IS one satker, so the
-/// control would offer a single option that changes nothing. A wilayah
-/// validator gets a satker selector but no region selector, for the same
-/// reason one level up. The options themselves come from
-/// `/bank-aset/filter-options`, which is scoped server-side — measured on
-/// staging, that endpoint returns 1 satker to an operator, 7 to a wilayah
-/// validator and 554 to pusat — so the dropdown cannot offer a satker its
-/// reader may not see, and the server would refuse it anyway.
+/// - A **satker operator** has no region or satker to choose: their scope IS one satker. They keep
+///   the filters that still mean something (jenis, tahun, periode) and a line saying whose figures
+///   these are.
+/// - A **wilayah validator** sees their whole wilayah by default and may narrow to one satker under
+///   it; the region is fixed by their claims, so there is no region selector.
+/// - **Pusat** sees the whole country by default and may narrow to one wilayah, to one satker, or
+///   to a satker within a wilayah: choosing a wilayah narrows the satker list to that wilayah.
+///
+/// The options come from `/bank-aset/filter-options`, which is scoped server-side, so the lists
+/// cannot offer what the reader may not see, and the server would refuse it anyway.
+///
+/// The lists arrive ONCE and whole. Each satker carries the region it sits in (`induk`), so
+/// choosing a region narrows the satker list here, at once. It used to ask the server again, which
+/// takes 2-3 s for pusat; for those seconds the old list still offered every satker in the country
+/// and a pick from it answered zeros. The component also stays mounted while the figures reload,
+/// and every selector's `value` PROPERTY is bound to its signal, so what the screen shows is what
+/// is being filtered. (Binding the `selected` attribute of each option did not hold: once a person
+/// has chosen an option by hand the browser stops following the attribute, and "Bersihkan filter"
+/// then cleared the filter while the select kept showing the old choice.)
 #[component]
 pub fn FilterBar(
     options: crate::api::bank_aset::BankAsetFilterOptions,
@@ -447,10 +458,6 @@ pub fn FilterBar(
     let now = chrono::Local::now().year();
     let years: Vec<i32> = (now - 5..=now).rev().collect();
 
-    // Satker options are NOT filtered client-side by the selected region. They
-    // arrive already narrowed: the page refetches `/bank-aset/filter-options`
-    // with the region applied, so the list is the server's answer rather than
-    // this component's guess about how a code is composed.
     // `w-full max-w-full` here and `min-w-0` on each wrapper: a flex item will not shrink below
     // its content, and a select's content is its longest option (a satker name). On a phone that
     // made the row 154px wider than its card, clipped on the right with no scrollbar.
@@ -467,26 +474,104 @@ pub fn FilterBar(
             || tgl_to.get().is_some()
     };
 
+    let wilayah_opts = options.wilayah.clone();
+    let satker_opts = options.satker_kode.clone();
+
+    // Whose figures these are, in words. For the operator it is the one thing they cannot change,
+    // so it is the only place the page says which satker it is showing.
+    let ringkasan = {
+        let wilayah_opts = wilayah_opts.clone();
+        let satker_opts = satker_opts.clone();
+        move || {
+            let nama = |daftar: &[crate::api::bank_aset::FilterOption], kode: &str| {
+                daftar
+                    .iter()
+                    .find(|o| o.value == kode)
+                    .map(|o| o.display().to_string())
+            };
+            let w = wilayah.get().and_then(|k| nama(&wilayah_opts, &k));
+            let s = satker.get().and_then(|k| nama(&satker_opts, &k));
+            match (show_wilayah, show_satker) {
+                // Pusat.
+                (true, _) => match (w, s) {
+                    (Some(w), Some(s)) => format!("{w} › {s}"),
+                    (Some(w), None) => format!("{w} · seluruh satuan kerjanya"),
+                    (None, Some(s)) => s,
+                    (None, None) => "Seluruh Indonesia".to_string(),
+                },
+                // Wilayah validator: the wilayah is fixed, the satker is the choice.
+                (false, true) => {
+                    let wil = wilayah_opts
+                        .iter()
+                        .map(|o| o.display().to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    let wil = if wil.is_empty() {
+                        "wilayah Anda".to_string()
+                    } else {
+                        wil
+                    };
+                    match s {
+                        Some(s) => format!("{wil} › {s}"),
+                        None => format!("{wil} · seluruh satuan kerjanya"),
+                    }
+                }
+                // Operator: their own satker, always.
+                (false, false) => satker_opts
+                    .first()
+                    .map(|o| o.display().to_string())
+                    .unwrap_or_else(|| "Satuan kerja Anda".to_string()),
+            }
+        }
+    };
+
+    // The satker list for the chosen region (all of them when no region is chosen).
+    let satker_tampil = {
+        let satker_opts = satker_opts.clone();
+        move || {
+            let w = wilayah.get();
+            satker_opts
+                .iter()
+                .filter(|o| match &w {
+                    Some(w) => o.di_wilayah(w),
+                    None => true,
+                })
+                .cloned()
+                .collect::<Vec<_>>()
+        }
+    };
+
     view! {
         <section class="rounded-2xl border border-white/10 bg-slate-900/40 p-4 backdrop-blur">
+            <p
+                data-testid="filter-ringkasan"
+                class="mb-3 text-xs text-slate-400 sm:text-sm"
+            >
+                "Menampilkan: " <strong class="text-slate-100">{ringkasan}</strong>
+            </p>
             <div class="flex flex-wrap items-end gap-3">
-                <Show when=move || show_wilayah>
+                {show_wilayah
+                    .then(|| {
+                        view! {
                     <div class="w-full min-w-0 sm:w-auto sm:max-w-full">
                         <label class=lab for="f-wilayah">
                             "Wilayah"
                         </label>
                         <select
                             id="f-wilayah"
+                            prop:value=move || wilayah.get().unwrap_or_default()
                             class=sel
                             on:change=move |ev| {
                                 let v = event_target_value(&ev);
                                 wilayah.set(if v.is_empty() { None } else { Some(v) });
+                                // A satker of another wilayah is not a choice any more.
                                 satker.set(None);
                             }
                         >
-                            <option value="">"Seluruh wilayah"</option>
-                            {options
-                                .wilayah
+                            <option value="">
+                                "Seluruh wilayah"
+                            </option>
+                            {wilayah_opts
                                 .iter()
                                 .map(|o| {
                                     let v = o.value.clone();
@@ -495,43 +580,63 @@ pub fn FilterBar(
                                         o.display(),
                                         format_id(o.count as f64),
                                     );
-                                    view! { <option value=v>{text}</option> }
+                                    view! {
+                                        <option
+                                            value=v
+                                        >
+                                            {text}
+                                        </option>
+                                    }
                                 })
                                 .collect_view()}
                         </select>
                     </div>
-                </Show>
+                        }
+                    })}
 
-                <Show when=move || show_satker>
+                {show_satker
+                    .then(|| {
+                        view! {
                     <div class="w-full min-w-0 sm:w-auto sm:max-w-full">
                         <label class=lab for="f-satker">
                             "Satuan Kerja"
                         </label>
                         <select
                             id="f-satker"
+                            prop:value=move || satker.get().unwrap_or_default()
                             class=sel
                             on:change=move |ev| {
                                 let v = event_target_value(&ev);
                                 satker.set(if v.is_empty() { None } else { Some(v) });
                             }
                         >
-                            <option value="">"Seluruh satuan kerja"</option>
-                            {options
-                                .satker_kode
-                                .iter()
-                                .map(|o| {
-                                    let v = o.value.clone();
-                                    let text = format!(
-                                        "{} ({})",
-                                        o.display(),
-                                        format_id(o.count as f64),
-                                    );
-                                    view! { <option value=v>{text}</option> }
-                                })
-                                .collect_view()}
+                            <option value="">
+                                "Seluruh satuan kerja"
+                            </option>
+                            {move || {
+                                satker_tampil()
+                                    .into_iter()
+                                    .map(|o| {
+                                        let v = o.value.clone();
+                                        let text = format!(
+                                            "{} ({})",
+                                            o.display(),
+                                            format_id(o.count as f64),
+                                        );
+                                        view! {
+                                            <option
+                                                value=v
+                                            >
+                                                {text}
+                                            </option>
+                                        }
+                                    })
+                                    .collect_view()
+                            }}
                         </select>
                     </div>
-                </Show>
+                        }
+                    })}
 
                 <div class="w-full min-w-0 sm:w-auto sm:max-w-full">
                     <label class=lab for="f-jenis">
@@ -539,13 +644,16 @@ pub fn FilterBar(
                     </label>
                     <select
                         id="f-jenis"
+                            prop:value=move || jenis.get().unwrap_or_default()
                         class=sel
                         on:change=move |ev| {
                             let v = event_target_value(&ev);
                             jenis.set(if v.is_empty() { None } else { Some(v) });
                         }
                     >
-                        <option value="">"Seluruh jenis"</option>
+                        <option value="">
+                            "Seluruh jenis"
+                        </option>
                         {options
                             .jenis
                             .iter()
@@ -556,7 +664,13 @@ pub fn FilterBar(
                                     o.display(),
                                     format_id(o.count as f64),
                                 );
-                                view! { <option value=v>{text}</option> }
+                                view! {
+                                    <option
+                                        value=v
+                                    >
+                                        {text}
+                                    </option>
+                                }
                             })
                             .collect_view()}
                     </select>
@@ -596,6 +710,7 @@ pub fn FilterBar(
                         id="f-from"
                         type="date"
                         class=sel
+                        prop:value=move || tgl_from.get().unwrap_or_default()
                         on:change=move |ev| {
                             let v = event_target_value(&ev);
                             tgl_from.set(if v.is_empty() { None } else { Some(v) });
@@ -610,6 +725,7 @@ pub fn FilterBar(
                         id="f-to"
                         type="date"
                         class=sel
+                        prop:value=move || tgl_to.get().unwrap_or_default()
                         on:change=move |ev| {
                             let v = event_target_value(&ev);
                             tgl_to.set(if v.is_empty() { None } else { Some(v) });
@@ -620,6 +736,7 @@ pub fn FilterBar(
                 <Show when=has_any>
                     <button
                         type="button"
+                        data-testid="filter-bersihkan"
                         class="rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-slate-300 transition-colors hover:border-white/25 hover:text-white"
                         on:click=move |_| {
                             wilayah.set(None);

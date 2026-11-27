@@ -97,11 +97,13 @@ export default defineConfig({
     // F5-C UI-layer data-scoping (Layer-3): the FE bank-aset list must RENDER
     // only the in-scope rows. Browser-driven, per-role storageState; needs the
     // compose FE→BE upstream fix so the WASM's origin-relative API call resolves.
+    // The dashboard's drill-down belongs here too: it is the same question (what does each tier
+    // see, and what can it narrow to) asked of the home page.
     {
       name: 'perlengkapan-ui-rbac',
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
-      testMatch: ['**/rbac-scoping-ui.spec.ts'],
+      testMatch: ['**/rbac-scoping-ui.spec.ts', '**/dashboard-berjenjang.spec.ts'],
     },
     // F5-C route-coverage / navigation reachability (replaces the deleted legacy
     // MOCK ui-*.spec.ts). Real per-role storageState; asserts the authenticated
