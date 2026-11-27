@@ -931,8 +931,8 @@ test.describe("Pakaian Dinas — the satker list can be searched and narrowed by
     await page.goto(`${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker`, { waitUntil: "domcontentloaded" });
     const kartu = page.getByRole("button", { name: "Lihat Riwayat & Aksi" });
     await expect(kartu).toHaveCount(2, { timeout: 20000 });
-    // The count says what it counts: filled employees, not the satker's headcount.
-    await expect(page.getByText(/· \d+ pegawai terisi/).first()).toBeVisible();
+    // The count says what it counts and out of what: employees who have filled in, of the roster.
+    await expect(page.getByText(/· \d+ dari \d+ pegawai sudah mengisi/).first()).toBeVisible();
     // Two satker fit one page, so there is nothing to page through.
     await expect(page.getByRole("button", { name: "Selanjutnya" })).toBeDisabled();
 
@@ -1051,6 +1051,15 @@ test.describe("Pakaian Dinas — bulk actions for an account holding both valida
     await expect(page.getByTestId("progres-lihat-pegawai").first()).toHaveAttribute("href", /\/isi$/);
     // Each satker card says how many of its roster have filled in.
     await expect(page.getByText(/\d+ dari \d+ pegawai sudah mengisi/).first()).toBeVisible();
+
+    // The stage counts of a wilayah sit in their own column on a desktop. Below `sm` that column is
+    // hidden, and the counts must not go with it: a phone gets them as one line under the name.
+    const tahapRingkas = page.getByTestId("progres-wilayah-tahap-ringkas").first();
+    await expect(tahapRingkas).toBeHidden();
+    await page.setViewportSize({ width: 390, height: 800 });
+    await expect(tahapRingkas).toBeVisible();
+    await expect(tahapRingkas).toContainText(/Belum \d+ · Wilayah \d+ · Pusat \d+ · Selesai \d+/);
+    await page.setViewportSize({ width: 1280, height: 720 });
 
     // The campaign list shows how far each campaign has got, and so does the dashboard.
     await page.goto(`${BASE}/pakaian-dinas/pengajuan`, { waitUntil: "domcontentloaded" });
