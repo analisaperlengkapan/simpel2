@@ -439,9 +439,18 @@ impl PakaianDinasService {
         tahun: Option<i32>,
         scope: &crate::shared::satker_scope::SatkerScope,
     ) -> AppResult<(Vec<PengajuanPakaianDinas>, i64)> {
-        self.repository
+        let (mut items, total) = self
+            .repository
             .get_all_pengajuan(page, per_page, tahun, scope)
-            .await
+            .await?;
+        // How far each campaign on this page has got, in the caller's scope: the campaign list
+        // shows it, and the dashboard reads the same list.
+        let ids: Vec<Uuid> = items.iter().map(|p| p.id).collect();
+        let mut progres = self.repository.hitung_progres_kegiatan(&ids, scope).await?;
+        for item in &mut items {
+            item.progres = progres.remove(&item.id);
+        }
+        Ok((items, total))
     }
 
     pub async fn get_pengajuan_by_id(&self, id: Uuid) -> AppResult<PengajuanPakaianDinas> {

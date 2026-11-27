@@ -213,6 +213,41 @@ pub fn susun_progres(baris: Vec<BarisProgres>) -> ProgresPakaianDinas {
     }
 }
 
+/// Satker rows of one campaign that share a status, as the query returns them for the
+/// campaign list (grouped, so a page of campaigns is a few rows, not a few thousand).
+#[derive(Debug, Clone)]
+pub struct KelompokProgres {
+    pub pengajuan_id: uuid::Uuid,
+    pub aktivitas_id: i32,
+    pub satker: i64,
+    pub tanpa_pegawai: i64,
+    pub pegawai_total: i64,
+    pub pegawai_terisi: i64,
+}
+
+/// The summary of each campaign from its grouped rows. The stage of a status code comes
+/// from [`tahap_progres`], the one definition, not from a second list in SQL.
+pub fn susun_ringkasan_kegiatan(
+    kelompok: Vec<KelompokProgres>,
+) -> std::collections::HashMap<uuid::Uuid, ProgresRingkasan> {
+    let mut hasil: std::collections::HashMap<uuid::Uuid, ProgresRingkasan> =
+        std::collections::HashMap::new();
+    for k in kelompok {
+        let r = hasil.entry(k.pengajuan_id).or_default();
+        r.satker_total += k.satker;
+        r.tanpa_pegawai += k.tanpa_pegawai;
+        match tahap_progres(k.aktivitas_id) {
+            TahapProgres::BelumMengajukan => r.belum_mengajukan += k.satker,
+            TahapProgres::DiWilayah => r.di_wilayah += k.satker,
+            TahapProgres::DiPusat => r.di_pusat += k.satker,
+            TahapProgres::Selesai => r.selesai += k.satker,
+        }
+        r.pegawai_total += k.pegawai_total;
+        r.pegawai_terisi += k.pegawai_terisi;
+    }
+    hasil
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -334,5 +369,43 @@ mod tests {
             .map(|i| baris(&format!("s{i:02}"), Some("A"), 1000, 10, 0))
             .collect();
         assert_eq!(susun_progres(banyak).tertinggal.len(), JUMLAH_TERTINGGAL);
+    }
+
+    #[test]
+    fn the_campaign_list_summary_groups_rows_per_campaign_with_the_same_stages() {
+        let a = uuid::Uuid::from_u128(1);
+        let b = uuid::Uuid::from_u128(2);
+        let kelompok =
+            |p: uuid::Uuid, status: i32, satker: i64, total: i64, terisi: i64| KelompokProgres {
+                pengajuan_id: p,
+                aktivitas_id: status,
+                satker,
+                tanpa_pegawai: 0,
+                pegawai_total: total,
+                pegawai_terisi: terisi,
+            };
+        let m = susun_ringkasan_kegiatan(vec![
+            kelompok(a, 1000, 3, 30, 3),
+            kelompok(a, 1003, 1, 10, 0),
+            kelompok(a, 1001, 2, 20, 20),
+            kelompok(a, 1008, 4, 40, 40),
+            kelompok(b, 1004, 5, 50, 25),
+        ]);
+        let ra = &m[&a];
+        assert_eq!(
+            (
+                ra.satker_total,
+                ra.belum_mengajukan,
+                ra.di_wilayah,
+                ra.di_pusat,
+                ra.selesai
+            ),
+            (10, 4, 2, 0, 4)
+        );
+        assert_eq!((ra.pegawai_total, ra.pegawai_terisi), (100, 63));
+        let rb = &m[&b];
+        assert_eq!((rb.satker_total, rb.di_pusat), (5, 5));
+        // The page of campaigns has no entry for a campaign without rows in scope.
+        assert!(!m.contains_key(&uuid::Uuid::from_u128(3)));
     }
 }

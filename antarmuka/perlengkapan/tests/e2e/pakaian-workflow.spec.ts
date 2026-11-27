@@ -1051,6 +1051,14 @@ test.describe("Pakaian Dinas — bulk actions for an account holding both valida
     await expect(page.getByTestId("progres-lihat-pegawai").first()).toHaveAttribute("href", /\/isi$/);
     // Each satker card says how many of its roster have filled in.
     await expect(page.getByText(/\d+ dari \d+ pegawai sudah mengisi/).first()).toBeVisible();
+
+    // The campaign list shows how far each campaign has got, and so does the dashboard.
+    await page.goto(`${BASE}/pakaian-dinas/pengajuan`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("progres-ringkas").first()).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId("progres-ringkas").first()).toContainText("satker selesai");
+    await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("progres-pakaian-dashboard")).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId("progres-pakaian-kegiatan").first()).toHaveAttribute("href", /\/satker$/);
     await ctx.close();
   });
 

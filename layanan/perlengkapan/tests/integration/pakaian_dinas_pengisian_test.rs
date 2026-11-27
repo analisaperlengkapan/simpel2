@@ -1415,6 +1415,56 @@ async fn daftar_satker_membawa_roster_dan_yang_sudah_terisi() {
     teardown_test_db(&db_name).await;
 }
 
+/// The campaign list says how far each campaign has got, inside the caller's scope: pusat sees
+/// the whole campaign, an operator only their own satker.
+#[tokio::test]
+async fn daftar_kegiatan_membawa_progres_menurut_cakupan_pemanggil() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+    simpan_ukuran(&server, &pengajuan_id, NIP_A, &pakaian_id, "L").await;
+
+    let progres_dari = |data: &Value| -> Value {
+        data["data"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|k| k["id"].as_str() == Some(pengajuan_id.as_str()))
+            .unwrap_or_else(|| panic!("kegiatan {pengajuan_id}: {data}"))["progres"]
+            .clone()
+    };
+
+    let res = get(
+        &server,
+        "/pakaian-dinas/pengajuan",
+        "validator_pusat",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    let p = progres_dari(&res.json::<Value>());
+    assert_eq!(p["satker_total"].as_i64(), Some(2), "{p}");
+    assert_eq!(p["belum_mengajukan"].as_i64(), Some(2), "{p}");
+    assert_eq!(p["pegawai_total"].as_i64(), Some(2), "{p}");
+    assert_eq!(p["pegawai_terisi"].as_i64(), Some(1), "{p}");
+
+    let res = get(
+        &server,
+        "/pakaian-dinas/pengajuan",
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    let p = progres_dari(&res.json::<Value>());
+    assert_eq!(p["satker_total"].as_i64(), Some(1), "{p}");
+    assert_eq!(p["pegawai_terisi"].as_i64(), Some(1), "{p}");
+
+    teardown_test_db(&db_name).await;
+}
+
 // ============================================================================
 // "Keluarkan dari Pengajuan" must be reversible from the screen. Excluding used
 // to delete the employee from the list, and the only documented way back was

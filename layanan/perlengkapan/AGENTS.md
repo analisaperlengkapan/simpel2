@@ -573,6 +573,11 @@ contracts hold it together; changing one means changing all three:
   `pegawai_terisi` (the denominator behind "12 dari 15"), counted with the same CTE as
   the warnings. The employees themselves are NOT in this endpoint: the roster page
   already lists them, and the panel links there.
+  The campaign list (`GET /pakaian-dinas/pengajuan`) carries the same stage summary per
+  campaign as `progres` (`ProgresRingkasan`, `None` when the caller has no satker in it),
+  computed for the page's campaigns in ONE query (`hitung_progres_kegiatan`, grouped by
+  campaign and status, stages assigned by `tahap_progres`); the dashboard reads that list,
+  so the dashboard and the list cannot disagree.
 - **Every mutating validator action carries `tahap`** (single and bulk). The
   server re-validates the row's current gate per row; a stale dialog (row moved
   underneath it) is refused with 409 instead of performing the *other* gate's

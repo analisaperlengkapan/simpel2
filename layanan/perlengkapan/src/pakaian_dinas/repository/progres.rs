@@ -7,8 +7,11 @@
 //! people excluded by the operator owe nothing and are not counted.
 
 use super::PakaianDinasRepository;
-use super::kesiapan::anggota_roster_cte;
-use crate::pakaian_dinas::models::{BarisProgres, ProgresPakaianDinas, susun_progres};
+use super::kesiapan::{anggota_roster_cte, anggota_roster_cte_untuk};
+use crate::pakaian_dinas::models::{
+    BarisProgres, KelompokProgres, ProgresPakaianDinas, ProgresRingkasan, susun_progres,
+    susun_ringkasan_kegiatan,
+};
 use crate::shared::error::{AppResult, bad_request};
 use crate::shared::satker_scope::{BoxedParam, SatkerScope, as_refs, scope_and};
 use std::collections::HashMap;
@@ -127,5 +130,74 @@ impl PakaianDinasRepository {
                 )
             })
             .collect())
+    }
+
+    /// The progress summary of each campaign on a page of the campaign list, inside the
+    /// caller's scope. One query for the whole page: the satker rows are grouped by
+    /// campaign and status in SQL, and the stages are assigned in Rust by the one
+    /// definition ([`crate::pakaian_dinas::models::tahap_progres`]).
+    ///
+    /// A campaign with no rows in the caller's scope has no entry.
+    pub async fn hitung_progres_kegiatan(
+        &self,
+        pengajuan_ids: &[Uuid],
+        scope: &SatkerScope,
+    ) -> AppResult<HashMap<Uuid, ProgresRingkasan>> {
+        if pengajuan_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+
+        let mut params: Vec<BoxedParam> = vec![Box::new(pengajuan_ids.to_vec())];
+        let scope_sql = scope_and(scope, "ps.satker_id", &mut params);
+        let kunci = "ps.pengajuan_id = ANY($1::uuid[])";
+        let sql = format!(
+            r#"
+            WITH {cte},
+            per_satker AS (
+                SELECT
+                    ps.pengajuan_id,
+                    ps.id,
+                    ps.aktivitas_id,
+                    COUNT(a.nip) AS pegawai_total,
+                    COUNT(a.nip) FILTER (WHERE t.satker_row_id IS NOT NULL) AS pegawai_terisi
+                FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
+                LEFT JOIN anggota a ON a.satker_row_id = ps.id
+                LEFT JOIN terisi t
+                       ON t.satker_row_id = a.satker_row_id AND t.nip = a.nip
+                WHERE {kunci}{scope_sql}
+                GROUP BY ps.pengajuan_id, ps.id, ps.aktivitas_id
+            )
+            SELECT pengajuan_id, aktivitas_id,
+                   COUNT(*) AS satker,
+                   COUNT(*) FILTER (WHERE pegawai_total = 0) AS tanpa_pegawai,
+                   COALESCE(SUM(pegawai_total), 0)::bigint AS pegawai_total,
+                   COALESCE(SUM(pegawai_terisi), 0)::bigint AS pegawai_terisi
+            FROM per_satker
+            GROUP BY pengajuan_id, aktivitas_id
+            "#,
+            cte = anggota_roster_cte_untuk(kunci, &scope_sql),
+        );
+        let rows = client
+            .query(&sql, &as_refs(&params))
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+
+        Ok(susun_ringkasan_kegiatan(
+            rows.iter()
+                .map(|r| KelompokProgres {
+                    pengajuan_id: r.get("pengajuan_id"),
+                    aktivitas_id: r.get("aktivitas_id"),
+                    satker: r.get("satker"),
+                    tanpa_pegawai: r.get("tanpa_pegawai"),
+                    pegawai_total: r.get("pegawai_total"),
+                    pegawai_terisi: r.get("pegawai_terisi"),
+                })
+                .collect(),
+        ))
     }
 }

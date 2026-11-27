@@ -315,6 +315,31 @@ fn isi_panel(pengajuan_id: String, p: ProgresPakaianDinas) -> AnyView {
     .into_any()
 }
 
+/// The progress of one campaign in a few lines: the stage bar, how many satker are finished,
+/// and how many employees have given a size. For the campaign cards and the dashboard, where
+/// the full panel would be too much; `None` when the caller has no satker in the campaign.
+pub fn progres_ringkas(r: &ProgresRingkasan) -> AnyView {
+    if r.satker_total == 0 {
+        return ().into_any();
+    }
+    let satker = format!("{} dari {} satker selesai", r.selesai, r.satker_total);
+    let pegawai = match persen(r.pegawai_terisi, r.pegawai_total) {
+        Some(p) => format!(
+            "Pegawai sudah mengisi: {} / {} ({p}%)",
+            r.pegawai_terisi, r.pegawai_total
+        ),
+        None => "Belum ada pegawai di roster".to_string(),
+    };
+    view! {
+        <div data-testid="progres-ringkas" class="mt-3 space-y-1.5">
+            {bar_tahap(r.clone())}
+            <p class="text-xs text-slate-300">{satker}</p>
+            <p class="text-xs text-slate-400">{pegawai}</p>
+        </div>
+    }
+    .into_any()
+}
+
 /// The progress panel of one campaign. `refresh` is the page's reload counter, so a
 /// move made on the page is reflected here too.
 #[component]
