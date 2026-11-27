@@ -717,6 +717,95 @@ async fn a_satker_and_a_region_together_are_an_intersection() {
     teardown_test_db(&db_name).await;
 }
 
+/// A satker that maps to TWO SIMAN regions (0200010 on staging: 0100 and 9999) must not turn a
+/// regional validator's request into a 500. The caller's region was looked up as one row by joining
+/// the Kejati row to the code map, and `query_opt` refuses a second row, so a satker with two
+/// mappings failed before the requested region was even checked.
+///
+/// The stub's base table has a PRIMARY KEY on `kode_satker`; the real view returns several rows for
+/// a satker whose name matches more than one SIMAN code. This test's database is its own, so it
+/// drops the key and gives SKR001 a second mapping, which is the shape the view produces.
+#[tokio::test]
+async fn a_regional_validator_whose_satker_maps_to_two_regions_gets_answers_not_a_500() {
+    let (app, db, db_name) = setup_test_app().await;
+    seed_siman(&db).await;
+    {
+        let client = db.pool().get().await.unwrap();
+        client
+            .execute(
+                "ALTER TABLE integrasi.satker_code_map DROP CONSTRAINT satker_code_map_pkey",
+                &[],
+            )
+            .await
+            .unwrap();
+        client
+            .execute(
+                "INSERT INTO integrasi.satker_code_map (kode_satker, kdsatker_keu, nama_satker, verified)
+                 VALUES ('SKR001', '006019999005016000KP', 'KEJAKSAAN NEGERI UJI A', TRUE)",
+                &[],
+            )
+            .await
+            .unwrap();
+        // SKR001's second region holds 4 more assets (digits 6-9 = 9999).
+        client
+            .execute(
+                "INSERT INTO integrasi.siman_aset
+                    (jenis_aset, nama, ur_kondisi, kdsatker_keu, kd_brg, rph_aset)
+                 VALUES
+                    ('Peralatan Mesin Non TIK', 'D1', 'Baik', '006019999005016000KP', '3060201003', '1000'),
+                    ('Peralatan Mesin Non TIK', 'D2', 'Baik', '006019999005016000KP', '3060201003', '1000'),
+                    ('Peralatan Mesin Non TIK', 'D3', 'Baik', '006019999005016000KP', '3060201003', '1000'),
+                    ('Peralatan Mesin Non TIK', 'D4', 'Baik', '006019999005016000KP', '3060201003', '1000')",
+                &[],
+            )
+            .await
+            .unwrap();
+    }
+    let server = TestServer::new(app);
+
+    let assets = |v: &serde_json::Value| v["asset_utilization"]["total_assets"].as_i64();
+    let ask = |query: &'static str| {
+        let server = &server;
+        async move {
+            let r = get(
+                server,
+                &format!("/dashboard/perlengkapan?tahun_anggaran=2026&{query}"),
+                "validator_wilayah",
+                WILAYAH,
+                "SKR001",
+            )
+            .await;
+            assert_eq!(
+                r.status_code(),
+                200,
+                "{query}: a satker with two mappings must be answered, not refused: {}",
+                r.text()
+            );
+            r.json::<serde_json::Value>()
+        }
+    };
+
+    // Both of SKR001's regions are the validator's own: each answers with its own assets.
+    assert_eq!(
+        assets(&ask("satker=SKR001&wilayah=0199").await),
+        Some(3),
+        "SKR001 in 0199"
+    );
+    assert_eq!(
+        assets(&ask("satker=SKR001&wilayah=9999").await),
+        Some(4),
+        "SKR001 in 9999: a region the satker maps to is the validator's too"
+    );
+    // The region alone (the same lookup, without a satker): SKR001's 3 + SKR002's 2.
+    assert_eq!(assets(&ask("wilayah=0199").await), Some(5), "region 0199");
+    assert_eq!(assets(&ask("wilayah=9999").await), Some(4), "region 9999");
+    // A region that is none of theirs stays empty, and is still an answer, not an error.
+    assert_eq!(assets(&ask("satker=SKR001&wilayah=1100").await), Some(0));
+    assert_eq!(assets(&ask("wilayah=1100").await), Some(0));
+
+    teardown_test_db(&db_name).await;
+}
+
 /// The exports resolve the drill-down the same way the screen does. An export
 /// that ignored `?satker=` would hand back the whole region as a file.
 #[tokio::test]

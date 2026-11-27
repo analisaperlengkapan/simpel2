@@ -312,8 +312,7 @@ pub async fn narrow_for_request(
             ));
         };
         let (_, caller_siman) = pemanggil_wilayah(pool, scope).await?;
-        let aset_gabungan =
-            aset.narrowed_to_satker_in_wilayah(code, in_scope, w, caller_siman.as_deref());
+        let aset_gabungan = aset.narrowed_to_satker_in_wilayah(code, in_scope, w, &caller_siman);
         // A region the caller may not pick empties BOTH halves, not only the
         // SIMAN one: a half-filtered dashboard looks like it worked.
         if aset_gabungan == crate::bank_aset::AsetScope::Denied {
@@ -359,10 +358,7 @@ pub async fn narrow_for_request(
             Some(k) => scope.narrowed_to_wilayah(k, caller_kejati.as_deref()),
             None => SatkerScope::Denied,
         };
-        return Ok((
-            satker_scope,
-            aset.narrowed_to_wilayah(w, caller_siman.as_deref()),
-        ));
+        return Ok((satker_scope, aset.narrowed_to_wilayah(w, &caller_siman)));
     }
 
     Ok((scope.clone(), aset.clone()))
@@ -370,34 +366,47 @@ pub async fn narrow_for_request(
 
 /// The caller's own region in BOTH spellings — the Kejati's MySIMKARI
 /// `wilayah_code` and SIMAN's `wilayah_kode` — so each half compares like with
-/// like. `(None, None)` for everyone but a wilayah validator: cross-satker
-/// roles have no single region and may therefore select any, and satker-tier
-/// readers have none to compare.
+/// like. `(None, [])` for everyone but a wilayah validator: cross-satker roles
+/// have no single region and may therefore select any, and satker-tier readers
+/// have none to compare.
+///
+/// The SIMAN side is a SET. A satker can map to several SIMAN codes in
+/// different regions (0200010 on staging: 0100 and 9999), and `AsetScope::Wilayah`
+/// covers every one of them, so each is the caller's. The two answers come from
+/// separate queries on purpose: joining the Kejati row to the code map returned
+/// one row per mapping, and `query_opt` turned a satker with two of them into a
+/// 500 before the requested region was even looked at.
 async fn pemanggil_wilayah(
     pool: &deadpool_postgres::Pool,
     scope: &SatkerScope,
-) -> Result<(Option<String>, Option<String>), crate::shared::error::AppError> {
+) -> Result<(Option<String>, Vec<String>), crate::shared::error::AppError> {
     let SatkerScope::Wilayah(code) = scope else {
-        return Ok((None, None));
+        return Ok((None, Vec::new()));
     };
     let client = pool.get().await?;
-    let row = client
+    // One row at most: `v_satker_wilayah` is `DISTINCT ON (kode_satker)`.
+    let kejati = client
         .query_opt(
-            "SELECT w.wilayah_code, m.wilayah_kode
-               FROM integrasi.v_satker_wilayah w
-               LEFT JOIN integrasi.v_satker_code_map m ON m.kode_satker = w.kode_satker
-              WHERE w.kode_satker = $1",
+            "SELECT wilayah_code FROM integrasi.v_satker_wilayah WHERE kode_satker = $1",
             &[code],
         )
         .await
-        .map_err(|e| crate::shared::error::AppError::Database(format!("caller wilayah: {e}")))?;
-    Ok(match row {
-        Some(r) => (
-            Some(r.get::<_, String>("wilayah_code")),
-            r.get::<_, Option<String>>("wilayah_kode"),
-        ),
-        None => (None, None),
-    })
+        .map_err(|e| crate::shared::error::AppError::Database(format!("caller wilayah: {e}")))?
+        .map(|r| r.get::<_, String>("wilayah_code"));
+    let siman = client
+        .query(
+            "SELECT DISTINCT wilayah_kode FROM integrasi.v_satker_code_map
+              WHERE kode_satker = $1 AND wilayah_kode IS NOT NULL",
+            &[code],
+        )
+        .await
+        .map_err(|e| {
+            crate::shared::error::AppError::Database(format!("caller siman wilayah: {e}"))
+        })?
+        .into_iter()
+        .map(|r| r.get::<_, String>("wilayah_kode"))
+        .collect();
+    Ok((kejati, siman))
 }
 
 #[cfg(test)]
