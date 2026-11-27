@@ -49,21 +49,20 @@ ignore = [
   # crypto-bigint 0.5 — timing variability in operations meant to be
   # constant-time. Patched only in the 0.7 line; 0.5 is pulled by
   # elliptic-curve 0.13 (p256/k256/p384, i.e. authenc-crypto and
-  # secreton-crypto) and by aws-sigv4 1.6.3, which is the latest release and
-  # still requires ^0.5. Exposure: secreton's transit engine signs with
+  # secreton-crypto); aws-sigv4, the other crate that used to pull it, left with
+  # the AWS SDK. Exposure: secreton's transit engine signs with
   # k256/p256 secret keys over its API, so a sufficiently precise remote timing
   # attacker is the case this does not rule out; authenc only re-exports its
   # ECDSA helpers and has no runtime signer on this path. Same class and same
   # reason as RUSTSEC-2023-0071 (rsa, Marvin) above: no fixed version to move
-  # to. Remove when the curves move to RustCrypto 0.14 AND aws-sigv4 drops
-  # crypto-bigint 0.5 (it is optional there, behind sigv4a) — the stale-ignore
+  # to. Remove when the curves move to RustCrypto 0.14 — the stale-ignore
   # guard fails this entry the day the advisory stops firing.
   "RUSTSEC-2026-0387",
   # chrono + chrono-tz unmaintained (RUSTSEC-2026-0543 / -0555, 2026-09-14):
   # maintenance-status only — no vulnerability, and RustSec ships
   # `patched = []` (recommending jiff/time). chrono is this workspace's
   # date/time type (chrono::DateTime/Utc/NaiveDate) across ~530 source files
-  # and is also reached transitively (tokio-cron-scheduler, aws-sdk,
+  # and is also reached transitively (tokio-cron-scheduler,
   # rust_decimal, ...); chrono-tz is used by layanan-integrasi for IANA
   # timezones. Moving to jiff/time is a workspace-wide project, not a PR
   # change. The stale-ignore guard (`-D advisory-not-detected`) fails these

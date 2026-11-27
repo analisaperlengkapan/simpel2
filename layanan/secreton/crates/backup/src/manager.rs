@@ -55,12 +55,6 @@ impl BackupManager {
                 };
                 Arc::new(LocalStorage::new(&local_config.path)?)
             }
-            StorageType::S3 => {
-                // TODO: Implement S3 storage backend
-                return Err(BackupError::InvalidConfig(
-                    "S3 storage not yet implemented".to_string(),
-                ));
-            }
             StorageType::Azure => {
                 // TODO: Implement Azure storage backend
                 return Err(BackupError::InvalidConfig(

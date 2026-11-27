@@ -139,11 +139,6 @@ impl HsmBackend {
                 pkcs11.login().await?;
                 Box::new(pkcs11)
             }
-            HsmProviderType::AwsKms => {
-                return Err(HsmError::ConfigError(
-                    "AWS KMS provider not yet implemented".to_string(),
-                ));
-            }
             HsmProviderType::AzureKeyEngine => {
                 return Err(HsmError::ConfigError(
                     "Azure Key Engine provider not yet implemented".to_string(),

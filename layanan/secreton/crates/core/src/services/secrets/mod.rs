@@ -145,7 +145,6 @@ pub trait SecretEngine: Send + Sync {
     }
 }
 
-pub mod aws;
 pub mod database;
 pub mod lease_integration;
 pub mod memory;
@@ -155,7 +154,6 @@ pub mod totp;
 pub mod transform;
 pub mod transit;
 
-pub use aws::*;
 pub use database::*;
 pub use lease_integration::*;
 pub use memory::*;

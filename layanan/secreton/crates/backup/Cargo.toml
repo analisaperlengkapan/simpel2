@@ -45,11 +45,6 @@ flate2 = { workspace = true }
 # Temporary files
 tempfile = { workspace = true }
 
-# S3-compatible storage
-aws-sdk-s3 = { workspace = true }
-aws-config = { workspace = true }
-aws-credential-types = { workspace = true }
-
 # Metrics (optional)
 metrics = { workspace = true, optional = true }
 

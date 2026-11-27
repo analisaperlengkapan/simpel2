@@ -1,5 +1,7 @@
 # Secreton Auto-Unseal Guide
 
+> **Catatan (2026-11):** penyedia dan layanan AWS (KMS, S3, IAM/STS, CloudHSM) sudah **dihapus dari kode** — deployment ini berjalan di server sendiri / pusat data nasional, tanpa cloud publik. Bagian di dokumen ini yang masih menyebut AWS tidak berlaku dan hanya tersisa sebagai riwayat.
+
 ## Table of Contents
 
 1. [Overview](#overview)
@@ -7,7 +9,6 @@
 3. [Prerequisites](#prerequisites)
 4. [Provider Setup Guides](#provider-setup-guides)
    - [Transit Provider](#transit-provider)
-   - [AWS KMS Provider](#aws-kms-provider)
    - [GCP KMS Provider](#gcp-kms-provider)
    - [Azure Key Vault Provider](#azure-key-vault-provider)
 5. [Configuration](#configuration)
@@ -97,13 +98,6 @@ Auto-unseal is a critical feature that allows Secreton to automatically unseal i
 - Transit engine enabled on the remote Secreton
 - Transit key created for auto-unseal
 - Valid authentication token with encrypt/decrypt permissions
-
-#### AWS KMS Provider
-
-- AWS account with KMS access
-- KMS key created in target region
-- IAM role or access keys with `kms:Encrypt` and `kms:Decrypt` permissions
-- Network access to AWS KMS endpoints
 
 #### GCP KMS Provider
 
@@ -206,146 +200,6 @@ Environment variable for token (recommended):
 
 ```bash
 export SECRETON_AUTO_UNSEAL_TRANSIT_TOKEN="hvs.CAESIJ..."
-```
-
----
-
-### AWS KMS Provider
-
-The AWS KMS provider is ideal for AWS deployments and supports both IAM roles and access keys.
-
-#### Step 1: Create KMS Key
-
-```bash
-# Create a KMS key for auto-unseal
-aws kms create-key \
-  --description "Secreton Auto-Unseal Key" \
-  --key-usage ENCRYPT_DECRYPT \
-  --origin AWS_KMS \
-  --region us-east-1
-
-# Note the KeyId from the output
-# Example: arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012
-
-# Create an alias for easier reference
-aws kms create-alias \
-  --alias-name alias/secreton-auto-unseal \
-  --target-key-id <KeyId> \
-  --region us-east-1
-```
-
-#### Step 2: Configure IAM Permissions
-
-**Option A: IAM Role (Recommended for EC2/EKS)**
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "kms:Encrypt",
-        "kms:Decrypt",
-        "kms:DescribeKey"
-      ],
-      "Resource": "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
-    }
-  ]
-}
-```
-
-Attach this policy to the IAM role used by Secreton pods/instances.
-
-**Option B: IAM User with Access Keys**
-
-```bash
-# Create IAM user
-aws iam create-user --user-name secreton-auto-unseal
-
-# Attach policy
-aws iam put-user-policy \
-  --user-name secreton-auto-unseal \
-  --policy-name SecretonAutoUnsealPolicy \
-  --policy-document file://kms-policy.json
-
-# Create access keys
-aws iam create-access-key --user-name secreton-auto-unseal
-```
-
-#### Step 3: Configure Auto-Unseal
-
-```bash
-# Using IAM role (no credentials needed)
-secreton-cli auto-unseal configure \
-  --provider aws-kms \
-  --non-interactive \
-  --aws-key-id "alias/secreton-auto-unseal" \
-  --aws-region "us-east-1"
-
-# Using access keys
-secreton-cli auto-unseal configure \
-  --provider aws-kms \
-  --non-interactive \
-  --aws-key-id "alias/secreton-auto-unseal" \
-  --aws-region "us-east-1" \
-  --aws-access-key-id "AKIAIOSFODNN7EXAMPLE" \
-  --aws-secret-access-key "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-```
-
-#### Step 4: Configuration File Example
-
-```toml
-[auto_unseal]
-enabled = true
-provider = "aws-kms"
-
-[auto_unseal.aws_kms]
-key_id = "alias/secreton-auto-unseal"
-region = "us-east-1"
-# Optional: Provide credentials (uses IAM role if omitted)
-# access_key_id = "AKIAIOSFODNN7EXAMPLE"
-# secret_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-```
-
-Environment variables (recommended for credentials):
-
-```bash
-export AWS_ACCESS_KEY_ID="AKIAIOSFODNN7EXAMPLE"
-export AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-export AWS_REGION="us-east-1"
-```
-
-#### Kubernetes Configuration
-
-For EKS deployments, use IAM Roles for Service Accounts (IRSA):
-
-```yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: secreton
-  namespace: secreton-system
-  annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/secreton-auto-unseal-role
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: secreton
-spec:
-  template:
-    spec:
-      serviceAccountName: secreton
-      containers:
-      - name: secreton
-        env:
-        - name: SECRETON_AUTO_UNSEAL_PROVIDER
-          value: "aws-kms"
-        - name: SECRETON_AUTO_UNSEAL_AWS_KEY_ID
-          value: "alias/secreton-auto-unseal"
-        - name: SECRETON_AUTO_UNSEAL_AWS_REGION
-          value: "us-east-1"
 ```
 
 ---
@@ -662,7 +516,7 @@ Secreton supports three methods for auto-unseal configuration (in order of prece
 # Enable auto-unseal
 enabled = true
 
-# Provider type: "transit", "aws-kms", "gcp-kms", "azure-kv"
+# Provider type: "transit", "gcp-kms", "azure-kv"
 provider = "aws-kms"
 
 # Fallback to manual unseal if auto-unseal fails
@@ -685,19 +539,6 @@ token = "${SECRETON_AUTO_UNSEAL_TRANSIT_TOKEN}"  # Use env var
 timeout_secs = 30
 tls_verify = true
 ca_cert_path = "/etc/secreton/ca.crt"
-```
-
-#### AWS KMS Provider Settings
-
-```toml
-[auto_unseal.aws_kms]
-key_id = "alias/secreton-auto-unseal"
-region = "us-east-1"
-# Optional: credentials (uses IAM role if omitted)
-access_key_id = "${AWS_ACCESS_KEY_ID}"
-secret_access_key = "${AWS_SECRET_ACCESS_KEY}"
-# Optional: custom endpoint (for LocalStack, etc.)
-endpoint = "http://localhost:4566"
 ```
 
 #### GCP KMS Provider Settings

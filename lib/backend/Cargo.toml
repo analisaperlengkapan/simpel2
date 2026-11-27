@@ -50,9 +50,6 @@ rustls = { workspace = true, optional = true }
 rustls-pemfile = { workspace = true, optional = true }
 
 # AWS S3 dependencies
-aws-config = { workspace = true, optional = true }
-aws-sdk-s3 = { workspace = true, optional = true }
-sha2 = { workspace = true, optional = true }
 
 [features]
 default = []
@@ -73,7 +70,6 @@ telemetry = ["dep:tracing-subscriber"]
 db = ["dep:tokio-postgres", "dep:deadpool-postgres"]
 jwt = ["dep:jsonwebtoken"]
 grpc = ["dep:tonic", "dep:rustls", "dep:rustls-pemfile"]
-storage = ["dep:aws-config", "dep:aws-sdk-s3", "dep:sha2"]
 # Full backend feature set
 full-backend = [
   "jwt",
@@ -82,7 +78,6 @@ full-backend = [
   "telemetry",
   "redis-cache",
   "grpc",
-  "storage",
   "env-config",
 ]
 

@@ -9,7 +9,6 @@
 //! - **Raft**: Built-in distributed consensus (no external dependencies)
 //!
 //! ## Cloud-Native Backends
-//! - **S3**: AWS S3 and S3-compatible storage (MinIO, Wasabi, etc.)
 //! - **Azure Blob**: Azure Blob Storage
 //! - **GCS**: Google Cloud Storage
 //!
@@ -20,7 +19,7 @@
 //! # Recommendations
 //!
 //! - **Production HA**: Use Consul or Raft (like HashiCorp Engine)
-//! - **Cloud Deployments**: Use S3, Azure Blob, or GCS
+//! - **Cloud Deployments**: not supported (these deployments run on their own servers)
 //! - **Development**: Use File or Memory backend
 //! - **Legacy Systems**: PostgreSQL available but not recommended
 
@@ -33,11 +32,6 @@ pub use file::{FileBackend, FileConfig};
 pub mod consul;
 #[cfg(feature = "consul")]
 pub use consul::{ConsulBackend, ConsulConfig};
-
-#[cfg(feature = "s3")]
-pub mod s3;
-#[cfg(feature = "s3")]
-pub use s3::{S3Backend, S3Config};
 
 #[cfg(feature = "postgres")]
 pub mod postgres;

@@ -33,9 +33,9 @@ async fn test_store_and_retrieve_sealed_key() {
     // Create a test sealed key
     let encrypted_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
     let key = SealedMasterKey::new(
-        ProviderType::AwsKms,
-        "arn:aws:kms:us-east-1:123456789012:key/test-key".to_string(),
-        Some("us-east-1".to_string()),
+        ProviderType::GcpKms,
+        "projects/test-project/locations/us-central1/keyRings/test/cryptoKeys/test-key".to_string(),
+        Some("us-central1".to_string()),
         None,
         encrypted_data.clone(),
     );
@@ -54,12 +54,12 @@ async fn test_store_and_retrieve_sealed_key() {
         .expect("Sealed key not found");
 
     assert_eq!(retrieved.id, key.id);
-    assert_eq!(retrieved.provider_type, ProviderType::AwsKms);
+    assert_eq!(retrieved.provider_type, ProviderType::GcpKms);
     assert_eq!(
         retrieved.provider_key_id,
-        "arn:aws:kms:us-east-1:123456789012:key/test-key"
+        "projects/test-project/locations/us-central1/keyRings/test/cryptoKeys/test-key"
     );
-    assert_eq!(retrieved.provider_region, Some("us-east-1".to_string()));
+    assert_eq!(retrieved.provider_region, Some("us-central1".to_string()));
     assert_eq!(retrieved.encrypted_master_key, encrypted_data);
     assert!(retrieved.verify_checksum());
 }
@@ -146,14 +146,6 @@ async fn test_list_sealed_keys_by_provider() {
     let storage = PostgresSealedKeyStorage::new(pool);
 
     // Create keys with different providers
-    let aws_key = SealedMasterKey::new(
-        ProviderType::AwsKms,
-        "arn:aws:kms:us-east-1:123456789012:key/test".to_string(),
-        Some("us-east-1".to_string()),
-        None,
-        vec![1, 2, 3],
-    );
-
     let gcp_key = SealedMasterKey::new(
         ProviderType::GcpKms,
         "projects/test-project/locations/us-central1/keyRings/test/cryptoKeys/test".to_string(),
@@ -172,10 +164,6 @@ async fn test_list_sealed_keys_by_provider() {
 
     // Store all keys
     storage
-        .store_sealed_key(&aws_key)
-        .await
-        .expect("Failed to store AWS key");
-    storage
         .store_sealed_key(&gcp_key)
         .await
         .expect("Failed to store GCP key");
@@ -183,19 +171,6 @@ async fn test_list_sealed_keys_by_provider() {
         .store_sealed_key(&transit_key)
         .await
         .expect("Failed to store Transit key");
-
-    // List AWS keys
-    let aws_keys = storage
-        .get_sealed_keys_by_provider(ProviderType::AwsKms)
-        .await
-        .expect("Failed to list AWS keys");
-
-    assert!(aws_keys.iter().any(|k| k.id == aws_key.id));
-    assert!(
-        aws_keys
-            .iter()
-            .all(|k| k.provider_type == ProviderType::AwsKms)
-    );
 
     // List Transit keys
     let transit_keys = storage
@@ -261,7 +236,7 @@ async fn test_unique_active_constraint() {
 
     // Create two keys
     let key1 = SealedMasterKey::new(
-        ProviderType::AwsKms,
+        ProviderType::GcpKms,
         "key1".to_string(),
         None,
         None,
@@ -269,7 +244,7 @@ async fn test_unique_active_constraint() {
     );
 
     let key2 = SealedMasterKey::new(
-        ProviderType::AwsKms,
+        ProviderType::GcpKms,
         "key2".to_string(),
         None,
         None,

@@ -1,5 +1,7 @@
 # HSM Setup Guide for Secreton
 
+> **Catatan (2026-11):** penyedia dan layanan AWS (KMS, S3, IAM/STS, CloudHSM) sudah **dihapus dari kode** — deployment ini berjalan di server sendiri / pusat data nasional, tanpa cloud publik. Bagian di dokumen ini yang masih menyebut AWS tidak berlaku dan hanya tersisa sebagai riwayat.
+
 This guide provides comprehensive instructions for setting up Hardware Security Mle (HSM) integration with Secreton for enhanced key security.
 
 ## Overview

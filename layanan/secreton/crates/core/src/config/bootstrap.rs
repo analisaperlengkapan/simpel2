@@ -416,7 +416,6 @@ impl SealConfigBootstrap {
     fn validate(&self) -> anyhow::Result<()> {
         match (&self.seal_type, &self.config) {
             (SealType::Shamir, SealTypeConfig::Shamir(cfg)) => cfg.validate(),
-            (SealType::AwsKms, SealTypeConfig::AwsKms(cfg)) => cfg.validate(),
             (SealType::GcpKms, SealTypeConfig::GcpKms(cfg)) => cfg.validate(),
             (SealType::AzureKv, SealTypeConfig::AzureKv(cfg)) => cfg.validate(),
             _ => Err(anyhow::anyhow!("Seal type mismatch")),
@@ -442,7 +441,6 @@ impl SealConfigBootstrap {
 #[serde(rename_all = "kebab-case")]
 pub enum SealType {
     Shamir,
-    AwsKms,
     GcpKms,
     AzureKv,
 }
@@ -451,7 +449,6 @@ impl std::fmt::Display for SealType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
             SealType::Shamir => "shamir",
-            SealType::AwsKms => "aws-kms",
             SealType::GcpKms => "gcp-kms",
             SealType::AzureKv => "azure-kv",
         };
@@ -463,7 +460,6 @@ impl std::fmt::Display for SealType {
 #[serde(untagged)]
 pub enum SealTypeConfig {
     Shamir(ShamirSealConfig),
-    AwsKms(AwsKmsSealConfig),
     GcpKms(GcpKmsSealConfig),
     AzureKv(AzureKvSealConfig),
 }
@@ -501,24 +497,6 @@ fn default_shamir_shares() -> usize {
 }
 fn default_shamir_threshold() -> usize {
     3
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct AwsKmsSealConfig {
-    pub region: String,
-    pub kms_key_id: String,
-}
-
-impl AwsKmsSealConfig {
-    fn validate(&self) -> anyhow::Result<()> {
-        if self.region.is_empty() {
-            return Err(anyhow::anyhow!("AWS region cannot be empty"));
-        }
-        if self.kms_key_id.is_empty() {
-            return Err(anyhow::anyhow!("KMS key ID cannot be empty"));
-        }
-        Ok(())
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

@@ -13,10 +13,6 @@ pub enum AutoUnsealConfig {
     #[cfg(feature = "transit")]
     Transit(TransitConfig),
 
-    /// AWS KMS auto-unseal
-    #[cfg(feature = "aws-kms")]
-    AwsKms(AwsKmsConfig),
-
     /// GCP KMS auto-unseal
     #[cfg(feature = "gcp-kms")]
     GcpKms(GcpKmsConfig),
@@ -54,34 +50,6 @@ pub struct TransitConfig {
     /// Connection timeout in seconds (default: 30)
     #[serde(default = "default_timeout")]
     pub timeout_secs: u64,
-}
-
-/// AWS KMS provider configuration
-#[cfg(feature = "aws-kms")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AwsKmsConfig {
-    /// KMS key ID or ARN
-    ///
-    /// Examples:
-    /// - Key ID: "1234abcd-12ab-34cd-56ef-1234567890ab"
-    /// - Key ARN: "arn:aws:kms:us-east-1:123456789012:key/1234abcd-12ab-34cd-56ef-1234567890ab"
-    /// - Alias: "alias/my-key"
-    pub key_id: String,
-
-    /// AWS region (e.g., "us-east-1")
-    pub region: String,
-
-    /// Custom endpoint (optional, for testing or custom deployments)
-    pub endpoint: Option<String>,
-
-    /// Access key ID (optional, uses IAM role if not provided)
-    pub access_key_id: Option<String>,
-
-    /// Secret access key (optional, uses IAM role if not provided)
-    pub secret_access_key: Option<String>,
-
-    /// Session token (optional, for temporary credentials)
-    pub session_token: Option<String>,
 }
 
 /// GCP KMS provider configuration
@@ -209,28 +177,6 @@ mod tests {
             }
             #[allow(unreachable_patterns)]
             _ => panic!("Expected Transit config"),
-        }
-    }
-
-    #[test]
-    #[cfg(feature = "aws-kms")]
-    fn test_aws_kms_config_deserialization() {
-        let toml = r#"
-            provider = "aws-kms"
-            key_id = "alias/my-key"
-            region = "us-east-1"
-        "#;
-
-        let config: AutoUnsealConfig = toml::from_str(toml).unwrap();
-
-        match config {
-            AutoUnsealConfig::AwsKms(aws) => {
-                assert_eq!(aws.key_id, "alias/my-key");
-                assert_eq!(aws.region, "us-east-1");
-                assert_eq!(aws.endpoint, None);
-            }
-            #[allow(unreachable_patterns)]
-            _ => panic!("Expected AWS KMS config"),
         }
     }
 

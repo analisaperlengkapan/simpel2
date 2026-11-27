@@ -1,5 +1,7 @@
 # Secreton Horizontal Scaling Guide
 
+> **Catatan (2026-11):** penyedia dan layanan AWS (KMS, S3, IAM/STS, CloudHSM) sudah **dihapus dari kode** — deployment ini berjalan di server sendiri / pusat data nasional, tanpa cloud publik. Bagian di dokumen ini yang masih menyebut AWS tidak berlaku dan hanya tersisa sebagai riwayat.
+
 ## Overview
 
 Secreton supports horizontal scaling through its Raft-based distributed consensus architecture. This guide explains how to add and remove nodes from a Secreton cluster to scale capacity and improve availability.
