@@ -187,6 +187,12 @@ pub struct PengajuanSatker {
     pub aktivitas_label: Option<String>,
     #[serde(default)]
     pub total_pegawai: Option<i64>,
+    /// Employees the roster expects a size from (excluded people not counted).
+    #[serde(default)]
+    pub pegawai_roster: Option<i64>,
+    /// Of those, how many have given a size.
+    #[serde(default)]
+    pub pegawai_terisi: Option<i64>,
 }
 
 /// One per-satker workflow activity row. Mirrors the backend

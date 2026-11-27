@@ -717,6 +717,25 @@ pub async fn get_kesiapan_pakaian_dinas(
     )))
 }
 
+/// GET /pakaian-dinas/pengajuan/{pengajuan_id}/progres
+///
+/// Monitoring: where the campaign stands, per wilayah, and the satker furthest
+/// behind. Read-only, inside the caller's scope (a wilayah validator sees their
+/// wilayah, pusat everything, an operator their own satker).
+pub async fn get_progres_pakaian_dinas(
+    State(service): State<PakaianDinasService>,
+    Path(pengajuan_id): Path<Uuid>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<ProgresPakaianDinas>>, AppError> {
+    let item = service
+        .progres(pengajuan_id, &SatkerScope::from_claims(&claims))
+        .await?;
+    Ok(Json(ApiResponse::success(
+        item,
+        "Progres pengajuan pakaian dinas berhasil diambil".to_string(),
+    )))
+}
+
 // ============ Pengajuan Satker ============
 
 pub async fn get_pengajuan_satker_list(

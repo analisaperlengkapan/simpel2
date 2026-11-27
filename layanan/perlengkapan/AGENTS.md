@@ -564,6 +564,15 @@ contracts hold it together; changing one means changing all three:
   /pakaian-dinas/pengajuan/{id}/kesiapan?tahap=&satker_code=&kecuali=` returns
   `KesiapanPakaianDinas`. `kecuali` lists the rows the caller is about to move
   so they do not count against them. It is advisory: the person may proceed.
+- **Monitoring reads the same roster as readiness.** `GET
+  /pakaian-dinas/pengajuan/{id}/progres` returns `ProgresPakaianDinas`: the campaign
+  summary by workflow stage, a table per wilayah (least filled first, through
+  `integrasi.v_satker_wilayah`; satker outside any Kejati form their own group) and
+  the 10 satker furthest behind, all inside the caller's `SatkerScope`. The grouping is
+  the pure `susun_progres`. The satker list rows carry `pegawai_roster` and
+  `pegawai_terisi` (the denominator behind "12 dari 15"), counted with the same CTE as
+  the warnings. The employees themselves are NOT in this endpoint: the roster page
+  already lists them, and the panel links there.
 - **Every mutating validator action carries `tahap`** (single and bulk). The
   server re-validates the row's current gate per row; a stale dialog (row moved
   underneath it) is refused with 409 instead of performing the *other* gate's

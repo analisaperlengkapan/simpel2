@@ -400,6 +400,11 @@ pub struct PengajuanSatker {
     pub satker_kode: Option<String>,
     pub aktivitas_label: Option<String>,
     pub total_pegawai: Option<i64>,
+    /// Employees the roster expects a size from (excluded people not counted).
+    /// Filled in by the list service, not by the row query.
+    pub pegawai_roster: Option<i64>,
+    /// Of those, how many have given a size.
+    pub pegawai_terisi: Option<i64>,
 }
 impl PengajuanSatker {
     pub fn from_row(row: &Row) -> Self {
@@ -417,6 +422,8 @@ impl PengajuanSatker {
             satker_kode: row.try_get("satker_kode").ok(),
             aktivitas_label: row.try_get("aktivitas_label").ok(),
             total_pegawai: row.try_get("total_pegawai").ok(),
+            pegawai_roster: None,
+            pegawai_terisi: None,
         }
     }
 }

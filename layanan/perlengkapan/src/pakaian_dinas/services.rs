@@ -520,9 +520,33 @@ impl PakaianDinasService {
         filter: &SatkerListFilter,
         scope: &SatkerScope,
     ) -> AppResult<(Vec<PengajuanSatker>, i64)> {
-        self.repository
+        let (mut items, total) = self
+            .repository
             .get_pengajuan_satker_list(pengajuan_id, page, per_page, filter, scope)
-            .await
+            .await?;
+        // The card says "12 dari 15", so it needs the roster behind the count. Read for
+        // this page's rows only, with the definition of "filled" the warnings use.
+        let ids: Vec<Uuid> = items.iter().map(|s| s.id).collect();
+        let isian = self
+            .repository
+            .hitung_isian_baris(pengajuan_id, &ids)
+            .await?;
+        for item in &mut items {
+            if let Some((roster, terisi)) = isian.get(&item.id) {
+                item.pegawai_roster = Some(*roster);
+                item.pegawai_terisi = Some(*terisi);
+            }
+        }
+        Ok((items, total))
+    }
+
+    /// Progress of a whole campaign for monitoring, inside the caller's scope.
+    pub async fn progres(
+        &self,
+        pengajuan_id: Uuid,
+        scope: &SatkerScope,
+    ) -> AppResult<ProgresPakaianDinas> {
+        self.repository.hitung_progres(pengajuan_id, scope).await
     }
 
     pub async fn get_pengajuan_satker_by_id(

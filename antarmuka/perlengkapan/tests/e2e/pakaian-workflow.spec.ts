@@ -1031,6 +1031,29 @@ test.describe("Pakaian Dinas — bulk actions for an account holding both valida
     await ctx.close();
   });
 
+  // Monitoring: the progress panel on top of the satker list says where the campaign stands, from the
+  // whole campaign down to the satker, and the cards say "x dari y".
+  test("the satker list opens with the progress of the campaign", async ({ browser, request }) => {
+    const { pengajuanId } = await kampanyeDuaSatker(request);
+    const ctx = await browser.newContext({ storageState: storageStatePath("admin") });
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker`, { waitUntil: "domcontentloaded" });
+
+    const panel = page.getByTestId("progres-kegiatan");
+    await expect(panel).toBeVisible({ timeout: 20000 });
+    // A fresh campaign: both satker are still at Input and nobody has submitted anything.
+    await expect(page.getByTestId("progres-belum-mengajukan")).toContainText("2");
+    await expect(page.getByTestId("progres-di-wilayah")).toContainText("0");
+    await expect(page.getByTestId("progres-selesai")).toContainText("0");
+    await expect(page.getByTestId("progres-pegawai")).toContainText("/");
+    // The short list of who is furthest behind carries a way to the employees' page.
+    await expect(page.getByTestId("progres-tertinggal")).toBeVisible();
+    await expect(page.getByTestId("progres-lihat-pegawai").first()).toHaveAttribute("href", /\/isi$/);
+    // Each satker card says how many of its roster have filled in.
+    await expect(page.getByText(/\d+ dari \d+ pegawai sudah mengisi/).first()).toBeVisible();
+    await ctx.close();
+  });
+
   // A tick is the satker AND the move it was ticked for. Ticked as a bare id, a satker forwarded
   // from its own panel kept its tick and turned up selected on the final-approval bar, whose button
   // then finished it too.

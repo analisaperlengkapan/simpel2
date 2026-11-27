@@ -36,7 +36,7 @@ use uuid::Uuid;
 /// from. Both roster sources keep the same shape so callers need not care which
 /// one a campaign uses; `$1` is the campaign id and `{scope}` the caller's
 /// satker scope (applied to both branches).
-fn anggota_roster_cte(scope: &str) -> String {
+pub(super) fn anggota_roster_cte(scope: &str) -> String {
     format!(
         r#"
         anggota AS (
