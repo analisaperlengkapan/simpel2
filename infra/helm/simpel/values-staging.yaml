@@ -560,7 +560,20 @@ global:
   #
   # rc59 = rc58 + perbaikan itu (#1161). Tanpa migrasi baru dan tanpa perubahan chart relatif rc58:
   # `helm rollback` ke rc57 aman tanpa restore database (V020 aditif, runner perlengkapan abort_missing=false).
-  imageTag: v0.1.0-rc59
+  #
+  # rc60 = rc59 + hasil ulasan dasbor/analitik/peramalan di staging (tiga PR). Kalkulasi (#1163): "Hambatan
+  # Alur" kini mengukur lama berkas SEDANG tertahan di tahapnya (sebelumnya rata-rata umur aktivitas 30 hari,
+  # tahap yang sudah selesai pun terdaftar), eskalasi SLA tak lagi me-reset jam; "Rata-rata proses" dari
+  # pengajuan sampai selesai (bukan umur baris) dan tanda "-" saat belum ada yang selesai; "Distribusi Ukuran"
+  # per jenis pakaian dan per orang, tanpa teks bebas (nama orang tampil sebagai ukuran). Tampilan (#1164):
+  # tahun berjalan pada grafik tren putus-putus dengan skala, batang tahunan Bank Aset kronologis, label
+  # "tidak diketahui" digabung, rupiah berformat (termasuk negatif), dan tahun TIDAK lagi tertulis mati di form
+  # dan daftar Kebutuhan serta footer (basi 1 Januari 2027). Peramalan (#1165): matematika dibangun ulang dan
+  # diuji (z sebenarnya, Holt dengan parameter di-fit, galat satu-langkah, tahun bolong, snapshot tak
+  # menumpuk); endpoint tetap belum punya layar dan sumbernya (`roadmap_sarpras`) kosong di staging.
+  #
+  # Tanpa migrasi dan tanpa perubahan chart relatif rc59: `helm rollback` ke rc59 aman tanpa restore database.
+  imageTag: v0.1.0-rc60
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
