@@ -530,7 +530,26 @@ global:
   # kini mencabut sesi lamanya (token membawa kode satker, Bank Aset membatasi data lewat klaim itu) dan
   # gagal-tertutup bila pencabutan tak bisa dilakukan. Tanpa migrasi baru dan tanpa perubahan chart relatif
   # rc56: `helm rollback` ke rc55 aman tanpa restore database.
-  imageTag: v0.1.0-rc57
+  #
+  # rc58 = rc57 + delapan PR. Pakaian Dinas: peringatan kesiapan sebelum pengajuan naik tahap (#1152) yang
+  # mengikuti cakupan aksinya, satu satker untuk satu satker, kelompok terpilih untuk aksi massal (#1155), dan
+  # pemantauan kemajuan kampanye dari kegiatan sampai satker, di daftar satker, daftar kegiatan dan dasbor
+  # (#1156). Dasbor berjenjang menurut peran (#1158): operator hanya satkernya, validator wilayah seluruh
+  # wilayahnya atau satu satker di bawahnya, validator pusat semuanya, satu wilayah, atau satu satker dalam
+  # satu wilayah (irisan; satker yang asetnya di dua wilayah muncul di keduanya), termasuk ekspor Excel/PDF.
+  # Notifikasi giliran di semua modul (#1159): peran yang berikutnya bertindak diberi tahu di Penghapusan,
+  # Kebutuhan (per satker), Pemakaian dan Helpdesk, lewat direktori pengguna yang tercatat dari setiap
+  # permintaan terautentikasi. Ikon yang tampil sebagai "?" dipetakan dan dijaga uji (#1157). Dependensi:
+  # kube naik, advisory dibersihkan (#1153). Secreton: AWS (mesin rahasia, unseal KMS, backend S3, SDK)
+  # dihapus dari kode (#1154), tanpa pengaruh ke chart karena staging tak memakainya.
+  #
+  # SATU migrasi: perlengkapan V020 `pengajuan_pakaian_dinas_pegawai_dikeluarkan` (tabel baru, ADITIF, jalan
+  # saat perlengkapan mulai). Tanpa perubahan chart. `helm rollback` ke rc57 aman tanpa restore database:
+  # runner migrasi perlengkapan memakai `abort_missing = false`, tabel baru dibiarkan.
+  #
+  # Setelah rc58 menetap di staging: periksa dasbor, analitik, kalkulasi dan peramalan (roadmap_sarpras)
+  # dengan data staging, lalu perbaiki yang kurang.
+  imageTag: v0.1.0-rc58
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
