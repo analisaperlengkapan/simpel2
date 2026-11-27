@@ -675,6 +675,14 @@ fn build_router(state: AppState) -> Router {
             Arc::clone(&state.rate_limiter),
             layanan_perlengkapan::shared::rate_limit::rate_limit_middleware,
         ))
+        // Inside `require_authentication` (it reads the claims that layer sets): every authenticated
+        // caller becomes somebody a handover notification can reach, wherever they land. Only
+        // the pakaian dinas screens used to record them, so a validator who had never opened one
+        // could not be told that work was waiting in any module.
+        .layer(axum::middleware::from_fn_with_state(
+            layanan_perlengkapan::shared::pengguna::PenggunaRegistry::new(state.db_pool.clone()),
+            layanan_perlengkapan::shared::pengguna::catat_pengguna_middleware,
+        ))
         .layer(axum::middleware::from_fn_with_state(
             state.authenc.clone(),
             middleware::require_authentication,

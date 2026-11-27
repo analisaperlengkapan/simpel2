@@ -7,6 +7,7 @@
 pub mod config;
 pub mod definition_handlers;
 pub mod engine;
+pub mod giliran;
 pub mod handlers;
 pub mod monitoring;
 pub mod notification_types;

@@ -219,6 +219,27 @@ impl KebutuhanBmnService {
         )
         .await;
 
+        // Tell the role whose move comes next. This path does not go through the engine's
+        // `transition` (see above), so the engine's notifications never ran for it: the satker's
+        // submission, the wilayah's forward and every return were announced to nobody, in the
+        // busiest workflow in the system. Best-effort and after the commit: a notifier having a
+        // bad day never undoes a decision.
+        if let Err(e) = self
+            .workflow_engine
+            .beri_tahu_giliran(
+                "kebutuhan_bmn",
+                updated.pengajuan_id,
+                to_state,
+                std::slice::from_ref(&updated.satker_id),
+                updated.satker_nama.as_deref(),
+                request.komentar.as_deref(),
+                user_id.unwrap_or_else(Uuid::nil),
+            )
+            .await
+        {
+            warn!(error = %e, satker_id = %satker_id, "could not tell the next role about a kebutuhan satker move");
+        }
+
         Ok(updated)
     }
 

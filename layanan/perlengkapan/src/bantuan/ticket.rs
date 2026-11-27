@@ -189,7 +189,9 @@ impl TicketService {
             title,
             body,
             variables: serde_json::to_value(ticket).ok(),
-            deeplink: Some(format!("/bantuan/tiket/{}", ticket.id)),
+            // The app has one helpdesk page (a ticket opens inside it), not a route per ticket: the
+            // old `/bantuan/tiket/{id}` led nowhere.
+            deeplink: Some("/bantuan/helpdesk".to_string()),
             recipient_email: None,
         };
         tokio::spawn(async move {
@@ -197,6 +199,39 @@ impl TicketService {
                 tracing::warn!(error = %e, "tiket notification dispatch failed");
             }
         });
+    }
+
+    /// The helpdesk staff who can be told a ticket needs them: the users this service has seen
+    /// holding an admin role (the roles `Claims::is_admin` accepts, which is what makes a caller
+    /// staff here).
+    async fn petugas(&self) -> Vec<Uuid> {
+        let mut ids: Vec<Uuid> = Vec::new();
+        for peran in lib_core::authz::ADMIN_ROLES {
+            match crate::shared::pengguna::penerima_peran_untuk(&self.pool, peran, &[]).await {
+                Ok(v) => ids.extend(v),
+                Err(e) => tracing::warn!(error = %e, peran, "could not resolve the helpdesk staff"),
+            }
+        }
+        ids.sort();
+        ids.dedup();
+        ids
+    }
+
+    /// Tell the helpdesk staff a ticket needs them, except the person who caused it. Without this a
+    /// ticket reached nobody: the reporter was told it had been received and the staff, whose move
+    /// it is, were told nothing, so tickets waited until somebody opened the page.
+    async fn beri_tahu_petugas(
+        &self,
+        event: &str,
+        ticket: &SupportTicket,
+        aktor: Uuid,
+        title: String,
+        body: String,
+        priority: NotificationPriority,
+    ) {
+        for staff in self.petugas().await.into_iter().filter(|s| *s != aktor) {
+            self.notify(event, staff, ticket, title.clone(), body.clone(), priority);
+        }
     }
 
     /// File a new ticket. The reporter is `actor` — the caller cannot name
@@ -257,6 +292,15 @@ impl TicketService {
             format!("Tiket bantuan Anda \"{}\" telah dibuat.", ticket.subject),
             NotificationPriority::Medium,
         );
+        self.beri_tahu_petugas(
+            "tiket.baru",
+            &ticket,
+            actor.user_id,
+            "Tiket bantuan baru menunggu penanganan".to_string(),
+            format!("Tiket \"{}\" menunggu penanganan Helpdesk.", ticket.subject),
+            NotificationPriority::Medium,
+        )
+        .await;
         self.audit_event(
             AuditAction::Create,
             "tiket.create",
@@ -446,6 +490,17 @@ impl TicketService {
                 format!("Tiket \"{}\" mendapat balasan baru.", ticket.subject),
                 NotificationPriority::Medium,
             );
+        } else {
+            // The reporter answered: it is the helpdesk's move again.
+            self.beri_tahu_petugas(
+                "tiket.balasan_pelapor",
+                &ticket,
+                actor.user_id,
+                "Pelapor membalas tiket bantuan".to_string(),
+                format!("Tiket \"{}\" dibalas oleh pelapor.", ticket.subject),
+                NotificationPriority::Medium,
+            )
+            .await;
         }
         self.audit_event(
             AuditAction::Custom,

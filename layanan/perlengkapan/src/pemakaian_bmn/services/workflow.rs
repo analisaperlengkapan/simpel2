@@ -6,6 +6,36 @@ use tracing::{info, warn};
 use uuid::Uuid;
 
 impl PemakaianBmnService {
+    /// Tell the role whose move comes next about a permit that has just changed hands.
+    ///
+    /// The satker-level actions below are written by the repository directly and never reach the
+    /// engine's `transition`, so the engine's notifications never ran for them: the validator's
+    /// forward, both returns and the operator's resubmission were announced to nobody. Best-effort
+    /// and after the commit, like the engine's own.
+    async fn beri_tahu_giliran(
+        &self,
+        permit: &IzinPemakaianBmn,
+        aktor: Uuid,
+        catatan: Option<&str>,
+    ) {
+        let satker: Vec<String> = permit.satker_code.iter().cloned().collect();
+        if let Err(e) = self
+            .workflow_engine
+            .beri_tahu_giliran(
+                "pemakaian_bmn",
+                permit.id,
+                &permit.status,
+                &satker,
+                None,
+                catatan,
+                aktor,
+            )
+            .await
+        {
+            warn!(error = %e, permit_id = %permit.id, "could not tell the next role about a pemakaian move");
+        }
+    }
+
     pub async fn validator_satker_forward(
         &self,
         id: Uuid,
@@ -14,7 +44,8 @@ impl PemakaianBmnService {
         expected_version: i32,
         catatan: Option<String>,
     ) -> AppResult<IzinPemakaianBmn> {
-        self.repository
+        let permit = self
+            .repository
             .validator_satker_forward(
                 id,
                 validator_id,
@@ -22,7 +53,10 @@ impl PemakaianBmnService {
                 expected_version,
                 catatan.as_deref(),
             )
-            .await
+            .await?;
+        self.beri_tahu_giliran(&permit, validator_id, catatan.as_deref())
+            .await;
+        Ok(permit)
     }
 
     pub async fn validator_satker_return(
@@ -33,7 +67,8 @@ impl PemakaianBmnService {
         expected_version: i32,
         catatan: String,
     ) -> AppResult<IzinPemakaianBmn> {
-        self.repository
+        let permit = self
+            .repository
             .validator_satker_return(
                 id,
                 validator_id,
@@ -41,7 +76,10 @@ impl PemakaianBmnService {
                 expected_version,
                 &catatan,
             )
-            .await
+            .await?;
+        self.beri_tahu_giliran(&permit, validator_id, Some(&catatan))
+            .await;
+        Ok(permit)
     }
 
     pub async fn approver_satker_approve(
@@ -88,9 +126,13 @@ impl PemakaianBmnService {
         expected_version: i32,
         catatan: String,
     ) -> AppResult<IzinPemakaianBmn> {
-        self.repository
+        let permit = self
+            .repository
             .approver_satker_return(id, approver_id, &approver_nama, expected_version, &catatan)
-            .await
+            .await?;
+        self.beri_tahu_giliran(&permit, approver_id, Some(&catatan))
+            .await;
+        Ok(permit)
     }
 
     pub async fn operator_resubmit(
@@ -100,9 +142,12 @@ impl PemakaianBmnService {
         operator_nama: String,
         expected_version: i32,
     ) -> AppResult<IzinPemakaianBmn> {
-        self.repository
+        let permit = self
+            .repository
             .operator_resubmit(id, operator_id, &operator_nama, expected_version)
-            .await
+            .await?;
+        self.beri_tahu_giliran(&permit, operator_id, None).await;
+        Ok(permit)
     }
 
     /// Activate a permit (generate permit number and set to ACTIVE)
