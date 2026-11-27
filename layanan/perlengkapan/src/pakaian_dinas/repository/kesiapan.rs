@@ -46,7 +46,13 @@ use uuid::Uuid;
 /// from. Both roster sources keep the same shape so callers need not care which
 /// one a campaign uses; `$1` is the campaign id and `{scope}` the caller's
 /// satker scope (applied to both branches).
-fn anggota_roster_cte(scope: &str) -> String {
+pub(super) fn anggota_roster_cte(scope: &str) -> String {
+    anggota_roster_cte_untuk("ps.pengajuan_id = $1", scope)
+}
+
+/// The same CTE for any choice of campaigns: `kunci` is the predicate on
+/// `ps.pengajuan_id` (`= $1` for one campaign, `= ANY($1::uuid[])` for several).
+pub(super) fn anggota_roster_cte_untuk(kunci: &str, scope: &str) -> String {
     format!(
         r#"
         anggota AS (
@@ -57,7 +63,7 @@ fn anggota_roster_cte(scope: &str) -> String {
               ON snap.pengajuan_id = ps.pengajuan_id
              AND snap.satker_id = ps.satker_id
             WHERE p.roster_snapshot_at IS NOT NULL
-              AND ps.pengajuan_id = $1{scope}
+              AND {kunci}{scope}
               AND NOT EXISTS (
                   SELECT 1
                   FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_dikeluarkan d
@@ -72,7 +78,7 @@ fn anggota_roster_cte(scope: &str) -> String {
             JOIN integrasi.mysimkari_satker ms ON ms.kode_satker = ps.satker_id
             JOIN integrasi.mysimkari_pegawai mp ON mp.satker_id = ms.api_id
             WHERE p.roster_snapshot_at IS NULL
-              AND ps.pengajuan_id = $1{scope}
+              AND {kunci}{scope}
               AND NOT EXISTS (
                   SELECT 1
                   FROM perlengkapan.pengajuan_pakaian_dinas_pegawai_dikeluarkan d
@@ -86,7 +92,7 @@ fn anggota_roster_cte(scope: &str) -> String {
             FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai psp
             JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps
               ON ps.id = psp.pengajuan_satker_id
-            WHERE ps.pengajuan_id = $1
+            WHERE {kunci}
               AND EXISTS (
                   SELECT 1
                   FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran pu

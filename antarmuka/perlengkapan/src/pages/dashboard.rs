@@ -30,6 +30,7 @@ use crate::api::bank_aset::{
     fetch_filter_options,
 };
 use crate::api::dashboard::{PerlengkapanDashboardMetrics, fetch_perlengkapan_metrics};
+use crate::components::pakaian_dinas_progres::progres_ringkas;
 use crate::components::session_authz::use_session;
 use crate::pages::dashboard_panels::{
     DistribusiUkuran, FilterBar, Hambatan, KebutuhanPerSatker, KesenjanganKebutuhan, KomposisiAset,
@@ -307,6 +308,17 @@ async fn query_perlengkapan_metrics(
     fetch_perlengkapan_metrics(key.0, key.1.as_deref(), key.2.as_deref()).await
 }
 
+/// The latest pakaian dinas campaigns with how far each has got inside the caller's scope. It is
+/// the campaign list's first page, which already carries the progress, so the dashboard and the
+/// list never disagree.
+async fn query_pakaian_progres(
+    _tick: u32,
+) -> Result<Vec<crate::api::pakaian_dinas::PengajuanPakaianDinas>, crate::api::AppError> {
+    crate::api::pakaian_dinas::fetch_pengajuan_pakaian_dinas(1, 4, None)
+        .await
+        .map(|r| r.data)
+}
+
 async fn query_pakaian_menunggu(
     _tick: u32,
 ) -> Result<crate::api::dashboard::MenungguPakaianDinas, crate::api::AppError> {
@@ -509,6 +521,8 @@ pub fn DashboardHome() -> impl IntoView {
     let options_resource = client.local_resource(query_filter_options, move || f_wilayah.get());
     // Pakaian dinas work waiting on THIS user's role; the server scopes it.
     let menunggu_resource = client.local_resource(query_pakaian_menunggu, move || tick.get());
+    // How far the latest pakaian dinas campaigns have got.
+    let progres_resource = client.local_resource(query_pakaian_progres, move || tick.get());
 
     // Stamp the clock whenever a load lands, so "60 detik lalu" is observable
     // rather than promised.
@@ -868,6 +882,52 @@ pub fn DashboardHome() -> impl IntoView {
                     }
                 }}
             </Suspense>
+
+            // ── Progres pakaian dinas ────────────────────────────────────
+            // Only campaigns in which the caller has satker, newest first. Silent when there are
+            // none (or the list cannot be read): the tile is an addition, never a blocker.
+            {move || {
+                let kegiatan: Vec<_> = progres_resource
+                    .get()
+                    .and_then(|r| r.ok())
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter(|k| k.progres.as_ref().is_some_and(|p| p.satker_total > 0))
+                    .collect();
+                if kegiatan.is_empty() {
+                    return ().into_any();
+                }
+                view! {
+                    <div data-testid="progres-pakaian-dashboard">
+                        <SectionHeader title="Progres Pakaian Dinas" tone="teal" />
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                            {kegiatan
+                                .into_iter()
+                                .map(|k| {
+                                    let tautan = routes::url::pakaian_satker_list(&k.id);
+                                    let blok = k.progres.as_ref().map(progres_ringkas);
+                                    view! {
+                                        <a
+                                            data-testid="progres-pakaian-kegiatan"
+                                            href=tautan
+                                            class="block rounded-2xl border border-white/[0.06] bg-surface-panel p-5 transition hover:border-white/10"
+                                        >
+                                            <h3 class="truncate text-sm font-semibold text-slate-100">
+                                                {k.nama.clone()}
+                                            </h3>
+                                            <p class="text-xs text-slate-400">
+                                                {format!("Tahun {}", k.tahun)}
+                                            </p>
+                                            {blok}
+                                        </a>
+                                    }
+                                })
+                                .collect_view()}
+                        </div>
+                    </div>
+                }
+                    .into_any()
+            }}
 
             // ── Analisis aset ────────────────────────────────────────────
             <Suspense fallback=move || {

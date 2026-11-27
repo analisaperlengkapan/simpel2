@@ -210,6 +210,10 @@ pub struct PengajuanPakaianDinas {
     pub aktivitas_label: Option<String>,
     pub total_satker: Option<i64>,
     pub satker_selesai: Option<i64>,
+    /// Progress of the campaign inside the caller's scope (stages and employees filled).
+    /// Filled in by the list service for the rows of one page, not by the row query;
+    /// `None` when the campaign has no satker the caller may see.
+    pub progres: Option<crate::pakaian_dinas::models::ProgresRingkasan>,
     /// When this campaign's employee roster was frozen (V018). `None` for a
     /// campaign created before the freeze existed, or one still reading the
     /// live MySIMKARI list. Every role displays it as "data pegawai per …".
@@ -249,6 +253,7 @@ impl PengajuanPakaianDinas {
             aktivitas_label: row.try_get("aktivitas_label").ok(),
             total_satker: row.try_get("total_satker").ok(),
             satker_selesai: row.try_get("satker_selesai").ok(),
+            progres: None,
             roster_snapshot_at: row.try_get("roster_snapshot_at").ok().flatten(),
             is_open: Self::period_is_open(is_reguler, tgl_mulai, tgl_selesai),
             periode: Self::periode_label(is_reguler, tgl_mulai, tgl_selesai),
@@ -400,6 +405,11 @@ pub struct PengajuanSatker {
     pub satker_kode: Option<String>,
     pub aktivitas_label: Option<String>,
     pub total_pegawai: Option<i64>,
+    /// Employees the roster expects a size from (excluded people not counted).
+    /// Filled in by the list service, not by the row query.
+    pub pegawai_roster: Option<i64>,
+    /// Of those, how many have given a size.
+    pub pegawai_terisi: Option<i64>,
 }
 impl PengajuanSatker {
     pub fn from_row(row: &Row) -> Self {
@@ -417,6 +427,8 @@ impl PengajuanSatker {
             satker_kode: row.try_get("satker_kode").ok(),
             aktivitas_label: row.try_get("aktivitas_label").ok(),
             total_pegawai: row.try_get("total_pegawai").ok(),
+            pegawai_roster: None,
+            pegawai_terisi: None,
         }
     }
 }

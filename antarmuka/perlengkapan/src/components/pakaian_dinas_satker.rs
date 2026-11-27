@@ -23,12 +23,15 @@ use crate::api::{
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::components::pagination_controls::PaginationControls;
+use crate::components::pakaian_dinas_progres::PakaianDinasProgres;
 use crate::components::workflow_ui::{
     ActionTone, ApprovalDialog, ConfirmDialog, StepStatus, WorkflowAction, WorkflowActions,
     WorkflowStep, WorkflowTimeline,
 };
 use crate::features::auth::AuthService;
-use crate::features::pakaian_dinas::api::{fetch_kesiapan_pakaian_dinas, ringkasan_kesiapan};
+use crate::features::pakaian_dinas::api::{
+    fetch_kesiapan_pakaian_dinas, ringkasan_kesiapan, teks_isian,
+};
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::PENCIL_SIMPLE;
 
@@ -431,6 +434,10 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
             icon="fas fa-building"
             description="Pantau & proses pengajuan pakaian dinas per satuan kerja"
         >
+            <PakaianDinasProgres
+                pengajuan_id=Signal::derive(move || pengajuan_id())
+                refresh=Signal::derive(move || refresh.get())
+            />
             <form
                 data-testid="filter-satker"
                 class="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-white/[0.06] bg-surface-panel px-4 py-3 text-sm"
@@ -735,7 +742,12 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                 .clone()
                                                 .unwrap_or_else(|| "Satker".to_string());
                                             let kode = s.satker_kode.clone().unwrap_or_default();
-                                            let pegawai = s.total_pegawai.unwrap_or(0);
+                                            // "12 dari 15 pegawai sudah mengisi" when the list carries the
+                                            // roster; the bare count only for an answer from before it did.
+                                            let isian = teks_isian(s.pegawai_terisi, s.pegawai_roster)
+                                                .unwrap_or_else(|| {
+                                                    format!("{} pegawai terisi", s.total_pegawai.unwrap_or(0))
+                                                });
                                             let is_selected = move || {
                                                 selected
                                                     .get()
@@ -763,7 +775,7 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                                                 {nama}
                                                             </h3>
                                                             <p class="text-xs text-slate-400">
-                                                                {kode} " · " {pegawai.to_string()} " pegawai terisi"
+                                                                {kode} " · " {isian}
                                                             </p>
                                                         </div>
                                                         <div class="flex items-center gap-2">

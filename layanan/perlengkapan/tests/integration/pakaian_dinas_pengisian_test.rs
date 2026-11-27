@@ -1389,6 +1389,229 @@ async fn kesiapan_massal_memisahkan_yang_dipindah_dari_yang_tertinggal() {
 }
 
 // ============================================================================
+// Monitoring: progress of the campaign per level.
+// ============================================================================
+
+/// The id of the participation row of `satker` in the campaign.
+async fn id_baris_progres(server: &TestServer, pengajuan_id: &str, satker: &str) -> String {
+    let data = daftar_satker_progres(server, pengajuan_id).await;
+    data["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["satker_id"].as_str() == Some(satker))
+        .and_then(|r| r["id"].as_str())
+        .unwrap_or_else(|| panic!("baris {satker}: {data}"))
+        .to_string()
+}
+
+async fn daftar_satker_progres(server: &TestServer, pengajuan_id: &str) -> Value {
+    get(
+        server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/satker"),
+        "validator_pusat",
+        PUSAT,
+        SATKER_A,
+    )
+    .await
+    .json::<Value>()
+}
+
+async fn progres(
+    server: &TestServer,
+    pengajuan_id: &str,
+    role: &str,
+    user: &str,
+    satker: &str,
+) -> Value {
+    let res = get(
+        server,
+        &format!("/pakaian-dinas/pengajuan/{pengajuan_id}/progres"),
+        role,
+        user,
+        satker,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "progres: {:?}", res.text());
+    res.json::<Value>()["data"].clone()
+}
+
+/// The monitoring answer for a whole campaign: the summary by stage, the table per
+/// wilayah and the satker furthest behind, all from the same roster and the same
+/// "filled" the warnings use.
+#[tokio::test]
+async fn progres_kegiatan_menyusun_ringkasan_wilayah_dan_yang_tertinggal() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+
+    // Nothing has happened: both satker are at Input, nobody has filled anything.
+    let k = progres(&server, &pengajuan_id, "validator_pusat", PUSAT, SATKER_A).await;
+    let r = &k["ringkasan"];
+    assert_eq!(r["satker_total"].as_i64(), Some(2), "{k}");
+    assert_eq!(r["belum_mengajukan"].as_i64(), Some(2), "{k}");
+    assert_eq!(r["di_wilayah"].as_i64(), Some(0), "{k}");
+    assert_eq!(r["selesai"].as_i64(), Some(0), "{k}");
+    assert_eq!(r["pegawai_total"].as_i64(), Some(2), "{k}");
+    assert_eq!(r["pegawai_terisi"].as_i64(), Some(0), "{k}");
+
+    // SKR001 fills in and submits; SKR002 is untouched.
+    simpan_ukuran(&server, &pengajuan_id, NIP_A, &pakaian_id, "L").await;
+    let row_a = id_baris_progres(&server, &pengajuan_id, SATKER_A).await;
+    let res = post(
+        &server,
+        "/pakaian-dinas/validator-action",
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+        json!({"pengajuan_satker_id": row_a, "aksi": "submit", "tahap": "satker"}),
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "ajukan: {:?}", res.text());
+
+    let k = progres(&server, &pengajuan_id, "validator_pusat", PUSAT, SATKER_A).await;
+    let r = &k["ringkasan"];
+    assert_eq!(r["belum_mengajukan"].as_i64(), Some(1), "{k}");
+    assert_eq!(r["di_wilayah"].as_i64(), Some(1), "{k}");
+    assert_eq!(r["pegawai_terisi"].as_i64(), Some(1), "{k}");
+    assert_eq!(r["pegawai_total"].as_i64(), Some(2), "{k}");
+
+    // The wilayah table adds up to the summary, whichever way the satker group.
+    let per = k["per_wilayah"].as_array().unwrap();
+    assert!(!per.is_empty(), "{k}");
+    let jumlah = |kunci: &str| {
+        per.iter()
+            .map(|w| w[kunci].as_i64().unwrap_or(0))
+            .sum::<i64>()
+    };
+    assert_eq!(jumlah("satker_total"), 2, "{k}");
+    assert_eq!(jumlah("pegawai_total"), 2, "{k}");
+    assert_eq!(jumlah("pegawai_terisi"), 1, "{k}");
+
+    // Furthest behind: the untouched satker leads, the filled one follows.
+    let t = k["tertinggal"].as_array().unwrap();
+    assert_eq!(t.len(), 2, "{k}");
+    assert_eq!(t[0]["satker_id"].as_str(), Some(SATKER_B), "{k}");
+    assert_eq!(t[0]["pegawai_terisi"].as_i64(), Some(0), "{k}");
+    assert_eq!(t[1]["satker_id"].as_str(), Some(SATKER_A), "{k}");
+
+    teardown_test_db(&db_name).await;
+}
+
+/// Monitoring stays inside the caller's scope: an operator sees their own satker,
+/// not the campaign.
+#[tokio::test]
+async fn progres_operator_hanya_melihat_satkernya_sendiri() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let (pengajuan_id, _) = buat_kampanye(&server).await;
+
+    let k = progres(
+        &server,
+        &pengajuan_id,
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(k["ringkasan"]["satker_total"].as_i64(), Some(1), "{k}");
+    let tertinggal = k["tertinggal"].as_array().unwrap();
+    assert!(
+        tertinggal
+            .iter()
+            .all(|s| s["satker_id"].as_str() == Some(SATKER_A)),
+        "{k}"
+    );
+
+    teardown_test_db(&db_name).await;
+}
+
+/// The satker list carries the denominator behind each card ("12 dari 15"), counted
+/// the way the warnings count it: excluded people are out, an empty save is not
+/// "filled".
+#[tokio::test]
+async fn daftar_satker_membawa_roster_dan_yang_sudah_terisi() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+
+    let isian = |data: &Value, satker: &str| -> (Option<i64>, Option<i64>) {
+        let r = data["data"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["satker_id"].as_str() == Some(satker))
+            .unwrap_or_else(|| panic!("baris {satker}: {data}"))
+            .clone();
+        (r["pegawai_roster"].as_i64(), r["pegawai_terisi"].as_i64())
+    };
+    let sebelum = daftar_satker_progres(&server, &pengajuan_id).await;
+    assert_eq!(isian(&sebelum, SATKER_A), (Some(1), Some(0)), "{sebelum}");
+
+    // Saving an empty form is not "filled".
+    simpan_kosong(&server, &pengajuan_id, NIP_A).await;
+    let kosong = daftar_satker_progres(&server, &pengajuan_id).await;
+    assert_eq!(isian(&kosong, SATKER_A), (Some(1), Some(0)), "{kosong}");
+
+    simpan_ukuran(&server, &pengajuan_id, NIP_A, &pakaian_id, "L").await;
+    let sesudah = daftar_satker_progres(&server, &pengajuan_id).await;
+    assert_eq!(isian(&sesudah, SATKER_A), (Some(1), Some(1)), "{sesudah}");
+    assert_eq!(isian(&sesudah, SATKER_B), (Some(1), Some(0)), "{sesudah}");
+
+    teardown_test_db(&db_name).await;
+}
+
+/// The campaign list says how far each campaign has got, inside the caller's scope: pusat sees
+/// the whole campaign, an operator only their own satker.
+#[tokio::test]
+async fn daftar_kegiatan_membawa_progres_menurut_cakupan_pemanggil() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+    let (pengajuan_id, pakaian_id) = buat_kampanye(&server).await;
+    simpan_ukuran(&server, &pengajuan_id, NIP_A, &pakaian_id, "L").await;
+
+    let progres_dari = |data: &Value| -> Value {
+        data["data"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|k| k["id"].as_str() == Some(pengajuan_id.as_str()))
+            .unwrap_or_else(|| panic!("kegiatan {pengajuan_id}: {data}"))["progres"]
+            .clone()
+    };
+
+    let res = get(
+        &server,
+        "/pakaian-dinas/pengajuan",
+        "validator_pusat",
+        PUSAT,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    let p = progres_dari(&res.json::<Value>());
+    assert_eq!(p["satker_total"].as_i64(), Some(2), "{p}");
+    assert_eq!(p["belum_mengajukan"].as_i64(), Some(2), "{p}");
+    assert_eq!(p["pegawai_total"].as_i64(), Some(2), "{p}");
+    assert_eq!(p["pegawai_terisi"].as_i64(), Some(1), "{p}");
+
+    let res = get(
+        &server,
+        "/pakaian-dinas/pengajuan",
+        "operator_satker",
+        OPERATOR,
+        SATKER_A,
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "{:?}", res.text());
+    let p = progres_dari(&res.json::<Value>());
+    assert_eq!(p["satker_total"].as_i64(), Some(1), "{p}");
+    assert_eq!(p["pegawai_terisi"].as_i64(), Some(1), "{p}");
+
+    teardown_test_db(&db_name).await;
+}
+
+// ============================================================================
 // "Keluarkan dari Pengajuan" must be reversible from the screen. Excluding used
 // to delete the employee from the list, and the only documented way back was
 // "fill their size again" — a form the list no longer offered.

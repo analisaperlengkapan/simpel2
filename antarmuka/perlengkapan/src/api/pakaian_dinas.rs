@@ -118,6 +118,9 @@ pub struct PengajuanPakaianDinas {
     pub total_satker: Option<i64>,
     #[serde(default)]
     pub satker_selesai: Option<i64>,
+    /// How far the campaign has got inside what the caller may see (stages, employees filled).
+    #[serde(default)]
+    pub progres: Option<crate::features::pakaian_dinas::api::ProgresRingkasan>,
     /// When the campaign's employee roster was frozen (V018, RFC3339). `None`
     /// for a campaign created before the freeze. Shown to every role as
     /// "data pegawai per <tanggal>".
@@ -187,6 +190,12 @@ pub struct PengajuanSatker {
     pub aktivitas_label: Option<String>,
     #[serde(default)]
     pub total_pegawai: Option<i64>,
+    /// Employees the roster expects a size from (excluded people not counted).
+    #[serde(default)]
+    pub pegawai_roster: Option<i64>,
+    /// Of those, how many have given a size.
+    #[serde(default)]
+    pub pegawai_terisi: Option<i64>,
 }
 
 /// One per-satker workflow activity row. Mirrors the backend

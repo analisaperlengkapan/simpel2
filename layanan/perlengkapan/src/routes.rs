@@ -279,6 +279,11 @@ pub fn create_routes(state: AppState) -> Router {
             "/pakaian-dinas/pengajuan/{pengajuan_id}/kesiapan",
             get(pakaian_dinas::get_kesiapan_pakaian_dinas),
         )
+        // Monitoring: progress per level (campaign, wilayah, satker) of one campaign.
+        .route(
+            "/pakaian-dinas/pengajuan/{pengajuan_id}/progres",
+            get(pakaian_dinas::get_progres_pakaian_dinas),
+        )
         // Personal Uniform Sizes
         .route(
             "/pakaian-dinas/ukuran-pakaian-pegawai",

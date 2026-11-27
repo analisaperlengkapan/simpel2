@@ -5,6 +5,7 @@
 
 pub mod entities;
 pub mod laporan_report;
+pub mod progres;
 pub mod requests;
 pub mod responses;
 pub mod status;
@@ -13,6 +14,7 @@ mod tests;
 
 pub use entities::*;
 pub use laporan_report::*;
+pub use progres::*;
 pub use requests::*;
 pub use responses::*;
 pub use status::*;

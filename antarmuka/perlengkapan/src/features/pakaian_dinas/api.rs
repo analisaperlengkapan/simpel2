@@ -233,6 +233,145 @@ pub struct KesiapanPakaianDinas {
     pub belum_diteruskan: i64,
 }
 
+/// Figures shared by the campaign and by each wilayah. Mirrors backend
+/// `pakaian_dinas::models::ProgresRingkasan`.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProgresRingkasan {
+    #[serde(default)]
+    pub satker_total: i64,
+    #[serde(default)]
+    pub tanpa_pegawai: i64,
+    #[serde(default)]
+    pub belum_mengajukan: i64,
+    #[serde(default)]
+    pub di_wilayah: i64,
+    #[serde(default)]
+    pub di_pusat: i64,
+    #[serde(default)]
+    pub selesai: i64,
+    #[serde(default)]
+    pub pegawai_total: i64,
+    #[serde(default)]
+    pub pegawai_terisi: i64,
+}
+
+/// One wilayah (Kejati); `None` code = satker that belong to no Kejati. Mirrors backend
+/// `pakaian_dinas::models::ProgresWilayah`.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProgresWilayah {
+    #[serde(default)]
+    pub wilayah_code: Option<String>,
+    #[serde(default)]
+    pub wilayah_nama: Option<String>,
+    #[serde(flatten)]
+    pub ringkasan: ProgresRingkasan,
+}
+
+/// One satker in the "furthest behind" list. Mirrors backend
+/// `pakaian_dinas::models::ProgresSatker`.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProgresSatker {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub satker_id: String,
+    #[serde(default)]
+    pub satker_nama: Option<String>,
+    #[serde(default)]
+    pub wilayah_nama: Option<String>,
+    #[serde(default)]
+    pub aktivitas_id: i32,
+    #[serde(default)]
+    pub pegawai_total: i64,
+    #[serde(default)]
+    pub pegawai_terisi: i64,
+}
+
+/// Progress of a campaign for monitoring. Mirrors backend
+/// `pakaian_dinas::models::ProgresPakaianDinas`.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProgresPakaianDinas {
+    #[serde(default)]
+    pub ringkasan: ProgresRingkasan,
+    #[serde(default)]
+    pub per_wilayah: Vec<ProgresWilayah>,
+    #[serde(default)]
+    pub tertinggal: Vec<ProgresSatker>,
+}
+
+/// `GET /pakaian-dinas/pengajuan/{id}/progres`: where the campaign stands, per wilayah, and
+/// the satker furthest behind, inside what the caller may see.
+pub async fn fetch_progres_pakaian_dinas(pengajuan_id: &str) -> AppResult<ProgresPakaianDinas> {
+    let r: Bungkus<ProgresPakaianDinas> =
+        api_get(&format!("/pakaian-dinas/pengajuan/{pengajuan_id}/progres")).await?;
+    Ok(r.data)
+}
+
+/// Whole-number percentage, or `None` for an empty denominator (nothing to be a share of).
+pub fn persen(bagian: i64, total: i64) -> Option<i64> {
+    (total > 0).then(|| (bagian * 100) / total)
+}
+
+/// "12 dari 15 pegawai sudah mengisi", or `None` while the list has not told us the roster
+/// (an older answer): the caller falls back to its old wording.
+pub fn teks_isian(terisi: Option<i64>, roster: Option<i64>) -> Option<String> {
+    let (terisi, roster) = (terisi?, roster?);
+    Some(if roster == 0 {
+        "tidak ada pegawai di roster".to_string()
+    } else {
+        format!("{terisi} dari {roster} pegawai sudah mengisi")
+    })
+}
+
+#[cfg(test)]
+mod progres_tests {
+    use super::{ProgresPakaianDinas, persen, teks_isian};
+
+    #[test]
+    fn a_share_of_nothing_is_not_zero_percent() {
+        assert_eq!(persen(0, 0), None);
+        assert_eq!(persen(3, 4), Some(75));
+        assert_eq!(persen(1, 3), Some(33));
+    }
+
+    #[test]
+    fn the_card_text_names_the_denominator_or_falls_back() {
+        assert_eq!(
+            teks_isian(Some(12), Some(15)).as_deref(),
+            Some("12 dari 15 pegawai sudah mengisi")
+        );
+        assert_eq!(
+            teks_isian(Some(0), Some(0)).as_deref(),
+            Some("tidak ada pegawai di roster")
+        );
+        assert_eq!(teks_isian(None, Some(5)), None);
+    }
+
+    #[test]
+    fn the_answer_reads_the_shape_the_server_sends() {
+        let json = r#"{
+            "ringkasan": {"satker_total": 3, "tanpa_pegawai": 0, "belum_mengajukan": 1,
+                          "di_wilayah": 1, "di_pusat": 0, "selesai": 1,
+                          "pegawai_total": 10, "pegawai_terisi": 7},
+            "per_wilayah": [{"wilayah_code": "W1", "wilayah_nama": "Kejati A",
+                             "satker_total": 3, "tanpa_pegawai": 0, "belum_mengajukan": 1,
+                             "di_wilayah": 1, "di_pusat": 0, "selesai": 1,
+                             "pegawai_total": 10, "pegawai_terisi": 7}],
+            "tertinggal": [{"id": "x", "satker_id": "S1", "satker_nama": "Kejari 1",
+                            "wilayah_nama": "Kejati A", "aktivitas_id": 1000,
+                            "pegawai_total": 4, "pegawai_terisi": 1}]
+        }"#;
+        let p: ProgresPakaianDinas = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            persen(p.ringkasan.pegawai_terisi, p.ringkasan.pegawai_total),
+            Some(70)
+        );
+        assert_eq!(p.per_wilayah[0].ringkasan.selesai, 1);
+        assert_eq!(p.per_wilayah[0].wilayah_nama.as_deref(), Some("Kejati A"));
+        assert_eq!(p.tertinggal[0].pegawai_terisi, 1);
+    }
+}
+
 /// `DELETE /pakaian-dinas/pengajuan/{id}/satker/{kode}/pegawai/{nip}/keluarkan`
 /// — undo "Keluarkan dari Pengajuan". The person goes back to "belum mengisi":
 /// their sizes are not restored, because they never had any when excluded.

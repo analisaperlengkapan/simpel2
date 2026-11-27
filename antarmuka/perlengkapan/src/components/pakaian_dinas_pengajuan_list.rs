@@ -15,6 +15,7 @@ use crate::api::{
 use crate::components::layout::{
     ActionError, EmptyState, ErrorState, FormField, LoadingState, PageLayout, SectionCard,
 };
+use crate::components::pakaian_dinas_progres::progres_ringkas;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_fetch::QueryClient;
@@ -583,6 +584,8 @@ fn render_pengajuan_cards(
                     let periode = item.periode.clone();
                     let keterangan = item.deskripsi.clone();
                     let has_keterangan = keterangan.is_some();
+                    // How far the campaign has got, in what this user may see.
+                    let progres_blok = item.progres.as_ref().map(progres_ringkas);
                     let snapshot_line = item
                         .roster_snapshot_at
                         .clone()
@@ -618,6 +621,8 @@ fn render_pengajuan_cards(
                                     {item.tgl_selesai.unwrap_or_else(|| "-".to_string())}
                                 </p>
                             </div>
+
+                            {progres_blok}
 
                             <Show when=move || has_keterangan>
                                 <p class="mt-2 text-xs italic text-slate-500">

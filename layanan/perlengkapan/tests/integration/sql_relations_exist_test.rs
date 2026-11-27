@@ -178,11 +178,12 @@ const SQL_KEYWORDS: &[&str] = &[
 
 /// Names bound by `WITH <name> AS (` / `, <name> AS (`.
 ///
-/// Collected per FILE, not per literal: several repositories assemble one
+/// Collected per FILE at least, not per literal: several repositories assemble one
 /// statement from multiple raw literals via `format!`, so the CTE can be
 /// declared in a different literal than the one that reads it. Per-literal
 /// scoping produced false positives for exactly that reason
-/// (`workflow/monitoring.rs` `current_state` / `sla`).
+/// (`workflow/monitoring.rs` `current_state` / `sla`). The caller widens the
+/// scope to the files of one directory, for a CTE built in a sibling file.
 ///
 /// A CTE is the only relation that is legitimately unqualified, so this set is
 /// what makes the unqualified check below trustworthy.
@@ -268,10 +269,28 @@ fn scan_relation_refs(src_dir: &Path) -> Vec<RelationRef> {
     let mut stack = vec![src_dir.to_path_buf()];
 
     while let Some(dir) = stack.pop() {
-        let entries = std::fs::read_dir(&dir)
-            .unwrap_or_else(|e| panic!("cannot read {}: {e}", dir.display()));
+        let entries: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap_or_else(|e| panic!("cannot read {}: {e}", dir.display()))
+            .filter_map(Result::ok)
+            .collect();
 
-        for entry in entries.filter_map(Result::ok) {
+        // A CTE is visible to every file of the directory that declares it, not only to
+        // the file that spells it out: a repository split across files builds one CTE in a
+        // helper and reads it from its siblings (`pakaian_dinas/repository`: `anggota` /
+        // `terisi` are built in `kesiapan.rs` and read in `progres.rs`). The scope stays
+        // one directory wide, so a bare relation in an unrelated module is still reported.
+        let ctes: BTreeSet<String> = entries
+            .iter()
+            .map(|e| e.path())
+            .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("rs"))
+            .flat_map(|p| {
+                let src = std::fs::read_to_string(&p)
+                    .unwrap_or_else(|e| panic!("cannot read {}: {e}", p.display()));
+                cte_names(&src)
+            })
+            .collect();
+
+        for entry in entries {
             let path = entry.path();
             if path.is_dir() {
                 stack.push(path);
@@ -283,8 +302,6 @@ fn scan_relation_refs(src_dir: &Path) -> Vec<RelationRef> {
 
             let src = std::fs::read_to_string(&path)
                 .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-
-            let ctes = cte_names(&src);
 
             for (start_line, literal) in string_literals(&src) {
                 if !looks_like_sql(&literal) {

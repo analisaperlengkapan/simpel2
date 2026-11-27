@@ -246,6 +246,38 @@ Menampilkan:
    - **Laporan Rekap**: Per ukuran
    - Format: PDF atau Excel
 
+### Memantau Progres Pengisian Pakaian Dinas
+
+Di bagian atas **Daftar Satker** setiap kegiatan ada panel **Progres Kegiatan**
+yang menjawab "mana yang sudah dan mana yang belum", dari ringkas ke rinci:
+
+1. **Kegiatan.** Jumlah satker per tahap (belum mengajukan, di wilayah, di
+   pusat, selesai) dan jumlah pegawai yang sudah mengisi ukuran dibanding yang
+   seharusnya mengisi, lengkap dengan persentasenya. Batang di bawahnya
+   menunjukkan komposisi tahap dengan warna yang sama dengan kartu di atasnya.
+2. **Wilayah.** Tabel per Kejati, yang **paling sedikit mengisi di urutan
+   teratas**. Delapan baris pertama tampil; tombol **Tampilkan semua** membuka
+   sisanya. Satker yang tidak berada di bawah Kejati mana pun (Kejaksaan Agung
+   dan unit pusat) dikelompokkan sendiri.
+3. **Satker.** Daftar satker yang **paling tertinggal** (belum selesai, urut
+   dari yang paling sedikit mengisi). Setiap barisnya punya tombol **Lihat
+   pegawai**.
+4. **Pegawai.** Tombol itu membuka halaman ukuran pegawai satker tersebut,
+   tempat terlihat siapa yang sudah dan belum mengisi. Kartu satker di bawah
+   panel juga menyebut "12 dari 15 pegawai sudah mengisi".
+
+Ringkasan yang sama (batang tahap, "30 dari 156 satker selesai" dan jumlah
+pegawai yang sudah mengisi) juga muncul di **setiap kartu kegiatan** pada
+Daftar Pengajuan dan di bagian **Progres Pakaian Dinas** pada Dasbor, sehingga
+kegiatan yang tertinggal terlihat tanpa membuka satu per satu. Kartu di Dasbor
+membuka daftar satker kegiatan itu.
+
+Yang tampil mengikuti cakupan Anda: Validator Wilayah melihat wilayahnya
+sendiri, Validator Pusat melihat seluruh kegiatan. Pegawai yang **dikeluarkan**
+operator tidak dihitung (mereka tidak berutang ukuran), dan formulir yang
+disimpan kosong tidak dianggap sudah mengisi, sama dengan hitungan pada
+konfirmasi sebelum meneruskan.
+
 ---
 
 ## Monitoring Pemakaian BMN

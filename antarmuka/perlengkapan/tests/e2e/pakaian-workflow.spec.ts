@@ -931,8 +931,8 @@ test.describe("Pakaian Dinas — the satker list can be searched and narrowed by
     await page.goto(`${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker`, { waitUntil: "domcontentloaded" });
     const kartu = page.getByRole("button", { name: "Lihat Riwayat & Aksi" });
     await expect(kartu).toHaveCount(2, { timeout: 20000 });
-    // The count says what it counts: filled employees, not the satker's headcount.
-    await expect(page.getByText(/· \d+ pegawai terisi/).first()).toBeVisible();
+    // The count says what it counts and out of what: employees who have filled in, of the roster.
+    await expect(page.getByText(/· \d+ dari \d+ pegawai sudah mengisi/).first()).toBeVisible();
     // Two satker fit one page, so there is nothing to page through.
     await expect(page.getByRole("button", { name: "Selanjutnya" })).toBeDisabled();
 
@@ -1028,6 +1028,46 @@ test.describe("Pakaian Dinas — bulk actions for an account holding both valida
     const status = (id: string) => now.find((x) => x.id === id)!.aktivitas_id;
     expect(status(rows[0]), "the wilayah-stage row was forwarded").toBe(1004);
     expect(status(rows[1]), "the pusat-stage row must NOT be finally approved by 'Teruskan'").toBe(1004);
+    await ctx.close();
+  });
+
+  // Monitoring: the progress panel on top of the satker list says where the campaign stands, from the
+  // whole campaign down to the satker, and the cards say "x dari y".
+  test("the satker list opens with the progress of the campaign", async ({ browser, request }) => {
+    const { pengajuanId } = await kampanyeDuaSatker(request);
+    const ctx = await browser.newContext({ storageState: storageStatePath("admin") });
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/pakaian-dinas/pengajuan/${pengajuanId}/satker`, { waitUntil: "domcontentloaded" });
+
+    const panel = page.getByTestId("progres-kegiatan");
+    await expect(panel).toBeVisible({ timeout: 20000 });
+    // A fresh campaign: both satker are still at Input and nobody has submitted anything.
+    await expect(page.getByTestId("progres-belum-mengajukan")).toContainText("2");
+    await expect(page.getByTestId("progres-di-wilayah")).toContainText("0");
+    await expect(page.getByTestId("progres-selesai")).toContainText("0");
+    await expect(page.getByTestId("progres-pegawai")).toContainText("/");
+    // The short list of who is furthest behind carries a way to the employees' page.
+    await expect(page.getByTestId("progres-tertinggal")).toBeVisible();
+    await expect(page.getByTestId("progres-lihat-pegawai").first()).toHaveAttribute("href", /\/isi$/);
+    // Each satker card says how many of its roster have filled in.
+    await expect(page.getByText(/\d+ dari \d+ pegawai sudah mengisi/).first()).toBeVisible();
+
+    // The stage counts of a wilayah sit in their own column on a desktop. Below `sm` that column is
+    // hidden, and the counts must not go with it: a phone gets them as one line under the name.
+    const tahapRingkas = page.getByTestId("progres-wilayah-tahap-ringkas").first();
+    await expect(tahapRingkas).toBeHidden();
+    await page.setViewportSize({ width: 390, height: 800 });
+    await expect(tahapRingkas).toBeVisible();
+    await expect(tahapRingkas).toContainText(/Belum \d+ · Wilayah \d+ · Pusat \d+ · Selesai \d+/);
+    await page.setViewportSize({ width: 1280, height: 720 });
+
+    // The campaign list shows how far each campaign has got, and so does the dashboard.
+    await page.goto(`${BASE}/pakaian-dinas/pengajuan`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("progres-ringkas").first()).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId("progres-ringkas").first()).toContainText("satker selesai");
+    await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("progres-pakaian-dashboard")).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId("progres-pakaian-kegiatan").first()).toHaveAttribute("href", /\/satker$/);
     await ctx.close();
   });
 

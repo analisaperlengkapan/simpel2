@@ -26,6 +26,7 @@ mod master;
 mod pegawai;
 mod pengajuan;
 mod pengguna;
+mod progres;
 mod roster;
 mod satker;
 mod workflow;
