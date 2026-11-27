@@ -48,6 +48,11 @@ Setelah login, Anda akan melihat dashboard dengan:
 - **Menu Utama**: Akses ke semua modul
 - **Notifikasi**: Pemberitahuan terbaru
 
+Angka pada dashboard selalu hanya untuk **satker Anda**; baris "Menampilkan: …" pada
+panel filter menyebut satkernya. Anda tidak perlu (dan tidak dapat) memilih wilayah
+atau satker lain, tetapi **Jenis Aset**, **Tahun Anggaran**, dan **periode perolehan**
+tetap dapat dipakai untuk mempersempit angka.
+
 ---
 
 ## Kebutuhan BMN

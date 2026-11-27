@@ -189,6 +189,11 @@ pub struct FilterOption {
     /// (jenis, kategori, kondisi), so existing dropdowns are unaffected.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
+    /// For a satker option: the region it sits in (the `wilayah` option's `value`), so a client
+    /// can narrow the satker list to a chosen region without asking the server again. `None` for
+    /// every other list.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub induk: Option<String>,
 }
 
 /// Distinct values per filterable column, served to the FE so filter dropdowns

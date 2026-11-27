@@ -822,6 +822,7 @@ impl BankAsetRepository {
         &self,
         filter: &AsetFilter,
         scope: &AsetScope,
+        facets: &FilterFacets,
     ) -> AppResult<BankAsetFilterOptions> {
         let client = self
             .pool
@@ -829,20 +830,33 @@ impl BankAsetRepository {
             .await
             .map_err(|e| AppError::Internal(format!("DB conn: {}", e)))?;
 
-        // RBAC scope predicate (references `$1` when present): only offer filter
-        // values that exist within the caller's visible asset set.
-        let mut scope_params: Vec<BoxedParam> = Vec::new();
-        let mut conds: Vec<String> = Vec::new();
-        if let Some(c) = scope.push_condition(&mut scope_params) {
-            conds.push(c);
-        }
-        push_asset_filters(filter, &mut scope_params, &mut conds);
-        let and_clause = if conds.is_empty() {
-            String::new()
-        } else {
-            format!(" AND {}", conds.join(" AND "))
+        // Every list is answered with the caller's scope and every filter EXCEPT the ones that
+        // list is itself the choice of. Applying all of them to all lists (as this used to) made
+        // a list collapse onto what was already picked: choose a region and the region list held
+        // one entry, so switching straight to another region was impossible; choose a satker and
+        // the satker list held one entry. A region still narrows the satker list (that is the
+        // cascade), and a satker never narrows the region list.
+        //
+        // Each list needs its own placeholders, so the clause and its binds are built together.
+        let clause = |f: &AsetFilter| -> (String, Vec<BoxedParam>) {
+            let mut params: Vec<BoxedParam> = Vec::new();
+            let mut conds: Vec<String> = Vec::new();
+            if let Some(c) = scope.push_condition(&mut params) {
+                conds.push(c);
+            }
+            push_asset_filters(f, &mut params, &mut conds);
+            let and_clause = if conds.is_empty() {
+                String::new()
+            } else {
+                format!(" AND {}", conds.join(" AND "))
+            };
+            (and_clause, params)
         };
-        let scope_p = as_sql_params(&scope_params);
+        let tanpa = |buang: fn(&mut AsetFilter)| {
+            let mut f = filter.clone();
+            buang(&mut f);
+            f
+        };
 
         // (label_expr, column) — column names are a hard-coded allow-list.
         async fn distinct(
@@ -881,8 +895,51 @@ impl BankAsetRepository {
                     value: r.get("value"),
                     count: r.get("count"),
                     label: None,
+                    induk: None,
                 })
                 .collect())
+        }
+
+        let mut out = BankAsetFilterOptions {
+            jenis: Vec::new(),
+            kategori: Vec::new(),
+            kondisi: Vec::new(),
+            satker: Vec::new(),
+            satker_kode: Vec::new(),
+            wilayah: Vec::new(),
+        };
+
+        if facets.jenis {
+            let (and_clause, params) = clause(&tanpa(|f| f.jenis = None));
+            out.jenis =
+                distinct(&client, "jenis_aset", &and_clause, &as_sql_params(&params)).await?;
+        }
+        if facets.kategori {
+            // Same expression as the list projection and the filter predicate:
+            // a dropdown that offers values the predicate cannot match filters
+            // to nothing.
+            let (and_clause, params) = clause(&tanpa(|f| f.kategori = None));
+            out.kategori = distinct(
+                &client,
+                ASSET_KATEGORI_SQL,
+                &and_clause,
+                &as_sql_params(&params),
+            )
+            .await?;
+        }
+        if facets.kondisi {
+            let (and_clause, params) = clause(&tanpa(|f| f.kondisi = None));
+            out.kondisi =
+                distinct(&client, "ur_kondisi", &and_clause, &as_sql_params(&params)).await?;
+        }
+        if facets.satker {
+            let (and_clause, params) = clause(&tanpa(|f| {
+                f.satker = None;
+                f.satker_kode = None;
+                f.kode_siman = None;
+            }));
+            out.satker =
+                distinct(&client, "nama_satker", &and_clause, &as_sql_params(&params)).await?;
         }
 
         // Code-keyed options carry a separate label, so they need their own
@@ -908,73 +965,150 @@ impl BankAsetRepository {
         // That shipped in rc31: whoever's scope reached a SIMAN-only satker
         // (pusat, wilayah, admin) took the backend down by opening Bank Aset.
         // The predicate below is the sentence above, as SQL.
-        let satker_kode_sql = format!(
-            "SELECT m.kode_satker AS value,
-                    MIN(COALESCE(m.nama_satker, a.nama_satker)) AS label,
-                    COUNT(*)::BIGINT AS count
-               FROM (SELECT kdsatker_keu, nama_satker
-                       FROM integrasi.siman_aset
-                      WHERE kdsatker_keu IS NOT NULL AND kdsatker_keu <> ''{and_clause}) a
-               JOIN integrasi.v_satker_code_map m ON m.kdsatker_keu = a.kdsatker_keu
-              WHERE m.kode_satker IS NOT NULL AND m.kode_satker <> ''
-              GROUP BY m.kode_satker
-              ORDER BY count DESC, value ASC
-              LIMIT {FILTER_OPTION_LIMIT}"
-        );
-        let satker_kode = client
-            .query(&satker_kode_sql, &scope_p)
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?
-            .iter()
-            .map(|r| FilterOption {
-                value: r.get("value"),
-                count: r.get("count"),
-                label: r.get::<_, Option<String>>("label"),
-            })
-            .collect();
+        //
+        // `induk` is the region the satker sits in, spelled as the region filter spells it
+        // (digits 6-9 of the SIMAN code). With it the client narrows this list to the chosen
+        // region by itself, so choosing a region costs no second round trip: that round trip
+        // takes 2-3 s for pusat, and for those seconds the old list still offered every satker
+        // in the country.
+        if facets.satker_kode {
+            let (and_clause, params) = clause(&tanpa(|f| {
+                f.satker = None;
+                f.satker_kode = None;
+                f.kode_siman = None;
+            }));
+            let satker_kode_sql = format!(
+                "SELECT m.kode_satker AS value,
+                        MIN(COALESCE(m.nama_satker, a.nama_satker)) AS label,
+                        MIN(substring(a.kdsatker_keu FROM 6 FOR 4)) AS induk,
+                        COUNT(*)::BIGINT AS count
+                   FROM (SELECT kdsatker_keu, nama_satker
+                           FROM integrasi.siman_aset
+                          WHERE kdsatker_keu IS NOT NULL AND kdsatker_keu <> ''{and_clause}) a
+                   JOIN integrasi.v_satker_code_map m ON m.kdsatker_keu = a.kdsatker_keu
+                  WHERE m.kode_satker IS NOT NULL AND m.kode_satker <> ''
+                  GROUP BY m.kode_satker
+                  ORDER BY count DESC, value ASC
+                  LIMIT {FILTER_OPTION_LIMIT}"
+            );
+            out.satker_kode = client
+                .query(&satker_kode_sql, &as_sql_params(&params))
+                .await
+                .map_err(|e| AppError::Database(e.to_string()))?
+                .iter()
+                .map(|r| FilterOption {
+                    value: r.get("value"),
+                    count: r.get("count"),
+                    label: r.get::<_, Option<String>>("label"),
+                    induk: r.get::<_, Option<String>>("induk"),
+                })
+                .collect();
+        }
 
         // Wilayah label comes from `v_satker_wilayah` — THE definition of the
         // tier (integrasi migration 005), the same one every MySIMKARI-side
-        // scope climbs. Falling back to the bare code keeps SIMAN-only satkers
-        // (65 on staging, whose kode_satker MySIMKARI does not know) visible
-        // rather than dropping their region from the list.
-        let wilayah_sql = format!(
-            "SELECT a.wk AS value,
-                    MIN(w.wilayah_nama) AS label,
-                    COUNT(*)::BIGINT AS count
-               FROM (SELECT substring(kdsatker_keu FROM 6 FOR 4) AS wk, kdsatker_keu
-                       FROM integrasi.siman_aset
-                      WHERE kdsatker_keu IS NOT NULL AND kdsatker_keu <> ''{and_clause}) a
-               LEFT JOIN integrasi.v_satker_code_map m ON m.kdsatker_keu = a.kdsatker_keu
-               LEFT JOIN integrasi.v_satker_wilayah  w ON w.kode_satker  = m.kode_satker
-              WHERE a.wk IS NOT NULL AND a.wk <> ''
-              GROUP BY a.wk
-              ORDER BY count DESC, value ASC
-              LIMIT {FILTER_OPTION_LIMIT}"
-        );
-        let wilayah = client
-            .query(&wilayah_sql, &scope_p)
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?
-            .iter()
-            .map(|r| FilterOption {
-                value: r.get("value"),
-                count: r.get("count"),
-                label: r.get::<_, Option<String>>("label"),
-            })
-            .collect();
+        // scope climbs. A region without a Kejati above it (Kejaksaan Agung and
+        // the central units) keeps its code as the label, so it stays visible.
+        //
+        // The assets are counted BEFORE the name is looked up. The count used to sit on top of
+        // two joins, and a SIMAN code shared by two MySIMKARI satkers repeated every one of its
+        // assets once per satker: the list said 3 358 for a region whose operator owns 1 681.
+        if facets.wilayah {
+            let (and_clause, params) = clause(&tanpa(|f| {
+                f.wilayah = None;
+                f.satker = None;
+                f.satker_kode = None;
+                f.kode_siman = None;
+            }));
+            let wilayah_sql = format!(
+                "WITH nama_wilayah AS (
+                     SELECT substring(c.kdsatker_keu FROM 6 FOR 4) AS wk, MIN(w.wilayah_nama) AS nama
+                       FROM integrasi.v_satker_code_map c
+                       JOIN integrasi.v_satker_wilayah  w ON w.kode_satker = c.kode_satker
+                      WHERE c.kdsatker_keu IS NOT NULL
+                      GROUP BY 1
+                 )
+                 SELECT a.wk AS value, nw.nama AS label, a.count
+                   FROM (SELECT substring(kdsatker_keu FROM 6 FOR 4) AS wk, COUNT(*)::BIGINT AS count
+                           FROM integrasi.siman_aset
+                          WHERE kdsatker_keu IS NOT NULL AND kdsatker_keu <> ''{and_clause}
+                          GROUP BY 1) a
+                   LEFT JOIN nama_wilayah nw ON nw.wk = a.wk
+                  WHERE a.wk IS NOT NULL AND a.wk <> ''
+                  ORDER BY a.count DESC, a.wk ASC
+                  LIMIT {FILTER_OPTION_LIMIT}"
+            );
+            out.wilayah = client
+                .query(&wilayah_sql, &as_sql_params(&params))
+                .await
+                .map_err(|e| AppError::Database(e.to_string()))?
+                .iter()
+                .map(|r| FilterOption {
+                    value: r.get("value"),
+                    count: r.get("count"),
+                    label: r.get::<_, Option<String>>("label"),
+                    induk: None,
+                })
+                .collect();
+        }
 
-        Ok(BankAsetFilterOptions {
-            jenis: distinct(&client, "jenis_aset", &and_clause, &scope_p).await?,
-            // Same expression as the list projection and the filter predicate:
-            // a dropdown that offers values the predicate cannot match filters
-            // to nothing.
-            kategori: distinct(&client, ASSET_KATEGORI_SQL, &and_clause, &scope_p).await?,
-            kondisi: distinct(&client, "ur_kondisi", &and_clause, &scope_p).await?,
-            satker: distinct(&client, "nama_satker", &and_clause, &scope_p).await?,
-            satker_kode,
-            wilayah,
-        })
+        Ok(out)
+    }
+}
+
+/// Which lists `filter_options` should compute. Each one is a scan of the asset table (2-3 s
+/// for pusat on staging for all six), and the dashboard needs three of them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FilterFacets {
+    pub jenis: bool,
+    pub kategori: bool,
+    pub kondisi: bool,
+    pub satker: bool,
+    pub satker_kode: bool,
+    pub wilayah: bool,
+}
+
+impl FilterFacets {
+    pub const ALL: Self = Self {
+        jenis: true,
+        kategori: true,
+        kondisi: true,
+        satker: true,
+        satker_kode: true,
+        wilayah: true,
+    };
+
+    /// `None` or an empty string asks for everything (what every existing caller sends). A
+    /// comma-separated list asks for exactly those; a name that is not a list is an error, not
+    /// silently ignored, so a typo cannot return an empty dropdown that looks like "no data".
+    pub fn parse(raw: Option<&str>) -> Result<Self, String> {
+        let Some(raw) = raw.map(str::trim).filter(|r| !r.is_empty()) else {
+            return Ok(Self::ALL);
+        };
+        let mut f = Self {
+            jenis: false,
+            kategori: false,
+            kondisi: false,
+            satker: false,
+            satker_kode: false,
+            wilayah: false,
+        };
+        for nama in raw.split(',').map(str::trim).filter(|n| !n.is_empty()) {
+            match nama {
+                "jenis" => f.jenis = true,
+                "kategori" => f.kategori = true,
+                "kondisi" => f.kondisi = true,
+                "satker" => f.satker = true,
+                "satker_kode" => f.satker_kode = true,
+                "wilayah" => f.wilayah = true,
+                other => {
+                    return Err(format!(
+                        "facet tidak dikenal: '{other}' (jenis, kategori, kondisi, satker, satker_kode, wilayah)"
+                    ));
+                }
+            }
+        }
+        Ok(f)
     }
 }
 
@@ -1250,5 +1384,30 @@ mod tests {
         let cond = scope.push_condition(&mut params).expect("restricted");
         assert!(extra.contains("$2"), "identity took $2: {extra}");
         assert!(cond.contains("$3"), "scope took $3: {cond}");
+    }
+}
+
+#[cfg(test)]
+mod facet_tests {
+    use super::FilterFacets;
+
+    #[test]
+    fn nothing_asked_for_means_every_list() {
+        assert_eq!(FilterFacets::parse(None).unwrap(), FilterFacets::ALL);
+        assert_eq!(FilterFacets::parse(Some("")).unwrap(), FilterFacets::ALL);
+        assert_eq!(FilterFacets::parse(Some("  ")).unwrap(), FilterFacets::ALL);
+    }
+
+    #[test]
+    fn a_list_of_names_asks_for_exactly_those() {
+        let f = FilterFacets::parse(Some("wilayah, satker_kode ,jenis")).unwrap();
+        assert!(f.wilayah && f.satker_kode && f.jenis);
+        assert!(!f.kategori && !f.kondisi && !f.satker);
+    }
+
+    #[test]
+    fn a_name_that_is_not_a_list_is_an_error_not_an_empty_dropdown() {
+        let e = FilterFacets::parse(Some("wilayah,bogus")).unwrap_err();
+        assert!(e.contains("bogus"), "{e}");
     }
 }

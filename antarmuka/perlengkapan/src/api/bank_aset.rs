@@ -334,6 +334,10 @@ pub struct FilterOption {
     /// `skip_serializing_if`.
     #[serde(default)]
     pub label: Option<String>,
+    /// For a satker option: the region it sits in (a `wilayah` option's `value`). Lets the
+    /// satker list be narrowed to a chosen region on the client, without another request.
+    #[serde(default)]
+    pub induk: Option<String>,
 }
 
 impl FilterOption {
@@ -357,6 +361,19 @@ pub struct BankAsetFilterOptions {
     /// Region by SIMAN `wilayah_kode`, with the Kejati name as label.
     #[serde(default)]
     pub wilayah: Vec<FilterOption>,
+}
+
+/// The three lists the dashboard's drill-down needs (jenis, satker by code with its region, and
+/// wilayah), asked for ONCE and unfiltered: the satker list is narrowed to a chosen region on the
+/// client through `induk`. The server computes each requested list with a scan of the asset table
+/// (2-3 s for pusat), so asking only for these and asking once is what keeps a drill-down instant.
+pub async fn fetch_filter_options_dasbor() -> AppResult<BankAsetFilterOptions> {
+    let url = format!("{API_BASE}/bank-aset/filter-options?facet=jenis,satker_kode,wilayah");
+    let resp: ApiResponseWrap<BankAsetFilterOptions> = api_get(&url).await?;
+    if !resp.success {
+        return Err(AppError::server(resp.message));
+    }
+    Ok(resp.data)
 }
 
 /// Distinct filter values (jenis BMN, kategori, kondisi, satker) for populating

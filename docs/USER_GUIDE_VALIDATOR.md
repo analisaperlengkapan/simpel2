@@ -50,6 +50,11 @@ Menampilkan:
 - Pengajuan yang sudah diforward
 - Statistik per satker
 
+Secara bawaan angka mencakup **seluruh wilayah Anda**. Pada panel filter di atas
+angka, pilih satu **Satuan Kerja** untuk melihat satker itu saja; baris
+"Menampilkan: …" menyebut apa yang sedang tampil. **Bersihkan filter**
+mengembalikan ke seluruh wilayah.
+
 ### Dashboard Validator Pusat
 
 Menampilkan:
@@ -58,6 +63,17 @@ Menampilkan:
 - Gap analysis BMN
 - Workflow metrics
 - Asset utilization
+
+Secara bawaan angka mencakup **seluruh Indonesia**. Filter bekerja berjenjang:
+
+1. Pilih **Wilayah** untuk melihat satu Kejaksaan Tinggi beserta seluruh satkernya.
+   Daftar **Satuan Kerja** langsung menyempit ke satker di wilayah itu.
+2. Pilih **Satuan Kerja** di dalamnya untuk melihat satker itu saja.
+3. Mengganti wilayah menghapus pilihan satker (satker itu bukan bagian dari wilayah
+   yang baru). **Bersihkan filter** kembali ke seluruh Indonesia.
+
+Anda juga dapat memilih satker tanpa memilih wilayah. Filter Jenis Aset, Tahun
+Anggaran, dan periode perolehan berlaku pada tingkat mana pun.
 
 ---
 
