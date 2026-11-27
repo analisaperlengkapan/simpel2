@@ -106,7 +106,7 @@ pub fn AnalisisList() -> impl IntoView {
                                                                 <td class="p-3">
                                                                     {item
                                                                         .estimasi_biaya
-                                                                        .map(|n| format!("Rp {:.2}", n))
+                                                                        .map(lib_perlengkapan::utils::format_rupiah)
                                                                         .unwrap_or("-".to_string())}
                                                                 </td>
                                                                 <td class="p-3">

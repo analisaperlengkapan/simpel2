@@ -3,8 +3,18 @@
 use chrono::{DateTime, Utc};
 
 /// Format currency in Indonesian Rupiah format
+///
+/// The sign is set apart BEFORE the digits are grouped in threes from the right: grouped with the
+/// minus sign in the string, a number whose digit count is a multiple of three put the sign in a
+/// group of its own, and -125000 read "Rp -.125.000,00". A negative amount reads "Rp -125.000,00";
+/// one that rounds to zero is just "Rp 0,00" (never "-0,00").
 pub fn format_rupiah(amount: f64) -> String {
-    let formatted = format!("{:.2}", amount);
+    let formatted = format!("{:.2}", amount.abs());
+    let sign = if amount < 0.0 && formatted != "0.00" {
+        "-"
+    } else {
+        ""
+    };
     let parts: Vec<&str> = formatted.split('.').collect();
     let whole = parts[0];
     let decimal = parts.get(1).unwrap_or(&"00");
@@ -20,7 +30,7 @@ pub fn format_rupiah(amount: f64) -> String {
         .rev()
         .collect();
 
-    format!("Rp {},{}", grouped, decimal)
+    format!("Rp {sign}{grouped},{decimal}")
 }
 
 /// Format datetime for display
@@ -42,5 +52,18 @@ mod tests {
         assert_eq!(format_rupiah(1000.0), "Rp 1.000,00");
         assert_eq!(format_rupiah(1000000.0), "Rp 1.000.000,00");
         assert_eq!(format_rupiah(1234567.89), "Rp 1.234.567,89");
+    }
+
+    #[test]
+    fn a_negative_amount_keeps_its_sign_outside_the_digit_groups() {
+        // A digit count that is a multiple of three used to put the minus sign in a group of its
+        // own: "Rp -.125.000,00".
+        assert_eq!(format_rupiah(-125000.0), "Rp -125.000,00");
+        assert_eq!(format_rupiah(-1234567.89), "Rp -1.234.567,89");
+        assert_eq!(format_rupiah(-5.5), "Rp -5,50");
+        // Zero and what rounds to zero carry no sign.
+        assert_eq!(format_rupiah(0.0), "Rp 0,00");
+        assert_eq!(format_rupiah(-0.0), "Rp 0,00");
+        assert_eq!(format_rupiah(-0.001), "Rp 0,00");
     }
 }
