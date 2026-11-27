@@ -437,7 +437,10 @@ pub fn StatusModul(
 /// choosing a region narrows the satker list here, at once. It used to ask the server again, which
 /// takes 2-3 s for pusat; for those seconds the old list still offered every satker in the country
 /// and a pick from it answered zeros. The component also stays mounted while the figures reload,
-/// and every selector is bound to its signal, so what the screen shows is what is being filtered.
+/// and every selector's `value` PROPERTY is bound to its signal, so what the screen shows is what
+/// is being filtered. (Binding the `selected` attribute of each option did not hold: once a person
+/// has chosen an option by hand the browser stops following the attribute, and "Bersihkan filter"
+/// then cleared the filter while the select kept showing the old choice.)
 #[component]
 pub fn FilterBar(
     options: crate::api::bank_aset::BankAsetFilterOptions,
@@ -530,7 +533,7 @@ pub fn FilterBar(
             satker_opts
                 .iter()
                 .filter(|o| match &w {
-                    Some(w) => o.induk.as_deref() == Some(w.as_str()),
+                    Some(w) => o.di_wilayah(w),
                     None => true,
                 })
                 .cloned()
@@ -556,6 +559,7 @@ pub fn FilterBar(
                         </label>
                         <select
                             id="f-wilayah"
+                            prop:value=move || wilayah.get().unwrap_or_default()
                             class=sel
                             on:change=move |ev| {
                                 let v = event_target_value(&ev);
@@ -564,14 +568,13 @@ pub fn FilterBar(
                                 satker.set(None);
                             }
                         >
-                            <option value="" selected=move || wilayah.get().is_none()>
+                            <option value="">
                                 "Seluruh wilayah"
                             </option>
                             {wilayah_opts
                                 .iter()
                                 .map(|o| {
                                     let v = o.value.clone();
-                                    let v_sel = o.value.clone();
                                     let text = format!(
                                         "{} ({})",
                                         o.display(),
@@ -580,7 +583,6 @@ pub fn FilterBar(
                                     view! {
                                         <option
                                             value=v
-                                            selected=move || wilayah.get().as_deref() == Some(v_sel.as_str())
                                         >
                                             {text}
                                         </option>
@@ -601,13 +603,14 @@ pub fn FilterBar(
                         </label>
                         <select
                             id="f-satker"
+                            prop:value=move || satker.get().unwrap_or_default()
                             class=sel
                             on:change=move |ev| {
                                 let v = event_target_value(&ev);
                                 satker.set(if v.is_empty() { None } else { Some(v) });
                             }
                         >
-                            <option value="" selected=move || satker.get().is_none()>
+                            <option value="">
                                 "Seluruh satuan kerja"
                             </option>
                             {move || {
@@ -615,7 +618,6 @@ pub fn FilterBar(
                                     .into_iter()
                                     .map(|o| {
                                         let v = o.value.clone();
-                                        let v_sel = o.value.clone();
                                         let text = format!(
                                             "{} ({})",
                                             o.display(),
@@ -624,7 +626,6 @@ pub fn FilterBar(
                                         view! {
                                             <option
                                                 value=v
-                                                selected=move || satker.get().as_deref() == Some(v_sel.as_str())
                                             >
                                                 {text}
                                             </option>
@@ -643,13 +644,14 @@ pub fn FilterBar(
                     </label>
                     <select
                         id="f-jenis"
+                            prop:value=move || jenis.get().unwrap_or_default()
                         class=sel
                         on:change=move |ev| {
                             let v = event_target_value(&ev);
                             jenis.set(if v.is_empty() { None } else { Some(v) });
                         }
                     >
-                        <option value="" selected=move || jenis.get().is_none()>
+                        <option value="">
                             "Seluruh jenis"
                         </option>
                         {options
@@ -657,7 +659,6 @@ pub fn FilterBar(
                             .iter()
                             .map(|o| {
                                 let v = o.value.clone();
-                                let v_sel = o.value.clone();
                                 let text = format!(
                                     "{} ({})",
                                     o.display(),
@@ -666,7 +667,6 @@ pub fn FilterBar(
                                 view! {
                                     <option
                                         value=v
-                                        selected=move || jenis.get().as_deref() == Some(v_sel.as_str())
                                     >
                                         {text}
                                     </option>

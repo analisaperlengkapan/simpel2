@@ -343,16 +343,28 @@ fn count_kondisi(d: &BankAsetDashboard, pred: impl Fn(&str) -> bool) -> i64 {
 /// Mirrors `components::laporan_kebutuhan_bmn::download_export` — same blob +
 /// synthetic-anchor pattern, kept identical so there is one way to do this.
 #[cfg(target_arch = "wasm32")]
-fn download_dashboard_export(format: &'static str) {
+fn download_dashboard_export(
+    format: &'static str,
+    tahun: i32,
+    satker: Option<String>,
+    wilayah: Option<String>,
+) {
     use leptos::task::spawn_local;
     use wasm_bindgen::JsCast;
     use web_sys::{Blob, BlobPropertyBag, Url};
 
     spawn_local(async move {
-        // The endpoint requires `tahun_anggaran`; the recap is for the running
-        // budget year, which is what the dashboard cards above already show.
-        let tahun = js_sys::Date::new_0().get_full_year() as i32;
-        let bytes = match crate::api::dashboard::export_dashboard(format, tahun).await {
+        // The recap is for what the dashboard is showing: the budget year the reader chose (it
+        // used to be the clock's, so choosing 2025 and pressing PDF handed back 2026) and the
+        // same drill-down. The year in the file name is the year that was requested.
+        let bytes = match crate::api::dashboard::export_dashboard(
+            format,
+            tahun,
+            satker.as_deref(),
+            wilayah.as_deref(),
+        )
+        .await
+        {
             Ok(b) => b,
             Err(e) => {
                 leptos::logging::error!("export dashboard {format} gagal: {e}");
@@ -389,7 +401,13 @@ fn download_dashboard_export(format: &'static str) {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn download_dashboard_export(_format: &'static str) {}
+fn download_dashboard_export(
+    _format: &'static str,
+    _tahun: i32,
+    _satker: Option<String>,
+    _wilayah: Option<String>,
+) {
+}
 
 fn format_number(n: i64) -> String {
     let s = n.to_string();
@@ -989,14 +1007,28 @@ pub fn DashboardHome() -> impl IntoView {
                 <button
                     type="button"
                     class="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-100 transition-colors hover:border-white/20 hover:bg-slate-900/80"
-                    on:click=move |_| download_dashboard_export("excel")
+                    on:click=move |_| {
+                        download_dashboard_export(
+                            "excel",
+                            f_tahun.get_untracked(),
+                            f_satker.get_untracked(),
+                            f_wilayah.get_untracked(),
+                        )
+                    }
                 >
                     "Excel"
                 </button>
                 <button
                     type="button"
                     class="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-100 transition-colors hover:border-white/20 hover:bg-slate-900/80"
-                    on:click=move |_| download_dashboard_export("pdf")
+                    on:click=move |_| {
+                        download_dashboard_export(
+                            "pdf",
+                            f_tahun.get_untracked(),
+                            f_satker.get_untracked(),
+                            f_wilayah.get_untracked(),
+                        )
+                    }
                 >
                     "PDF"
                 </button>

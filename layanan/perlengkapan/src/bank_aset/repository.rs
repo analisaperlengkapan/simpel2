@@ -896,6 +896,7 @@ impl BankAsetRepository {
                     count: r.get("count"),
                     label: None,
                     induk: None,
+                    induk_semua: Vec::new(),
                 })
                 .collect())
         }
@@ -981,6 +982,8 @@ impl BankAsetRepository {
                 "SELECT m.kode_satker AS value,
                         MIN(COALESCE(m.nama_satker, a.nama_satker)) AS label,
                         MIN(substring(a.kdsatker_keu FROM 6 FOR 4)) AS induk,
+                        ARRAY_AGG(DISTINCT substring(a.kdsatker_keu FROM 6 FOR 4)
+                                  ORDER BY substring(a.kdsatker_keu FROM 6 FOR 4)) AS induk_semua,
                         COUNT(*)::BIGINT AS count
                    FROM (SELECT kdsatker_keu, nama_satker
                            FROM integrasi.siman_aset
@@ -1001,6 +1004,7 @@ impl BankAsetRepository {
                     count: r.get("count"),
                     label: r.get::<_, Option<String>>("label"),
                     induk: r.get::<_, Option<String>>("induk"),
+                    induk_semua: r.get::<_, Vec<String>>("induk_semua"),
                 })
                 .collect();
         }
@@ -1048,6 +1052,7 @@ impl BankAsetRepository {
                     count: r.get("count"),
                     label: r.get::<_, Option<String>>("label"),
                     induk: None,
+                    induk_semua: Vec::new(),
                 })
                 .collect();
         }

@@ -19,6 +19,7 @@
 
 use crate::common::{setup_test_app, teardown_test_db};
 use axum_test::TestServer;
+use serde_json::json;
 
 const PUSAT: &str = "00000000-0000-0000-0000-000000000003";
 
@@ -174,6 +175,13 @@ async fn a_chosen_wilayah_narrows_satker_but_not_the_wilayah_list_and_satker_car
             Some("0199"),
             "SKR001 and SKR002 both sit in wilayah 0199: {o}"
         );
+    }
+    // ... and every region it holds assets in (one satker can hold several SIMAN codes spread over
+    // regions, and the region filter selects by asset). The stub's map gives each satker a single
+    // SIMAN code, so here the list is that one region; a satker with assets in two regions cannot
+    // be built from this fixture, which omits the name-matched half of the real view.
+    for o in semua["satker_kode"].as_array().unwrap() {
+        assert_eq!(o["induk_semua"], json!(["0199"]), "{o}");
     }
     // Only satker options carry it.
     assert!(

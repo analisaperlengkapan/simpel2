@@ -338,9 +338,18 @@ pub struct FilterOption {
     /// satker list be narrowed to a chosen region on the client, without another request.
     #[serde(default)]
     pub induk: Option<String>,
+    /// Every region the satker holds assets in (`induk` is the smallest). One MySIMKARI satker can
+    /// hold several SIMAN codes spread over regions, and the region filter selects by asset.
+    #[serde(default)]
+    pub induk_semua: Vec<String>,
 }
 
 impl FilterOption {
+    /// Does this satker hold assets in `wilayah`?
+    pub fn di_wilayah(&self, wilayah: &str) -> bool {
+        self.induk.as_deref() == Some(wilayah) || self.induk_semua.iter().any(|w| w == wilayah)
+    }
+
     /// What to put in the dropdown: the label when there is one, else the value.
     pub fn display(&self) -> &str {
         self.label.as_deref().unwrap_or(&self.value)
