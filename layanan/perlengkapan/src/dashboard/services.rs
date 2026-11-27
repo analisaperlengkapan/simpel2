@@ -435,7 +435,11 @@ impl DashboardService {
         row += 1;
 
         worksheet.write_string(row, 0, "Avg Processing Time (hours)")?;
-        worksheet.write_number(row, 1, metrics.average_processing_time_hours)?;
+        match metrics.average_processing_time_hours {
+            Some(hours) => worksheet.write_number(row, 1, hours)?,
+            // Nothing completed yet: say so, rather than a 0 that reads as "instant".
+            None => worksheet.write_string(row, 1, "-")?,
+        };
         row += 1;
 
         worksheet.write_string(row, 0, "SLA Breaches Today")?;

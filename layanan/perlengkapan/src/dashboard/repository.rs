@@ -316,23 +316,41 @@ pub async fn fetch_pakaian_dinas_metrics(
     // a nationwide campaign still must not read another satker's body sizes.
     let mut up: Vec<BoxedParam> = vec![Box::new(params.tahun_anggaran)];
     let up_scope = scope_and(scope, "ps.satker_id", &mut up);
+    // One bar per (kind of garment, size), counting PEOPLE. The old query grouped on the size
+    // text alone, so a shirt "M", trousers "32" and shoes "40" shared one chart, an employee with
+    // three garments was counted three times under a caption that said "pegawai", and the free
+    // text of a name-tag column (the person's NAME) was listed as if it were a size. Only the
+    // pick-from-a-list groups (`tipe = 'PILIHAN'`) are sizes; a text column has no distribution.
+    // The key is the group's CODE and the size; the label is made from the group's name afterwards
+    // (see `label_ukuran`), because two groups can have names that differ only in their brackets.
     let ukuran_query = format!(
         r#"
-        SELECT u.ukuran, COUNT(*) AS count
+        SELECT g.kode, g.nama, u.ukuran, COUNT(DISTINCT u.pegawai_id) AS count
         FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran u
+        JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pp.id = u.pakaian_id
+        JOIN perlengkapan.ms_ukuran_group g
+          ON g.kode = pp.spesifikasi_ukuran_group AND g.tipe = 'PILIHAN'
         JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps ON ps.id = u.pengajuan_satker_id
         JOIN perlengkapan.pengajuan_pakaian_dinas p ON p.id = ps.pengajuan_id
-        WHERE p.tahun = $1 AND u.ukuran IS NOT NULL{up_scope}
-        GROUP BY u.ukuran
+        WHERE p.tahun = $1 AND u.ukuran IS NOT NULL AND btrim(u.ukuran) <> ''{up_scope}
+        GROUP BY g.kode, g.nama, u.ukuran
     "#
     );
 
     let rows = client.query(ukuran_query.as_str(), &as_refs(&up)).await?;
 
-    let total_by_ukuran: HashMap<String, i64> = rows
-        .into_iter()
-        .map(|row| (row.get("ukuran"), row.get("count")))
-        .collect();
+    let total_by_ukuran = label_ukuran(
+        rows.into_iter()
+            .map(|row| {
+                (
+                    row.get::<_, String>("kode"),
+                    row.get::<_, String>("nama"),
+                    row.get::<_, String>("ukuran"),
+                    row.get::<_, i64>("count"),
+                )
+            })
+            .collect(),
+    );
 
     Ok(PakaianDinasMetrics {
         total_by_jenis,
@@ -347,9 +365,16 @@ pub async fn fetch_workflow_metrics(
 ) -> Result<WorkflowMetrics, AppError> {
     let client = db_pool.get().await?;
 
-    // Average processing time for completed per-satker responses. "Completed" is
-    // status_kode 2008 (models/status.rs). The old query filtered a TEXT
-    // `status = 'COMPLETED'` that exists nowhere in this schema.
+    // Average processing time of the per-satker responses that were COMPLETED (status_kode 2008,
+    // models/status.rs): from the moment the satker first SENT it in (2002) to the moment it
+    // reached completed (2008), both read from the activity log. The card says "from submitted to
+    // done", but the old query took `updated_at - created_at`: `created_at` is when the campaign
+    // opened the response, long before anyone submitted anything, and `updated_at` moves on any
+    // later touch, so it measured how old the row was, not how long the processing took.
+    //
+    // No `COALESCE(.., 0)`: with nothing completed there is nothing to average, and 0 hours
+    // reads as "instant". NULL goes out as `None` and the card shows a dash.
+    //
     // The `::FLOAT8` is load-bearing, not defensive noise. `EXTRACT(EPOCH ...)`
     // returns NUMERIC on PostgreSQL 14+ (it was float8 before), and AVG() over
     // numeric stays numeric. tokio_postgres has no `FromSql<f64>` for NUMERIC, so
@@ -362,45 +387,68 @@ pub async fn fetch_workflow_metrics(
     let ap_scope = scope_and(scope, "ps.satker_id", &mut ap);
     let avg_time_query = format!(
         r#"
-        SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (ps.updated_at - ps.created_at)) / 3600), 0)::FLOAT8 AS avg_hours
+        SELECT AVG(EXTRACT(EPOCH FROM (done.at - sent.at)) / 3600)::FLOAT8 AS avg_hours
         FROM perlengkapan.pengajuan_kebutuhan_bmn_satker ps
-        WHERE ps.status_kode = 2008{ap_scope}
+        CROSS JOIN LATERAL (
+            SELECT MIN(ka.created_at) AS at
+            FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas ka
+            WHERE ka.pengajuan_satker_id = ps.id AND ka.to_status_kode = 2002
+              AND ka.from_status_kode IS DISTINCT FROM ka.to_status_kode
+        ) sent
+        CROSS JOIN LATERAL (
+            SELECT MAX(ka.created_at) AS at
+            FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas ka
+            WHERE ka.pengajuan_satker_id = ps.id AND ka.to_status_kode = 2008
+              AND ka.from_status_kode IS DISTINCT FROM ka.to_status_kode
+        ) done
+        WHERE ps.status_kode = 2008 AND sent.at IS NOT NULL AND done.at >= sent.at{ap_scope}
     "#
     );
 
     let row = client
         .query_one(avg_time_query.as_str(), &as_refs(&ap))
         .await?;
-    let average_processing_time_hours: f64 = row.get("avg_hours");
+    let average_processing_time_hours: Option<f64> = row.get("avg_hours");
 
-    // Bottlenecks (states with longest average time)
-    // This is a simplified version - in production, you'd use window functions
-    // The activity table carries no satker of its own, so the scope reaches it
-    // through the per-satker response it belongs to. Without that join the
-    // bottleneck card kept reporting the whole country's queue depth to a
-    // single satker's operator.
+    // Bottlenecks: the stages that are holding responses RIGHT NOW, longest first. For every
+    // response still in a non-terminal stage, how long it has been in THAT stage (since the
+    // latest activity that moved it there; the response's own creation when it never moved), and
+    // per stage the average of those and how many are waiting.
+    //
+    // The old query averaged `NOW() - created_at` over every activity of the last 30 days. That is
+    // the age of the event, not the time spent waiting: a stage entered 20 days ago and left two
+    // hours later counted as 480 hours of queue, a finished stage ("Disetujui") listed as a
+    // bottleneck, and the count was activities rather than responses.
+    //
+    // Only activities that CHANGED the status count as entering a stage: the SLA escalation logs an
+    // activity whose from and to status are the same (it notifies, it does not move the response),
+    // and taking that timestamp as the start of the wait reset the clock of a response that was
+    // still stuck. `IS DISTINCT FROM` also accepts the first activity, whose from-status is NULL.
+    //
+    // The scope reaches the log through the response itself (`ps.satker_id`): the activity table
+    // carries no satker of its own. Labels come from ms_workflow_status; the code is cast to text
+    // because BottleneckInfo.state is a String and the kode column is INTEGER. ::FLOAT8 for the
+    // same NUMERIC-vs-f64 reason as above.
     let mut bp: Vec<BoxedParam> = Vec::new();
     let bp_scope = scope_and(scope, "ps.satker_id", &mut bp);
     let bottleneck_query = format!(
         r#"
-        SELECT
-            -- The activity row records the workflow STATE it moved into
-            -- (`to_status_kode`); it has no `aktivitas_id`, and this table has no
-            -- relation to `ms_aktivitas_bmn` at all — the old query joined both,
-            -- so it errored before it could return anything. Labels come from
-            -- ms_workflow_status; the code is cast to text because
-            -- BottleneckInfo.state is a String and the kode column is INTEGER.
-            COALESCE(w.nama, 'Kode ' || ka.to_status_kode::text) AS state,
-            -- ::FLOAT8 for the same NUMERIC-vs-f64 reason as avg_time_query above.
-            COALESCE(AVG(EXTRACT(EPOCH FROM (NOW() - ka.created_at)) / 3600), 0)::FLOAT8 as avg_hours,
-            COUNT(*) as count
-        FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas ka
-        JOIN perlengkapan.pengajuan_kebutuhan_bmn_satker ps ON ps.id = ka.pengajuan_satker_id
+        SELECT COALESCE(w.nama, 'Kode ' || ps.status_kode::text) AS state,
+               AVG(EXTRACT(EPOCH FROM (NOW() - COALESCE(entered.at, ps.created_at))) / 3600)::FLOAT8
+                   AS avg_hours,
+               COUNT(*) AS count
+        FROM perlengkapan.pengajuan_kebutuhan_bmn_satker ps
         LEFT JOIN perlengkapan.ms_workflow_status w
-               ON w.modul = 'kebutuhan_bmn' AND w.kode = ka.to_status_kode
-        WHERE ka.created_at > NOW() - INTERVAL '30 days'{bp_scope}
-        GROUP BY w.nama, ka.to_status_kode
-        HAVING AVG(EXTRACT(EPOCH FROM (NOW() - ka.created_at)) / 3600) > 24
+               ON w.modul = 'kebutuhan_bmn' AND w.kode = ps.status_kode
+        CROSS JOIN LATERAL (
+            SELECT MAX(ka.created_at) AS at
+            FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas ka
+            WHERE ka.pengajuan_satker_id = ps.id AND ka.to_status_kode = ps.status_kode
+              AND ka.from_status_kode IS DISTINCT FROM ka.to_status_kode
+        ) entered
+        WHERE COALESCE(w.is_terminal, FALSE) = FALSE{bp_scope}
+        GROUP BY w.nama, ps.status_kode
+        HAVING AVG(EXTRACT(EPOCH FROM (NOW() - COALESCE(entered.at, ps.created_at))) / 3600) > 24
         ORDER BY avg_hours DESC
         LIMIT 5
     "#
@@ -554,5 +602,96 @@ fn rows_to_status_metrics(rows: Vec<tokio_postgres::Row>) -> ModuleStatusMetrics
     ModuleStatusMetrics {
         total_by_status,
         total,
+    }
+}
+
+/// "Topi (lingkar kepala, cm)" -> "Topi": the name without its unit in brackets.
+fn nama_pendek(nama: &str) -> &str {
+    nama.split(" (").next().unwrap_or(nama).trim()
+}
+
+/// The chart's keys from `(group code, group name, size, people)` rows: "Baju L", "Sepatu 40".
+///
+/// A group is identified by its CODE, not by its name: an admin can create "Sepatu (PDH)" and
+/// "Sepatu (PDL)", which both shorten to "Sepatu", and keyed on the shortened label one group's
+/// count silently overwrote the other's. The short name is used while it is unique; when two
+/// groups share it, each uses its full name; and when even the full names are equal the code
+/// tells them apart.
+fn label_ukuran(rows: Vec<(String, String, String, i64)>) -> HashMap<String, i64> {
+    let mut nama_kode: std::collections::BTreeMap<&str, &str> = std::collections::BTreeMap::new();
+    for (kode, nama, _, _) in &rows {
+        nama_kode.insert(kode, nama);
+    }
+    let mut pendek: HashMap<&str, usize> = HashMap::new();
+    let mut penuh: HashMap<&str, usize> = HashMap::new();
+    for nama in nama_kode.values() {
+        *pendek.entry(nama_pendek(nama)).or_default() += 1;
+        *penuh.entry(nama.trim()).or_default() += 1;
+    }
+    let dasar = |kode: &str, nama: &str| -> String {
+        if pendek[nama_pendek(nama)] == 1 {
+            nama_pendek(nama).to_string()
+        } else if penuh[nama.trim()] == 1 {
+            nama.trim().to_string()
+        } else {
+            format!("{} [{kode}]", nama.trim())
+        }
+    };
+    let mut out: HashMap<String, i64> = HashMap::new();
+    for (kode, nama, ukuran, count) in &rows {
+        *out.entry(format!("{} {ukuran}", dasar(kode, nama)))
+            .or_default() += count;
+    }
+    out
+}
+
+#[cfg(test)]
+mod label_tests {
+    use super::label_ukuran;
+
+    fn r(kode: &str, nama: &str, ukuran: &str, n: i64) -> (String, String, String, i64) {
+        (kode.into(), nama.into(), ukuran.into(), n)
+    }
+
+    #[test]
+    fn a_unique_group_uses_its_name_without_the_unit_in_brackets() {
+        let m = label_ukuran(vec![
+            r("BAJU", "Baju", "L", 5),
+            r("TOPI", "Topi (lingkar kepala, cm)", "56", 3),
+        ]);
+        assert_eq!(m.get("Baju L"), Some(&5));
+        assert_eq!(m.get("Topi 56"), Some(&3));
+        assert_eq!(m.len(), 2);
+    }
+
+    #[test]
+    fn two_groups_that_shorten_alike_keep_separate_counts() {
+        // 12 people in shoes (PDH) size 40 and 8 in shoes (PDL) size 40: one key held only one of them.
+        let m = label_ukuran(vec![
+            r("SEPATU_PDH", "Sepatu (PDH)", "40", 12),
+            r("SEPATU_PDL", "Sepatu (PDL)", "40", 8),
+        ]);
+        assert_eq!(m.get("Sepatu (PDH) 40"), Some(&12));
+        assert_eq!(m.get("Sepatu (PDL) 40"), Some(&8));
+        assert_eq!(m.len(), 2);
+    }
+
+    #[test]
+    fn groups_with_the_same_full_name_are_told_apart_by_code() {
+        let m = label_ukuran(vec![r("A", "Sepatu", "40", 1), r("B", "Sepatu", "40", 2)]);
+        assert_eq!(m.get("Sepatu [A] 40"), Some(&1));
+        assert_eq!(m.get("Sepatu [B] 40"), Some(&2));
+    }
+
+    #[test]
+    fn nothing_is_lost_in_labelling() {
+        let rows = vec![
+            r("BAJU", "Baju", "L", 5),
+            r("BAJU", "Baju", "M", 4),
+            r("SEPATU_PDH", "Sepatu (PDH)", "40", 12),
+            r("SEPATU_PDL", "Sepatu (PDL)", "40", 8),
+        ];
+        let total: i64 = rows.iter().map(|x| x.3).sum();
+        assert_eq!(label_ukuran(rows).values().sum::<i64>(), total);
     }
 }

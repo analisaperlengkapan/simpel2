@@ -80,7 +80,9 @@ pub struct PakaianDinasMetrics {
 /// Workflow performance metrics
 #[derive(Debug, Serialize)]
 pub struct WorkflowMetrics {
-    pub average_processing_time_hours: f64,
+    /// Hours from submitted to completed, averaged over the completed responses; `None` when
+    /// none has completed (0 would read as "instant").
+    pub average_processing_time_hours: Option<f64>,
     pub bottlenecks: Vec<BottleneckInfo>,
     pub sla_breaches_today: i64,
 }

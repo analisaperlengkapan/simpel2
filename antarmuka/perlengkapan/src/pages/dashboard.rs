@@ -824,7 +824,11 @@ pub fn DashboardHome() -> impl IntoView {
                         Some(m) => {
                             (
                                 format_number(m.workflow_metrics.sla_breaches_today),
-                                format!("{:.0}", m.workflow_metrics.average_processing_time_hours),
+                                // A dash, not 0, while nothing has completed: 0 hours reads as instant.
+                                m.workflow_metrics
+                                    .average_processing_time_hours
+                                    .map(|h| format!("{h:.0}"))
+                                    .unwrap_or_else(|| "-".to_string()),
                                 format_number(m.pemakaian_metrics.total),
                                 format_number(m.penghapusan_metrics.total),
                             )
