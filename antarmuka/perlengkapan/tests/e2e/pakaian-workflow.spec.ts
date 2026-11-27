@@ -1130,8 +1130,11 @@ test.describe("Pakaian Dinas — bulk actions for an account holding both valida
     await expect(approve).toContainText("1 dipilih");
 
     // Forward A on its own, from its panel.
+    // `exact`: the confirm dialog's own heading is "Teruskan ke Pusat — KEJAKSAAN NEGERI JAKARTA
+    // PUSAT", and a substring match made the dialog a second `div.rounded-2xl` for as long as it was
+    // still closing (a strict-mode violation, thrown at once, not retried).
     const kartuA = page.locator("div.rounded-2xl", {
-      has: page.getByRole("heading", { name: "KEJAKSAAN NEGERI JAKARTA PUSAT" }),
+      has: page.getByRole("heading", { name: "KEJAKSAAN NEGERI JAKARTA PUSAT", exact: true }),
     });
     await kartuA.getByRole("button", { name: "Lihat Riwayat & Aksi" }).click();
     await page.getByRole("button", { name: "Teruskan ke Pusat", exact: true }).click();

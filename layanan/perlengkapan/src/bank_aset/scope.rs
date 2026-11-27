@@ -172,6 +172,15 @@ impl AsetScope {
         }
     }
 
+    /// The one satker this scope is bound to, for a reader who is bound to one (a satker-tier
+    /// caller, or a drill-down to one satker). `None` for the tiers that span several.
+    pub fn satker_terikat(&self) -> Option<&str> {
+        match self {
+            Self::Satker(code) | Self::SatkerDiWilayah(code, _) => Some(code),
+            Self::All | Self::Wilayah(_) | Self::WilayahKode(_) | Self::Denied => None,
+        }
+    }
+
     /// Append this scope as a SQL condition over `integrasi.siman_aset` (bare
     /// `kdsatker_keu` column). Pushes the bind parameter (when any) onto
     /// `params` and returns the condition string, or `None` when no restriction
@@ -423,5 +432,22 @@ mod tests {
             AsetScope::Denied,
             "a third region is not"
         );
+    }
+
+    #[test]
+    fn only_the_satker_bound_scopes_name_a_satker() {
+        assert_eq!(AsetScope::Satker("S".into()).satker_terikat(), Some("S"));
+        assert_eq!(
+            AsetScope::SatkerDiWilayah("S".into(), "0100".into()).satker_terikat(),
+            Some("S")
+        );
+        for s in [
+            AsetScope::All,
+            AsetScope::Wilayah("W".into()),
+            AsetScope::WilayahKode("0100".into()),
+            AsetScope::Denied,
+        ] {
+            assert_eq!(s.satker_terikat(), None, "{s:?}");
+        }
     }
 }
