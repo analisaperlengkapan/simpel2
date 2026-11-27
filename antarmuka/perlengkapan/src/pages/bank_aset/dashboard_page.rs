@@ -246,7 +246,10 @@ fn kondisi_digabung(rows: &[crate::api::bank_aset::KondisiStat]) -> Vec<(String,
     let mut out: Vec<(String, i64)> = Vec::new();
     for r in rows {
         let norm = r.kondisi.trim().to_uppercase();
-        let label = if matches!(norm.as_str(), "" | "-" | "TIDAK DIKETAHUI" | "TDK ADA KONDISI" | "TIDAK ADA KONDISI") {
+        let label = if matches!(
+            norm.as_str(),
+            "" | "-" | "TIDAK DIKETAHUI" | "TDK ADA KONDISI" | "TIDAK ADA KONDISI"
+        ) {
             "Tidak diketahui".to_string()
         } else {
             r.kondisi.clone()
