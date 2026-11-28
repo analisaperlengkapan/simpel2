@@ -125,7 +125,12 @@ impl NotificationContext {
             .with(|notifs| notifs.iter().filter(|n| !n.read).count())
     }
 
-    /// Mark notification as read (optimistic local update + persist)
+    /// Mark notification as read (optimistic local update + persist).
+    ///
+    /// The request is sent with `keepalive`: this is called on the click that opens the notification,
+    /// and from the portal that click leaves for a whole new document (the Perlengkapan app is not a
+    /// route of the portal). An ordinary `fetch` still in flight at that moment may be cancelled by
+    /// the browser, which left the notification unread on the server.
     pub fn mark_as_read(&self, id: &str) {
         self.notifications.update(|notifs| {
             if let Some(notif) = notifs.iter_mut().find(|n| n.id == id) {
@@ -137,7 +142,7 @@ impl NotificationContext {
         {
             let url = format!("{}/{}/read", NOTIFIKASI_API, id);
             leptos::task::spawn_local(async move {
-                let _ = authed_request(gloo::net::http::Method::PATCH, &url).await;
+                let _ = authed_keepalive("PATCH", &url).await;
             });
         }
     }
@@ -298,6 +303,30 @@ async fn authed_request(
         .await
         .map_err(|_| ())?;
     if resp.ok() { Ok(resp) } else { Err(()) }
+}
+
+/// Like [`authed_request`], but the request outlives the page that sent it (`keepalive`). For the
+/// calls made on the click that navigates away. `web-sys` has no setter for the option, so it is
+/// set on the init object by name. There is no body, so the 64 KiB keepalive limit does not apply.
+#[cfg(target_arch = "wasm32")]
+async fn authed_keepalive(method: &str, url: &str) -> Result<(), ()> {
+    use wasm_bindgen::{JsCast, JsValue};
+
+    let token = auth_token().ok_or(())?;
+    let headers = web_sys::Headers::new().map_err(|_| ())?;
+    headers
+        .set("Authorization", &format!("Bearer {token}"))
+        .map_err(|_| ())?;
+    let init = web_sys::RequestInit::new();
+    init.set_method(method);
+    init.set_headers(&headers);
+    js_sys::Reflect::set(&init, &JsValue::from_str("keepalive"), &JsValue::TRUE).map_err(|_| ())?;
+    let window = web_sys::window().ok_or(())?;
+    let resp = wasm_bindgen_futures::JsFuture::from(window.fetch_with_str_and_init(url, &init))
+        .await
+        .map_err(|_| ())?;
+    let resp: web_sys::Response = resp.dyn_into().map_err(|_| ())?;
+    if resp.ok() { Ok(()) } else { Err(()) }
 }
 
 #[cfg(target_arch = "wasm32")]

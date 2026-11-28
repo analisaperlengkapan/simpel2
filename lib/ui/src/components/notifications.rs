@@ -121,7 +121,7 @@ pub fn NotificationBell(
                 open=is_open.read_only()
                 set_open=is_open.write_only()
                 trigger_ref=trigger_ref
-                class="w-96 max-w-[calc(100vw-1rem)] bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden"
+                class="flex flex-col w-96 max-w-[calc(100vw-1rem)] max-h-[calc(100vh-6rem)] bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden"
                     .to_string()
             >
                 <NotificationPanel
@@ -151,7 +151,7 @@ fn NotificationPanel(
     });
 
     view! {
-        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex shrink-0 items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">"Notifikasi"</h3>
             <Show when=move || notif_ctx.unread_count() != 0>
                 <button
@@ -164,7 +164,7 @@ fn NotificationPanel(
             </Show>
         </div>
 
-        <div class="max-h-96 overflow-y-auto">
+        <div class="min-h-0 flex-1 max-h-96 overflow-y-auto">
             {move || {
                 let notifs: Vec<Notification> = notif_ctx
                     .notifications
@@ -225,7 +225,7 @@ fn NotificationPanel(
             }}
         </div>
 
-        <div class="p-3 border-t border-gray-200 dark:border-gray-700">
+        <div class="shrink-0 p-3 border-t border-gray-200 dark:border-gray-700">
             <a
                 href=move || all_href.get_value()
                 on:click=move |_| set_open.set(false)

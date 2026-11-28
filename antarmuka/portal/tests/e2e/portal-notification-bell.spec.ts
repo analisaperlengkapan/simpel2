@@ -50,13 +50,13 @@ const ROWS = [
 ];
 
 /** Answer the inbox list and the read calls; record the reads. The rest of /api keeps its real proxy. */
-async function stubInbox(page: Page): Promise<string[]> {
+async function stubInbox(page: Page, rows: unknown[] = ROWS): Promise<string[]> {
   const read: string[] = [];
   await page.route(/\/api\/v1\/perlengkapan\/notifikasi\?/, async (route: Route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: ROWS, message: 'ok' }),
+      body: JSON.stringify({ success: true, data: rows, message: 'ok' }),
     });
   });
   await page.route(/\/api\/v1\/perlengkapan\/notifikasi\/[^/]+\/read$/, async (route: Route) => {
@@ -96,6 +96,17 @@ test.describe('Portal — notification bell', () => {
     await expect(panel(page).getByRole('heading', { name: 'Notifikasi' })).toBeVisible();
     await expect(bell(page)).toHaveAttribute('aria-expanded', 'true');
 
+    // Anchored to the bell, not stranded in the page corner (`Popover` once never positioned its panel).
+    const anchor = (await bell(page).boundingBox())!;
+    const box = (await panel(page).boundingBox())!;
+    expect(box.y, 'the panel starts below the bell, not at the top of the page').toBeGreaterThanOrEqual(
+      anchor.y + anchor.height,
+    );
+    expect(
+      Math.abs(box.x + box.width - (anchor.x + anchor.width)),
+      "the panel's right edge lines up with the bell's",
+    ).toBeLessThanOrEqual(40);
+
     // The regression: opened and closed again by the same click, a millisecond later.
     await page.waitForTimeout(500);
     await expect(panel(page)).toBeVisible();
@@ -116,7 +127,8 @@ test.describe('Portal — notification bell', () => {
 
     await bell(page).click();
     await expect(panel(page)).toBeVisible();
-    await page.getByRole('heading', { level: 1 }).first().click();
+    // An empty spot of the sidebar: outside the panel and its bell, and not a control.
+    await page.mouse.click(5, 650);
     await expect(panel(page)).toHaveCount(0);
 
     await bell(page).click();
@@ -170,6 +182,28 @@ test.describe('Portal — notification bell', () => {
     expect(page.url(), 'a row without a destination must not navigate').toBe(before);
     await expect.poll(() => read).toContain(ROWS[1].id);
     await expect(bell(page)).toHaveAttribute('aria-label', 'Notifikasi, 1 belum dibaca');
+  });
+
+  test('on a short screen the way to the full list stays reachable', async ({ page }) => {
+    // A full panel (more rows than fit) on a phone-sized screen: the list between the header and the
+    // footer must shrink and scroll, not push the footer link off the bottom.
+    const many = Array.from({ length: 12 }, (_, i) => ({
+      ...ROWS[0],
+      id: `b0000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
+      title: `Notifikasi nomor ${i + 1}`,
+    }));
+    await stubInbox(page, many);
+    await page.setViewportSize({ width: 1280, height: 480 });
+    await loginViaUi(page, OPERATOR_USER, getCaptchaAnswer);
+    await expect(bell(page)).toHaveAttribute('aria-label', 'Notifikasi, 12 belum dibaca', {
+      timeout: 15000,
+    });
+
+    await bell(page).click();
+    const all = panel(page).getByRole('link', { name: 'Lihat semua notifikasi' });
+    await expect(all).toBeInViewport();
+    await all.click();
+    await expect(page).toHaveURL(/\/portal\/notifications$/);
   });
 
   test("the full list page offers 'Buka' on the Perlengkapan mount point", async ({ page }) => {

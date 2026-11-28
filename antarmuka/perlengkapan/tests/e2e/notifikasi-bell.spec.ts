@@ -60,6 +60,19 @@ test.describe("Notifikasi — the bell lists notifications", () => {
     await expect(panel(page).getByText("E2E Notifikasi Operator B")).toHaveCount(0);
     await expect(bell(page)).toHaveAttribute("aria-expanded", "true");
 
+    // Anchored to the bell, not stranded in the page corner. `Popover` once never positioned its
+    // panel (the element it was given to position was an empty copy), so every popover sat at
+    // `top: 0; left: 0`, over the header and the sidebar.
+    const anchor = (await bell(page).boundingBox())!;
+    const box = (await panel(page).boundingBox())!;
+    expect(box.y, "the panel starts below the bell, not at the top of the page").toBeGreaterThanOrEqual(
+      anchor.y + anchor.height,
+    );
+    expect(
+      Math.abs(box.x + box.width - (anchor.x + anchor.width)),
+      "the panel's right edge lines up with the bell's",
+    ).toBeLessThanOrEqual(40);
+
     // The bug this replaces: the panel opened and was closed again by the same click, a
     // millisecond later. A moment on, it must still be there.
     await page.waitForTimeout(500);
@@ -74,7 +87,8 @@ test.describe("Notifikasi — the bell lists notifications", () => {
 
     await bell(page).click();
     await expect(panel(page)).toBeVisible();
-    await page.locator("header").click({ position: { x: 640, y: 28 } });
+    // `header` matches every card header on the dashboard too; the app bar is the page banner.
+    await page.getByRole("banner").click({ position: { x: 640, y: 28 } });
     await expect(panel(page)).toHaveCount(0);
 
     await bell(page).click();
@@ -101,7 +115,9 @@ test.describe("Notifikasi — the bell lists notifications", () => {
     // On the app's own mount point. The bare href went to `/pakaian-dinas/pengajuan` on the host root.
     await expect(page).toHaveURL(new RegExp(`${BASE}/pakaian-dinas/pengajuan$`));
     await expect(shell(page)).toBeVisible({ timeout: 20000 });
-    await expect(page.getByRole("heading", { name: "Pengajuan Pakaian Dinas" })).toBeVisible({
+    await expect(
+      page.getByRole("heading", { name: "Pengajuan Pakaian Dinas", exact: true }),
+    ).toBeVisible({
       timeout: 20000,
     });
     await expect(panel(page)).toHaveCount(0);
@@ -133,6 +149,18 @@ test.describe("Notifikasi — the bell lists notifications", () => {
     expect(page.url(), "opening a row without a destination must not navigate").toBe(before);
   });
 
+  test("on a short screen the way to the full inbox stays reachable", async ({ page }) => {
+    // The panel is limited to what the screen leaves, and the list between its header and its footer
+    // shrinks and scrolls. With a fixed list height the footer link was pushed off the bottom of a
+    // phone-sized screen, and scrolling the list never brought it back.
+    await page.setViewportSize({ width: 1280, height: 480 });
+    await openBell(page);
+    const all = panel(page).getByRole("link", { name: "Lihat semua notifikasi" });
+    await expect(all).toBeInViewport();
+    await all.click();
+    await expect(page).toHaveURL(new RegExp(`${BASE}/notifikasi$`));
+  });
+
   test("'Lihat semua notifikasi' leads to the inbox page", async ({ page }) => {
     await openBell(page);
     await panel(page).getByRole("link", { name: "Lihat semua notifikasi" }).click();
@@ -147,7 +175,9 @@ test.describe("Notifikasi — the bell lists notifications", () => {
     await expect(row).toBeVisible({ timeout: 20000 });
     await row.getByRole("link", { name: "Buka" }).click();
     await expect(page).toHaveURL(new RegExp(`${BASE}/pakaian-dinas/pengajuan$`));
-    await expect(page.getByRole("heading", { name: "Pengajuan Pakaian Dinas" })).toBeVisible({
+    await expect(
+      page.getByRole("heading", { name: "Pengajuan Pakaian Dinas", exact: true }),
+    ).toBeVisible({
       timeout: 20000,
     });
   });

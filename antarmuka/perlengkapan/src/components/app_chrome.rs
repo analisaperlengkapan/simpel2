@@ -148,7 +148,7 @@ fn NotifikasiBadge() -> impl IntoView {
             set_open=is_open.write_only()
             trigger_ref=trigger_ref
             offset=10.0
-            class="w-[360px] max-w-[calc(100vw-1rem)] rounded-[18px] border border-white/10 bg-surface-panel overflow-hidden shadow-panel"
+            class="flex flex-col w-[360px] max-w-[calc(100vw-1rem)] max-h-[calc(100vh-5rem)] rounded-[18px] border border-white/10 bg-surface-panel overflow-hidden shadow-panel"
                 .to_string()
         >
             <NotifikasiPanel set_open=is_open.write_only() count=count set_count=set_count />
@@ -213,7 +213,7 @@ fn NotifikasiPanel(
     };
 
     view! {
-        <div class="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+        <div class="flex shrink-0 items-center justify-between px-4 py-3 border-b border-white/[0.06]">
             <h3 class="text-[0.95rem] font-bold text-slate-100">"Notifikasi"</h3>
             <Show when=move || { count.get() > 0_i64 }>
                 <button
@@ -226,7 +226,7 @@ fn NotifikasiPanel(
             </Show>
         </div>
 
-        <div class="max-h-[26rem] overflow-y-auto">
+        <div class="min-h-0 flex-1 max-h-[26rem] overflow-y-auto">
             {move || match (state.get(), items.with(|rows| rows.is_empty())) {
                 (PanelState::Loading, true) => {
                     view! {
@@ -280,7 +280,7 @@ fn NotifikasiPanel(
         <a
             href=routes::path::NOTIFIKASI
             on:click=move |_| set_open.set(false)
-            class="focus-ring block border-t border-white/[0.06] py-3 text-center text-[0.8rem] font-semibold text-sky-400 hover:underline"
+            class="focus-ring block shrink-0 border-t border-white/[0.06] py-3 text-center text-[0.8rem] font-semibold text-sky-400 hover:underline"
         >
             "Lihat semua notifikasi"
         </a>
