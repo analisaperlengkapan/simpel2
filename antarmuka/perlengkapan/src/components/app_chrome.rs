@@ -7,14 +7,20 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use leptos_node_ref::AnyNodeRef;
 use leptos_router::components::A;
+use lib_ui::components::floating::Popover;
 use lib_ui::components::icon::AppIcon;
+use lib_ui::utils::formatters::format_iso_local;
+use lib_ui::utils::notification_url::resolve_action_url;
 use phosphor_leptos::{BELL, LIST};
 use wasm_bindgen::JsCast;
 
 use crate::APP_VERSION;
 use crate::api::integrasi::{IntegrasiCircuitStatus, fetch_circuit_status};
-use crate::api::notifikasi::fetch_unread_count;
+use crate::api::notifikasi::{
+    NotifikasiItem, fetch_unread_count, list_notifikasi, mark_all_read, mark_read,
+};
 use crate::components::profile_menu::ProfileMenu;
 use crate::routes;
 
@@ -58,7 +64,9 @@ pub fn AppHeader(#[prop(into)] on_toggle_sidebar: Callback<()>) -> impl IntoView
 }
 
 /// Toolbar bell + unread count. Polls `GET /notifikasi/unread-count` every
-/// 30s; clicking the bell navigates to `/notifikasi`. Failures are
+/// 30s; clicking the bell opens a panel with the latest notifications (the
+/// full inbox is one link away at `/notifikasi`). It used to jump straight to
+/// the inbox page, so the bell offered no list at all. Failures are
 /// swallowed silently so a transient backend hiccup doesn't blow up the
 /// shell — the count just stays at its last known value.
 #[component]
@@ -100,24 +108,236 @@ fn NotifikasiBadge() -> impl IntoView {
         id
     });
 
+    let is_open = RwSignal::new(false);
+    let trigger_ref = AnyNodeRef::new();
+
     view! {
-        <A
-            href=routes::path::NOTIFIKASI
-            attr:class="relative focus-ring rounded-md p-1.5 text-slate-300 hover:text-white no-underline"
-            attr:aria_label="Notifikasi"
+        <button
+            node_ref=trigger_ref
+            type="button"
+            on:click=move |_| is_open.update(|open| *open = !*open)
+            class="relative focus-ring rounded-md p-1.5 text-slate-300 hover:text-white"
+            title="Notifikasi"
+            aria-label=move || {
+                match count.get() {
+                    0 => "Notifikasi".to_string(),
+                    n => format!("Notifikasi, {n} belum dibaca"),
+                }
+            }
+            aria-haspopup="dialog"
+            aria-expanded=move || is_open.get().to_string()
         >
             <span class="text-xl">
                 <AppIcon icon=BELL />
             </span>
             <Show when=move || { count.get() > 0_i64 }>
-                <span class="absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 rounded-full bg-rose-500 text-white text-[0.65rem] font-bold flex items-center justify-center">
+                <span
+                    aria-hidden="true"
+                    class="absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 rounded-full bg-rose-500 text-white text-[0.65rem] font-bold flex items-center justify-center"
+                >
                     {move || {
                         let n = count.get();
                         if n > 99 { "99+".to_string() } else { n.to_string() }
                     }}
                 </span>
             </Show>
-        </A>
+        </button>
+
+        <Popover
+            open=is_open.read_only()
+            set_open=is_open.write_only()
+            trigger_ref=trigger_ref
+            offset=10.0
+            class="flex flex-col w-[360px] max-w-[calc(100vw-1rem)] max-h-[calc(100vh-5rem)] rounded-[18px] border border-white/10 bg-surface-panel overflow-hidden shadow-panel"
+                .to_string()
+        >
+            <NotifikasiPanel set_open=is_open.write_only() count=count set_count=set_count />
+        </Popover>
+    }
+}
+
+/// How many notifications the bell's panel lists; the rest are in the inbox.
+const PANEL_SIZE: i64 = 8;
+
+#[derive(Clone, Copy, PartialEq)]
+enum PanelState {
+    Loading,
+    Ready,
+    Failed,
+}
+
+/// The list behind the bell. The [`Popover`] renders its children only while it is open, so this
+/// component is mounted afresh on every opening and that is when it fetches: what the panel lists
+/// is what is there now, not what was there when the page loaded.
+#[component]
+fn NotifikasiPanel(
+    set_open: WriteSignal<bool>,
+    count: ReadSignal<i64>,
+    set_count: WriteSignal<i64>,
+) -> impl IntoView {
+    let items = RwSignal::new(Vec::<NotifikasiItem>::new());
+    let state = RwSignal::new(PanelState::Loading);
+
+    let load = move || {
+        state.set(PanelState::Loading);
+        spawn_local(async move {
+            match list_notifikasi(PANEL_SIZE, 0, false).await {
+                Ok(rows) => {
+                    items.set(rows);
+                    state.set(PanelState::Ready);
+                }
+                Err(_) => state.set(PanelState::Failed),
+            }
+        });
+    };
+    Effect::new(move |_| load());
+
+    // Opening a row reads it and closes the panel; the link it carries (if any) does the rest.
+    let open_one = Callback::new(move |(id, was_unread): (String, bool)| {
+        set_open.set(false);
+        if was_unread {
+            set_count.update(|c| *c = (*c - 1).max(0));
+            spawn_local(async move {
+                let _ = mark_read(&id).await;
+            });
+        }
+    });
+
+    let on_mark_all = move |_| {
+        spawn_local(async move {
+            if mark_all_read().await.is_ok() {
+                items.update(|rows| rows.iter_mut().for_each(|r| r.read = true));
+                set_count.set(0);
+            }
+        });
+    };
+
+    view! {
+        <div class="flex shrink-0 items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+            <h3 class="text-[0.95rem] font-bold text-slate-100">"Notifikasi"</h3>
+            <Show when=move || { count.get() > 0_i64 }>
+                <button
+                    type="button"
+                    on:click=on_mark_all
+                    class="focus-ring rounded text-[0.75rem] font-semibold text-amber-300 hover:underline"
+                >
+                    "Tandai semua dibaca"
+                </button>
+            </Show>
+        </div>
+
+        <div class="min-h-0 flex-1 max-h-[26rem] overflow-y-auto">
+            {move || match (state.get(), items.with(|rows| rows.is_empty())) {
+                (PanelState::Loading, true) => {
+                    view! {
+                        <p
+                            role="status"
+                            class="px-4 py-8 text-center text-[0.82rem] text-slate-400"
+                        >
+                            "Memuat notifikasi…"
+                        </p>
+                    }
+                        .into_any()
+                }
+                (PanelState::Failed, true) => {
+                    view! {
+                        <div class="px-4 py-8 text-center">
+                            <p class="text-[0.82rem] text-slate-400">
+                                "Notifikasi tidak dapat dimuat."
+                            </p>
+                            <button
+                                type="button"
+                                on:click=move |_| load()
+                                class="focus-ring mt-3 rounded text-[0.78rem] font-semibold text-amber-300 hover:underline"
+                            >
+                                "Coba lagi"
+                            </button>
+                        </div>
+                    }
+                        .into_any()
+                }
+                (_, true) => {
+                    view! {
+                        <p class="px-4 py-8 text-center text-[0.82rem] text-slate-400">
+                            "Belum ada notifikasi."
+                        </p>
+                    }
+                        .into_any()
+                }
+                (_, false) => {
+                    view! {
+                        <For
+                            each=move || items.get()
+                            key=|n| (n.id.clone(), n.read)
+                            children=move |n| view! { <NotifikasiRow n=n on_open=open_one /> }
+                        />
+                    }
+                        .into_any()
+                }
+            }}
+        </div>
+
+        <a
+            href=routes::path::NOTIFIKASI
+            on:click=move |_| set_open.set(false)
+            class="focus-ring block shrink-0 border-t border-white/[0.06] py-3 text-center text-[0.8rem] font-semibold text-sky-400 hover:underline"
+        >
+            "Lihat semua notifikasi"
+        </a>
+    }
+}
+
+/// One row of the panel: a link when the notification points somewhere (see
+/// [`resolve_action_url`]), otherwise a button that only marks it read. A row that does nothing
+/// when clicked is what the bell's panel replaces.
+#[component]
+fn NotifikasiRow(
+    n: NotifikasiItem,
+    /// `(id, was_unread)` of the row that was opened.
+    #[prop(into)]
+    on_open: Callback<(String, bool)>,
+) -> impl IntoView {
+    let href = n.action_url.as_deref().and_then(resolve_action_url);
+    let id = n.id.clone();
+    let is_unread = !n.read;
+    let row_class = format!(
+        "block w-full text-left px-4 py-3 border-b border-white/[0.06] border-l-[3px] hover:bg-white/[0.04] focus-visible:bg-white/[0.06] focus-visible:outline-none {}",
+        if is_unread {
+            "border-l-amber-400"
+        } else {
+            "border-l-transparent"
+        },
+    );
+    let body = view! {
+        <span class="block text-[0.85rem] font-bold text-slate-200">
+            {n.title.clone()}
+            {is_unread.then(|| view! { <span class="sr-only">" (belum dibaca)"</span> })}
+        </span>
+        <span class="mt-1 block text-[0.8rem] leading-snug text-slate-300">
+            {n.message.clone()}
+        </span>
+        <span class="mt-1 block text-[0.72rem] text-slate-500">
+            {format_iso_local(&n.created_at)}
+        </span>
+    };
+
+    match href {
+        Some(href) => view! {
+            <a href=href class=row_class on:click=move |_| on_open.run((id.clone(), is_unread))>
+                {body}
+            </a>
+        }
+        .into_any(),
+        None => view! {
+            <button
+                type="button"
+                class=row_class
+                on:click=move |_| on_open.run((id.clone(), is_unread))
+            >
+                {body}
+            </button>
+        }
+        .into_any(),
     }
 }
 

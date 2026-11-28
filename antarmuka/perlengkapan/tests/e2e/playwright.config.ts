@@ -153,7 +153,7 @@ export default defineConfig({
       name: 'perlengkapan-bankaset',
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
-      testMatch: ['**/bankaset-analitik-workflow.spec.ts'],
+      testMatch: ['**/bankaset-analitik-workflow.spec.ts', '**/notifikasi-bell.spec.ts'],
     },
     // Pemakaian BMN monitoring — per-role data scoping on the six monitoring
     // read endpoints (API tiers + the rendered table columns the stakeholder

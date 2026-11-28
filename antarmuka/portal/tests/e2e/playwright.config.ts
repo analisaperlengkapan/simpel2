@@ -82,7 +82,7 @@ export default defineConfig({
     {
       name: 'portal-core',
       use: { ...devices['Desktop Chrome'] },
-      testMatch: ['**/portal-core-workflow.spec.ts'],
+      testMatch: ['**/portal-core-workflow.spec.ts', '**/portal-notification-bell.spec.ts'],
     },
     {
       name: 'portal-cross-app',

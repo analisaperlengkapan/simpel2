@@ -33,7 +33,7 @@ use floating_ui_leptos::{
     Flip, FlipOptions, Middleware, Offset, OffsetOptions, Placement, Shift, ShiftOptions,
     UseFloatingOptions, UseFloatingReturn, use_floating,
 };
-use leptos::{html, prelude::*};
+use leptos::prelude::*;
 use leptos_node_ref::AnyNodeRef;
 use leptos_use::use_event_listener;
 use send_wrapper::SendWrapper;
@@ -71,8 +71,15 @@ pub fn Popover(
     /// each time the panel toggles open/closed.
     children: ChildrenFn,
 ) -> impl IntoView {
-    let floating_ref = NodeRef::<html::Div>::new();
-    let floating_any = AnyNodeRef::from(floating_ref);
+    // ONE reference to the panel, shared by the positioning and the outside-click check.
+    //
+    // This used to be a `NodeRef<html::Div>` handed to `use_floating` as `AnyNodeRef::from(node_ref)`.
+    // That conversion COPIES whatever element the NodeRef holds at that moment and is not linked to it
+    // afterwards. The panel does not exist yet then (the `<Show>` below mounts it on open), so the copy
+    // stayed empty for ever: `use_floating` never saw the panel and never positioned it, and every
+    // popover (the profile menu, the notification bells) sat at the top-left corner of the page,
+    // `position: absolute; top: 0; left: 0`, with no transform.
+    let floating_ref = AnyNodeRef::new();
 
     let middleware: Vec<FloatingMiddleware> = vec![
         Box::new(Offset::new(OffsetOptions::Value(offset))),
@@ -83,7 +90,7 @@ pub fn Popover(
         floating_styles, ..
     } = use_floating(
         trigger_ref,
-        floating_any,
+        floating_ref,
         UseFloatingOptions::default()
             .placement(placement)
             .middleware(SendWrapper::new(middleware)),
