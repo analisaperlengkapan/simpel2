@@ -23,6 +23,9 @@ use crate::api::notifikasi::{NotifikasiItem, list_notifikasi, mark_all_read, mar
 // Shared with the helpdesk tickets and the bank-aset dashboard, which
 // printed the same stored format the same wrong way.
 use lib_ui::utils::formatters::format_iso_local;
+// Where a notification's `action_url` really points: the producer writes paths inside the module
+// (`/pakaian-dinas/...`), which as a bare `href` leave the app for a blank 404.
+use lib_ui::utils::notification_url::resolve_action_url;
 
 const PAGE_SIZE: i64 = 50;
 
@@ -220,12 +223,19 @@ pub fn NotifikasiInboxPage() -> impl IntoView {
                                         {waktu}
                                         {n
                                             .action_url
-                                            .clone()
-                                            .map(|u| {
+                                            .as_deref()
+                                            .and_then(resolve_action_url)
+                                            .map(|href| {
+                                                let id = id.clone();
                                                 view! {
                                                     " · "
                                                     <a
-                                                        href=u
+                                                        href=href
+                                                        on:click=move |_| {
+                                                            if is_unread {
+                                                                dispatch_mark_one(id.clone(), set_items, set_error);
+                                                            }
+                                                        }
                                                         style="color: #60a5fa; text-decoration: none; font-weight: 600;"
                                                     >
                                                         "Buka"

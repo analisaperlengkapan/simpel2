@@ -619,6 +619,14 @@ ON CONFLICT (izin_pemakaian_id, urutan) DO UPDATE SET
 --        mark them read — mark_as_read is keyed on (id, user_id))
 --    N1 + N2 unread, N3 already read (so "Hanya yang belum dibaca" filter is
 --    observable), N4 belongs to operator_b.
+--
+--    The two `action_url` shapes are deliberate. Real producers (the workflow and
+--    pakaian-dinas notifiers) write a path INSIDE the module, with no mount point
+--    ('/pakaian-dinas/pengajuan/<id>/satker'): that is N2. N1 carries the full
+--    '/perlengkapan/simpel/...' form. The fixture used to hold ONLY the full form, so
+--    the inbox's "Buka" link (a bare href) worked in e2e and led to a blank 404 in
+--    production, where every row has the module-relative form. N3 has none: it must
+--    render as a row that only marks it read.
 -- ----------------------------------------------------------------------------
 INSERT INTO notifikasi.in_app_notifications
   (id, user_id, notification_type, title, message, priority, category, action_url, read, read_at)
@@ -628,7 +636,7 @@ VALUES
    'normal', 'info', '/perlengkapan/simpel/pengelolaan/penghapusan', false, NULL),
   ('f1000000-0000-4f00-8f00-0000000c0002', '11111111-1111-4111-8111-111111111111',
    'workflow', 'E2E Notifikasi Dua', 'Periode kebutuhan BMN 2026 telah dibuka.',
-   'high', 'warning', NULL, false, NULL),
+   'high', 'warning', '/pakaian-dinas/pengajuan', false, NULL),
   ('f1000000-0000-4f00-8f00-0000000c0003', '11111111-1111-4111-8111-111111111111',
    'sistem', 'E2E Notifikasi Terbaca', 'Notifikasi ini sudah dibaca sejak awal.',
    'normal', 'info', NULL, true, now()),
