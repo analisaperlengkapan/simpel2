@@ -573,7 +573,20 @@ global:
   # menumpuk); endpoint tetap belum punya layar dan sumbernya (`roadmap_sarpras`) kosong di staging.
   #
   # Tanpa migrasi dan tanpa perubahan chart relatif rc59: `helm rollback` ke rc59 aman tanpa restore database.
-  imageTag: v0.1.0-rc60
+  #
+  # rc61 = rc60 + lonceng notifikasi (#1167), hanya frontend. Lonceng portal tak pernah terbuka (listener "klik
+  # di luar" dipasang pada klik yang sama yang membukanya, sehingga panel dibuat lalu dihapus 1 ms kemudian);
+  # baris notifikasi hanya menandai dibaca dan "Buka" di inbox menuju 404 kosong karena `action_url` produsen
+  # berupa jalur relatif-modul tanpa titik pasang SPA; lonceng Perlengkapan hanya tautan ke halaman inbox. Kini
+  # keduanya membuka panel daftar, baris membuka halaman yang dituju (penanda "dibaca" tetap sampai walau
+  # dokumen berganti) dan panel tetap terjangkau di layar pendek. Akar kedua: `Popover` tak pernah memposisikan
+  # panelnya (menerima salinan kosong node ref), jadi SEMUA popover, termasuk menu profil, muncul di pojok kiri
+  # atas halaman; kini menempel di bawah pemicunya. Yang perlu dilihat di staging: lonceng portal dan
+  # Perlengkapan, menu profil, tautan "Buka" di /notifikasi.
+  #
+  # Tanpa migrasi, tanpa perubahan API dan tanpa perubahan chart relatif rc60: `helm rollback` ke rc60 aman
+  # tanpa restore database.
+  imageTag: v0.1.0-rc61
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
